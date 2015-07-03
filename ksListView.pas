@@ -124,9 +124,10 @@ type
     function TextOut(AText: string; X: single; const AVertAlign: TTextAlign = TTextAlign.Center): TksListItemRowText; overload;
     function TextOut(AText: string; X, AWidth: single; const AVertAlign: TTextAlign = TTextAlign.Center): TksListItemRowText; overload;
     function TextOut(AText: string; X, Y, AWidth: single; const AVertAlign: TTextAlign = TTextAlign.Center): TksListItemRowText; overload;
-    function TextOutRight(AText: string; const AVertAlign: TTextAlign = TTextAlign.Center): TksListItemRowText; overload;
-    function TextOutRight(AText: string; AWidth: single; const AVertAlign: TTextAlign = TTextAlign.Center): TksListItemRowText; overload;
-    function TextOutRight(AText: string; Y, AWidth: single; const AVertAlign: TTextAlign = TTextAlign.Center): TksListItemRowText; overload;
+    // right aligned text functions...
+    function TextOutRight(AText: string; AXOffset: single; const AVertAlign: TTextAlign = TTextAlign.Center): TksListItemRowText; overload;
+    function TextOutRight(AText: string; AWidth: single; AXOffset: single; const AVertAlign: TTextAlign = TTextAlign.Center): TksListItemRowText; overload;
+    function TextOutRight(AText: string; Y, AWidth: single; AXOffset: single; const AVertAlign: TTextAlign = TTextAlign.Center): TksListItemRowText; overload;
     // font functions...
     procedure SetFontProperties(AName: string; ASize: integer; AColor: TAlphaColor; AStyle: TFontStyles);
     // properties...
@@ -612,24 +613,24 @@ begin
   FList.Add(Result);
 end;
 
-function TksListItemRow.TextOutRight(AText: string; const AVertAlign: TTextAlign): TksListItemRowText;
+function TksListItemRow.TextOutRight(AText: string; AXOffset: single; const AVertAlign: TTextAlign = TTextAlign.Center): TksListItemRowText;
 var
   AWidth: single;
 begin
   AWidth := TextWidth(AText);
-  Result := TextOutRight(AText, AWidth, AVertAlign);
+  Result := TextOutRight(AText, AWidth, AXOffset,  AVertAlign);
 end;
 
-function TksListItemRow.TextOutRight(AText: string; Y, AWidth: single; const AVertAlign: TTextAlign = TTextAlign.Center): TksListItemRowText;
+function TksListItemRow.TextOutRight(AText: string; Y, AWidth: single; AXOffset: single; const AVertAlign: TTextAlign = TTextAlign.Center): TksListItemRowText;
 begin
   Result := TextOut(AText, 0, Y, AWidth);
   Result.TextAlignment := TTextAlign.Trailing;
-  Result.Rect.Offset(ScreenWidth - Result.Rect.Right, 0);
+  Result.Rect.Offset((ScreenWidth - Result.Rect.Right) + AXOffset, 0);
 end;
 
-function TksListItemRow.TextOutRight(AText: string; AWidth: single; const AVertAlign: TTextAlign = TTextAlign.Center): TksListItemRowText;
+function TksListItemRow.TextOutRight(AText: string; AWidth: single; AXOffset: single; const AVertAlign: TTextAlign = TTextAlign.Center): TksListItemRowText;
 begin
-  Result := TextOutRight(AText, 0, AWidth, AVertAlign);
+  Result := TextOutRight(AText, 0, AWidth, AXOffset, AVertAlign);
 end;
 
 //------------------------------------------------------------------------------

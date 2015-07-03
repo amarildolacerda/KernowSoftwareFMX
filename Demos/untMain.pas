@@ -79,7 +79,7 @@ begin
         TextOut('Line '+InttoStr(ICount), 40, 150);
         // right aligned label...
         TextColor := claDodgerblue;
-        TextOutRight('Cached scrolling :-)');
+        TextOutRight('Cached scrolling :-)', 0);
       end;
     end;
   finally
