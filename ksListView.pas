@@ -625,7 +625,7 @@ function TksListItemRow.TextOutRight(AText: string; Y, AWidth: single; AXOffset:
 begin
   Result := TextOut(AText, 0, Y, AWidth);
   Result.TextAlignment := TTextAlign.Trailing;
-  Result.Rect.Offset((ScreenWidth - Result.Rect.Right) + AXOffset, 0);
+  Result.Rect.Offset((ScreenWidth - (Result.Rect.Right+ListView.SideSpace)) + AXOffset, 0);
 end;
 
 function TksListItemRow.TextOutRight(AText: string; AWidth: single; AXOffset: single; const AVertAlign: TTextAlign = TTextAlign.Center): TksListItemRowText;
