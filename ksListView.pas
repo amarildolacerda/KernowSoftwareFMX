@@ -31,6 +31,9 @@ uses
   FMX.ListView.Types, FMX.Graphics, Generics.Collections, System.UITypes,
   FMX.ImgList, System.UIConsts;
 
+const
+  C_LONG_TAP_DURATION = 5;  // 500 ms
+
 type
 
   TksListView = class;
@@ -829,7 +832,7 @@ begin
   FMouseDownDuration := FMouseDownDuration + 1;
   AId := '';
   ARow := nil;
-  if FMouseDownDuration >= 6 then
+  if FMouseDownDuration >= C_LONG_TAP_DURATION  then
   begin
     FClickTimer.Enabled := False;
     ARow := FClickedItem.Objects.FindObject('ksRow') as TKsListItemRow;
@@ -838,6 +841,7 @@ begin
 
     if Assigned(FOnLongClick) then
       FOnLongClick(Self, FMouseDownPos.x, FMouseDownPos.y, FClickedItem, AId, FClickedRowObj);
+    ItemIndex := -1;
   end;
 end;
 
@@ -855,9 +859,18 @@ var
   ARow: TKsListItemRow;
   ICount: integer;
   AObjRect: TRectF;
+  AMouseDownRect: TRectF;
+  ALongTap: Boolean;
 begin
   inherited;
   FClickTimer.Enabled := False;
+  ALongTap := FMouseDownDuration >= C_LONG_TAP_DURATION ;
+  FMouseDownDuration := 0;
+
+  AMouseDownRect := RectF(FMouseDownPos.X-8, FMouseDownPos.Y-8, FMouseDownPos.X+8, FMouseDownPos.Y+8);
+  if not PtInRect(AMouseDownRect, PointF(x,y)) then
+    Exit;
+
 
   if FClickedItem <> nil then
   begin
@@ -877,14 +890,13 @@ begin
         end;
       end;
     end;
-    if FMouseDownDuration < 6 then
+    if not ALongTap then
     begin
       // normal click.
       if Assigned(FOnClick) then
         FOnClick(Self, FMouseDownPos.x, FMouseDownPos.y, FClickedItem, AId, FClickedRowObj);
     end;
   end;
-  FMouseDownDuration := 0;
 end;
 
 
