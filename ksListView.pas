@@ -196,9 +196,11 @@ type
     FAppearence: TksListViewAppearence;
     FOnClick: TksListViewRowClickEvent;
     FMouseDownPos: TPointF;
+    FCurrentMousepos: TPointF;
     FItemHeight: integer;
     FClickTimer: TTimer;
     FMouseDownDuration: integer;
+
     FOnLongClick: TksListViewRowClickEvent;
     FClickedRowObj: TksListItemRowObj;
     FClickedItem: TListViewItem;
@@ -210,6 +212,7 @@ type
     procedure ApplyStyle; override;
     procedure DoItemClick(const AItem: TListViewItem); override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; x, y: single); override;
+    procedure MouseMove(Shift: TShiftState; X, Y: Single); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; x, y: single); override;
     { Protected declarations }
   public
@@ -343,6 +346,7 @@ procedure Register;
 implementation
 
 uses SysUtils, FMX.Platform, FMX.Forms;
+
 
 procedure Register;
 begin
@@ -828,19 +832,31 @@ procedure TksListView.DoClickTimer(Sender: TObject);
 var
   ARow: TKsListItemRow;
   AId: string;
+  AMouseDownRect: TRectF;
 begin
+  if FClickedItem = nil then
+  begin
+    FClickTimer.Enabled := False;
+    FMouseDownDuration := 0;
+    Exit;
+  end;
+
   FMouseDownDuration := FMouseDownDuration + 1;
   AId := '';
   ARow := nil;
   if FMouseDownDuration >= C_LONG_TAP_DURATION  then
   begin
     FClickTimer.Enabled := False;
+
     ARow := FClickedItem.Objects.FindObject('ksRow') as TKsListItemRow;
     if ARow <> nil then
       AId := ARow.ID;
-
-    if Assigned(FOnLongClick) then
-      FOnLongClick(Self, FMouseDownPos.x, FMouseDownPos.y, FClickedItem, AId, FClickedRowObj);
+    AMouseDownRect := RectF(FMouseDownPos.X-8, FMouseDownPos.Y-8, FMouseDownPos.X+8, FMouseDownPos.Y+8);
+    if PtInRect(AMouseDownRect, FCurrentMousepos) then
+    begin
+      if Assigned(FOnLongClick) then
+        FOnLongClick(Self, FMouseDownPos.x, FMouseDownPos.y, FClickedItem, AId, FClickedRowObj);
+    end;
     ItemIndex := -1;
   end;
 end;
@@ -848,8 +864,9 @@ end;
 procedure TksListView.DoItemClick(const AItem: TListViewItem);
 begin
   inherited;
-  FClickedRowObj := nil;
-  FClickedItem := AItem;
+  //Application.ProcessMessages;
+  //FClickedRowObj := nil;
+  //FClickedItem := AItem;
 end;
 
 procedure TksListView.MouseUp(Button: TMouseButton; Shift: TShiftState; x,
@@ -920,19 +937,36 @@ end;
 
 procedure TksListView.MouseDown(Button: TMouseButton; Shift: TShiftState;
   x, y: single);
+var
+  ICount: integer;
 begin
 {$IFDEF MSWINDOWS}
   FMouseDownPos := PointF(x - 10, y);
 {$ELSE}
   FMouseDownPos := PointF(x, y);
 {$ENDIF}
+  FCurrentMousepos := FMouseDownPos;
   FMouseDownDuration := 0;
+  for Icount := 0 to Items.Count-1 do
+  begin
+    if PtInRect(GetItemRect(ICount), PointF(x,y)) then
+      FClickedItem := Items[ICount];
+  end;
+  inherited;
+  Application.ProcessMessages;
   FClickTimer.Interval := 100;
   FClickTimer.OnTimer := DoClickTimer;
   FClickTimer.Enabled := True;
-  Application.ProcessMessages;
+end;
 
+procedure TksListView.MouseMove(Shift: TShiftState; X, Y: Single);
+begin
   inherited;
+  {$IFDEF MSWINDOWS}
+    FCurrentMousepos := PointF(x - 10, y);
+  {$ELSE}
+    FCurrentMousepos := PointF(x, y);
+  {$ENDIF}
 end;
 
 end.
