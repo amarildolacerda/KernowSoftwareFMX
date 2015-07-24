@@ -104,6 +104,7 @@ type
     FCached: Boolean;
     FFont: TFont;
     FTextColor: TAlphaColor;
+    FIndicatorColor: TAlphaColor;
     FList: TObjectList<TksListItemRowObj>;
     FId: string;
     function TextHeight(AText: string): single;
@@ -160,6 +161,7 @@ type
     property RowObjectCount: integer read GetRowObjectCount;
     property ID: string read FId write FId;
     property Cached: Boolean read FCached write FCached;
+    property IndicatorColor: TAlphaColor read FIndicatorColor write FIndicatorColor;
   end;
 
 
@@ -199,6 +201,7 @@ type
     FCurrentMousepos: TPointF;
     FItemHeight: integer;
     FClickTimer: TTimer;
+    FLastWidth: integer;
     FMouseDownDuration: integer;
 
     FOnLongClick: TksListViewRowClickEvent;
@@ -206,9 +209,11 @@ type
     FClickedItem: TListViewItem;
     procedure SetItemHeight(const Value: integer);
     procedure DoClickTimer(Sender: TObject);
+    procedure RedrawAllRows;
     { Private declarations }
   protected
     procedure SetColorStyle(AName: string; AColor: TAlphaColor);
+    procedure Resize; override;
     procedure ApplyStyle; override;
     procedure DoItemClick(const AItem: TListViewItem); override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; x, y: single); override;
@@ -218,9 +223,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function AddRow(const ASearchIndex: string = '';
-      const APurpose: TListItemPurpose = TListItemPurpose.None;
-      const AId: string = ''): TKsListItemRow;
+    function AddRow(const ASearchIndex: string = ''; const APurpose: TListItemPurpose = TListItemPurpose.None; const AId: string = ''): TKsListItemRow;
     function AddHeader(AText: string): TKsListItemRow;
     procedure EndUpdate; override;
     { Public declarations }
@@ -464,8 +467,16 @@ begin
   if FCached then
     Exit;
   BeginUpdate;
+  Bitmap.Width := Round(RowWidth);
+  Bitmap.Height := Round(RowHeight);
   Bitmap.Clear(claNull);
   Bitmap.Canvas.BeginScene;
+  if FIndicatorColor <> claNull then
+  begin
+    Bitmap.Canvas.Fill.Color := FIndicatorColor;
+    Bitmap.Canvas.FillRect(RectF(0, 8, 6, RowHeight(False)-8), 0, 0, [], 1, Bitmap.Canvas.Fill);
+  end;
+
   for ICount := 0 to FList.Count - 1 do
   begin
     FList[ICount].Render(Bitmap.Canvas);
@@ -483,6 +494,7 @@ begin
 {$IFDEF MSWINDOWS}
   ScalingMode := TImageScalingMode.Original;
 {$ENDIF}
+  FIndicatorColor := claNull;
   OwnsBitmap := True;
   FList := TObjectList<TksListItemRowObj>.Create(True);
   FList.OnNotify := DoOnListChanged;
@@ -494,7 +506,7 @@ begin
   Bitmap := ABmp;
   FTextColor := claBlack;
   FFont := TFont.Create;
-  FCached := True;
+  FCached := False;
 end;
 
 destructor TKsListItemRow.Destroy;
@@ -746,6 +758,7 @@ begin
   FAppearence := TksListViewAppearence.Create(Self);
   FItemHeight := 44;
   FClickTimer := TTimer.Create(Self);
+  FLastWidth := 0;
 end;
 
 destructor TksListView.Destroy;
@@ -804,12 +817,7 @@ begin
   BeginUpdate;
   try
     FItemHeight := Value;
-    for ICount := 0 to Items.Count - 1 do
-    begin
-      ARow := Items[ICount].Objects.FindObject('ksRow') as TKsListItemRow;
-      if ARow <> nil then
-        ARow.Cached := False;
-    end;
+    RedrawAllRows;
   finally
     ItemAppearance.ItemHeight := Value;
     EndUpdate;
@@ -864,9 +872,6 @@ end;
 procedure TksListView.DoItemClick(const AItem: TListViewItem);
 begin
   inherited;
-  //Application.ProcessMessages;
-  //FClickedRowObj := nil;
-  //FClickedItem := AItem;
 end;
 
 procedure TksListView.MouseUp(Button: TMouseButton; Shift: TShiftState; x,
@@ -917,6 +922,29 @@ begin
 end;
 
 
+
+procedure TksListView.RedrawAllRows;
+var
+  ICount: integer;
+  ARow: TKsListItemRow;
+begin
+  for ICount := 0 to Items.Count - 1 do
+  begin
+    ARow := Items[ICount].Objects.FindObject('ksRow') as TKsListItemRow;
+    if ARow <> nil then
+    begin
+      ARow.Cached := False;
+      ARow.CacheRow;
+    end;
+  end;
+  Invalidate;
+end;
+
+procedure TksListView.Resize;
+begin
+  inherited;
+  RedrawAllRows;
+end;
 
 procedure TksListView.EndUpdate;
 var

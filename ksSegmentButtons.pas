@@ -67,6 +67,7 @@ type
     property SelectedID: string read GetSelectedID;
     property Button[index: integer]: TKsSegmentButton read GetButton; default;
   published
+    property Align;
     property ItemIndex: integer read FItemIndex write SetItemIndex default -1;
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
     property Position;
