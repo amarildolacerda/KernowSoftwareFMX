@@ -40,8 +40,7 @@ type
   TKsListItemRow = class;
   TksListItemRowObj = class;
 
-  TksListViewRowClickEvent = procedure(Sender: TObject; x, y: single;
-    AItem: TListViewItem; AId: string; ARowObj: TksListItemRowObj) of object;
+  TksListViewRowClickEvent = procedure(Sender: TObject; x, y: single; AItem: TListViewItem; AId: string; ARowObj: TksListItemRowObj) of object;
 
   // ------------------------------------------------------------------------------
 
@@ -196,7 +195,8 @@ type
     FScreenScale: single;
     FDefaultRowHeight: integer;
     FAppearence: TksListViewAppearence;
-    FOnClick: TksListViewRowClickEvent;
+    FOnItemClickEx: TksListViewRowClickEvent;
+    FOnItemRightClickEx: TksListViewRowClickEvent;
     FMouseDownPos: TPointF;
     FCurrentMousepos: TPointF;
     FItemHeight: integer;
@@ -207,6 +207,7 @@ type
     FOnLongClick: TksListViewRowClickEvent;
     FClickedRowObj: TksListItemRowObj;
     FClickedItem: TListViewItem;
+    FSelectOnRightClick: Boolean;
     procedure SetItemHeight(const Value: integer);
     procedure DoClickTimer(Sender: TObject);
     procedure RedrawAllRows;
@@ -245,7 +246,8 @@ type
     property ItemSpaces;
     property SideSpace;
 
-    property OnClick: TksListViewRowClickEvent read FOnClick write FOnClick;
+    property OnItemClickEx: TksListViewRowClickEvent read FOnItemClickEx write FOnItemClickEx;
+    property OnItemClickRightEx: TksListViewRowClickEvent read FOnItemRightClickEx write FOnItemRightClickEx;
 
     property Align;
     property Anchors;
@@ -269,6 +271,7 @@ type
     property RotationAngle;
     property RotationCenter;
     property Scale;
+    property SelectOnRightClick: Boolean read FSelectOnRightClick write FSelectOnRightClick default False;
     property Size;
     property TabOrder;
     property TabStop;
@@ -759,6 +762,7 @@ begin
   FItemHeight := 44;
   FClickTimer := TTimer.Create(Self);
   FLastWidth := 0;
+  FSelectOnRightClick := False;
 end;
 
 destructor TksListView.Destroy;
@@ -881,7 +885,7 @@ var
   ARow: TKsListItemRow;
   ICount: integer;
   AObjRect: TRectF;
-  AMouseDownRect: TRectF;
+  AMouseDownRect: TRect;
   ALongTap: Boolean;
 begin
   inherited;
@@ -889,8 +893,8 @@ begin
   ALongTap := FMouseDownDuration >= C_LONG_TAP_DURATION ;
   FMouseDownDuration := 0;
 
-  AMouseDownRect := RectF(FMouseDownPos.X-8, FMouseDownPos.Y-8, FMouseDownPos.X+8, FMouseDownPos.Y+8);
-  if not PtInRect(AMouseDownRect, PointF(x,y)) then
+  AMouseDownRect := Rect(Round(FMouseDownPos.X-8), Round(FMouseDownPos.Y-8), Round(FMouseDownPos.X+8), Round(FMouseDownPos.Y+8));
+  if not PtInRect(AMouseDownRect, Point(Round(x),Round(y))) then
     Exit;
 
 
@@ -915,8 +919,14 @@ begin
     if not ALongTap then
     begin
       // normal click.
-      if Assigned(FOnClick) then
-        FOnClick(Self, FMouseDownPos.x, FMouseDownPos.y, FClickedItem, AId, FClickedRowObj);
+      if Button = TMouseButton.mbLeft then
+      begin
+        if Assigned(FOnItemClickEx) then
+          FOnItemClickEx(Self, FMouseDownPos.x, FMouseDownPos.y, FClickedItem, AId, FClickedRowObj)
+      else
+        if Assigned(FOnItemRightClickEx) then
+          FOnItemRightClickEx(Self, FMouseDownPos.x, FMouseDownPos.y, FClickedItem, AId, FClickedRowObj);
+      end;
     end;
   end;
 end;
@@ -968,17 +978,21 @@ procedure TksListView.MouseDown(Button: TMouseButton; Shift: TShiftState;
 var
   ICount: integer;
 begin
-{$IFDEF MSWINDOWS}
-  FMouseDownPos := PointF(x - 10, y);
-{$ELSE}
+//{$IFDEF MSWINDOWS}
+//  FMouseDownPos := PointF(x - 10, y);
+//{$ELSE}
   FMouseDownPos := PointF(x, y);
-{$ENDIF}
+//{$ENDIF}
   FCurrentMousepos := FMouseDownPos;
   FMouseDownDuration := 0;
   for Icount := 0 to Items.Count-1 do
   begin
     if PtInRect(GetItemRect(ICount), PointF(x,y)) then
+    begin
       FClickedItem := Items[ICount];
+      if (Button = TMouseButton.mbRight) and (FSelectOnRightClick) then
+        ItemIndex := Icount;
+    end;
   end;
   inherited;
   Application.ProcessMessages;
@@ -990,11 +1004,11 @@ end;
 procedure TksListView.MouseMove(Shift: TShiftState; X, Y: Single);
 begin
   inherited;
-  {$IFDEF MSWINDOWS}
-    FCurrentMousepos := PointF(x - 10, y);
-  {$ELSE}
+  //{$IFDEF MSWINDOWS}
+  //  FCurrentMousepos := PointF(x - 10, y);
+  //{$ELSE}
     FCurrentMousepos := PointF(x, y);
-  {$ENDIF}
+  //{$ENDIF}
 end;
 
 end.
