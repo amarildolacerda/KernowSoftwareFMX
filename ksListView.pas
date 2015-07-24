@@ -44,6 +44,12 @@ type
 
   // ------------------------------------------------------------------------------
 
+  TksVisibleItems = record
+    Count: integer;
+    IndexStart: integer;
+    IndexEnd: integer;
+  end;
+
   TksListItemRowObj = class
   private
     FId: string;
@@ -106,6 +112,7 @@ type
     FIndicatorColor: TAlphaColor;
     FList: TObjectList<TksListItemRowObj>;
     FId: string;
+    //FOnDrawRow:
     function TextHeight(AText: string): single;
     function TextWidth(AText: string): single;
     function RowHeight(const AScale: Boolean = True): single;
@@ -118,41 +125,25 @@ type
       Action: TCollectionNotification);
     function ScreenWidth: single;
   public
-    constructor Create(const AOwner: TListItem); override;
+    constructor Create(const AOwner: TListItem);
     destructor Destroy; override;
+
     procedure CacheRow;
     // bitmap functions...
-    function DrawBitmap(ABmp: TBitmap; x, AWidth, AHeight: single)
-      : TksListItemRowImage overload;
-    function DrawBitmap(ABmpIndex: integer; x, AWidth, AHeight: single)
-      : TksListItemRowImage overload;
-    function DrawBitmap(ABmp: TBitmap; x, y, AWidth, AHeight: single)
-      : TksListItemRowImage overload;
-    function DrawBitmapRight(ABmp: TBitmap;
-      AWidth, AHeight, ARightPadding: single): TksListItemRowImage;
+    function DrawBitmap(ABmp: TBitmap; x, AWidth, AHeight: single): TksListItemRowImage overload;
+    function DrawBitmap(ABmpIndex: integer; x, AWidth, AHeight: single): TksListItemRowImage overload;
+    function DrawBitmap(ABmp: TBitmap; x, y, AWidth, AHeight: single): TksListItemRowImage overload;
+    function DrawBitmapRight(ABmp: TBitmap; AWidth, AHeight, ARightPadding: single): TksListItemRowImage;
     // text functions...
-    function TextOut(AText: string; x: single;
-      const AVertAlign: TTextAlign = TTextAlign.Center;
-      const AWordWrap: Boolean = False): TksListItemRowText; overload;
-    function TextOut(AText: string; x, AWidth: single;
-      const AVertAlign: TTextAlign = TTextAlign.Center;
-      const AWordWrap: Boolean = False): TksListItemRowText; overload;
-    function TextOut(AText: string; x, y, AWidth: single;
-      const AVertAlign: TTextAlign = TTextAlign.Center;
-      const AWordWrap: Boolean = False): TksListItemRowText; overload;
+    function TextOut(AText: string; x: single; const AVertAlign: TTextAlign = TTextAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
+    function TextOut(AText: string; x, AWidth: single; const AVertAlign: TTextAlign = TTextAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
+    function TextOut(AText: string; x, y, AWidth: single; const AVertAlign: TTextAlign = TTextAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
     // right aligned text functions...
-    function TextOutRight(AText: string; AXOffset: single;
-      const AVertAlign: TTextAlign = TTextAlign.Center)
-      : TksListItemRowText; overload;
-    function TextOutRight(AText: string; AWidth: single; AXOffset: single;
-      const AVertAlign: TTextAlign = TTextAlign.Center)
-      : TksListItemRowText; overload;
-    function TextOutRight(AText: string; y, AWidth: single; AXOffset: single;
-      const AVertAlign: TTextAlign = TTextAlign.Center)
-      : TksListItemRowText; overload;
+    function TextOutRight(AText: string; AXOffset: single; const AVertAlign: TTextAlign = TTextAlign.Center): TksListItemRowText; overload;
+    function TextOutRight(AText: string; AWidth: single; AXOffset: single; const AVertAlign: TTextAlign = TTextAlign.Center): TksListItemRowText; overload;
+    function TextOutRight(AText: string; y, AWidth: single; AXOffset: single; const AVertAlign: TTextAlign = TTextAlign.Center): TksListItemRowText; overload;
     // font functions...
-    procedure SetFontProperties(AName: string; ASize: integer;
-      AColor: TAlphaColor; AStyle: TFontStyles);
+    procedure SetFontProperties(AName: string; ASize: integer; AColor: TAlphaColor; AStyle: TFontStyles);
     // properties...
     property Font: TFont read FFont;
     property TextColor: TAlphaColor read FTextColor write FTextColor;
@@ -203,7 +194,6 @@ type
     FClickTimer: TTimer;
     FLastWidth: integer;
     FMouseDownDuration: integer;
-
     FOnLongClick: TksListViewRowClickEvent;
     FClickedRowObj: TksListItemRowObj;
     FClickedItem: TListViewItem;
@@ -226,6 +216,7 @@ type
     destructor Destroy; override;
     function AddRow(const ASearchIndex: string = ''; const APurpose: TListItemPurpose = TListItemPurpose.None; const AId: string = ''): TKsListItemRow;
     function AddHeader(AText: string): TKsListItemRow;
+    function ItemsInView: TksVisibleItems;
     procedure EndUpdate; override;
     { Public declarations }
   published
@@ -351,7 +342,7 @@ procedure Register;
 
 implementation
 
-uses SysUtils, FMX.Platform, FMX.Forms;
+uses SysUtils, FMX.Platform, FMX.Forms, FMX.SearchBox;
 
 
 procedure Register;
@@ -873,6 +864,7 @@ begin
   end;
 end;
 
+
 procedure TksListView.DoItemClick(const AItem: TListViewItem);
 begin
   inherited;
@@ -971,6 +963,71 @@ begin
     if ARow <> nil then
       ARow.CacheRow;
   end;
+end;
+
+function TksListView.ItemsInView: TksVisibleItems;
+var
+  ICount: integer;
+  ARect: TRectF;
+  r: TRectF;
+  cr: TRectF;
+  ASearchHeight: integer;
+  ASearchBox: TSearchBox;
+begin
+  cr := RectF(0, 0, Width, Height);;
+  if SearchVisible then
+  begin
+    ASearchBox := TSearchBox.Create(nil);
+    try
+      ASearchHeight := Round(ASearchBox.Height);
+    finally
+      ASearchBox.Free;
+    end;
+    cr.Top := ASearchHeight;
+  end;
+  Result.IndexStart := -1;
+  Result.IndexEnd := -1;
+  Result.Count := 0;
+
+  for ICount := 0 to Items.Count-1 do
+  begin
+    if IntersectRectF(r, GetItemRect(ICount), cr) then
+    begin
+      if Result.IndexStart = -1 then
+        Result.IndexStart := ICount
+      else
+        Result.IndexEnd := ICount;
+      Result.Count := Result.Count + 1;
+    end;
+  end;
+ // AVisibleRect := RectF(0, 0, Width, Height);
+  //OffsetRect(AVisibleRect, )
+  {for ICount := 0 to Items.Count-1 do
+  begin
+    GetItemRect(ICount)
+  end;  }
+
+  {FItemsInView := TList<TKsListItemRow>.Create;
+  try
+    Repaint;
+    Application.ProcessMessages;
+    Result.IndexStart := -1;
+    Result.IndexEnd := -1;
+    Result.Count := FItemsInView.Count;
+
+    for ICount := 0 to FItemsInView.Count-1 do
+    begin
+      if ICount = 0 then Result.IndexStart := ICount;
+      if ICount = FItemsInView.Count-1 then Result.IndexEnd := ICount;
+    end;
+  finally
+    FItemsInView.Free;
+  end;
+         }
+  {for ICount :=  Low to High do
+  begin
+    Items[ICount].
+  end; }
 end;
 
 procedure TksListView.MouseDown(Button: TMouseButton; Shift: TShiftState;
