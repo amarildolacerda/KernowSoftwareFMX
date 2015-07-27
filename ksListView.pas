@@ -119,6 +119,9 @@ type
     FIndicatorColor: TAlphaColor;
     FList: TObjectList<TksListItemRowObj>;
     FId: string;
+    FAccessory: TAccessoryType;
+    FAccessoryVisible: Boolean;
+    FShowAccessory: Boolean;
     //FOnDrawRow:
     function TextHeight(AText: string): single;
     function TextWidth(AText: string): single;
@@ -127,6 +130,8 @@ type
     function GetListView: TCustomListView;
     function GetRowObject(AIndex: integer): TksListItemRowObj;
     function GetRowObjectCount: integer;
+    procedure SetAccessory(const Value: TAccessoryType);
+    procedure SetShowAccessory(const Value: Boolean);
     property ListView: TCustomListView read GetListView;
     procedure DoOnListChanged(Sender: TObject; const Item: TksListItemRowObj;
       Action: TCollectionNotification);
@@ -159,6 +164,8 @@ type
     property ID: string read FId write FId;
     property Cached: Boolean read FCached write FCached;
     property IndicatorColor: TAlphaColor read FIndicatorColor write FIndicatorColor;
+    property Accessory: TAccessoryType read FAccessory write SetAccessory;
+    property ShowAccessory: Boolean read FShowAccessory write SetShowAccessory default True;
   end;
 
 
@@ -352,8 +359,24 @@ procedure Register;
 
 implementation
 
-uses SysUtils, FMX.Platform, FMX.Forms, FMX.SearchBox;
+uses SysUtils, FMX.Platform, FMX.Forms, FMX.SearchBox, FMX.Styles.Objects;
 
+const
+{$IFDEF IOS}
+  DefaultScrollBarWidth = 7;
+{$ELSE}
+{$IFDEF MACOS}
+  DefaultScrollBarWidth = 7;
+{$ENDIF}
+{$ENDIF}
+
+{$IFDEF MSWINDOWS}
+  DefaultScrollBarWidth = 16;
+{$ENDIF}
+
+{$IFDEF ANDROID}
+  DefaultScrollBarWidth = 7;
+{$ENDIF}
 
 procedure Register;
 begin
@@ -499,12 +522,26 @@ end;
 procedure TKsListItemRow.CacheRow;
 var
   ICount: integer;
+  Resources: TListItemStyleResources;
+  Image: TStyleObject;
+  Controller: IListViewController;
+  r: TRectF;
+  AMargins: TBounds;
 begin
   if FCached then
     Exit;
+
+  AMargins := (Owner.Parent as TCustomListView).ItemSpaces;
+  Supports(Owner.Parent, IListViewController, Controller);
+  r := Controller.GetClientMargins;
+
+  Resources := GetStyleResources;
+
   BeginUpdate;
   Bitmap.Width := Round(RowWidth);
   Bitmap.Height := Round(RowHeight);
+
+  Bitmap.Width := Bitmap.Width - Round((AMargins.Left + AMargins.Right) * GetScreenScale);
   Bitmap.Clear(claNull);
   Bitmap.Canvas.BeginScene;
   if FIndicatorColor <> claNull then
@@ -517,6 +554,17 @@ begin
   begin
     FList[ICount].Render(Bitmap.Canvas);
   end;
+  Bitmap.Canvas.Fill.Color := claRed;
+  //Bitmap.Canvas.FillEllipse(RectF(Bitmap.Width - Bitmap.Height, 0, Bitmap.Width, Bitmap.Height), 1);
+  //Bitmap.Canvas.FillEllipse(FLocalRect, 1);
+
+  if FShowAccessory then
+  begin
+    Image := Resources.AccessoryImages[FAccessory].Normal;
+    Image.DrawToCanvas(Bitmap.Canvas, RectF((Bitmap.Width - Image.Width) - (DefaultScrollBarWidth*GetScreenScale), 0, Bitmap.Width - (DefaultScrollBarWidth*GetScreenScale), Bitmap.Height));
+  end;
+
+  //FAccessory.Render(Bitmap.Canvas, 0, [], 0);
   Bitmap.Canvas.EndScene;
   EndUpdate;
   FCached := True;
@@ -528,8 +576,10 @@ var
 begin
   inherited Create(AOwner);
 {$IFDEF MSWINDOWS}
+
   ScalingMode := TImageScalingMode.Original;
 {$ENDIF}
+  PlaceOffset.X := 0;
   FIndicatorColor := claNull;
   OwnsBitmap := True;
   FList := TObjectList<TksListItemRowObj>.Create(True);
@@ -543,6 +593,8 @@ begin
   FTextColor := claBlack;
   FFont := TFont.Create;
   FCached := False;
+  FAccessory := TAccessoryType.More;
+  FShowAccessory := True;
 end;
 
 destructor TKsListItemRow.Destroy;
@@ -662,6 +714,12 @@ begin
   Result := DrawBitmap(ABmp, AXPos, AYpos, AWidth, AHeight);
 end;
 
+procedure TKsListItemRow.SetAccessory(const Value: TAccessoryType);
+begin
+  FAccessory := Value;
+  FCached := False;
+end;
+
 procedure TKsListItemRow.SetFontProperties(AName: string; ASize: integer;
   AColor: TAlphaColor; AStyle: TFontStyles);
 begin
@@ -670,6 +728,12 @@ begin
   FFont.Size := ASize;
   FTextColor := AColor;
   FFont.Style := AStyle;
+end;
+
+procedure TKsListItemRow.SetShowAccessory(const Value: Boolean);
+begin
+  FShowAccessory := Value;
+  FCached := False;
 end;
 
 // ------------------------------------------------------------------------------
