@@ -1005,6 +1005,7 @@ begin
     if ARow <> nil then
       ARow.CacheRow;
   end;
+  Invalidate;
 end;
 
 function TksListView.GetCachedRow(index: integer): TKsListItemRow;
