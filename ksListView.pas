@@ -58,9 +58,12 @@ type
     procedure SetRect(const Value: TRectF);
     procedure SetID(const Value: string);
     procedure Changed;
+  protected
+    procedure DoChanged(Sender: TObject);
   public
     constructor Create(ARow: TKsListItemRow); virtual;
     procedure Render(ACanvas: TCanvas); virtual; abstract;
+
     property Rect: TRectF read FRect write SetRect;
     property ID: string read FId write SetID;
   end;
@@ -77,15 +80,19 @@ type
     FText: string;
     FWordWrap: Boolean;
     procedure SetFont(const Value: TFont);
+    procedure SetAlignment(const Value: TTextAlign);
+    procedure SetTextColor(const Value: TAlphaColor);
+    procedure SetText(const Value: string);
+    procedure SetWordWrap(const Value: Boolean);
   public
     constructor Create(ARow: TKsListItemRow); override;
     destructor Destroy; override;
     procedure Render(ACanvas: TCanvas); override;
     property Font: TFont read FFont write SetFont;
-    property TextAlignment: TTextAlign read FAlignment write FAlignment;
-    property TextColor: TAlphaColor read FTextColor write FTextColor;
-    property Text: string read FText write FText;
-    property WordWrap: Boolean read FWordWrap write FWordWrap default False;
+    property TextAlignment: TTextAlign read FAlignment write SetAlignment;
+    property TextColor: TAlphaColor read FTextColor write SetTextColor;
+    property Text: string read FText write SetText;
+    property WordWrap: Boolean read FWordWrap write SetWordWrap default False;
   end;
 
   // ------------------------------------------------------------------------------
@@ -201,6 +208,7 @@ type
     procedure SetItemHeight(const Value: integer);
     procedure DoClickTimer(Sender: TObject);
     procedure RedrawAllRows;
+    function GetCachedRow(index: integer): TKsListItemRow;
     { Private declarations }
   protected
     procedure SetColorStyle(AName: string; AColor: TAlphaColor);
@@ -218,6 +226,8 @@ type
     function AddHeader(AText: string): TKsListItemRow;
     function ItemsInView: TksVisibleItems;
     procedure EndUpdate; override;
+    property CachedRow[index: integer]: TKsListItemRow read GetCachedRow;
+
     { Public declarations }
   published
     property Appearence: TksListViewAppearence read FAppearence
@@ -380,6 +390,11 @@ begin
   FRow := ARow;
 end;
 
+procedure TksListItemRowObj.DoChanged(Sender: TObject);
+begin
+  Changed;
+end;
+
 procedure TksListItemRowObj.SetID(const Value: string);
 begin
   FId := Value;
@@ -417,9 +432,34 @@ begin
   ACanvas.FillText(FRect, FText, FWordWrap, 1, [], FAlignment);
 end;
 
+procedure TksListItemRowText.SetAlignment(const Value: TTextAlign);
+begin
+  FAlignment := Value;
+  Changed;
+end;
+
 procedure TksListItemRowText.SetFont(const Value: TFont);
 begin
   FFont.Assign(Value);
+  Changed;
+end;
+
+procedure TksListItemRowText.SetText(const Value: string);
+begin
+  FText := Value;
+  Changed;
+end;
+
+procedure TksListItemRowText.SetTextColor(const Value: TAlphaColor);
+begin
+  FTextColor := Value;
+  Changed;
+end;
+
+procedure TksListItemRowText.SetWordWrap(const Value: Boolean);
+begin
+  FWordWrap := Value;
+  Changed;
 end;
 
 // ------------------------------------------------------------------------------
@@ -430,6 +470,7 @@ constructor TksListItemRowImage.Create(ARow: TKsListItemRow);
 begin
   inherited Create(ARow);
   FBitmap := TBitmap.Create;
+  FBitmap.OnChange := DoChanged;
 end;
 
 destructor TksListItemRowImage.Destroy;
@@ -448,6 +489,7 @@ procedure TksListItemRowImage.SetBitmap(const Value: TBitmap);
 begin
   FBitmap.Assign(Value);
   FBitmap.BitmapScale := GetScreenScale;
+  Changed;
 end;
 
 // ------------------------------------------------------------------------------
@@ -963,6 +1005,11 @@ begin
     if ARow <> nil then
       ARow.CacheRow;
   end;
+end;
+
+function TksListView.GetCachedRow(index: integer): TKsListItemRow;
+begin
+  Result := Items[index].Objects.FindObject('ksRow') as TKsListItemRow;
 end;
 
 function TksListView.ItemsInView: TksVisibleItems;
