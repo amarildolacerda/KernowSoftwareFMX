@@ -59,11 +59,13 @@ type
     FPlaceOffset: TPointF;
     FRow: TKsListItemRow;
     FAlign: TListItemAlign;
+    FVertAlignment: TListItemAlign;
     procedure SetRect(const Value: TRectF);
     procedure SetID(const Value: string);
     procedure Changed;
     procedure SetAlign(const Value: TListItemAlign);
     procedure CalculateRect;
+    procedure SetVertAlign(const Value: TListItemAlign);
   protected
     procedure DoChanged(Sender: TObject);
   public
@@ -73,6 +75,7 @@ type
     property Rect: TRectF read FRect write SetRect;
     property ID: string read FId write SetID;
     property Align: TListItemAlign read FAlign write SetAlign default TListItemAlign.Leading;
+    property VertAlign: TListItemAlign read FVertAlignment write SetVertAlign default TListItemAlign.Center;
     property PlaceOffset: TPointF read FPlaceOffset write FPlaceOffset;
   end;
 
@@ -449,7 +452,11 @@ begin
   if FAlign = TListItemAlign.Trailing then
     OffsetRect(FRect, FRow.RowWidth(False) - (FRect.Width+ DefaultScrollBarWidth + FPlaceOffset.X + FRow.ListView.ItemSpaces.Right), 0);
 
-  OffsetRect(FRect, 0, (FRow.Owner.Height - FRect.Height) / 2);
+  case VertAlign of
+    TListItemAlign.Center: OffsetRect(FRect, 0, (FRow.Owner.Height - FRect.Height) / 2);
+    TListItemAlign.Trailing: OffsetRect(FRect, 0, (FRow.Owner.Height - FRect.Height));
+  end;
+
   OffsetRect(FRect, 0, FPlaceOffset.Y);
 end;
 
@@ -491,6 +498,12 @@ end;
 procedure TksListItemRowObj.SetRect(const Value: TRectF);
 begin
   FRect := Value;
+  Changed;
+end;
+
+procedure TksListItemRowObj.SetVertAlign(const Value: TListItemAlign);
+begin
+  FVertAlignment := Value;
   Changed;
 end;
 
@@ -747,11 +760,12 @@ end;
 
 function TKsListItemRow.DrawBitmap(ABmp: TBitmap; x, AWidth, AHeight: single)
   : TksListItemRowImage;
-var
-  AYpos: single;
+//var
+  //AYpos: single;
 begin
-  AYpos := (RowHeight(False) - AHeight) / 2;
-  Result := DrawBitmap(ABmp, x, AYpos, AWidth, AHeight);
+  //AYpos := (RowHeight(False) - AHeight) / 2;
+
+  Result := DrawBitmap(ABmp, x, 0, AWidth, AHeight);
 end;
 
 function TKsListItemRow.DrawBitmap(ABmpIndex: integer;
@@ -774,7 +788,9 @@ function TKsListItemRow.DrawBitmap(ABmp: TBitmap; x, y, AWidth, AHeight: single)
   : TksListItemRowImage;
 begin
   Result := TksListItemRowImage.Create(Self);
-  Result.FRect := RectF(x, y, x + AWidth, y + AHeight);
+  Result.FRect := RectF(0, 0, AWidth, AHeight); //RectF(x, y, x + AWidth, y + AHeight);
+  Result.PlaceOffset := PointF(x,y);
+  Result.VertAlign := TListItemAlign.Center;
   Result.Bitmap := ABmp;
   FList.Add(Result);
 end;
@@ -877,6 +893,11 @@ begin
   if AWordWrap then
     AHeight := RowHeight(False);
   Result.FRect := RectF(0, 0, AWidth, AHeight);
+  case AVertAlign of
+    TTextAlign.Leading: Result.VertAlign := TListItemAlign.Leading;
+    TTextAlign.Center: Result.VertAlign := TListItemAlign.Center;
+    TTextAlign.Trailing: Result.VertAlign := TListItemAlign.Trailing;
+  end;
   Result.Font.Assign(FFont);
   Result.TextAlignment := TTextAlign.Leading;
   Result.TextColor := FTextColor;
@@ -889,7 +910,7 @@ function TKsListItemRow.TextOutRight(AText: string; y, AWidth: single;
   AXOffset: single; const AVertAlign: TTextAlign = TTextAlign.Center)
   : TksListItemRowText;
 begin
-  Result := TextOut(AText, AXOffset, y, AWidth);
+  Result := TextOut(AText, AXOffset, y, AWidth, AVertAlign);
   Result.Align := TListItemAlign.Trailing;
   Result.TextAlignment := TTextAlign.Trailing;
 end;
@@ -951,6 +972,8 @@ begin
   FAppearence.Free;
   FClickTimer.Free;
   FCacheTimer.Free;
+  FSwitchBmp[0].Free;
+  FSwitchBmp[1].Free;
   inherited;
 end;
 
@@ -981,6 +1004,7 @@ begin
   AItem.Objects.Clear;
   AItem.Purpose := APurpose;
   Result := TKsListItemRow.Create(AItem);
+  Result.ShowAccessory := APurpose = TListItemPurpose.None;
   Result.Name := 'ksRow';
   Result.ID := AId;
 end;
