@@ -237,7 +237,6 @@ type
     FSwitchBmp: array[0..1] of TBitmap;
     FOnSwitchClicked: TksListViewClickSwitchEvent;
     FCacheTimer: TTimer;
-    //FSwitchHeight: integer;
     procedure SetItemHeight(const Value: integer);
     procedure DoClickTimer(Sender: TObject);
     function GetCachedRow(index: integer): TKsListItemRow;
@@ -803,8 +802,6 @@ begin
   Result.Align := AAlign;
 
   Result.PlaceOffset := PointF(x, 0);
-  //  Result.PlaceOffset.Y := 0;
-
   
   s := TSwitch.Create(nil);
   try
@@ -872,31 +869,14 @@ function TKsListItemRow.TextOut(AText: string; x, y, AWidth: single;
   const AWordWrap: Boolean = False): TksListItemRowText;
 var
   AHeight: single;
-  //AYpos: single;
-begin
-  //AYpos := y;
-  {case AVertAlign of
-    TTextAlign.Center:
-      AYpos := ((RowHeight(False) - TextHeight(AText)) / 2) + AYpos;
-    TTextAlign.Trailing:
-      AYpos := (RowHeight(False) - TextHeight(AText)) + AYpos;
-  end;  }
 
+begin
   Result := TksListItemRowText.Create(Self);
   AHeight := TextHeight(AText);
-
   Result.FPlaceOffset := PointF(x, y);
-  //Result.FRect := RectF(x, AYpos, x + AWidth, AYpos + AHeight);
-
   if AWordWrap then
-  //begin
     AHeight := RowHeight(False);
-    //Result.FRect.Height := AHeight; //:= //RectF(x, 0, x + AWidth, AHeight);
-  //end;
-
-
   Result.FRect := RectF(0, 0, AWidth, AHeight);
-
   Result.Font.Assign(FFont);
   Result.TextAlignment := TTextAlign.Leading;
   Result.TextColor := FTextColor;
@@ -904,34 +884,16 @@ begin
   Result.WordWrap := AWordWrap;
   FList.Add(Result);
 end;
-          {
-fnction TKsListItemRow.TextOutRight(AText: string; AXOffset: single;
-  const AVertAlign: TTextAlign = TTextAlign.Center): TksListItemRowText;
-//var
-//  AWidth: single;
-begin
-  //AWidth := TextWidth(AText);
-  Result := TextOutRight(AText, AWidth, AXOffset, AVertAlign);
-end;  }
 
 function TKsListItemRow.TextOutRight(AText: string; y, AWidth: single;
   AXOffset: single; const AVertAlign: TTextAlign = TTextAlign.Center)
   : TksListItemRowText;
 begin
-
   Result := TextOut(AText, AXOffset, y, AWidth);
   Result.Align := TListItemAlign.Trailing;
   Result.TextAlignment := TTextAlign.Trailing;
-  //Result.Rect.Offset((ScreenWidth - (Result.Rect.Right + ListView.SideSpace)) +
-  //  AXOffset, 0);
 end;
-          {
-function TKsListItemRow.TextOutRight(AText: string; AWidth: single;
-  AXOffset: single; const AVertAlign: TTextAlign = TTextAlign.Center)
-  : TksListItemRowText;
-begin
-  Result := TextOutRight(AText, 0, AWidth, AXOffset, AVertAlign);
-end;  }
+
 
 // ------------------------------------------------------------------------------
 
@@ -1135,7 +1097,6 @@ begin
           (FMouseDownPos.x <= (AObjRect.Right + 5)) then
         begin
           FClickedRowObj := ARow.RowObject[ICount];
-          // Break;
         end;
       end;
     end;
@@ -1255,7 +1216,6 @@ begin
     try
       if FSwitchBmp[0].EqualsBitmap(ABlank) then
       begin
-
         FSwitchBmp[0].Free;
         FSwitchBmp[0] := nil;
         Exit;
@@ -1313,34 +1273,6 @@ begin
       Result.Count := Result.Count + 1;
     end;
   end;
- // AVisibleRect := RectF(0, 0, Width, Height);
-  //OffsetRect(AVisibleRect, )
-  {for ICount := 0 to Items.Count-1 do
-  begin
-    GetItemRect(ICount)
-  end;  }
-
-  {FItemsInView := TList<TKsListItemRow>.Create;
-  try
-    Repaint;
-    Application.ProcessMessages;
-    Result.IndexStart := -1;
-    Result.IndexEnd := -1;
-    Result.Count := FItemsInView.Count;
-
-    for ICount := 0 to FItemsInView.Count-1 do
-    begin
-      if ICount = 0 then Result.IndexStart := ICount;
-      if ICount = FItemsInView.Count-1 then Result.IndexEnd := ICount;
-    end;
-  finally
-    FItemsInView.Free;
-  end;
-         }
-  {for ICount :=  Low to High do
-  begin
-    Items[ICount].
-  end; }
 end;
 
 procedure TksListView.MouseDown(Button: TMouseButton; Shift: TShiftState;
