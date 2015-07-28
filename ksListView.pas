@@ -39,8 +39,10 @@ type
   TksListView = class;
   TKsListItemRow = class;
   TksListItemRowObj = class;
+  TksListItemRowSwitch = class;
 
   TksListViewRowClickEvent = procedure(Sender: TObject; x, y: single; AItem: TListViewItem; AId: string; ARowObj: TksListItemRowObj) of object;
+  TksListViewClickSwitchEvent = procedure(Sender: TObject; AItem: TListViewItem; ASwitch: TksListItemRowSwitch; ARowID: string) of object;
 
   // ------------------------------------------------------------------------------
 
@@ -54,18 +56,24 @@ type
   private
     FId: string;
     FRect: TRectF;
+    FPlaceOffset: TPointF;
     FRow: TKsListItemRow;
+    FAlign: TListItemAlign;
     procedure SetRect(const Value: TRectF);
     procedure SetID(const Value: string);
     procedure Changed;
+    procedure SetAlign(const Value: TListItemAlign);
+    procedure CalculateRect;
   protected
     procedure DoChanged(Sender: TObject);
   public
     constructor Create(ARow: TKsListItemRow); virtual;
-    procedure Render(ACanvas: TCanvas); virtual; abstract;
+    function Render(ACanvas: TCanvas): Boolean; virtual;
 
     property Rect: TRectF read FRect write SetRect;
     property ID: string read FId write SetID;
+    property Align: TListItemAlign read FAlign write SetAlign default TListItemAlign.Leading;
+    property PlaceOffset: TPointF read FPlaceOffset write FPlaceOffset;
   end;
 
 
@@ -87,7 +95,7 @@ type
   public
     constructor Create(ARow: TKsListItemRow); override;
     destructor Destroy; override;
-    procedure Render(ACanvas: TCanvas); override;
+    function Render(ACanvas: TCanvas): Boolean; override;
     property Font: TFont read FFont write SetFont;
     property TextAlignment: TTextAlign read FAlignment write SetAlignment;
     property TextColor: TAlphaColor read FTextColor write SetTextColor;
@@ -104,17 +112,19 @@ type
   public
     constructor Create(ARow: TKsListItemRow); override;
     destructor Destroy; override;
-    procedure Render(ACanvas: TCanvas); override;
+    function Render(ACanvas: TCanvas): Boolean; override;
     property Bitmap: TBitmap read FBitmap write SetBitmap;
   end;
 
   TksListItemRowSwitch = class(TksListItemRowObj)
   private
-    //FSwitch: TSwitch;
+    FIsChecked: Boolean;
+    procedure SetIsChecked(const Value: Boolean);
   public
-    constructor Create(ARow: TKsListItemRow); override;
-    destructor Destroy; override;
-    procedure Render(ACanvas: TCanvas); override;
+    function Render(ACanvas: TCanvas): Boolean; override;
+    procedure Toggle;
+    property IsChecked: Boolean read FIsChecked write SetIsChecked;
+
   end;
 
 
@@ -131,7 +141,6 @@ type
     FAccessory: TAccessoryType;
     FAccessoryVisible: Boolean;
     FShowAccessory: Boolean;
-    //FOnDrawRow:
     function TextHeight(AText: string): single;
     function TextWidth(AText: string): single;
     function RowHeight(const AScale: Boolean = True): single;
@@ -156,17 +165,19 @@ type
     function DrawBitmap(ABmp: TBitmap; x, y, AWidth, AHeight: single): TksListItemRowImage overload;
     function DrawBitmapRight(ABmp: TBitmap; AWidth, AHeight, ARightPadding: single): TksListItemRowImage;
     // switch
-    function DrawSwitch(x: single; AState: Boolean): TksListItemRowSwitch;
+    function AddSwitch(x: single; AIsChecked: Boolean; const AAlign: TListItemAlign = TListItemAlign.Leading): TksListItemRowSwitch;
+    function AddSwitchRight(AMargin: integer; AIsChecked: Boolean): TksListItemRowSwitch;
     // text functions...
     function TextOut(AText: string; x: single; const AVertAlign: TTextAlign = TTextAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
     function TextOut(AText: string; x, AWidth: single; const AVertAlign: TTextAlign = TTextAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
     function TextOut(AText: string; x, y, AWidth: single; const AVertAlign: TTextAlign = TTextAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
     // right aligned text functions...
-    function TextOutRight(AText: string; AXOffset: single; const AVertAlign: TTextAlign = TTextAlign.Center): TksListItemRowText; overload;
-    function TextOutRight(AText: string; AWidth: single; AXOffset: single; const AVertAlign: TTextAlign = TTextAlign.Center): TksListItemRowText; overload;
+
     function TextOutRight(AText: string; y, AWidth: single; AXOffset: single; const AVertAlign: TTextAlign = TTextAlign.Center): TksListItemRowText; overload;
+
     // font functions...
     procedure SetFontProperties(AName: string; ASize: integer; AColor: TAlphaColor; AStyle: TFontStyles);
+
     // properties...
     property Font: TFont read FFont;
     property TextColor: TAlphaColor read FTextColor write FTextColor;
@@ -223,12 +234,19 @@ type
     FClickedRowObj: TksListItemRowObj;
     FClickedItem: TListViewItem;
     FSelectOnRightClick: Boolean;
+    FSwitchBmp: array[0..1] of TBitmap;
+    FOnSwitchClicked: TksListViewClickSwitchEvent;
+    FCacheTimer: TTimer;
+    //FSwitchHeight: integer;
     procedure SetItemHeight(const Value: integer);
     procedure DoClickTimer(Sender: TObject);
-    procedure RedrawAllRows;
     function GetCachedRow(index: integer): TKsListItemRow;
+    procedure Invalidate;
+    procedure OnCacheTimer(Sender: TObject);
+    procedure StoreSwitchImages;
     { Private declarations }
   protected
+    function GetSwitchImage(AIsChecked: Boolean): TBitmap;
     procedure SetColorStyle(AName: string; AColor: TAlphaColor);
     procedure Resize; override;
     procedure ApplyStyle; override;
@@ -240,11 +258,15 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
+
+
+    procedure RedrawAllRows;
     function AddRow(const ASearchIndex: string = ''; const APurpose: TListItemPurpose = TListItemPurpose.None; const AId: string = ''): TKsListItemRow;
     function AddHeader(AText: string): TKsListItemRow;
     function ItemsInView: TksVisibleItems;
     procedure EndUpdate; override;
     property CachedRow[index: integer]: TKsListItemRow read GetCachedRow;
+
 
     { Public declarations }
   published
@@ -364,6 +386,7 @@ type
     property PullToRefresh;
     property PullRefreshWait;
     property OnLongClick: TksListViewRowClickEvent read FOnLongClick write FOnLongClick;
+    property OnSwitchClick: TksListViewClickSwitchEvent read FOnSwitchClicked write FOnSwitchClicked;
   end;
 
 procedure Register;
@@ -413,6 +436,23 @@ end;
 
 { TksListItemRowObj }
 
+procedure TksListItemRowObj.CalculateRect;
+var
+  w,h: single;
+begin
+  w := FRect.Width;
+  h := FRect.Height;
+  
+  FRect := RectF(0, 0, w, h);
+  if FAlign = TListItemAlign.Leading then
+    OffsetRect(FRect, FPlaceOffset.X, 0);
+
+  if FAlign = TListItemAlign.Trailing then
+    OffsetRect(FRect, FRow.RowWidth(False) - (FRect.Width+ DefaultScrollBarWidth + FPlaceOffset.X + FRow.ListView.ItemSpaces.Right), 0);
+    
+  OffsetRect(FRect, 0+FPlaceOffset.Y, (FRow.Owner.Height - FRect.Height) / 2);
+end;
+
 procedure TksListItemRowObj.Changed;
 begin
   FRow.Cached := False;
@@ -422,10 +462,23 @@ constructor TksListItemRowObj.Create(ARow: TKsListItemRow);
 begin
   inherited Create;
   FRow := ARow;
+  FAlign := TListItemAlign.Leading;
+  FPlaceOffset := PointF(0,0);
 end;
 
 procedure TksListItemRowObj.DoChanged(Sender: TObject);
 begin
+  Changed;
+end;
+
+function TksListItemRowObj.Render(ACanvas: TCanvas): Boolean;
+begin
+  Result := True;
+end;
+
+procedure TksListItemRowObj.SetAlign(const Value: TListItemAlign);
+begin
+  FAlign := Value;
   Changed;
 end;
 
@@ -459,11 +512,13 @@ begin
   inherited;
 end;
 
-procedure TksListItemRowText.Render(ACanvas: TCanvas);
+function TksListItemRowText.Render(ACanvas: TCanvas): Boolean;
 begin
+  Result := inherited Render(ACanvas);
   ACanvas.Fill.Color := FTextColor;
   ACanvas.Font.Assign(FFont);
   ACanvas.FillText(FRect, FText, FWordWrap, 1, [], FAlignment);
+  Result := True;
 end;
 
 procedure TksListItemRowText.SetAlignment(const Value: TTextAlign);
@@ -513,8 +568,9 @@ begin
   inherited;
 end;
 
-procedure TksListItemRowImage.Render(ACanvas: TCanvas);
+function TksListItemRowImage.Render(ACanvas: TCanvas): Boolean;
 begin
+  Result := inherited Render(ACanvas);
   ACanvas.DrawBitmap(FBitmap, RectF(0, 0, FBitmap.Width, FBitmap.Height),
     FRect, 1, True);
 end;
@@ -549,36 +605,45 @@ begin
   Resources := GetStyleResources;
 
   BeginUpdate;
-  Bitmap.Width := Round(RowWidth);
-  Bitmap.Height := Round(RowHeight);
+  try
+    Bitmap.Width := Round(RowWidth);
+    Bitmap.Height := Round(RowHeight);
 
-  Bitmap.Width := Bitmap.Width - Round((AMargins.Left + AMargins.Right) * GetScreenScale);
-  Bitmap.Clear(claNull);
-  Bitmap.Canvas.BeginScene;
-  if FIndicatorColor <> claNull then
-  begin
-    Bitmap.Canvas.Fill.Color := FIndicatorColor;
-    Bitmap.Canvas.FillRect(RectF(0, 8, 6, RowHeight(False)-8), 0, 0, [], 1, Bitmap.Canvas.Fill);
+    Bitmap.Width := Bitmap.Width - Round((AMargins.Left + AMargins.Right) * GetScreenScale);
+    Bitmap.Clear(claNull);
+    Bitmap.Canvas.BeginScene;
+    try
+      if FIndicatorColor <> claNull then
+      begin
+        Bitmap.Canvas.Fill.Color := FIndicatorColor;
+        Bitmap.Canvas.FillRect(RectF(0, 8, 6, RowHeight(False)-8), 0, 0, [], 1, Bitmap.Canvas.Fill);
+      end;
+
+      for ICount := 0 to FList.Count - 1 do
+      begin
+        FList[ICount].CalculateRect;
+        if FList[ICount].Render(Bitmap.Canvas) = False then
+        begin
+          FCached := False;
+          Exit;
+        end;
+      end;
+      Bitmap.Canvas.Fill.Color := claRed;
+
+      if FShowAccessory then
+      begin
+        Image := Resources.AccessoryImages[FAccessory].Normal;
+        r := RectF((RowWidth(False) - Image.Width), 0, RowWidth(False) - (DefaultScrollBarWidth), RowHeight(False));
+        OffsetRect(r, 0-(ListView.ItemSpaces.Right + DefaultScrollBarWidth), 0);
+        Image.DrawToCanvas(Bitmap.Canvas, r);
+      end;
+    finally
+      Bitmap.Canvas.EndScene;
+    end;
+    FCached := True;
+  finally
+    EndUpdate;
   end;
-
-  for ICount := 0 to FList.Count - 1 do
-  begin
-    FList[ICount].Render(Bitmap.Canvas);
-  end;
-  Bitmap.Canvas.Fill.Color := claRed;
-  //Bitmap.Canvas.FillEllipse(RectF(Bitmap.Width - Bitmap.Height, 0, Bitmap.Width, Bitmap.Height), 1);
-  //Bitmap.Canvas.FillEllipse(FLocalRect, 1);
-
-  if FShowAccessory then
-  begin
-    Image := Resources.AccessoryImages[FAccessory].Normal;
-    Image.DrawToCanvas(Bitmap.Canvas, RectF((Bitmap.Width - Image.Width) - (DefaultScrollBarWidth*GetScreenScale), 0, Bitmap.Width - (DefaultScrollBarWidth*GetScreenScale), Bitmap.Height));
-  end;
-
-  //FAccessory.Render(Bitmap.Canvas, 0, [], 0);
-  Bitmap.Canvas.EndScene;
-  EndUpdate;
-  FCached := True;
 end;
 
 constructor TKsListItemRow.Create(const AOwner: TListItem);
@@ -725,12 +790,36 @@ begin
   Result := DrawBitmap(ABmp, AXPos, AYpos, AWidth, AHeight);
 end;
 
-function TKsListItemRow.DrawSwitch(x: single;
-  AState: Boolean): TksListItemRowSwitch;
+function TKsListItemRow.AddSwitch(x: single;
+                                  AIsChecked: Boolean;
+                                  const AAlign: TListItemAlign = TListItemAlign.Leading): TksListItemRowSwitch;
+var
+  s: TSwitch;
+  ASize: TSize;
+  ARect: TRectF;
 begin
   Result := TksListItemRowSwitch.Create(Self);
-  Result.FRect := RectF(x, 0, x + 64, 0 + 32);
+  Result.Align := AAlign;
+
+  Result.PlaceOffset := PointF(x, 0);
+  //  Result.PlaceOffset.Y := 0;
+
+  
+  s := TSwitch.Create(nil);
+  try
+    Result.FRect := RectF(0, 0, s.Width, s.Height);
+  finally
+    s.Free;
+  end;
+  Result.CalculateRect;
+  
+  Result.IsChecked := AIsChecked;
   FList.Add(Result);
+end;
+
+function TksListItemRow.AddSwitchRight(AMargin: integer; AIsChecked: Boolean): TksListItemRowSwitch;
+begin
+  Result := AddSwitch(AMargin, AIsChecked, TListItemAlign.Trailing)
 end;
 
 procedure TKsListItemRow.SetAccessory(const Value: TAccessoryType);
@@ -776,6 +865,7 @@ begin
   Result := TextOut(AText, x, 0, AWidth, AVertAlign, AWordWrap);
 end;
 
+
 function TKsListItemRow.TextOut(AText: string; x, y, AWidth: single;
   const AVertAlign: TTextAlign = TTextAlign.Center;
   const AWordWrap: Boolean = False): TksListItemRowText;
@@ -793,13 +883,18 @@ begin
 
   Result := TksListItemRowText.Create(Self);
   AHeight := TextHeight(AText);
-  Result.FRect := RectF(x, AYpos, x + AWidth, AYpos + AHeight);
+
+  Result.FPlaceOffset := PointF(x, y);
+  //Result.FRect := RectF(x, AYpos, x + AWidth, AYpos + AHeight);
 
   if AWordWrap then
-  begin
+  //begin
     AHeight := RowHeight(False);
-    Result.FRect := RectF(x, 0, x + AWidth, AHeight);
-  end;
+    //Result.FRect.Height := AHeight; //:= //RectF(x, 0, x + AWidth, AHeight);
+  //end;
+
+  Result.FRect := RectF(0, 0, AWidth, AHeight);
+
   Result.Font.Assign(FFont);
   Result.TextAlignment := TTextAlign.Leading;
   Result.TextColor := FTextColor;
@@ -807,32 +902,34 @@ begin
   Result.WordWrap := AWordWrap;
   FList.Add(Result);
 end;
-
-function TKsListItemRow.TextOutRight(AText: string; AXOffset: single;
+          {
+fnction TKsListItemRow.TextOutRight(AText: string; AXOffset: single;
   const AVertAlign: TTextAlign = TTextAlign.Center): TksListItemRowText;
-var
-  AWidth: single;
+//var
+//  AWidth: single;
 begin
-  AWidth := TextWidth(AText);
+  //AWidth := TextWidth(AText);
   Result := TextOutRight(AText, AWidth, AXOffset, AVertAlign);
-end;
+end;  }
 
 function TKsListItemRow.TextOutRight(AText: string; y, AWidth: single;
   AXOffset: single; const AVertAlign: TTextAlign = TTextAlign.Center)
   : TksListItemRowText;
 begin
-  Result := TextOut(AText, 0, y, AWidth);
-  Result.TextAlignment := TTextAlign.Trailing;
-  Result.Rect.Offset((ScreenWidth - (Result.Rect.Right + ListView.SideSpace)) +
-    AXOffset, 0);
-end;
 
+  Result := TextOut(AText, AXOffset, y, AWidth);
+  Result.Align := TListItemAlign.Trailing;
+  Result.TextAlignment := TTextAlign.Trailing;
+  //Result.Rect.Offset((ScreenWidth - (Result.Rect.Right + ListView.SideSpace)) +
+  //  AXOffset, 0);
+end;
+          {
 function TKsListItemRow.TextOutRight(AText: string; AWidth: single;
   AXOffset: single; const AVertAlign: TTextAlign = TTextAlign.Center)
   : TksListItemRowText;
 begin
   Result := TextOutRight(AText, 0, AWidth, AXOffset, AVertAlign);
-end;
+end;  }
 
 // ------------------------------------------------------------------------------
 
@@ -879,12 +976,17 @@ begin
   FClickTimer := TTimer.Create(Self);
   FLastWidth := 0;
   FSelectOnRightClick := False;
+  FCacheTimer := TTimer.Create(Self);
+  FCacheTimer.Interval := 100;
+  FCacheTimer.OnTimer := OnCacheTimer;
+  FCacheTimer.Enabled := True;
 end;
 
 destructor TksListView.Destroy;
 begin
   FAppearence.Free;
   FClickTimer.Free;
+  FCacheTimer.Free;
   inherited;
 end;
 
@@ -906,7 +1008,9 @@ var
   AIndex: string;
 begin
   AItem := Items.Add;
+  AItem.Height := ItemHeight;
   AIndex := ASearchIndex;
+
   if AIndex = '' then
     AIndex := ' ';
   AItem.Text := AIndex;
@@ -1044,11 +1148,35 @@ begin
         if Assigned(FOnItemRightClickEx) then
           FOnItemRightClickEx(Self, FMouseDownPos.x, FMouseDownPos.y, FClickedItem, AId, FClickedRowObj);
       end;
+      begin
+        if (FClickedRowObj is TksListItemRowSwitch) then
+        begin
+          (FClickedRowObj as TksListItemRowSwitch).Toggle;
+          ARow.CacheRow;
+          Invalidate;
+          if Assigned(FOnSwitchClicked) then
+            FOnSwitchClicked(Self, FClickedItem, (FClickedRowObj as TksListItemRowSwitch), AId);
+        end;
+      end;
     end;
   end;
 end;
 
 
+
+
+procedure TksListView.OnCacheTimer(Sender: TObject);
+begin
+  FCacheTimer.Enabled := False;
+  StoreSwitchImages;
+  if FSwitchBmp[0] <> nil then
+  begin
+    FCacheTimer.Enabled := False;
+    RedrawAllRows;
+  end
+  else
+    FCacheTimer.Enabled := True;
+end;
 
 procedure TksListView.RedrawAllRows;
 var
@@ -1067,6 +1195,7 @@ begin
   Invalidate;
 end;
 
+
 procedure TksListView.Resize;
 begin
   inherited;
@@ -1081,6 +1210,7 @@ var
   ARowObj: TKsListItemRow;
 begin
   inherited EndUpdate;
+  Application.ProcessMessages;
   for ICount := 0 to Items.Count - 1 do
   begin
     AItem := Items[ICount];
@@ -1094,6 +1224,56 @@ end;
 function TksListView.GetCachedRow(index: integer): TKsListItemRow;
 begin
   Result := Items[index].Objects.FindObject('ksRow') as TKsListItemRow;
+end;
+
+
+function TksListView.GetSwitchImage(AIsChecked: Boolean): TBitmap;
+begin
+  case AIsChecked of
+    False: Result := FSwitchBmp[0];
+    True: Result := FSwitchBmp[1];
+  end;
+end;
+
+procedure TksListView.StoreSwitchImages;
+var
+  ASwitch: TSwitch;
+  ABlank: TBitmap;
+begin
+  if FSwitchBmp[0] <> nil then
+    Exit;
+  ASwitch := TSwitch.Create(Self);
+  try
+    ASwitch.IsChecked := False;
+    AddObject(ASwitch);
+    Application.ProcessMessages;
+    FSwitchBmp[0] := ASwitch.MakeScreenshot;
+    ABlank := TBitmap.Create(FSwitchBmp[0].Width, FSwitchBmp[0].Height);
+    ABlank.Clear(claNull);
+    try
+      if FSwitchBmp[0].EqualsBitmap(ABlank) then
+      begin
+
+        FSwitchBmp[0].Free;
+        FSwitchBmp[0] := nil;
+        Exit;
+      end;
+    finally
+      ABlank.Free;
+    end;
+    Application.ProcessMessages;
+    ASwitch.IsChecked := True;
+    FSwitchBmp[1] := ASwitch.MakeScreenshot;
+  finally
+    RemoveObject(ASwitch);
+    ASwitch.Free;
+  end;
+end;
+
+procedure TksListView.Invalidate;
+begin
+  inherited;
+
 end;
 
 function TksListView.ItemsInView: TksVisibleItems;
@@ -1171,6 +1351,9 @@ begin
 //{$ELSE}
   FMouseDownPos := PointF(x, y);
 //{$ENDIF}
+  FClickedItem := nil;
+  FClickedRowObj := nil;
+
   FCurrentMousepos := FMouseDownPos;
   FMouseDownDuration := 0;
   for Icount := 0 to Items.Count-1 do
@@ -1201,28 +1384,33 @@ end;
 
 { TksListItemRowSwitch }
 
-constructor TksListItemRowSwitch.Create(ARow: TKsListItemRow);
-begin
-  inherited;
-end;
-
-destructor TksListItemRowSwitch.Destroy;
-begin
-  inherited;
-end;
-
-procedure TksListItemRowSwitch.Render(ACanvas: TCanvas);
+function TksListItemRowSwitch.Render(ACanvas: TCanvas): Boolean;
 var
   AWidth, AHeight: single;
   ABmp: TBitmap;
+  ASwitch: TSwitch;
+  r: TRectF;
+  lv: TksListView;
+  b: TBitmap;
 begin
-  AWidth := (48 * GetScreenScale);
-  AHeight := (30 * GetScreenScale);
-  ACanvas.Fill.Color := claGainsboro;
-  ACanvas.Stroke.Color := claBlack;
-  ACanvas.Stroke.Thickness := 0.3;
-  ACanvas.FillRect(RectF(FRect.Left, FRect.Top, FRect.Left+AWidth, FRect.Top+AHeight), 4, 4, [TCorner.TopLeft, TCorner.TopRight, TCorner.BottomLeft, TCorner.BottomRight], 1);
-  ACanvas.DrawRect(RectF(FRect.Left, FRect.Top, FRect.Left+AWidth, FRect.Top+AHeight), 4, 4, [TCorner.TopLeft, TCorner.TopRight, TCorner.BottomLeft, TCorner.BottomRight], 1);
+  Result := inherited Render(ACanvas);
+  lv := (FRow.Owner.Parent as TksListView);
+  b := lv.GetSwitchImage(FIsChecked);
+  if b <> nil then
+    ACanvas.DrawBitmap(b, RectF(0,0,b.Width,b.Height), FRect, 1, True)
+  else
+    Result := False;
+end;
+
+procedure TksListItemRowSwitch.SetIsChecked(const Value: Boolean);
+begin
+  FIsChecked := Value;
+  Changed;
+end;
+
+procedure TksListItemRowSwitch.Toggle;
+begin
+  IsChecked := not IsChecked;
 end;
 
 end.

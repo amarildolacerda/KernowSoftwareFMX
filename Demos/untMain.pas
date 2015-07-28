@@ -69,7 +69,7 @@ var
 begin
   ksListView1.Items.BeginUpdate;
   try
-    for ICount := 0 to 100 do
+    for ICount := 0 to 0 do
     begin
       with ksListView1.AddRow do
       begin
@@ -79,7 +79,7 @@ begin
         TextOut('Line '+InttoStr(ICount), 40, 150);
         // right aligned label...
         TextColor := claDodgerblue;
-        TextOutRight('Cached scrolling :-)', 0);
+        TextOutRight('Cached scrolling :-)', 0, 120, 32);
       end;
     end;
   finally
