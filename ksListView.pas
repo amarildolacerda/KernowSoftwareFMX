@@ -449,8 +449,9 @@ begin
 
   if FAlign = TListItemAlign.Trailing then
     OffsetRect(FRect, FRow.RowWidth(False) - (FRect.Width+ DefaultScrollBarWidth + FPlaceOffset.X + FRow.ListView.ItemSpaces.Right), 0);
-    
-  OffsetRect(FRect, 0+FPlaceOffset.Y, (FRow.Owner.Height - FRect.Height) / 2);
+
+  OffsetRect(FRect, 0, (FRow.Owner.Height - FRect.Height) / 2);
+  OffsetRect(FRect, 0, FPlaceOffset.Y);
 end;
 
 procedure TksListItemRowObj.Changed;
@@ -871,15 +872,15 @@ function TKsListItemRow.TextOut(AText: string; x, y, AWidth: single;
   const AWordWrap: Boolean = False): TksListItemRowText;
 var
   AHeight: single;
-  AYpos: single;
+  //AYpos: single;
 begin
-  AYpos := y;
-  case AVertAlign of
+  //AYpos := y;
+  {case AVertAlign of
     TTextAlign.Center:
       AYpos := ((RowHeight(False) - TextHeight(AText)) / 2) + AYpos;
     TTextAlign.Trailing:
       AYpos := (RowHeight(False) - TextHeight(AText)) + AYpos;
-  end;
+  end;  }
 
   Result := TksListItemRowText.Create(Self);
   AHeight := TextHeight(AText);
@@ -892,6 +893,7 @@ begin
     AHeight := RowHeight(False);
     //Result.FRect.Height := AHeight; //:= //RectF(x, 0, x + AWidth, AHeight);
   //end;
+
 
   Result.FRect := RectF(0, 0, AWidth, AHeight);
 
