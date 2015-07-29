@@ -74,7 +74,7 @@ type
   public
     constructor Create(ARow: TKsListItemRow); virtual;
     function Render(ACanvas: TCanvas): Boolean; virtual;
-
+    procedure Click(x, y: single); virtual;
     property Rect: TRectF read FRect write SetRect;
     property ID: string read FId write SetID;
     property Align: TListItemAlign read FAlign write SetAlign default TListItemAlign.Leading;
@@ -146,6 +146,19 @@ type
 
   end;
 
+  TksListItemRowSegmentButtons = class(TksListItemRowObj)
+  private
+    FCaptions: TStrings;
+    FItemIndex: integer;
+    procedure SetItemIndex(const Value: integer);
+  public
+    constructor Create(ARow: TKsListItemRow); override;
+    destructor Destroy; override;
+    procedure Click(x, y: single); override;
+    function Render(ACanvas: TCanvas): Boolean; override;
+    property ItemIndex: integer read FItemIndex write SetItemIndex;
+  end;
+
 
   // ------------------------------------------------------------------------------
 
@@ -187,6 +200,10 @@ type
     // switch
     function AddSwitch(x: single; AIsChecked: Boolean; const AAlign: TListItemAlign = TListItemAlign.Leading): TksListItemRowSwitch;
     function AddSwitchRight(AMargin: integer; AIsChecked: Boolean): TksListItemRowSwitch;
+
+    // segment buttons...
+    function AddSegmentButtons(AWidth, AXOffset: integer): TksListItemRowSegmentButtons;
+
     // text functions...
     function TextOut(AText: string; x: single; const AVertAlign: TTextAlign = TTextAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
     function TextOut(AText: string; x, AWidth: single; const AVertAlign: TTextAlign = TTextAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
@@ -489,6 +506,13 @@ end;
 procedure TksListItemRowObj.Changed;
 begin
   FRow.Cached := False;
+  //FRow.CacheRow;
+  //FRow.ListView.Repaint;
+end;
+
+procedure TksListItemRowObj.Click(x, y: single);
+begin
+  //
 end;
 
 constructor TksListItemRowObj.Create(ARow: TKsListItemRow);
@@ -842,6 +866,26 @@ begin
   Result := DrawBitmap(ABmp, AXPos, AYpos, AWidth, AHeight);
 end;
 
+function TKsListItemRow.AddSegmentButtons(AWidth, AXOffset: integer): TksListItemRowSegmentButtons;
+var
+  ABtn: TButton;
+  AHeight: single;
+begin
+  ABtn := TButton.Create(nil);
+  try
+    AHeight := ABtn.Height;
+  finally
+    ABtn.Free;
+  end;
+  Result := TksListItemRowSegmentButtons.Create(Self);
+  Result.Align := TListItemAlign.Trailing;
+  Result.VertAlign := TListItemAlign.Center;
+  Result.PlaceOffset := PointF(AXOffset, 0);
+  Result.Rect := RectF(0, 0, AWidth, AHeight);
+  ShowAccessory := False;
+  FList.Add(Result);
+end;
+
 function TKsListItemRow.AddSwitch(x: single;
                                   AIsChecked: Boolean;
                                   const AAlign: TListItemAlign = TListItemAlign.Leading): TksListItemRowSwitch;
@@ -854,7 +898,7 @@ begin
   Result.Align := AAlign;
 
   Result.PlaceOffset := PointF(x, 0);
-  
+
   s := TSwitch.Create(nil);
   try
     Result.FRect := RectF(0, 0, s.Width, s.Height);
@@ -863,7 +907,7 @@ begin
   end;
   //
   //Result.CalculateRect(;
-  
+
   Result.IsChecked := AIsChecked;
   FList.Add(Result);
 end;
@@ -1210,15 +1254,17 @@ begin
         if Assigned(FOnItemRightClickEx) then
           FOnItemRightClickEx(Self, FMouseDownPos.x, FMouseDownPos.y, FClickedItem, AId, FClickedRowObj);
       end;
+      if FClickedRowObj <> nil then
       begin
+        FClickedRowObj.Click(FMouseDownPos.X - FClickedRowObj.Rect.Left, FMouseDownPos.Y - FClickedRowObj.Rect.Top);
         if (FClickedRowObj is TksListItemRowSwitch) then
         begin
           (FClickedRowObj as TksListItemRowSwitch).Toggle;
-          ARow.CacheRow;
-          Invalidate;
           if Assigned(FOnSwitchClicked) then
             FOnSwitchClicked(Self, FClickedItem, (FClickedRowObj as TksListItemRowSwitch), AId);
         end;
+        ARow.CacheRow;
+        Invalidate;
       end;
     end;
   end;
@@ -1468,6 +1514,90 @@ end;
 procedure TKsListItemRowAccessory.SetAccessoryType(const Value: TAccessoryType);
 begin
   FAccessoryType := Value;
+  Changed;
+end;
+
+{ TksListItemRowSegmentButtons }
+
+procedure TksListItemRowSegmentButtons.Click(x, y: single);
+var
+  ABtnWidth: single;
+begin
+  inherited;
+  ABtnWidth := FRect.Width / FCaptions.Count;
+  ItemIndex := Trunc(x / ABtnWidth);
+  //Application.MainForm.Caption := floattostr(AIndex);
+end;
+
+constructor TksListItemRowSegmentButtons.Create(ARow: TKsListItemRow);
+begin
+  inherited;
+  FCaptions := TStringList.Create;
+  FCaptions.Add('One');
+  FCaptions.Add('Two');
+  FCaptions.Add('Three');
+  FItemIndex := -1;
+end;
+
+destructor TksListItemRowSegmentButtons.Destroy;
+begin
+  FCaptions.Free;
+  inherited;
+end;
+
+function TksListItemRowSegmentButtons.Render(ACanvas: TCanvas): Boolean;
+var
+  ABmp: TBitmap;
+  AButton: TSpeedButton;
+  r: TRectF;
+  lv: TksListView;
+  b: TBitmap;
+  ABlank: TBitmap;
+  ABtnWidth: single;
+  ICount: integer;
+  AXPos: single;
+  ARect: TRectF;
+  AGroup: string;
+begin
+  AGroup := 'group_'+IntToStr(TListViewItem(FRow.Owner).Index);
+  Result := inherited Render(ACanvas);
+  lv := (FRow.Owner.Parent as TksListView);
+
+  ABtnWidth := FRect.Width / FCaptions.Count;
+  AXPos := FRect.Left;
+  for ICount := 0 to FCaptions.Count-1 do
+  begin
+    if FItemIndex = -1 then
+      FItemIndex := 0;
+    AButton := TSpeedButton.Create(lv.Parent);
+    AButton.Text := FCaptions[ICount];
+    AButton.SetBounds(0, 0, ABtnWidth, FRect.Height);
+    if ICount = 0 then AButton.StyleLookup := 'segmentedbuttonleft';
+    if ICount > 0 then AButton.StyleLookup := 'segmentedbuttonmiddle';
+    if ICount = FCaptions.Create.Count-1 then AButton.StyleLookup := 'segmentedbuttonright';
+
+    AButton.GroupName := AGroup;
+    AButton.StaysPressed := True;
+
+    //AButton.Visible := False;
+    lv.Parent.InsertObject(0, AButton);
+    AButton.IsPressed := FItemIndex = ICount;
+    Application.ProcessMessages;
+    b := AButton.MakeScreenshot;
+    ARect := RectF(AXPos, FRect.Top, AXPos+ABtnWidth, FRect.Bottom);
+    ACanvas.DrawBitmap(b, RectF(0,0,b.Width,b.Height), ARect, 1, True);
+    AXPos := AXPos + ABtnWidth;
+    b.Free;
+    lv.Parent.RemoveObject(AButton);
+    AButton.Free;
+  end;
+end;
+
+procedure TksListItemRowSegmentButtons.SetItemIndex(const Value: integer);
+begin
+  if FItemIndex = Value then
+    Exit;
+  FItemIndex := Value;
   Changed;
 end;
 
