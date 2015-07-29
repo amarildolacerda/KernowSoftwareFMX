@@ -48,10 +48,32 @@ type
 
   // ------------------------------------------------------------------------------
 
+  //TksCachedImageType = (ksImgSwitchOn, ks
+
   TksVisibleItems = record
     Count: integer;
     IndexStart: integer;
     IndexEnd: integer;
+  end;
+
+  TksListViewImageCache = class
+  private
+    FOwner: TksListView;
+    FSwitchOn: TBitmap;
+    FSwitchOff: TBitmap;
+    FSegmentLeft: TBitmap;
+    FSegmentMiddle: TBitmap;
+    FSegmentRight: TBitmap;
+    FButton: TButton;
+    FImagesCached: Boolean;
+    function IsBlankBitmap(ABmp: TBitmap): Boolean;
+    function GetAsBitmap(AControl: TStyledControl; const AStyle: string = ''): TBitmap;
+  public
+    constructor Create(AOwner: TksListView); virtual;
+
+    destructor Destroy; override;
+    function CreateCache: Boolean;
+    property ImagesCached: Boolean read FImagesCached;
   end;
 
   TksListItemRowObj = class
@@ -63,16 +85,21 @@ type
     FAlign: TListItemAlign;
     FVertAlignment: TListItemAlign;
     FTagBoolean: Boolean;
+    FGuid: string;
     procedure SetRect(const Value: TRectF);
     procedure SetID(const Value: string);
     procedure Changed;
     procedure SetAlign(const Value: TListItemAlign);
-    procedure CalculateRect(ARowBmp: TBitmap);
     procedure SetVertAlign(const Value: TListItemAlign);
+    function GetCachedImage(AId: string): TBitmap;
   protected
+    function IsBlankBitmap(ABmp: TBitmap): Boolean;
+    procedure CalculateRect(ARowBmp: TBitmap); virtual;
     procedure DoChanged(Sender: TObject);
+
   public
     constructor Create(ARow: TKsListItemRow); virtual;
+    destructor Destroy; override;
     function Render(ACanvas: TCanvas): Boolean; virtual;
     procedure Click(x, y: single); virtual;
     property Rect: TRectF read FRect write SetRect;
@@ -84,7 +111,7 @@ type
   end;
 
 
-  // ------------------------------------------------------------------------------
+
 
   TksListItemRowText = class(TksListItemRowObj)
   private
@@ -138,6 +165,7 @@ type
   TksListItemRowSwitch = class(TksListItemRowObj)
   private
     FIsChecked: Boolean;
+    //function GetSwitchImage(AChecked: Boolean): TBitmap;
     procedure SetIsChecked(const Value: Boolean);
   public
     function Render(ACanvas: TCanvas): Boolean; override;
@@ -158,9 +186,9 @@ type
     function Render(ACanvas: TCanvas): Boolean; override;
     property ItemIndex: integer read FItemIndex write SetItemIndex;
   end;
-
-
+                  
   // ------------------------------------------------------------------------------
+
 
   TKsListItemRow = class(TListItemImage)
   private
@@ -171,7 +199,6 @@ type
     FList: TObjectList<TksListItemRowObj>;
     FId: string;
     FAccessory: TKsListItemRowAccessory;
-
     FShowAccessory: Boolean;
     function TextHeight(AText: string): single;
     function TextWidth(AText: string): single;
@@ -202,7 +229,7 @@ type
     function AddSwitchRight(AMargin: integer; AIsChecked: Boolean): TksListItemRowSwitch;
 
     // segment buttons...
-    function AddSegmentButtons(AWidth, AXOffset: integer): TksListItemRowSegmentButtons;
+    function AddSegmentButtons(AWidth: integer): TksListItemRowSegmentButtons;
 
     // text functions...
     function TextOut(AText: string; x: single; const AVertAlign: TTextAlign = TTextAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
@@ -271,7 +298,7 @@ type
     FClickedRowObj: TksListItemRowObj;
     FClickedItem: TListViewItem;
     FSelectOnRightClick: Boolean;
-    FSwitchBmp: array[0..1] of TBitmap;
+    FCachedImages: TksListViewImageCache;
     FOnSwitchClicked: TksListViewClickSwitchEvent;
     FCacheTimer: TTimer;
     FScrollTimer: TTimer;
@@ -283,11 +310,12 @@ type
     function GetCachedRow(index: integer): TKsListItemRow;
     procedure Invalidate;
     procedure OnCacheTimer(Sender: TObject);
-    procedure StoreSwitchImages;
+    //procedure CacheControlImage(AId: string; AControl: TControl);
+    //procedure StoreSwitchImages;
     procedure DoScrollTimer(Sender: TObject);
     { Private declarations }
   protected
-    function GetSwitchImage(AIsChecked: Boolean): TBitmap;
+    //function GetSwitchImage(AIsChecked: Boolean): TBitmap;
     procedure SetColorStyle(AName: string; AColor: TAlphaColor);
     procedure Resize; override;
     procedure ApplyStyle; override;
@@ -435,7 +463,7 @@ procedure Register;
 
 implementation
 
-uses SysUtils, FMX.Platform, FMX.Forms, FMX.SearchBox;
+uses SysUtils, FMX.Platform, FMX.Forms, FMX.SearchBox, Unit10;
 
 const
 {$IFDEF IOS}
@@ -459,6 +487,7 @@ begin
   RegisterComponents('kernow Software FMX', [TksListView]);
 end;
 
+
 // ------------------------------------------------------------------------------
 
 function GetScreenScale: single;
@@ -473,6 +502,26 @@ begin
     Result := 1.5;
 {$ENDIF}
 end;
+           {
+function GetAsBitmap(AControl: TControl): TBitmap;
+var
+  ABlank: TBitmap;
+begin
+  Result := AControl.MakeScreenshot;
+
+  ABlank := TBitmap.Create(Result.Width, Result.Height);
+  try
+    ABlank.Clear(claNull);
+    if ABlank.EqualsBitmap(Result) then
+    begin
+      Result.Free;
+      Result := nil;
+    end;
+  finally
+    ABlank.Free;
+  end;
+end;}
+
 
 // ------------------------------------------------------------------------------
 
@@ -516,12 +565,21 @@ begin
 end;
 
 constructor TksListItemRowObj.Create(ARow: TKsListItemRow);
+var
+  AGuid: TGUID;
 begin
   inherited Create;
   FRow := ARow;
   FAlign := TListItemAlign.Leading;
   FPlaceOffset := PointF(0,0);
   FTagBoolean := False;
+  CreateGUID(AGuid);
+  FGuid := GUIDToString(AGuid);
+end;
+
+destructor TksListItemRowObj.Destroy;
+begin
+  inherited;
 end;
 
 procedure TksListItemRowObj.DoChanged(Sender: TObject);
@@ -529,10 +587,38 @@ begin
   Changed;
 end;
 
+function TksListItemRowObj.GetCachedImage(AId: string): TBitmap;
+var
+  ICount: integer;
+begin
+  Result := nil;
+  {for ICount := 0 to FCachedImages.Count-1 do
+  begin
+    if FCachedImages[ICount].Id = AId then
+    begin
+      Result := FCachedImages[ICount].Bitmap;
+      Exit;
+    end;
+  end; }
+end;
+
+function TksListItemRowObj.IsBlankBitmap(ABmp: TBitmap): Boolean;
+var
+  ABlank: TBitmap;
+begin
+  Result := False;
+  ABlank := TBitmap.Create(ABmp.Width, ABmp.Height);
+  try
+    ABlank.Clear(claNull);
+    Result := ABmp.EqualsBitmap(ABlank);
+  finally
+    ABlank.Free;
+  end;
+end;
+
 function TksListItemRowObj.Render(ACanvas: TCanvas): Boolean;
 begin
   Result := True;
-
 end;
 
 procedure TksListItemRowObj.SetAlign(const Value: TListItemAlign);
@@ -655,65 +741,63 @@ procedure TKsListItemRow.CacheRow;
 var
   ICount: integer;
   Image: TStyleObject;
-  Controller: IListViewController;
+ // Controller: IListViewController;
   r: TRectF;
   AMargins: TBounds;
+  ABmpWidth: integer;
+  //ABmp: TBitmap;
 begin
   if FCached then
     Exit;
 
   AMargins := (Owner.Parent as TCustomListView).ItemSpaces;
-  Supports(Owner.Parent, IListViewController, Controller);
-  r := Controller.GetClientMargins;
-
+ // Supports(Owner.Parent, IListViewController, Controller);
+  //r := Controller.GetClientMargins;
 
   BeginUpdate;
+  //ABmp := TBitmap.Create;
   try
-    Bitmap.Width := Round(RowWidth);
+    //ABmp.BitmapScale := GetScreenScale;
+    ABmpWidth := Round(RowWidth) - Round((AMargins.Left + AMargins.Right) * GetScreenScale);
+
+
     Bitmap.Height := Round(RowHeight);
 
-    Bitmap.Width := Bitmap.Width - Round((AMargins.Left + AMargins.Right) * GetScreenScale);
+
+    Bitmap.Width := ABmpWidth;
     Bitmap.Clear(claNull);
     Bitmap.Canvas.BeginScene;
-    try
-      if FIndicatorColor <> claNull then
-      begin
-        Bitmap.Canvas.Fill.Color := FIndicatorColor;
-        Bitmap.Canvas.FillRect(RectF(0, 8, 6, RowHeight(False)-8), 0, 0, [], 1, Bitmap.Canvas.Fill);
-      end;
 
-      for ICount := 0 to FList.Count - 1 do
-      begin
-        FList[ICount].CalculateRect(Bitmap);
-        if FList[ICount].Render(Bitmap.Canvas) = False then
-        begin
-          FCached := False;
-          Exit;
-        end;
-
-      end;
-      Bitmap.Canvas.Fill.Color := claRed;
-
-      if FShowAccessory then
-      begin
-
-        FAccessory.CalculateRect(Bitmap);
-        FAccessory.Render(Bitmap.Canvas);
-        {Image := Resources.AccessoryImages[FAccessory].Normal;
-        r := RectF(RowWidth(False), 0, RowWidth(False)+Image.Width, RowHeight(False));
-        OffsetRect(r, 0 - (DefaultScrollBarWidth + ListView.ItemSpaces.Rect.Right), 0);
-        OffsetRect(r, 0-ListView.ItemSpaces.Left, 0);
-        //OffsetRect(r, (Bitmap.Width / GetScreenScale) - Image.Width, 0);
-        //r := RectF((RowWidth(False) - Image.Width), 0, RowWidth(False) - (DefaultScrollBarWidth), RowHeight(False));
-
-        //OffsetRect(r, 0-(ListView.ItemSpaces.Right + DefaultScrollBarWidth), 0);
-        Image.DrawToCanvas(Bitmap.Canvas, r); }
-      end;
-    finally
-      Bitmap.Canvas.EndScene;
+    if FIndicatorColor <> claNull then
+    begin
+      Bitmap.Canvas.Fill.Color := FIndicatorColor;
+      Bitmap.Canvas.FillRect(RectF(0, 8, 6, RowHeight(False)-8), 0, 0, [], 1, Bitmap.Canvas.Fill);
     end;
+
+    if FShowAccessory then
+    begin
+      FAccessory.CalculateRect(Bitmap);
+      FAccessory.Render(Bitmap.Canvas);
+    end;
+
+    for ICount := 0 to FList.Count - 1 do
+    begin
+      FList[ICount].CalculateRect(Bitmap);
+
+      if FList[ICount].Render(Bitmap.Canvas) = False then
+      begin
+        FCached := False;
+        Exit;
+      end;
+    end;
+
+   // {Bitmap.Canvas.Fill.Color := claRed;
+    Bitmap.Canvas.EndScene;
+    //Bitmap.Assign(ABmp);
+    //ABmp.SaveToFile('c:\row.bmp');
     FCached := True;
   finally
+   // ABmp.Free;
     EndUpdate;
   end;
 end;
@@ -866,21 +950,23 @@ begin
   Result := DrawBitmap(ABmp, AXPos, AYpos, AWidth, AHeight);
 end;
 
-function TKsListItemRow.AddSegmentButtons(AWidth, AXOffset: integer): TksListItemRowSegmentButtons;
+function TKsListItemRow.AddSegmentButtons(AWidth: integer): TksListItemRowSegmentButtons;
 var
   ABtn: TButton;
   AHeight: single;
+  b: TSpeedButton;
 begin
-  ABtn := TButton.Create(nil);
+  b := TSpeedButton.Create(nil);
   try
-    AHeight := ABtn.Height;
+    AHeight := b.Height;
   finally
-    ABtn.Free;
+    b.Free;
   end;
+
   Result := TksListItemRowSegmentButtons.Create(Self);
   Result.Align := TListItemAlign.Trailing;
   Result.VertAlign := TListItemAlign.Center;
-  Result.PlaceOffset := PointF(AXOffset, 0);
+  //Result.PlaceOffset := PointF(AXOffset, 0);
   Result.Rect := RectF(0, 0, AWidth, AHeight);
   ShowAccessory := False;
   FList.Add(Result);
@@ -891,23 +977,21 @@ function TKsListItemRow.AddSwitch(x: single;
                                   const AAlign: TListItemAlign = TListItemAlign.Leading): TksListItemRowSwitch;
 var
   s: TSwitch;
-  ASize: TSize;
+  ASize: TSizeF;
   ARect: TRectF;
 begin
-  Result := TksListItemRowSwitch.Create(Self);
-  Result.Align := AAlign;
-
-  Result.PlaceOffset := PointF(x, 0);
-
   s := TSwitch.Create(nil);
   try
-    Result.FRect := RectF(0, 0, s.Width, s.Height);
+    ASize.Width := s.Width;
+    ASize.Height := s.Height;
   finally
     s.Free;
   end;
-  //
-  //Result.CalculateRect(;
-
+  Result := TksListItemRowSwitch.Create(Self);
+  Result.Rect := RectF(0, 0, ASize.Width, ASize.Height);
+  Result.Align := AAlign;
+  Result.VertAlign := TListItemAlign.Center;
+  Result.PlaceOffset := PointF(x, 0);
   Result.IsChecked := AIsChecked;
   FList.Add(Result);
 end;
@@ -1041,29 +1125,30 @@ begin
   FClickTimer := TTimer.Create(Self);
   FLastWidth := 0;
   FSelectOnRightClick := False;
+  FCachedImages := TksListViewImageCache.Create(Self);
   FCacheTimer := TTimer.Create(Self);
   FCacheTimer.Interval := 100;
   FCacheTimer.OnTimer := OnCacheTimer;
   FCacheTimer.Enabled := True;
   FLastScrollPos := 0;
-
   FScrolling := False;
   FScrollTimer := TTimer.Create(Self);
   FScrollTimer.Interval := 500;
   FScrollTimer.OnTimer := DoScrollTimer;
   FScrollTimer.Enabled := True;
-
-
 end;
 
 destructor TksListView.Destroy;
+var
+  ICount: integer;
 begin
   FAppearence.Free;
   FClickTimer.Free;
-  FCacheTimer.Free;
+  //FCacheTimer.Free;
   FScrollTimer.Free;
-  FSwitchBmp[0].Free;
-  FSwitchBmp[1].Free;
+  FCachedImages.Free;
+  //FSwitchBmp[0].Free;
+  //FSwitchBmp[1].Free;
   inherited;
 end;
 
@@ -1073,7 +1158,7 @@ begin
   Result.Font.Style := [];
   Result.TextColor := claSilver;
   Result.Font.Size := 16;
-  Result.TextOut(AText, 0, 0, Result.TextWidth(AText), TTextAlign.Trailing);
+  Result.TextOut(AText, 0, -80, Result.TextWidth(AText), TTextAlign.Trailing);
   Result.CacheRow;
 end;
 
@@ -1264,7 +1349,7 @@ begin
             FOnSwitchClicked(Self, FClickedItem, (FClickedRowObj as TksListItemRowSwitch), AId);
         end;
         ARow.CacheRow;
-        Invalidate;
+        InvalidateRect(GetItemRect(TListViewItem(ARow.Owner).Index));
       end;
     end;
   end;
@@ -1274,16 +1359,17 @@ end;
 
 
 procedure TksListView.OnCacheTimer(Sender: TObject);
+var
+  ABmp: TBitmap;
 begin
   FCacheTimer.Enabled := False;
-  StoreSwitchImages;
-  if FSwitchBmp[0] <> nil then
+  if FCachedImages.ImagesCached then
   begin
-    FCacheTimer.Enabled := False;
-    RedrawAllRows;
-  end
-  else
-    FCacheTimer.Enabled := True;
+    FCacheTimer.OnTimer := nil;
+    Exit;
+  end;
+  FCachedImages.CreateCache;
+  FCacheTimer.Enabled := True;
 end;
 
 procedure TksListView.RedrawAllRows;
@@ -1334,48 +1420,54 @@ begin
   Result := Items[index].Objects.FindObject('ksRow') as TKsListItemRow;
 end;
 
-
+   {
 function TksListView.GetSwitchImage(AIsChecked: Boolean): TBitmap;
+var
+  AName: string;
 begin
+  Result := nil;
   case AIsChecked of
-    False: Result := FSwitchBmp[0];
-    True: Result := FSwitchBmp[1];
+    False: AName := 'switch_off';
+    True: AName := 'switch_on';
   end;
-end;
+  if FCachedImages.IndexOf(AName) > -1 then
+    Result := TBitmap(FCachedImages.Objects[FCachedImages.IndexOf(AName)]);
+end; }
+       {
+procedure TksListView.CacheControlImage(AId: string; AControl: TControl);
+begin
+
+end;    }{
 
 procedure TksListView.StoreSwitchImages;
 var
   ASwitch: TSwitch;
-  ABlank: TBitmap;
+  ABmp: TBitmap;
 begin
-  if FSwitchBmp[0] <> nil then
+  if FCachedImages.IndexOf('switch_off') > -1 then
     Exit;
+
   ASwitch := TSwitch.Create(Self);
   try
+    //ASwitch.Position := Position;
     ASwitch.IsChecked := False;
-    AddObject(ASwitch);
-    Application.ProcessMessages;
-    FSwitchBmp[0] := ASwitch.MakeScreenshot;
-    ABlank := TBitmap.Create(FSwitchBmp[0].Width, FSwitchBmp[0].Height);
-    ABlank.Clear(claNull);
-    try
-      if FSwitchBmp[0].EqualsBitmap(ABlank) then
-      begin
-        FSwitchBmp[0].Free;
-        FSwitchBmp[0] := nil;
-        Exit;
-      end;
-    finally
-      ABlank.Free;
-    end;
+    //Parent.InsertObject(0, ASwitch);
+
+    ABmp := GetAsBitmap(ASwitch);
+    if ABmp = nil then
+      Exit;
+
+    FCachedImages.AddObject('switch_off', ABmp);
     Application.ProcessMessages;
     ASwitch.IsChecked := True;
-    FSwitchBmp[1] := ASwitch.MakeScreenshot;
+    ABmp := ASwitch.MakeScreenshot;
+    FCachedImages.AddObject('switch_on', ABmp);
   finally
-    RemoveObject(ASwitch);
+    Parent.RemoveObject(ASwitch);
+    Application.ProcessMessages;
     ASwitch.Free;
   end;
-end;
+end;  }
 
 procedure TksListView.Invalidate;
 begin
@@ -1465,20 +1557,22 @@ end;
 
 function TksListItemRowSwitch.Render(ACanvas: TCanvas): Boolean;
 var
-  AWidth, AHeight: single;
-  ABmp: TBitmap;
-  ASwitch: TSwitch;
-  r: TRectF;
   lv: TksListView;
   b: TBitmap;
 begin
   Result := inherited Render(ACanvas);
   lv := (FRow.Owner.Parent as TksListView);
-  b := lv.GetSwitchImage(FIsChecked);
-  if b <> nil then
-    ACanvas.DrawBitmap(b, RectF(0,0,b.Width,b.Height), FRect, 1, True)
-  else
+  if lv.FCachedImages.ImagesCached = False then
+  begin
     Result := False;
+    Exit;
+  end;
+
+  case FIsChecked of
+    True: b := lv.FCachedImages.FSwitchOn;
+    False: b := lv.FCachedImages.FSwitchOff;
+  end;
+  ACanvas.DrawBitmap(b, RectF(0,0,b.Width,b.Height), FRect, 1);
 end;
 
 procedure TksListItemRowSwitch.SetIsChecked(const Value: Boolean);
@@ -1519,6 +1613,7 @@ end;
 
 { TksListItemRowSegmentButtons }
 
+
 procedure TksListItemRowSegmentButtons.Click(x, y: single);
 var
   ABtnWidth: single;
@@ -1552,44 +1647,39 @@ var
   r: TRectF;
   lv: TksListView;
   b: TBitmap;
-  ABlank: TBitmap;
   ABtnWidth: single;
   ICount: integer;
   AXPos: single;
   ARect: TRectF;
   AGroup: string;
 begin
-  AGroup := 'group_'+IntToStr(TListViewItem(FRow.Owner).Index);
   Result := inherited Render(ACanvas);
+
   lv := (FRow.Owner.Parent as TksListView);
+  if lv.FCachedImages.ImagesCached = False then
+  begin
+    Result := False;
+    Exit;
+  end;
 
   ABtnWidth := FRect.Width / FCaptions.Count;
   AXPos := FRect.Left;
+  FRect.Height := (FRow.ListView as TksListView).FCachedImages.FSegmentLeft.Height;
   for ICount := 0 to FCaptions.Count-1 do
   begin
     if FItemIndex = -1 then
       FItemIndex := 0;
-    AButton := TSpeedButton.Create(lv.Parent);
-    AButton.Text := FCaptions[ICount];
-    AButton.SetBounds(0, 0, ABtnWidth, FRect.Height);
-    if ICount = 0 then AButton.StyleLookup := 'segmentedbuttonleft';
-    if ICount > 0 then AButton.StyleLookup := 'segmentedbuttonmiddle';
-    if ICount = FCaptions.Create.Count-1 then AButton.StyleLookup := 'segmentedbuttonright';
 
-    AButton.GroupName := AGroup;
-    AButton.StaysPressed := True;
+    if ICount = 0 then ABmp := lv.FCachedImages.FSegmentLeft;
+    if ICount > 0 then ABmp := lv.FCachedImages.FSegmentMiddle;
+    if ICount = FCaptions.Count-1 then ABmp := lv.FCachedImages.FSegmentRight;
 
-    //AButton.Visible := False;
-    lv.Parent.InsertObject(0, AButton);
-    AButton.IsPressed := FItemIndex = ICount;
-    Application.ProcessMessages;
-    b := AButton.MakeScreenshot;
     ARect := RectF(AXPos, FRect.Top, AXPos+ABtnWidth, FRect.Bottom);
-    ACanvas.DrawBitmap(b, RectF(0,0,b.Width,b.Height), ARect, 1, True);
+    ACanvas.DrawRect(ARect, 0, 0, [], 1);
+    //ACanvas.DrawBitmap(ABmp, RectF(0,0,ABmp.Width, ABmp.Height), ARect, 1);
+    //ACanvas.Stroke.Thickness := 3;
+   // ACanvas.DrawRect(ARect, 0, 0, [], 1);
     AXPos := AXPos + ABtnWidth;
-    b.Free;
-    lv.Parent.RemoveObject(AButton);
-    AButton.Free;
   end;
 end;
 
@@ -1599,6 +1689,120 @@ begin
     Exit;
   FItemIndex := Value;
   Changed;
+end;
+
+
+{ TksListViewImageCache }
+
+constructor TksListViewImageCache.Create(AOwner: TksListView);
+begin
+  FOwner := AOwner;
+  //FSwitchOn := TBitmap.Create;
+  //FSwitchOff := TBitmap.Create;
+  FButton := TButton.Create(nil);
+  FImagesCached := False;
+end;
+
+function TksListViewImageCache.CreateCache: Boolean;
+var
+  ASwitch: TSwitch;
+
+begin
+  Result := False;
+  // switch images...
+  ASwitch := TSwitch.Create(FOwner.Parent);
+  AButton := TButton.Create(FOwner.Parent);
+  try
+   //AButton.GroupName := '1';
+    // segment button images...
+    //AButton.Width := 100;
+    //AButton.Height := 30;
+
+
+    AButton.StyleName := 'segmentedbuttonleft';
+    //FSegmentLeft := TBitmap.Create;
+    //FSegmentLeft.Width :=
+    //FSegmentLeft := TBitmap.Create(AButton.Width, AButton.Height);
+
+    AButton.Text := '123';
+    //FSegmentLeft := AButton.MakeScreenshot;// Create (AButton, 'segmentedbuttonleft');
+
+    FSegmentLeft := TBitmap.Create(Round(AButton.Width), Round(AButton.Height));
+
+    {FSegmentLeft.Canvas.BeginScene;
+    AButton.PaintTo(FSegmentLeft.Canvas, RectF(0, 0, AButton.Width, AButton.Height));
+    FSegmentLeft.Canvas.EndScene;}
+
+    FSegmentLeft := AButton.MakeScreenshot;
+    if FSegmentLeft = nil then
+      Exit;
+    Form10.Image1.Bitmap.Assign(FSegmentLeft);
+    //FSegmentLeft.SaveToFile('c:\segment_left.png');
+    //FSegmentLeft.SaveToFile('c:\segment_left.bmp');
+    //FSegmentMiddle := GetAsBitmap(AButton, 'segmentedbuttonmiddle');
+    //FSegmentRight := GetAsBitmap(AButton, 'segmentedbuttonright');
+
+
+
+    ASwitch.IsChecked := True;
+    FSwitchOn := GetAsBitmap(ASwitch, '');  // ASwitch.MakeScreenshot;
+    ASwitch.IsChecked := False;
+    FSwitchOff := GetAsBitmap(ASwitch);
+    //FSwitchOff.SaveToFile('c:\switch.bmp');
+    //FImagesCached := True;
+    //Result := True;
+
+  finally
+    ASwitch.Free;
+    AButton.Free;
+  end;
+  FImagesCached := True;
+  Result := True;
+end;
+
+destructor TksListViewImageCache.Destroy;
+begin
+  FSwitchOn.Free;
+  FSwitchOff.Free;
+  FSegmentLeft.Free;
+  FSegmentRight.Free;
+  FSegmentMiddle.Free;
+  FButton.Free;
+  inherited;
+end;
+
+function TksListViewImageCache.GetAsBitmap(AControl: TStyledControl; const AStyle: string = ''): TBitmap;
+begin
+  AControl.Position := FOwner.Position;
+  if AStyle <> '' then
+    AControl.StyleName := AStyle;
+
+  FOwner.Parent.AddObject(AControl);
+  try
+    Application.ProcessMessages;
+    Result := AControl.MakeScreenshot;
+    if IsBlankBitmap(Result) then
+    begin
+      Result.Free;
+      Result := nil;
+    end;
+  finally
+    FOwner.Parent.RemoveObject(AControl);
+  end;
+end;
+
+function TksListViewImageCache.IsBlankBitmap(ABmp: TBitmap): Boolean;
+var
+  ABlank: TBitmap;
+begin
+  Result := False;
+  ABlank := TBitmap.Create(ABmp.Width, ABmp.Height);
+  try
+    ABlank.Clear(claNull);
+    Result := ABmp.EqualsBitmap(ABlank);
+  finally
+    ABlank.Free;
+  end;
 end;
 
 end.
