@@ -41,6 +41,11 @@ type
     procedure btnRightMenuClick(Sender: TObject);
     procedure btnLeftMenuClick(Sender: TObject);
     procedure SlideMenu1SelectMenuItemEvent(Sender: TObject; AId: string);
+    procedure lvSwitchesSwitchClick(Sender: TObject; AItem: TListViewItem;
+      ASwitch: TksListItemRowSwitch; ARowID: string);
+    procedure lvSegmentButtonsSegmentButtonClicked(Sender: TObject;
+      AItem: TListViewItem; AButtons: TksListItemRowSegmentButtons;
+      ARowID: string);
   private
     procedure BuildTextItemsListView;
     procedure BuildSegmentButtonListView;
@@ -252,6 +257,21 @@ begin
 
   SlideMenu2.ItemIndex := 0;
   layoutImages.Visible := False;
+end;
+
+procedure TForm6.lvSegmentButtonsSegmentButtonClicked(Sender: TObject;
+  AItem: TListViewItem; AButtons: TksListItemRowSegmentButtons; ARowID: string);
+begin
+  ShowMessage('Segment button clicked'+#13+
+              'row: '+IntToStr(AItem.Index+1)+#13+
+              'button index: '+IntToStr(AButtons.ItemIndex)+#13+
+              'caption: '+AButtons.Captions[AButtons.ItemIndex]);
+end;
+
+procedure TForm6.lvSwitchesSwitchClick(Sender: TObject; AItem: TListViewItem;
+  ASwitch: TksListItemRowSwitch; ARowID: string);
+begin
+  ShowMessage('Switch clicked: row '+IntToStr(AItem.Index+1));
 end;
 
 procedure TForm6.SlideMenu1SelectMenuItemEvent(Sender: TObject; AId: string);

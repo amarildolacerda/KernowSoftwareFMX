@@ -41,10 +41,12 @@ type
   TKsListItemRow = class;
   TksListItemRowObj = class;
   TksListItemRowSwitch = class;
+  TksListItemRowSegmentButtons = class;
   TksControlBitmapCache = class;
 
   TksListViewRowClickEvent = procedure(Sender: TObject; x, y: single; AItem: TListViewItem; AId: string; ARowObj: TksListItemRowObj) of object;
   TksListViewClickSwitchEvent = procedure(Sender: TObject; AItem: TListViewItem; ASwitch: TksListItemRowSwitch; ARowID: string) of object;
+  TksListViewClickSegmentButtonEvent = procedure(Sender: TObject; AItem: TListViewItem; AButtons: TksListItemRowSegmentButtons; ARowID: string) of object;
   TksListViewFinishScrollingEvent = procedure(Sender: TObject; ATopIndex, AVisibleItems: integer) of object;
 
 
@@ -303,6 +305,7 @@ type
     FSelectOnRightClick: Boolean;
     //FCachedImages: TksListViewImageCache;
     FOnSwitchClicked: TksListViewClickSwitchEvent;
+    FOnSegmentButtonClicked: TksListViewClickSegmentButtonEvent;
     FCacheTimer: TTimer;
     FScrollTimer: TTimer;
     FLastScrollPos: integer;
@@ -461,6 +464,7 @@ type
     property PullRefreshWait;
     property OnLongClick: TksListViewRowClickEvent read FOnLongClick write FOnLongClick;
     property OnSwitchClick: TksListViewClickSwitchEvent read FOnSwitchClicked write FOnSwitchClicked;
+    property OnSegmentButtonClicked: TksListViewClickSegmentButtonEvent read FOnSegmentButtonClicked write FOnSegmentButtonClicked;
     property OnScrollFinish: TksListViewFinishScrollingEvent read FOnFinishScrolling write FOnFinishScrolling;
   end;
 
@@ -1340,6 +1344,11 @@ begin
           (FClickedRowObj as TksListItemRowSwitch).Toggle;
           if Assigned(FOnSwitchClicked) then
             FOnSwitchClicked(Self, FClickedItem, (FClickedRowObj as TksListItemRowSwitch), AId);
+        end;
+        if (FClickedRowObj is TksListItemRowSegmentButtons) then
+        begin
+          if Assigned(FOnSegmentButtonClicked) then
+            FOnSegmentButtonClicked(Self, FClickedItem, (FClickedRowObj as TksListItemRowSegmentButtons), AId);
         end;
         ARow.CacheRow;
         InvalidateRect(GetItemRect(TListViewItem(ARow.Owner).Index));
