@@ -37,6 +37,7 @@ const
 
 type
   TksListViewCheckMarks = (ksCmNone, ksCmSingleSelect, ksCmMultiSelect);
+  TksListViewShape = (ksRectangle, ksRoundRect, ksEllipse);
 
   TksListView = class;
   TKsListItemRow = class;
@@ -130,6 +131,24 @@ type
     destructor Destroy; override;
     function Render(ACanvas: TCanvas): Boolean; override;
     property Bitmap: TBitmap read FBitmap write SetBitmap;
+  end;
+
+  TksListItemRowShape = class(TksListItemRowObj)
+  private
+    FStroke: TBrush;
+    FFill: TBrush;
+    FShape: TksListViewShape;
+    FCornerRadius: single;
+    procedure SetCornerRadius(const Value: single);
+    procedure SetShape(const Value: TksListViewShape);
+  public
+    constructor Create(ARow: TKsListItemRow); override;
+    destructor Destroy; override;
+    function Render(ACanvas: TCanvas): Boolean; override;
+    property Stroke: TBrush read FStroke;
+    property Fill: TBrush read FFill;
+    property CornerRadius: single read FCornerRadius write SetCornerRadius;
+    property Shape: TksListViewShape read FShape write SetShape;
   end;
 
   TKsListItemRowAccessory = class(TksListItemRowObj)
@@ -232,6 +251,10 @@ type
     function DrawBitmap(ABmpIndex: integer; x, AWidth, AHeight: single): TksListItemRowImage overload;
     function DrawBitmap(ABmp: TBitmap; x, y, AWidth, AHeight: single): TksListItemRowImage overload;
     function DrawBitmapRight(ABmp: TBitmap; AWidth, AHeight, ARightPadding: single): TksListItemRowImage;
+    // shape functions...
+    function DrawRect(x, y, AWidth, AHeight: single; AStroke, AFill: TAlphaColor): TksListItemRowShape;
+    function DrawRoundRect(x, y, AWidth, AHeight, ACornerRadius: single; AStroke, AFill: TAlphaColor): TksListItemRowShape;
+    function DrawEllipse(x, y, AWidth, AHeight: single; AStroke, AFill: TAlphaColor): TksListItemRowShape;
     // switch
     function AddSwitch(x: single; AIsChecked: Boolean; const AAlign: TListItemAlign = TListItemAlign.Leading): TksListItemRowSwitch;
     function AddSwitchRight(AMargin: integer; AIsChecked: Boolean): TksListItemRowSwitch;
@@ -243,8 +266,6 @@ type
     function TextOut(AText: string; x: single; const AVertAlign: TTextAlign = TTextAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
     function TextOut(AText: string; x, AWidth: single; const AVertAlign: TTextAlign = TTextAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
     function TextOut(AText: string; x, y, AWidth: single; const AVertAlign: TTextAlign = TTextAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
-    // right aligned text functions...
-
     function TextOutRight(AText: string; y, AWidth: single; AXOffset: single; const AVertAlign: TTextAlign = TTextAlign.Center): TksListItemRowText; overload;
 
     // font functions...
@@ -714,6 +735,58 @@ end;
 
 // ------------------------------------------------------------------------------
 
+{ TksListItemRowShape }
+
+constructor TksListItemRowShape.Create(ARow: TKsListItemRow);
+begin
+  inherited;
+  FStroke := TBrush.Create(TBrushKind.Solid, claBlack);
+  FFill := TBrush.Create(TBrushKind.Solid, claNull);
+  FCornerRadius := 0;
+  FShape := ksRectangle;
+end;
+
+destructor TksListItemRowShape.Destroy;
+begin
+  FFill.Free;
+  FStroke.Free;
+  inherited;
+end;
+
+function TksListItemRowShape.Render(ACanvas: TCanvas): Boolean;
+var
+  ARect: TRectF;
+  ACorners: TCorners;
+begin
+  Result := inherited Render(ACanvas);
+  ARect := FRect;
+  ACorners := [TCorner.TopLeft, TCorner.TopRight, TCorner.BottomLeft, TCorner.BottomRight];
+  ACanvas.Fill.Assign(FFill);
+  if FShape = ksEllipse then
+    ACanvas.FillEllipse(ARect, 1)
+  else
+    ACanvas.FillRect(ARect, FCornerRadius, FCornerRadius, ACorners, 1);
+  ACanvas.Fill.Assign(FStroke);
+  if FShape = ksEllipse then
+    ACanvas.DrawEllipse(ARect, 1)
+  else
+    ACanvas.DrawRect(ARect, FCornerRadius, FCornerRadius, ACorners, 1);
+end;
+
+procedure TksListItemRowShape.SetCornerRadius(const Value: single);
+begin
+  FCornerRadius := Value;
+  Changed;
+end;
+
+procedure TksListItemRowShape.SetShape(const Value: TksListViewShape);
+begin
+  FShape := Value;
+  Changed;
+end;
+
+// ------------------------------------------------------------------------------
+
 { TksListItemRow }
 
 procedure TKsListItemRow.CacheRow;
@@ -940,6 +1013,33 @@ begin
   AXPos := ScreenWidth - (AWidth + ARightPadding);
   Result := DrawBitmap(ABmp, AXPos, AYpos, AWidth, AHeight);
 end;
+
+function TKsListItemRow.DrawRect(x, y, AWidth, AHeight: single; AStroke,
+  AFill: TAlphaColor): TksListItemRowShape;
+begin
+  Result := TksListItemRowShape.Create(Self);
+  Result.FRect := RectF(0, 0, AWidth, AHeight);
+  Result.PlaceOffset := PointF(x,y);
+  Result.Stroke.Color := AStroke;
+  Result.Fill.Color := AFill;
+  Result.VertAlign := TListItemAlign.Center;
+  FList.Add(Result);
+end;
+
+function TKsListItemRow.DrawRoundRect(x, y, AWidth, AHeight,
+  ACornerRadius: single; AStroke, AFill: TAlphaColor): TksListItemRowShape;
+begin
+  Result := DrawRect(x, y, AWidth, AHeight, AStroke, AFill);
+  Result.CornerRadius := ACornerRadius;
+end;
+
+function TKsListItemRow.DrawEllipse(x, y, AWidth, AHeight: single; AStroke,
+  AFill: TAlphaColor): TksListItemRowShape;
+begin
+  Result := DrawRect(x, y, AWidth, AHeight, AStroke, AFill);
+  Result.Shape := ksEllipse;
+end;
+
 
 
 function TKsListItemRow.AddSegmentButtons(AWidth: integer; ACaptions: array of string): TksListItemRowSegmentButtons;
