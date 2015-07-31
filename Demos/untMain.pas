@@ -29,7 +29,7 @@ type
     TabControl1: TTabControl;
     tabListView: TTabItem;
     tabSegmentButtons: TTabItem;
-    lvGraphicsText: TksListView;
+    ksListView1: TksListView;
     lvSegmentButtons: TksListView;
     tabSwitches: TTabItem;
     lvSwitches: TksListView;
@@ -65,6 +65,8 @@ type
     procedure Switch1Switch(Sender: TObject);
     procedure lvCheckListItemClickEx(Sender: TObject; x, y: Single;
       AItem: TListViewItem; AId: string; ARowObj: TksListItemRowObj);
+    procedure ksListView1ScrollFinish(Sender: TObject; ATopIndex,
+      AVisibleItems: Integer);
   private
     procedure BuildTextItemsListView;
     procedure BuildSegmentButtonListView;
@@ -102,11 +104,11 @@ procedure TForm6.BuildTextItemsListView;
 var
   ICount: integer;
 begin
-  lvGraphicsText.Items.BeginUpdate;
+  ksListview1.Items.BeginUpdate;
   try
     for ICount := 0 to 100 do
     begin
-      with lvGraphicsText.AddRow do
+      with ksListview1.AddRow do
       begin
         DrawBitmap(imgHome.Bitmap, 0, 24, 24);
         // first label...
@@ -121,7 +123,7 @@ begin
       end;
     end;
   finally
-    lvGraphicsText.Items.EndUpdate;
+    ksListview1.Items.EndUpdate;
   end;
 end;
 
@@ -300,6 +302,32 @@ procedure TForm6.lvCheckListItemClickEx(Sender: TObject; x, y: Single;
   AItem: TListViewItem; AId: string; ARowObj: TksListItemRowObj);
 begin
   Label3.Text := 'Checked count: '+IntToStr(lvCheckList.Items.CheckedCount(True));
+end;
+
+procedure TForm6.ksListView1ScrollFinish(Sender: TObject; ATopIndex,
+  AVisibleItems: Integer);
+var
+i:integer;
+ARow: TKsListItemRow;
+ICount: integer;
+begin
+       ksListview1.BeginUpdate;
+  try
+     for i:=ATopIndex to ATopIndex+AVisibleItems do  // the visible items
+      begin
+      ARow := ksListview1.CachedRow[i];   // get the rows based on the visible items
+    for ICount := 0 to ARow.RowObjectCount-1 do
+    begin
+        if (Arow.RowObject[ICount] is TksListItemRowImage) then
+          begin
+         (ARow.RowObject[ICount] as TksListItemRowImage).Bitmap.Clear(claNull);
+         (ARow.RowObject[ICount] as             TksListItemRowImage).Bitmap.Assign(imgabout.Bitmap);
+          end;
+    end;
+          end;
+  finally
+    ksListview1.EndUpdate;
+  end;
 end;
 
 procedure TForm6.lvSegmentButtonsSegmentButtonClicked(Sender: TObject;

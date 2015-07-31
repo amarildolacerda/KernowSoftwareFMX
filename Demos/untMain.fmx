@@ -103,12 +103,13 @@ object Form6: TForm6
       Size.PlatformDefault = False
       TabOrder = 0
       Text = 'tabListViewIndicators'
-      object lvGraphicsText: TksListView
+      object ksListView1: TksListView
         Align = Client
         Size.Width = 392.000000000000000000
         Size.Height = 277.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 1
+        OnScrollFinish = ksListView1ScrollFinish
       end
       object ToolBar3: TToolBar
         Align = Bottom
