@@ -42,6 +42,17 @@ type
     ToolBar2: TToolBar;
     Label2: TLabel;
     Switch1: TSwitch;
+    Label3: TLabel;
+    ToolBar3: TToolBar;
+    ToolBar4: TToolBar;
+    Label4: TLabel;
+    Label5: TLabel;
+    ToolBar5: TToolBar;
+    Label6: TLabel;
+    ToolBar6: TToolBar;
+    Label7: TLabel;
+    ToolBar7: TToolBar;
+    Label8: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure btnRightMenuClick(Sender: TObject);
     procedure btnLeftMenuClick(Sender: TObject);
@@ -52,6 +63,8 @@ type
       AItem: TListViewItem; AButtons: TksListItemRowSegmentButtons;
       ARowID: string);
     procedure Switch1Switch(Sender: TObject);
+    procedure lvCheckListItemClickEx(Sender: TObject; x, y: Single;
+      AItem: TListViewItem; AId: string; ARowObj: TksListItemRowObj);
   private
     procedure BuildTextItemsListView;
     procedure BuildSegmentButtonListView;
@@ -244,7 +257,7 @@ var
   ICount: integer;
 begin
   lvCheckList.BeginUpdate;
-  for ICount := 1 to 20 do
+  for ICount := 1 to 50 do
   begin
     lvCheckList.AddRow.TextOut('Item '+IntToStr(ICount), 0);
   end;
@@ -280,19 +293,34 @@ begin
   layoutImages.Visible := False;
 end;
 
+
+
+
+procedure TForm6.lvCheckListItemClickEx(Sender: TObject; x, y: Single;
+  AItem: TListViewItem; AId: string; ARowObj: TksListItemRowObj);
+begin
+  Label3.Text := 'Checked count: '+IntToStr(lvCheckList.Items.CheckedCount(True));
+end;
+
 procedure TForm6.lvSegmentButtonsSegmentButtonClicked(Sender: TObject;
   AItem: TListViewItem; AButtons: TksListItemRowSegmentButtons; ARowID: string);
 begin
-  ShowMessage('Segment button clicked'+#13+
-              'row: '+IntToStr(AItem.Index+1)+#13+
-              'button index: '+IntToStr(AButtons.ItemIndex)+#13+
-              'caption: '+AButtons.Captions[AButtons.ItemIndex]);
+
+  Label4.Text := ('Segment Click: row index: '+IntToStr(AItem.Index+1)+'   '+
+              'button index: '+IntToStr(AButtons.ItemIndex)+#13+'   '+
+              'text: '+AButtons.Captions[AButtons.ItemIndex]);
 end;
 
 procedure TForm6.lvSwitchesSwitchClick(Sender: TObject; AItem: TListViewItem;
   ASwitch: TksListItemRowSwitch; ARowID: string);
+var
+  ACheckedStr: string;
 begin
-  ShowMessage('Switch clicked: row '+IntToStr(AItem.Index+1));
+  case ASwitch.IsChecked of
+    True: ACheckedStr := '(Checked)';
+    False: ACheckedStr := '(Unchecked)';
+  end;
+  Label6.Text := ('Switch clicked: row '+IntToStr(AItem.Index+1))+'   '+ACheckedStr;
 end;
 
 procedure TForm6.SlideMenu1SelectMenuItemEvent(Sender: TObject; AId: string);
@@ -303,6 +331,7 @@ begin
   if AId = 'INDICATORS' then TabControl1.ActiveTab := tabIndicators;
   if AId = 'ACCESSORYS' then TabControl1.ActiveTab := tabItemAccessorys;
   if AId = 'CHECKLIST' then TabControl1.ActiveTab := tabCheckList;
+  Application.ProcessMessages;
 end;
 
 procedure TForm6.Switch1Switch(Sender: TObject);
