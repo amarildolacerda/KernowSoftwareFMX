@@ -36,6 +36,7 @@ const
   C_SEGMENT_BUTTON_HEIGHT = 29;
 
 type
+  TksListViewCheckMarks = (ksCmNone, ksCmSingleSelect, ksCmMultiSelect);
 
   TksListView = class;
   TKsListItemRow = class;
@@ -205,6 +206,8 @@ type
     FId: string;
     FAccessory: TKsListItemRowAccessory;
     FShowAccessory: Boolean;
+    FAutoCheck: Boolean;
+    FChecked: Boolean;
     function TextHeight(AText: string): single;
     function TextWidth(AText: string): single;
     function RowHeight(const AScale: Boolean = True): single;
@@ -215,10 +218,13 @@ type
     procedure SetAccessory(const Value: TAccessoryType);
     procedure SetShowAccessory(const Value: Boolean);
     function GetAccessory: TAccessoryType;
+    procedure SetAutoCheck(const Value: Boolean);
+    procedure SetChecked(const Value: Boolean);
     property ListView: TCustomListView read GetListView;
     procedure DoOnListChanged(Sender: TObject; const Item: TksListItemRowObj;
       Action: TCollectionNotification);
     function ScreenWidth: single;
+    procedure ProcessClick;
   public
     constructor Create(const AOwner: TListItem);
     destructor Destroy; override;
@@ -257,6 +263,8 @@ type
     property IndicatorColor: TAlphaColor read FIndicatorColor write FIndicatorColor;
     property Accessory: TAccessoryType read GetAccessory write SetAccessory;
     property ShowAccessory: Boolean read FShowAccessory write SetShowAccessory default True;
+    property AutoCheck: Boolean read FAutoCheck write SetAutoCheck default False;
+    property Checked: Boolean read FChecked write SetChecked;
   end;
 
 
@@ -312,6 +320,7 @@ type
     FScrolling: Boolean;
     FOnFinishScrolling: TksListViewFinishScrollingEvent;
     FControlBitmapCache: TksControlBitmapCache;
+    FCheckMarks: TksListViewCheckMarks;
     procedure SetItemHeight(const Value: integer);
     procedure DoClickTimer(Sender: TObject);
     function GetCachedRow(index: integer): TKsListItemRow;
@@ -321,6 +330,7 @@ type
     //procedure StoreSwitchImages;
     procedure DoScrollTimer(Sender: TObject);
     function CountUncachedRows: integer;
+    procedure SetCheckMarks(const Value: TksListViewCheckMarks);
     { Private declarations }
   protected
     //function GetSwitchImage(AIsChecked: Boolean): TBitmap;
@@ -371,6 +381,7 @@ type
     property Anchors;
     property CanFocus default True;
     property CanParentFocus;
+    property CheckMarks: TksListViewCheckMarks read FCheckMarks write SetCheckMarks default ksCmNone;
     property ClipChildren default True;
     property ClipParent default False;
     property Cursor default crDefault;
@@ -750,10 +761,22 @@ begin
       Bitmap.Canvas.FillRect(RectF(0, 8, 6, RowHeight(False)-8), 0, 0, [], 1, Bitmap.Canvas.Fill);
     end;
 
-    if FShowAccessory then
+    if FAutoCheck then
     begin
-      FAccessory.CalculateRect(Bitmap);
-      FAccessory.Render(Bitmap.Canvas);
+      FAccessory.AccessoryType := TAccessoryType.Checkmark;
+      if FChecked then
+      begin
+        FAccessory.CalculateRect(Bitmap);
+        FAccessory.Render(Bitmap.Canvas);
+      end;
+    end
+    else
+    begin
+      if FShowAccessory then
+      begin
+        FAccessory.CalculateRect(Bitmap);
+        FAccessory.Render(Bitmap.Canvas);
+      end;
     end;
     for ICount := 0 to FList.Count - 1 do
     begin
@@ -798,6 +821,7 @@ begin
   FCached := False;
   FAccessory := TKsListItemRowAccessory.Create(Self);
   FShowAccessory := True;
+  FAutoCheck := False;
 end;
 
 destructor TKsListItemRow.Destroy;
@@ -872,6 +896,17 @@ end;
 function TKsListItemRow.GetRowObjectCount: integer;
 begin
   Result := FList.Count;
+end;
+
+procedure TKsListItemRow.ProcessClick;
+begin
+  if FAutoCheck then
+  begin
+    Accessory := TAccessoryType.Checkmark;
+    Checked := not Checked;
+    //ShowAccessory := not ShowAccessory;
+
+  end;
 end;
 
 procedure TKsListItemRow.DoOnListChanged(Sender: TObject;
@@ -980,6 +1015,25 @@ begin
   FAccessory.AccessoryType := Value;
 end;
 
+procedure TKsListItemRow.SetAutoCheck(const Value: Boolean);
+begin
+  FAutoCheck := Value;
+  if FAutoCheck then
+    FAccessory.AccessoryType := TAccessoryType.Checkmark;
+  FCached := False;
+  CacheRow;
+end;
+
+procedure TKsListItemRow.SetChecked(const Value: Boolean);
+begin
+  if FChecked <> Value then
+  begin
+    FChecked := Value;
+    FCached := False;
+    CacheRow;
+  end;
+end;
+
 procedure TKsListItemRow.SetFontProperties(AName: string; ASize: integer;
   AColor: TAlphaColor; AStyle: TFontStyles);
 begin
@@ -992,8 +1046,12 @@ end;
 
 procedure TKsListItemRow.SetShowAccessory(const Value: Boolean);
 begin
-  FShowAccessory := Value;
-  FCached := False;
+  if FShowAccessory <> Value then
+  begin
+    FShowAccessory := Value;
+    FCached := False;
+    CacheRow;
+  end;
 end;
 
 // ------------------------------------------------------------------------------
@@ -1176,9 +1234,20 @@ begin
   AItem.Objects.Clear;
   AItem.Purpose := APurpose;
   Result := TKsListItemRow.Create(AItem);
+  if FCheckMarks <> ksCmNone then
+    Result.AutoCheck := True;
   Result.ShowAccessory := APurpose = TListItemPurpose.None;
   Result.Name := 'ksRow';
   Result.ID := AId;
+end;
+
+procedure TksListView.SetCheckMarks(const Value: TksListViewCheckMarks);
+begin
+  if FCheckMarks <> Value then
+  begin
+    FCheckMarks := Value;
+    RedrawAllRows;
+  end;
 end;
 
 procedure TksListView.SetColorStyle(AName: string; AColor: TAlphaColor);
@@ -1293,6 +1362,7 @@ procedure TksListView.MouseUp(Button: TMouseButton; Shift: TShiftState; x,
 var
   AId: string;
   ARow: TKsListItemRow;
+  ARow2: TKsListItemRow;
   ICount: integer;
   AObjRect: TRectF;
   AMouseDownRect: TRect;
@@ -1324,6 +1394,19 @@ begin
           FClickedRowObj := ARow.RowObject[ICount];
         end;
       end;
+      ARow.ProcessClick;
+      if FCheckMarks = TksListViewCheckMarks.ksCmSingleSelect then
+      begin
+        for ICount := 0 to Items.Count-1 do
+        begin
+          if ICount <> FClickedItem.Index then
+          begin
+            ARow2 := Items[ICount].Objects.FindObject('ksRow') as TKsListItemRow;
+            ARow2.Checked := False;
+            InvalidateRect(GetItemRect(TListViewItem(ARow2.Owner).Index));
+          end;
+        end;
+      end;
     end;
     if not ALongTap then
     begin
@@ -1351,8 +1434,9 @@ begin
             FOnSegmentButtonClicked(Self, FClickedItem, (FClickedRowObj as TksListItemRowSegmentButtons), AId);
         end;
         ARow.CacheRow;
-        InvalidateRect(GetItemRect(TListViewItem(ARow.Owner).Index));
+
       end;
+      InvalidateRect(GetItemRect(TListViewItem(ARow.Owner).Index));
     end;
   end;
 end;

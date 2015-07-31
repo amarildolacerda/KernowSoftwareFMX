@@ -37,6 +37,11 @@ type
     lvIndicators: TksListView;
     tabItemAccessorys: TTabItem;
     lvAccessorys: TksListView;
+    tabCheckList: TTabItem;
+    lvCheckList: TksListView;
+    ToolBar2: TToolBar;
+    Label2: TLabel;
+    Switch1: TSwitch;
     procedure FormCreate(Sender: TObject);
     procedure btnRightMenuClick(Sender: TObject);
     procedure btnLeftMenuClick(Sender: TObject);
@@ -46,12 +51,14 @@ type
     procedure lvSegmentButtonsSegmentButtonClicked(Sender: TObject;
       AItem: TListViewItem; AButtons: TksListItemRowSegmentButtons;
       ARowID: string);
+    procedure Switch1Switch(Sender: TObject);
   private
     procedure BuildTextItemsListView;
     procedure BuildSegmentButtonListView;
     procedure BuildSwitchListView;
     procedure BuildIndicatorListView;
     procedure BuildAccessoryListView;
+    procedure BuildCheckListView;
     { Private declarations }
   protected
     procedure DoShow; override;
@@ -232,6 +239,18 @@ begin
   lvAccessorys.EndUpdate;
 end;
 
+procedure Tform6.BuildCheckListView;
+var
+  ICount: integer;
+begin
+  lvCheckList.BeginUpdate;
+  for ICount := 1 to 20 do
+  begin
+    lvCheckList.AddRow.TextOut('Item '+IntToStr(ICount), 0);
+  end;
+  lvCheckList.EndUpdate;
+end;
+
 procedure TForm6.DoShow;
 begin
   inherited;
@@ -240,17 +259,19 @@ begin
   BuildSwitchListView;
   BuildIndicatorListView;
   BuildAccessoryListView;
+  BuildCheckListView;
 end;
 
 procedure TForm6.FormCreate(Sender: TObject);
 begin
   TabControl1.TabPosition := TTabPosition.None;
-
+  TabControl1.TabIndex := 0;
   SlideMenu1.AddMenuItem('LISTVIEW', 'Graphics & Text', nil);
   SlideMenu1.AddMenuItem('SEGMENT_BUTTONS', 'Segment Buttons', nil);
   SlideMenu1.AddMenuItem('SWITCHES', 'Switches', nil);
   SlideMenu1.AddMenuItem('INDICATORS', 'Indicator Colours', nil);
-  SlideMenu1.AddMenuItem('ACCESSORYS', 'Customisable Accessorys', nil);
+  SlideMenu1.AddMenuItem('ACCESSORYS', 'Item Accessories', nil);
+  SlideMenu1.AddMenuItem('CHECKLIST', 'Check List', nil);
   SlideMenu1.ItemIndex := 0;
 
   SlideMenu2.AddMenuItem('ANOTHER', 'Dummy menu item', imgHome.Bitmap);
@@ -281,6 +302,15 @@ begin
   if AId = 'SWITCHES' then TabControl1.ActiveTab := tabSwitches;
   if AId = 'INDICATORS' then TabControl1.ActiveTab := tabIndicators;
   if AId = 'ACCESSORYS' then TabControl1.ActiveTab := tabItemAccessorys;
+  if AId = 'CHECKLIST' then TabControl1.ActiveTab := tabCheckList;
+end;
+
+procedure TForm6.Switch1Switch(Sender: TObject);
+begin
+  case Switch1.IsChecked of
+    True: lvCheckList.CheckMarks := TksListViewCheckMarks.ksCmMultiSelect;
+    False: lvCheckList.CheckMarks := TksListViewCheckMarks.ksCmSingleSelect;
+  end;
 end;
 
 end.
