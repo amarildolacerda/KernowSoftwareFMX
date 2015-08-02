@@ -31,6 +31,10 @@ uses
   FMX.ListView.Types, FMX.Graphics, Generics.Collections, System.UITypes,
   FMX.ImgList, System.UIConsts, FMX.StdCtrls, FMX.Styles.Objects;
 
+{$IFDEF VER290}
+  {$DEFINE XE8_OR_NEWER}
+{$ENDIF}
+
 const
   C_LONG_TAP_DURATION     = 5;  // 500 ms
   C_SEGMENT_BUTTON_HEIGHT = 29;
@@ -38,6 +42,7 @@ const
 type
   TksListViewCheckMarks = (ksCmNone, ksCmSingleSelect, ksCmMultiSelect);
   TksListViewShape = (ksRectangle, ksRoundRect, ksEllipse);
+  TksAccessoryType = (None, More, Checkmark, Detail);
 
   TksListView = class;
   TKsListItemRow = class;
@@ -179,7 +184,9 @@ type
     FCaptions: TStrings;
     FItemIndex: integer;
     FButton: TSpeedButton;
+    FTintColor: TAlphaColor;
     procedure SetItemIndex(const Value: integer);
+    procedure SetTintColor(const Value: TAlphaColor);
   public
     constructor Create(ARow: TKsListItemRow); override;
     destructor Destroy; override;
@@ -187,6 +194,7 @@ type
     function Render(ACanvas: TCanvas): Boolean; override;
     property ItemIndex: integer read FItemIndex write SetItemIndex;
     property Captions: TStrings read FCaptions;
+    property TintColor: TAlphaColor read FTintColor write SetTintColor;
   end;
                   
   // ------------------------------------------------------------------------------
@@ -203,13 +211,19 @@ type
     FImagesCached: Boolean;
     FButton: TSpeedButton;
     function GetSwitchImage(AChecked: Boolean): TBitmap;
-    function GetSegmentButtonImage(APosition: TKsSegmentButtonPosition; AWidth, AHeight: single; AText: string; ASelected: Boolean): TBitmap;
+    function GetSegmentButtonImage(APosition: TKsSegmentButtonPosition;
+      AWidth, AHeight: single; AText: string; ATintColor: TAlphaColor;
+      ASelected: Boolean): TBitmap;
   public
     constructor Create(Owner: TksListView);
     destructor Destroy; override;
     function CreateImageCache: Boolean;
     property SwitchImage[AChecked: Boolean]: TBitmap read GetSwitchImage;
-    property SegmentButtonImage[APosition: TKsSegmentButtonPosition; AWidth, AHeight: single; AText: string; ASelected: Boolean]: TBitmap read GetSegmentButtonImage;
+    property SegmentButtonImage[APosition: TKsSegmentButtonPosition;
+                                AWidth, AHeight: single;
+                                AText: string;
+                                ATintColor: TAlphaColor;
+                                ASelected: Boolean]: TBitmap read GetSegmentButtonImage;
     property ImagesCached: Boolean read FImagesCached;
   end;
 
@@ -224,6 +238,7 @@ type
     FAccessory: TKsListItemRowAccessory;
     FShowAccessory: Boolean;
     FAutoCheck: Boolean;
+    FImageIndex: integer;
     function TextHeight(AText: string): single;
     function TextWidth(AText: string): single;
     function RowHeight(const AScale: Boolean = True): single;
@@ -236,6 +251,7 @@ type
     function GetAccessory: TAccessoryType;
     procedure SetAutoCheck(const Value: Boolean);
     procedure SetChecked(const Value: Boolean);
+    procedure SetImageIndex(const Value: integer);
     property ListView: TCustomListView read GetListView;
     procedure DoOnListChanged(Sender: TObject; const Item: TksListItemRowObj;
       Action: TCollectionNotification);
@@ -260,7 +276,7 @@ type
     function AddSwitchRight(AMargin: integer; AIsChecked: Boolean): TksListItemRowSwitch;
 
     // segment buttons...
-    function AddSegmentButtons(AWidth: integer; ACaptions: array of string): TksListItemRowSegmentButtons;
+    function AddSegmentButtons(AWidth: integer; ACaptions: array of string; const ATintColor: TAlphaColor = claSilver): TksListItemRowSegmentButtons;
 
     // text functions...
     function TextOut(AText: string; x: single; const AVertAlign: TTextAlign = TTextAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
@@ -282,6 +298,7 @@ type
     property Accessory: TAccessoryType read GetAccessory write SetAccessory;
     property ShowAccessory: Boolean read FShowAccessory write SetShowAccessory default True;
     property AutoCheck: Boolean read FAutoCheck write SetAutoCheck default False;
+    property ImageIndex: integer read FImageIndex write SetImageIndex;
   end;
 
 
@@ -359,7 +376,9 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     procedure RedrawAllRows;
-    function AddRow(const ASearchIndex: string = ''; const APurpose: TListItemPurpose = TListItemPurpose.None; const AId: string = ''): TKsListItemRow;
+    function AddRow(AText: string; AAccessory: TksAccessoryType; const AImageIndex: integer = -1;
+      const AFontSize: integer = 14; AFontColor: TAlphaColor = claBlack): TKsListItemRow; overload;
+    function AddRow(const ASearchIndex: string = ''; const APurpose: TListItemPurpose = TListItemPurpose.None; const AId: string = ''): TKsListItemRow; overload;
     function AddHeader(AText: string): TKsListItemRow;
     function ItemsInView: TksVisibleItems;
     procedure EndUpdate; override;
@@ -795,6 +814,8 @@ var
   r: TRectF;
   AMargins: TBounds;
   ABmpWidth: integer;
+  AImage: TBitmap;
+  ASize: TSizeF;
 begin
   if FCached then
     Exit;
@@ -812,6 +833,18 @@ begin
       Bitmap.Canvas.Fill.Color := FIndicatorColor;
       Bitmap.Canvas.FillRect(RectF(0, 8, 6, RowHeight(False)-8), 0, 0, [], 1, Bitmap.Canvas.Fill);
     end;
+
+    {$IFDEF XE8_OR_NEWER}
+
+    if FImageIndex > -1 then
+    begin
+      ASize.cx := 32;
+      ASize.cy := 32;
+      AImage := ListView.Images.Bitmap(ASize, FImageIndex);
+      DrawBitmap(AImage, 0, ASize.cx, ASize.cy);
+    end;
+
+    {$ENDIF}
 
     if FAutoCheck then
     begin
@@ -874,6 +907,7 @@ begin
   FAccessory := TKsListItemRowAccessory.Create(Self);
   FShowAccessory := True;
   FAutoCheck := False;
+  FImageIndex := -1;
 end;
 
 destructor TKsListItemRow.Destroy;
@@ -1042,7 +1076,9 @@ end;
 
 
 
-function TKsListItemRow.AddSegmentButtons(AWidth: integer; ACaptions: array of string): TksListItemRowSegmentButtons;
+function TKsListItemRow.AddSegmentButtons(AWidth: integer;
+                                          ACaptions: array of string;
+                                          const ATintColor: TAlphaColor = claSilver): TksListItemRowSegmentButtons;
 var
   ICount: integer;
 begin
@@ -1050,6 +1086,7 @@ begin
   Result.Align := TListItemAlign.Trailing;
   Result.VertAlign := TListItemAlign.Center;
   Result.Rect := RectF(0, 0, AWidth, C_SEGMENT_BUTTON_HEIGHT);
+  Result.TintColor := ATintColor;
   for ICount := Low(ACaptions) to High(ACaptions) do
     Result.Captions.Add(ACaptions[ICount]);
   ShowAccessory := False;
@@ -1121,6 +1158,16 @@ begin
   FFont.Size := ASize;
   FTextColor := AColor;
   FFont.Style := AStyle;
+end;
+
+procedure TKsListItemRow.SetImageIndex(const Value: integer);
+begin
+  if FImageIndex <> Value then
+  begin
+    FImageIndex := Value;
+    FCached := False;
+    CacheRow;
+  end;
 end;
 
 procedure TKsListItemRow.SetShowAccessory(const Value: Boolean);
@@ -1303,6 +1350,24 @@ begin
   Result.Font.Size := 16;
   Result.TextOut(AText, 0, -80, Result.TextWidth(AText), TTextAlign.Trailing);
   Result.CacheRow;
+end;
+
+function TksListView.AddRow(AText: string; AAccessory: TksAccessoryType; const AImageIndex: integer = -1;
+  const AFontSize: integer = 14; AFontColor: TAlphaColor = claBlack): TKsListItemRow;
+begin
+  Result := AddRow(AText, TListItemPurpose.None, '');
+  Result.ShowAccessory := AAccessory <> None;
+  case AAccessory of
+    More: Result.Accessory := TAccessoryType.More;
+    Checkmark: Result.Accessory := TAccessoryType.Checkmark;
+    Detail: Result.Accessory := TAccessoryType.Detail;
+  end;
+  Result.SetFontProperties('', AFontSize, AFontColor, []);
+  if AImageIndex = -1 then
+    Result.TextOut(AText, 0)
+  else
+    Result.TextOut(AText, 40);
+  Result.ImageIndex := AImageIndex;
 end;
 
 function TksListView.AddRow(const ASearchIndex: string = '';
@@ -1807,11 +1872,11 @@ begin
 
     ABmp := TBitmap.Create;
     try
-      if ICount = 0 then ABmp.Assign(FControlImageCache.SegmentButtonImage[ksSegmentLeft, ABtnWidth, AHeight, FCaptions[ICount], ICount = FItemIndex])
+      if ICount = 0 then ABmp.Assign(FControlImageCache.SegmentButtonImage[ksSegmentLeft, ABtnWidth, AHeight, FCaptions[ICount], FTintColor, ICount = FItemIndex])
       else
-        if ICount = FCaptions.Count-1 then ABmp.Assign(FControlImageCache.SegmentButtonImage[ksSegmentRight, ABtnWidth, AHeight, FCaptions[ICount], ICount = FItemIndex])
+        if ICount = FCaptions.Count-1 then ABmp.Assign(FControlImageCache.SegmentButtonImage[ksSegmentRight, ABtnWidth, AHeight, FCaptions[ICount], FTintColor, ICount = FItemIndex])
       else
-        ABmp.Assign(FControlImageCache.SegmentButtonImage[ksSegmentMiddle, ABtnWidth, AHeight, FCaptions[ICount], ICount = FItemIndex]);
+        ABmp.Assign(FControlImageCache.SegmentButtonImage[ksSegmentMiddle, ABtnWidth, AHeight, FCaptions[ICount], FTintColor, ICount = FItemIndex]);
     
       if ABmp <> nil then
       begin
@@ -1839,6 +1904,12 @@ begin
     FItemIndex := FCaptions.Count-1
   else
     FItemIndex := Value;
+  Changed;
+end;
+
+procedure TksListItemRowSegmentButtons.SetTintColor(const Value: TAlphaColor);
+begin
+  FTintColor := Value;
   Changed;
 end;
 
@@ -1941,14 +2012,19 @@ end;
 
 
 function TksControlBitmapCache.GetSegmentButtonImage(APosition: TKsSegmentButtonPosition;
-  AWidth, AHeight: single; AText: string; ASelected: Boolean): TBitmap;
+  AWidth, AHeight: single; AText: string; ATintColor: TAlphaColor; ASelected: Boolean): TBitmap;
 var
   AId: string;
 begin
   Result := nil;
   if FButton.Parent = nil then
     Exit;
-  AId := IntToStr(Ord(APosition))+'_'+FloatToStr(AWidth)+'_'+FloatToStr(AWidth)+'_'+AText+' '+BoolToStr(ASelected);
+  AId := IntToStr(Ord(APosition))+'_'+
+         FloatToStr(AWidth)+'_'+
+         FloatToStr(AWidth)+'_'+
+         AText+' '+
+         BoolToStr(ASelected)+'_'+
+         IntToStr(ATintColor);
   if FCachedButtons.IndexOf(AId) > -1 then
   begin
     Result := TBitmap(FCachedButtons.Objects[FCachedButtons.IndexOf(AId)]);
@@ -1973,6 +2049,7 @@ begin
   FButton.Height := AHeight;
   FButton.Text := AText;
   FButton.IsPressed := ASelected;
+  FButton.TintColor := ATintColor;
   Result := FButton.MakeScreenshot;
 
   if IsBlankBitmap(Result) then
