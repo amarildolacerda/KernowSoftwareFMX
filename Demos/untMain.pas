@@ -65,8 +65,6 @@ type
     procedure Switch1Switch(Sender: TObject);
     procedure lvCheckListItemClickEx(Sender: TObject; x, y: Single;
       AItem: TListViewItem; AId: string; ARowObj: TksListItemRowObj);
-    procedure ksListView1ScrollFinish(Sender: TObject; ATopIndex,
-      AVisibleItems: Integer);
   private
     procedure BuildTextItemsListView;
     procedure BuildSegmentButtonListView;
@@ -107,21 +105,7 @@ begin
   ksListview1.Items.BeginUpdate;
   try
     for ICount := 0 to 100 do
-    begin
-      with ksListview1.AddRow do
-      begin
-        DrawBitmap(imgHome.Bitmap, 0, 24, 24);
-        // first label...
-        SetFontProperties('', 14, claBlack, []);
-        TextOut('Line '+InttoStr(ICount), 40, -8, 150);
-
-        SetFontProperties('', 12, claDimgray, []);
-        TextOut('some extra text', 40, 8, 150);
-        // right aligned label...
-        TextColor := claDodgerblue;
-        TextOutRight('right-aligned text :-)', 0, 120, 16);
-      end;
-    end;
+      ksListview1.AddRow('Line '+InttoStr(ICount), 'right-aligned text :-)', More).Image := imgHome.Bitmap;
   finally
     ksListview1.Items.EndUpdate;
   end;
@@ -135,11 +119,8 @@ begin
   try
     for ICount := 1 to 100 do
     begin
-      with lvSegmentButtons.AddRow do
-      begin
-        TextOut('Item '+IntToStr(ICount), 0);
+      with lvSegmentButtons.AddRow('Item '+IntToStr(ICount), '', None) do
         AddSegmentButtons(180, ['one', 'two', 'three']);
-      end;
     end;
   finally
     lvSegmentButtons.EndUpdate;
@@ -154,11 +135,8 @@ begin
   try
     for ICount := 1 to 100 do
     begin
-      with lvSwitches.AddRow do
-      begin
-        TextOut('Item '+IntToStr(ICount), 0);
+      with lvSwitches.AddRow('Item '+IntToStr(ICount), '', None) do
         AddSwitchRight(0, False);
-      end;
     end;
   finally
     lvSwitches.EndUpdate;
@@ -171,56 +149,16 @@ var
 begin
   lvIndicators.BeginUpdate;
   try
-    with lvIndicators.AddRow do
-    begin
-      TextOut('Green', 24);
-      IndicatorColor := claGreen;
-    end;
-    with lvIndicators.AddRow do
-    begin
-      TextOut('Yellow', 24);
-      IndicatorColor := claYellow;
-    end;
-    with lvIndicators.AddRow do
-    begin
-      TextOut('Blue', 24);
-      IndicatorColor := claBlue;
-    end;
-    with lvIndicators.AddRow do
-    begin
-      TextOut('Red', 24);
-      IndicatorColor := claRed;
-    end;
-    with lvIndicators.AddRow do
-    begin
-      TextOut('Orange', 24);
-      IndicatorColor := claOrange;
-    end;
-    with lvIndicators.AddRow do
-    begin
-      TextOut('Teal', 24);
-      IndicatorColor := claTeal;
-    end;
-    with lvIndicators.AddRow do
-    begin
-      TextOut('Fuchsia', 24);
-      IndicatorColor := claFuchsia;
-    end;
-    with lvIndicators.AddRow do
-    begin
-      TextOut('Silver', 24);
-      IndicatorColor := claSilver;
-    end;
-    with lvIndicators.AddRow do
-    begin
-      TextOut('Gray', 24);
-      IndicatorColor := claGray;
-    end;
-    with lvIndicators.AddRow do
-    begin
-      TextOut('Black', 24);
-      IndicatorColor := claBlack;
-    end;
+    lvIndicators.AddRow('Green', '', None).IndicatorColor := claGreen;
+    lvIndicators.AddRow('Yellow', '', None).IndicatorColor := claYellow;
+    lvIndicators.AddRow('Blue', '', None).IndicatorColor := claBlue;
+    lvIndicators.AddRow('Red', '', None).IndicatorColor := claRed;
+    lvIndicators.AddRow('Orange', '', None).IndicatorColor := claOrange;
+    lvIndicators.AddRow('Teal', '', None).IndicatorColor := claTeal;
+    lvIndicators.AddRow('Fuchsia', '', None).IndicatorColor := claFuchsia;
+    lvIndicators.AddRow('Silver', '', None).IndicatorColor := claSilver;
+    lvIndicators.AddRow('Gray', '', None).IndicatorColor := claGray;
+    lvIndicators.AddRow('Black', '', None).IndicatorColor := claBlack;
   finally
     lvIndicators.EndUpdate;
   end;
@@ -231,27 +169,14 @@ var
   ICount: integer;
 begin
   lvAccessorys.BeginUpdate;
-  with lvAccessorys.AddRow do
-  begin
-    TextOut('No Accessory', 0);
-    ShowAccessory := False;
+  try
+    lvAccessorys.AddRow('No Accessory', '', None);
+    lvAccessorys.AddRow('"More" Accessory', '', More);
+    lvAccessorys.AddRow('"Checkmark" Accessory', '', Checkmark);
+    lvAccessorys.AddRow('"Detail" Accessory', '', Detail);
+  finally
+    lvAccessorys.EndUpdate;
   end;
-  with lvAccessorys.AddRow do
-  begin
-    TextOut('"More" Accessory', 0);
-    Accessory := TAccessoryType.More;
-  end;
-  with lvAccessorys.AddRow do
-  begin
-    TextOut('"Checkmark" Accessory', 0);
-    Accessory := TAccessoryType.Checkmark;
-  end;
-  with lvAccessorys.AddRow do
-  begin
-    TextOut('"Detail" Accessory', 0);
-    Accessory := TAccessoryType.Detail;
-  end;
-  lvAccessorys.EndUpdate;
 end;
 
 procedure Tform6.BuildCheckListView;
@@ -260,9 +185,7 @@ var
 begin
   lvCheckList.BeginUpdate;
   for ICount := 1 to 50 do
-  begin
-    lvCheckList.AddRow.TextOut('Item '+IntToStr(ICount), 0);
-  end;
+    lvCheckList.AddRow('Item '+IntToStr(ICount), '', None);
   lvCheckList.EndUpdate;
 end;
 
@@ -304,36 +227,9 @@ begin
   Label3.Text := 'Checked count: '+IntToStr(lvCheckList.Items.CheckedCount(True));
 end;
 
-procedure TForm6.ksListView1ScrollFinish(Sender: TObject; ATopIndex,
-  AVisibleItems: Integer);
-var
-i:integer;
-ARow: TKsListItemRow;
-ICount: integer;
-begin
-       ksListview1.BeginUpdate;
-  try
-     for i:=ATopIndex to ATopIndex+AVisibleItems do  // the visible items
-      begin
-      ARow := ksListview1.CachedRow[i];   // get the rows based on the visible items
-    for ICount := 0 to ARow.RowObjectCount-1 do
-    begin
-        if (Arow.RowObject[ICount] is TksListItemRowImage) then
-          begin
-         (ARow.RowObject[ICount] as TksListItemRowImage).Bitmap.Clear(claNull);
-         (ARow.RowObject[ICount] as             TksListItemRowImage).Bitmap.Assign(imgabout.Bitmap);
-          end;
-    end;
-          end;
-  finally
-    ksListview1.EndUpdate;
-  end;
-end;
-
 procedure TForm6.lvSegmentButtonsSegmentButtonClicked(Sender: TObject;
   AItem: TListViewItem; AButtons: TksListItemRowSegmentButtons; ARowID: string);
 begin
-
   Label4.Text := ('Segment Click: row index: '+IntToStr(AItem.Index+1)+'   '+
               'button index: '+IntToStr(AButtons.ItemIndex)+#13+'   '+
               'text: '+AButtons.Captions[AButtons.ItemIndex]);

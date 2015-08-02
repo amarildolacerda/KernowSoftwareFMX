@@ -31,7 +31,7 @@ uses
   FMX.ListView.Types, FMX.Graphics, Generics.Collections, System.UITypes,
   FMX.ImgList, System.UIConsts, FMX.StdCtrls, FMX.Styles.Objects;
 
-{$IFDEF VER290}
+{$IFDEF _VER290}
   {$DEFINE XE8_OR_NEWER}
 {$ENDIF}
 
@@ -231,6 +231,10 @@ type
   private
     FCached: Boolean;
     FFont: TFont;
+    FDetailFont: TFont;
+    FText: string;
+    FDetailText: string;
+    FDetailColor: TAlphaColor;
     FTextColor: TAlphaColor;
     FIndicatorColor: TAlphaColor;
     FList: TObjectList<TksListItemRowObj>;
@@ -238,7 +242,12 @@ type
     FAccessory: TKsListItemRowAccessory;
     FShowAccessory: Boolean;
     FAutoCheck: Boolean;
+    FImage: TBitmap;
     FImageIndex: integer;
+    FTextOffset: integer;
+    function AddImage(AImage: TBitmap): TksListItemRowImage;
+    function AddText(AText: string): TksListItemRowText;
+    function AddDetail(AText: string): TksListItemRowText;
     function TextHeight(AText: string): single;
     function TextWidth(AText: string): single;
     function RowHeight(const AScale: Boolean = True): single;
@@ -252,11 +261,23 @@ type
     procedure SetAutoCheck(const Value: Boolean);
     procedure SetChecked(const Value: Boolean);
     procedure SetImageIndex(const Value: integer);
+    function GetSearchIndex: string;
+    procedure SetSearchIndex(const Value: string);
+    procedure SetDetailColor(const Value: TAlphaColor);
+    procedure SetIndicatorColor(const Value: TAlphaColor);
+    procedure SetTextOffset(const Value: integer);
+    procedure SetImage(const Value: TBitmap);
     property ListView: TCustomListView read GetListView;
     procedure DoOnListChanged(Sender: TObject; const Item: TksListItemRowObj;
       Action: TCollectionNotification);
     function ScreenWidth: single;
     procedure ProcessClick;
+    procedure DoFontChanged(Sender: TObject);
+    procedure DoDetailFontChanged(Sender: TObject);
+    procedure RecreateImage;
+    procedure RecreateText;
+    procedure RecreateDetail;
+    procedure Changed;
   public
     constructor Create(const AOwner: TListItem);
     destructor Destroy; override;
@@ -276,9 +297,10 @@ type
     function AddSwitchRight(AMargin: integer; AIsChecked: Boolean): TksListItemRowSwitch;
 
     // segment buttons...
-    function AddSegmentButtons(AWidth: integer; ACaptions: array of string; const ATintColor: TAlphaColor = claSilver): TksListItemRowSegmentButtons;
+    function AddSegmentButtons(AWidth: integer; ACaptions: array of string; const ATintColor: TAlphaColor = claSilver): TksListItemRowSegmentButtons; overload;
 
     // text functions...
+
     function TextOut(AText: string; x: single; const AVertAlign: TTextAlign = TTextAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
     function TextOut(AText: string; x, AWidth: single; const AVertAlign: TTextAlign = TTextAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
     function TextOut(AText: string; x, y, AWidth: single; const AVertAlign: TTextAlign = TTextAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
@@ -289,16 +311,21 @@ type
 
     // properties...
     property Font: TFont read FFont;
+    property DetailFont: TFont read FDetailFont;
+    property DetailColor: TAlphaColor read FDetailColor write SetDetailColor;
     property TextColor: TAlphaColor read FTextColor write FTextColor;
     property RowObject[AIndex: integer]: TksListItemRowObj read GetRowObject;
     property RowObjectCount: integer read GetRowObjectCount;
     property ID: string read FId write FId;
     property Cached: Boolean read FCached write FCached;
-    property IndicatorColor: TAlphaColor read FIndicatorColor write FIndicatorColor;
+    property IndicatorColor: TAlphaColor read FIndicatorColor write SetIndicatorColor;
     property Accessory: TAccessoryType read GetAccessory write SetAccessory;
     property ShowAccessory: Boolean read FShowAccessory write SetShowAccessory default True;
     property AutoCheck: Boolean read FAutoCheck write SetAutoCheck default False;
+    property Image: TBitmap read FImage write SetImage;
     property ImageIndex: integer read FImageIndex write SetImageIndex;
+    property SearchIndex: string read GetSearchIndex write SetSearchIndex;
+    property TextOffset: integer read FTextOffset write SetTextOffset;
   end;
 
 
@@ -336,6 +363,7 @@ type
     FOnItemClickEx: TksListViewRowClickEvent;
     FOnItemRightClickEx: TksListViewRowClickEvent;
     FMouseDownPos: TPointF;
+    FDetailFont: TFont;
     FCurrentMousepos: TPointF;
     FItemHeight: integer;
     FClickTimer: TTimer;
@@ -354,6 +382,7 @@ type
     FOnFinishScrolling: TksListViewFinishScrollingEvent;
     FControlBitmapCache: TksControlBitmapCache;
     FCheckMarks: TksListViewCheckMarks;
+    FUpdateCount: integer;
     procedure SetItemHeight(const Value: integer);
     procedure DoClickTimer(Sender: TObject);
     function GetCachedRow(index: integer): TKsListItemRow;
@@ -361,6 +390,7 @@ type
     procedure DoScrollTimer(Sender: TObject);
     function CountUncachedRows: integer;
     procedure SetCheckMarks(const Value: TksListViewCheckMarks);
+    function GetIsUpdating: Boolean;
     { Private declarations }
   protected
     procedure SetColorStyle(AName: string; AColor: TAlphaColor);
@@ -376,11 +406,14 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     procedure RedrawAllRows;
-    function AddRow(AText: string; AAccessory: TksAccessoryType; const AImageIndex: integer = -1;
-      const AFontSize: integer = 14; AFontColor: TAlphaColor = claBlack): TKsListItemRow; overload;
-    function AddRow(const ASearchIndex: string = ''; const APurpose: TListItemPurpose = TListItemPurpose.None; const AId: string = ''): TKsListItemRow; overload;
+    function AddRow(AText, ADetail: string;
+                    AAccessory: TksAccessoryType;
+                    const AImageIndex: integer = -1;
+                    const AFontSize: integer = 14;
+                    AFontColor: TAlphaColor = claBlack): TKsListItemRow;
     function AddHeader(AText: string): TKsListItemRow;
     function ItemsInView: TksVisibleItems;
+    procedure BeginUpdate; override;
     procedure EndUpdate; override;
     property CachedRow[index: integer]: TKsListItemRow read GetCachedRow;
     procedure UncheckAll;
@@ -408,6 +441,7 @@ type
     property Align;
     property Anchors;
     property CanFocus default True;
+    property IsUpdating: Boolean read GetIsUpdating;
     property CanParentFocus;
     property CheckMarks: TksListViewCheckMarks read FCheckMarks write SetCheckMarks default ksCmNone;
     property ClipChildren default True;
@@ -566,6 +600,22 @@ begin
     {$ELSE}
     ABlank.Free;
     {$ENDIF}
+  end;
+end;
+
+function CreateAlphaGuid: string;
+var
+  AGuid: TGUID;
+  AStr: string;
+  ICount: integer;
+begin
+  Result := '';
+  CreateGUID(AGuid);
+  AStr := GUIDToString(AGuid);
+  for ICount := 1 to Length(AStr) do
+  begin
+    if (UpCase(AStr[ICount]) in ['A'..'Z']) then
+      Result := Result + UpCase(AStr[ICount]);
   end;
 end;
 
@@ -881,20 +931,30 @@ begin
   end;
 end;
 
+procedure TKsListItemRow.Changed;
+begin
+  FCached := False;
+  if not ListView.IsUpdating then
+  begin
+    CacheRow;
+    ListView.Repaint;
+  end;
+end;
+
 constructor TKsListItemRow.Create(const AOwner: TListItem);
 var
   ABmp: TBitmap;
 begin
   inherited Create(AOwner);
-{$IFDEF MSWINDOWS}
-
+  {$IFDEF MSWINDOWS}
   ScalingMode := TImageScalingMode.Original;
-{$ENDIF}
+  {$ENDIF}
   PlaceOffset.X := 0;
   FIndicatorColor := claNull;
   OwnsBitmap := True;
   FList := TObjectList<TksListItemRowObj>.Create(True);
   FList.OnNotify := DoOnListChanged;
+  FImage := TBitmap.Create;
   ABmp := TBitmap.Create;
   ABmp.BitmapScale := GetScreenScale;
   ABmp.Width := Round(RowWidth);
@@ -903,11 +963,16 @@ begin
   Bitmap := ABmp;
   FTextColor := claBlack;
   FFont := TFont.Create;
+  FDetailFont := TFont.Create;
+  FFont.OnChanged := DoFontChanged;
+  FDetailFont.OnChanged := DoDetailFontChanged;
+  FDetailColor := claDodgerblue;
   FCached := False;
   FAccessory := TKsListItemRowAccessory.Create(Self);
   FShowAccessory := True;
   FAutoCheck := False;
   FImageIndex := -1;
+  FTextOffset := 0;
 end;
 
 destructor TKsListItemRow.Destroy;
@@ -915,11 +980,15 @@ begin
   {$IFDEF IOS}
   FList.DisposeOf;
   FFont.DisposeOf;
+  FDetailFont.DisposeOf;
   FAccessory.DisposeOf;
+  FImage.DisposeOf;
   {$ELSE}
   FList.Free;
   FFont.Free;
+  FDetailFont.Free;
   FAccessory.Free;
+  FImage.Free;
   {$ENDIF}
   inherited;
 end;
@@ -942,6 +1011,24 @@ function TKsListItemRow.TextWidth(AText: string): single;
 begin
   Bitmap.Canvas.Font.Assign(FFont);
   Result := Bitmap.Canvas.TextWidth(AText);
+end;
+
+procedure TKsListItemRow.RecreateText;
+begin
+  AddText(FText);
+  Changed;
+end;
+
+procedure TKsListItemRow.RecreateDetail;
+begin
+  AddDetail(FDetailText);
+  Changed;
+end;
+
+procedure TKsListItemRow.RecreateImage;
+begin
+  AddImage(FImage);
+  Changed;
 end;
 
 function TKsListItemRow.RowHeight(const AScale: Boolean = True): single;
@@ -984,6 +1071,11 @@ begin
   Result := FList.Count;
 end;
 
+function TKsListItemRow.GetSearchIndex: string;
+begin
+  Result := TListViewItem(Owner).Text;
+end;
+
 procedure TKsListItemRow.ProcessClick;
 begin
   if FAutoCheck then
@@ -993,6 +1085,16 @@ begin
     FCached := False;
     CacheRow;
   end;
+end;
+
+procedure TKsListItemRow.DoDetailFontChanged(Sender: TObject);
+begin
+  RecreateDetail;
+end;
+
+procedure TKsListItemRow.DoFontChanged(Sender: TObject);
+begin
+  RecreateText;
 end;
 
 procedure TKsListItemRow.DoOnListChanged(Sender: TObject;
@@ -1074,7 +1176,105 @@ begin
   Result.Shape := ksEllipse;
 end;
 
+function TKsListItemRow.AddImage(AImage: TBitmap): TksListItemRowImage;
+var
+  ICount: integer;
+begin
+  for ICount := FList.Count-1 downto 0 do
+  begin
+    if FList[ICount].ID = 'item_image' then
+    begin
+      FList.Delete(ICount);
+      Break;
+    end;
+  end;
+  FImage.Assign(AImage);
 
+  with DrawBitmap(FImage,  0, 24, 24) do
+  begin
+    ID := 'item_image';
+  end;
+end;
+
+function TKsListItemRow.AddText(AText: string): TksListItemRowText;
+var
+  ASaveFont: TFont;
+  ICount: integer;
+  AXPos: integer;
+begin
+  AXPos := 0;
+  for ICount := FList.Count-1 downto 0 do
+  begin
+    if FList[ICount].ID = 'item_text' then
+    begin
+      FList.Delete(ICount);
+      Break;
+    end;
+  end;
+  FText := AText;
+  ASaveFont := TFont.Create;
+  try
+    ASaveFont.Assign(FFont);
+    FFont.Assign(FFont);
+
+    if FTextOffset > 0 then
+        AXPos := FTextOffset
+    else
+    begin
+      if (FImageIndex > -1) or (FImage.Width > 0) then AXPos := 32;
+      if FIndicatorColor <> claNull then AXPos := 16;
+    end;
+
+    with TextOut(AText, AXPos, TextWidth(AText)) do
+    begin
+      ID := 'item_text';
+      FFont.Assign(FFont);
+      TextColor := FTextColor;
+    end;
+    FFont.Assign(ASaveFont);
+  finally
+    {$IFDEF IOS}
+    ASaveFont.DisposeOf;
+    {$ELSE}
+    ASaveFont.Free;
+    {$ENDIF}
+  end;
+end;
+
+function TKsListItemRow.AddDetail(AText: string): TksListItemRowText;
+var
+  ASaveFont: TFont;
+  ICount: integer;
+begin
+  for ICount := FList.Count-1 downto 0 do
+  begin
+    if FList[ICount].ID = 'detail_text' then
+    begin
+      FList.Delete(ICount);
+      Break;
+    end;
+  end;
+  FDetailText := AText;
+  ASaveFont := TFont.Create;
+  try
+    ASaveFont.Assign(FFont);
+    FFont.Assign(FDetailFont);
+
+    with TextOutRight(AText, 0, TextWidth(AText), 20) do
+    begin
+      ID := 'detail_text';
+      FFont.Assign(FDetailFont);
+      TextColor := FDetailColor;
+    end;
+    FFont.Assign(ASaveFont);
+  finally
+    {$IFDEF IOS}
+    ASaveFont.DisposeOf;
+    {$ELSE}
+    ASaveFont.Free;
+    {$ENDIF}
+  end;
+end;
 
 function TKsListItemRow.AddSegmentButtons(AWidth: integer;
                                           ACaptions: array of string;
@@ -1092,6 +1292,7 @@ begin
   ShowAccessory := False;
   FList.Add(Result);
 end;
+
 
 function TKsListItemRow.AddSwitch(x: single;
                                   AIsChecked: Boolean;
@@ -1136,8 +1337,7 @@ begin
   FAutoCheck := Value;
   if FAutoCheck then
     FAccessory.AccessoryType := TAccessoryType.Checkmark;
-  FCached := False;
-  CacheRow;
+  Changed;
 end;
 
 procedure TKsListItemRow.SetChecked(const Value: Boolean);
@@ -1145,8 +1345,16 @@ begin
   if (Owner as TListViewItem).Checked <> Value then
   begin
     (Owner as TListViewItem).Checked := Value;
-    FCached := False;
-    CacheRow;
+    Changed;
+  end;
+end;
+
+procedure TKsListItemRow.SetDetailColor(const Value: TAlphaColor);
+begin
+  if FDetailColor <> Value then
+  begin
+    FDetailColor := Value;
+    RecreateDetail;
   end;
 end;
 
@@ -1160,14 +1368,31 @@ begin
   FFont.Style := AStyle;
 end;
 
+procedure TKsListItemRow.SetImage(const Value: TBitmap);
+begin
+  FImage.Assign(Value);
+  RecreateImage;
+  RecreateText;
+end;
+
 procedure TKsListItemRow.SetImageIndex(const Value: integer);
 begin
   if FImageIndex <> Value then
   begin
     FImageIndex := Value;
-    FCached := False;
-    CacheRow;
+    Changed;
   end;
+end;
+
+procedure TKsListItemRow.SetIndicatorColor(const Value: TAlphaColor);
+begin
+  FIndicatorColor := Value;
+  RecreateText;
+end;
+
+procedure TKsListItemRow.SetSearchIndex(const Value: string);
+begin
+  TListViewItem(Owner).Text := Value;
 end;
 
 procedure TKsListItemRow.SetShowAccessory(const Value: Boolean);
@@ -1175,9 +1400,14 @@ begin
   if FShowAccessory <> Value then
   begin
     FShowAccessory := Value;
-    FCached := False;
-    CacheRow;
+    Changed;
   end;
+end;
+
+procedure TKsListItemRow.SetTextOffset(const Value: integer);
+begin
+  FTextOffset := Value;
+  RecreateText;
 end;
 
 // ------------------------------------------------------------------------------
@@ -1191,7 +1421,7 @@ var
   AWidth: single;
 begin
   AWidth := TextWidth(AText);
-  Result := TextOut(AText, x, AWidth, AVertAlign, AWordWrap);
+  Result := TextOut(AText, x,  AWidth, AVertAlign, AWordWrap);
 end;
 
 function TKsListItemRow.TextOut(AText: string; x, AWidth: single;
@@ -1210,21 +1440,25 @@ var
 
 begin
   Result := TksListItemRowText.Create(Self);
+  Result.Font.Assign(FFont);
   AHeight := TextHeight(AText);
   Result.FPlaceOffset := PointF(x, y);
   if AWordWrap then
     AHeight := RowHeight(False);
+  if AWidth = 0 then
+    AWidth := TextWidth(AText);
   Result.FRect := RectF(0, 0, AWidth, AHeight);
   case AVertAlign of
     TTextAlign.Leading: Result.VertAlign := TListItemAlign.Leading;
     TTextAlign.Center: Result.VertAlign := TListItemAlign.Center;
     TTextAlign.Trailing: Result.VertAlign := TListItemAlign.Trailing;
   end;
-  Result.Font.Assign(FFont);
   Result.TextAlignment := TTextAlign.Leading;
   Result.TextColor := FTextColor;
   Result.Text := AText;
   Result.WordWrap := AWordWrap;
+  if SearchIndex = '' then
+    SearchIndex := AText;
   FList.Add(Result);
 end;
 
@@ -1344,18 +1578,29 @@ end;
 
 function TksListView.AddHeader(AText: string): TKsListItemRow;
 begin
-  Result := AddRow('', TListItemPurpose.Header, '');
+  Result := AddRow('', '', None);
+  Result.Owner.Purpose := TListItemPurpose.Header;
   Result.Font.Style := [];
-  Result.TextColor := claSilver;
-  Result.Font.Size := 16;
-  Result.TextOut(AText, 0, -80, Result.TextWidth(AText), TTextAlign.Trailing);
+  Result.TextColor := claDimgray;
+  Result.Font.Size := 14;
+  Result.TextOut(AText, 0, -3, 0, TTextAlign.Trailing);
   Result.CacheRow;
 end;
 
-function TksListView.AddRow(AText: string; AAccessory: TksAccessoryType; const AImageIndex: integer = -1;
+
+function TksListView.AddRow(AText, ADetail: string; AAccessory: TksAccessoryType; const AImageIndex: integer = -1;
   const AFontSize: integer = 14; AFontColor: TAlphaColor = claBlack): TKsListItemRow;
+var
+  AItem: TListViewItem;
 begin
-  Result := AddRow(AText, TListItemPurpose.None, '');
+  AItem := Items.Add;
+  AItem.Height := ItemHeight;
+  AItem.Objects.Clear;
+  AItem.Purpose := TListItemPurpose.None;
+  Result := TKsListItemRow.Create(AItem);
+  if FCheckMarks <> ksCmNone then
+    Result.AutoCheck := True;
+  Result.Name := 'ksRow';
   Result.ShowAccessory := AAccessory <> None;
   case AAccessory of
     More: Result.Accessory := TAccessoryType.More;
@@ -1363,36 +1608,19 @@ begin
     Detail: Result.Accessory := TAccessoryType.Detail;
   end;
   Result.SetFontProperties('', AFontSize, AFontColor, []);
-  if AImageIndex = -1 then
+
+  if AText <> '' then
+    Result.AddText(AText);
+  {if AImageIndex = -1 then
     Result.TextOut(AText, 0)
   else
-    Result.TextOut(AText, 40);
+    Result.TextOut(AText, 40); }
+  if ADetail <> '' then
+    Result.AddDetail(ADetail);
   Result.ImageIndex := AImageIndex;
 end;
 
-function TksListView.AddRow(const ASearchIndex: string = '';
-  const APurpose: TListItemPurpose = TListItemPurpose.None;
-  const AId: string = ''): TKsListItemRow;
-var
-  AItem: TListViewItem;
-  AIndex: string;
-begin
-  AItem := Items.Add;
-  AItem.Height := ItemHeight;
-  AIndex := ASearchIndex;
 
-  if AIndex = '' then
-    AIndex := ' ';
-  AItem.Text := AIndex;
-  AItem.Objects.Clear;
-  AItem.Purpose := APurpose;
-  Result := TKsListItemRow.Create(AItem);
-  if FCheckMarks <> ksCmNone then
-    Result.AutoCheck := True;
-  Result.ShowAccessory := APurpose = TListItemPurpose.None;
-  Result.Name := 'ksRow';
-  Result.ID := AId;
-end;
 
 procedure TksListView.SetCheckMarks(const Value: TksListViewCheckMarks);
 begin
@@ -1450,6 +1678,12 @@ begin
   SetColorStyle('alternatingitembackground',
     FAppearence.AlternatingItemBackground);
   inherited;
+end;
+
+procedure TksListView.BeginUpdate;
+begin
+  inherited;
+  Inc(FUpdateCount);
 end;
 
 procedure TksListView.DoClickTimer(Sender: TObject);
@@ -1668,6 +1902,9 @@ var
   ARowObj: TKsListItemRow;
 begin
   inherited EndUpdate;
+  Dec(FUpdateCount);
+  if FUpdateCount > 0 then
+    Exit;
   for ICount := 0 to Items.Count - 1 do
   begin
     AItem := Items[ICount];
@@ -1681,6 +1918,11 @@ end;
 function TksListView.GetCachedRow(index: integer): TKsListItemRow;
 begin
   Result := Items[index].Objects.FindObject('ksRow') as TKsListItemRow;
+end;
+
+function TksListView.GetIsUpdating: Boolean;
+begin
+  Result := FUpdateCount > 0;
 end;
 
 function TksListView.ItemsInView: TksVisibleItems;
@@ -1950,24 +2192,29 @@ function TksControlBitmapCache.CreateImageCache: Boolean;
 var
   ASwitch: TSwitch;
   AButton: TSpeedButton;
+  AForm: TFmxObject;
+  AGuid: string;
 begin
-  if FImagesCached = True then
+  if (FImagesCached) or (FCreatingCache) then
     Exit;
-  if FCreatingCache then
-    Exit;
+
   try
     FCreatingCache := True;
     Result := False;
-    ASwitch := TSwitch.Create(FOwner.Parent);
+    AForm := FOwner.Parent;
+    while (AForm is TForm) = False do
+        AForm := AForm.Parent;
+
+    ASwitch := TSwitch.Create(AForm);
     try
-      ASwitch.Name := 'cacheSwitch';
-      FOwner.Parent.InsertObject(0, ASwitch);
+      ASwitch.Name :=  CreateAlphaGuid;
+      AForm.InsertObject(0, ASwitch);
       Application.ProcessMessages;
       ASwitch.IsChecked := True;
       FSwitchOn := ASwitch.MakeScreenshot;
       if IsBlankBitmap(FSwitchOn) then
       begin
-        FOwner.Parent.RemoveObject(ASwitch);
+        AForm.RemoveObject(ASwitch);
         Application.ProcessMessages;
         {$IFDEF IOS}
         ASwitch.DisposeOf;
@@ -1986,7 +2233,7 @@ begin
     finally
       if ASwitch <> nil then
       begin
-        FOwner.Parent.RemoveObject(ASwitch);
+        AForm.RemoveObject(ASwitch);
         Application.ProcessMessages;
         {$IFDEF IOS}
         ASwitch.DisposeOf;
@@ -1997,7 +2244,7 @@ begin
     end;
 
     FButton.Position := FOwner.Position;
-    FOwner.Parent.InsertObject(0, FButton);
+    AForm.InsertObject(0, FButton);
     Application.ProcessMessages;
 
     FImagesCached := True;
