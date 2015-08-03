@@ -39,12 +39,14 @@ const
   C_LONG_TAP_DURATION     = 5;  // 500 ms
   C_BUTTON_HEIGHT = 29;
   C_SEGMENT_BUTTON_HEIGHT = 29;
-  C_DEFAULT_BUTTON_STYLE = 'listitembutton';
 
 type
   TksListViewCheckMarks = (ksCmNone, ksCmSingleSelect, ksCmMultiSelect);
   TksListViewShape = (ksRectangle, ksRoundRect, ksEllipse);
   TksAccessoryType = (None, More, Checkmark, Detail);
+  TksImageButtonStyle = (Action, Add, Camara, Compose, Information, ArrowLeft,
+    ArrowDown, ArrowRight, ArrowUp, Delete, Details, Organise, PageCurl, Pause,
+    Play, Refresh, Reply, Search, Stop, Trash);
 
   TksListView = class;
   TKsListItemRow = class;
@@ -326,7 +328,8 @@ type
     function AddSwitchRight(AMargin: integer; AIsChecked: Boolean): TksListItemRowSwitch;
 
     // buttons...
-    function AddButton(AWidth: integer; AText: string; const AStyleLookup: string = C_DEFAULT_BUTTON_STYLE; const ATintColor: TAlphaColor = claSilver): TksListItemRowButton;
+    function AddButton(AWidth: integer; AText: string; const ATintColor: TAlphaColor = claNull): TksListItemRowButton; overload;
+    function AddButton(AStyle: TksImageButtonStyle; const ATintColor: TAlphaColor = claNull): TksListItemRowButton; overload;
 
     function AddSegmentButtons(AWidth: integer; ACaptions: array of string; const ATintColor: TAlphaColor = claSilver): TksListItemRowSegmentButtons; overload;
 
@@ -1332,20 +1335,49 @@ begin
   end;
 end;
 
+function TKsListItemRow.AddButton(AStyle: TksImageButtonStyle; const ATintColor: TAlphaColor = claNull): TksListItemRowButton;
+var
+  AStr: string;
+begin
+  Result := AddButton(44, '', ATintColor);
+  Result.Rect := RectF(0, 0, 44, 44);
+  case AStyle of
+    Action: AStr := 'actiontoolbuttonbordered';
+    Add: AStr := 'addtoolbuttonbordered';
+    Camara: AStr := 'cameratoolbuttonbordered';
+    Compose: AStr := 'composetoolbuttonbordered';
+    Information: AStr := 'infotoolbuttonbordered';
+    ArrowLeft: AStr := 'arrowlefttoolbuttonbordered';
+    ArrowUp: AStr := 'arrowuptoolbuttonbordered';
+    ArrowRight: AStr := 'arrowrighttoolbuttonbordered';
+    ArrowDown: AStr := 'arrowdowntoolbuttonbordered';
+    Delete: AStr := 'deleteitembutton';
+    Details: AStr := 'detailstoolbuttonbordered';
+    Organise: AStr := 'organizetoolbuttonbordered';
+    PageCurl: AStr := 'pagecurltoolbutton';
+    Pause: AStr := 'pausetoolbuttonbordered';
+    Play: AStr := 'playtoolbuttonbordered';
+    Refresh: AStr := 'refreshtoolbuttonbordered';
+    Reply: AStr := 'replytrashtoolbuttonbordered';
+    Search: AStr := 'searchtrashtoolbuttonbordered';
+    Stop: AStr := 'stoptrashtoolbuttonbordered';
+    Trash: AStr := 'trashtoolbuttonbordered';
+  end;
+  Result.StyleLookup := AStr;
+end;
+
 function TKsListItemRow.AddButton(AWidth: integer;
                                   AText: string;
-                                  const AStyleLookup: string = C_DEFAULT_BUTTON_STYLE;
-                                  const ATintColor: TAlphaColor = claSilver): TksListItemRowButton;
-var
-  ICount: integer;
+                                  const ATintColor: TAlphaColor = claNull): TksListItemRowButton;
 begin
   Result := TksListItemRowButton.Create(Self);
   Result.Align := TListItemAlign.Trailing;
   Result.VertAlign := TListItemAlign.Center;
-  Result.Rect := RectF(0, 0, AWidth, C_BUTTON_HEIGHT);
-  Result.TintColor := ATintColor;
+  Result.Rect := RectF(0, 0, AWidth, 32);
+  Result.StyleLookup := 'listitembutton';
+  if ATintColor <> claNull then
+    Result.TintColor := ATintColor;
   Result.Text := AText;
-  Result.StyleLookup := AStyleLookup;
   ShowAccessory := False;
   FList.Add(Result);
 end;
@@ -2440,7 +2472,7 @@ end;
 constructor TksListItemRowButton.Create(ARow: TKsListItemRow);
 begin
   inherited;
-  FTintColor := claSilver;
+  FTintColor := claNull;
   FIsDown := False;
 end;
 
