@@ -31,12 +31,13 @@ uses
   FMX.ListView.Types, FMX.Graphics, Generics.Collections, System.UITypes,
   FMX.ImgList, System.UIConsts, FMX.StdCtrls, FMX.Styles.Objects;
 
-{$IFDEF _VER290}
+{$IFDEF VER290}
   {$DEFINE XE8_OR_NEWER}
 {$ENDIF}
 
 const
   C_LONG_TAP_DURATION     = 5;  // 500 ms
+  C_BUTTON_HEIGHT = 29;
   C_SEGMENT_BUTTON_HEIGHT = 29;
 
 type
@@ -48,6 +49,7 @@ type
   TKsListItemRow = class;
   TksListItemRowObj = class;
   TksListItemRowSwitch = class;
+  TksListItemRowButton = class;
   TksListItemRowSegmentButtons = class;
   TksControlBitmapCache = class;
 
@@ -179,6 +181,25 @@ type
 
   end;
 
+  // ------------------------------------------------------------------------------
+
+  TksListItemRowButton = class(TksListItemRowObj)
+  private
+    FButton: TSpeedButton;
+    FTintColor: TAlphaColor;
+    FText: string;
+    procedure SetTintColor(const Value: TAlphaColor);
+    procedure SetText(const Value: string);
+  public
+    constructor Create(ARow: TKsListItemRow); override;
+    destructor Destroy; override;
+    procedure Click(x, y: single); override;
+    function Render(ACanvas: TCanvas): Boolean; override;
+    property Text: string read FText write SetText;
+    property TintColor: TAlphaColor read FTintColor write SetTintColor;
+  end;
+  // ------------------------------------------------------------------------------
+
   TksListItemRowSegmentButtons = class(TksListItemRowObj)
   private
     FCaptions: TStrings;
@@ -196,7 +217,7 @@ type
     property Captions: TStrings read FCaptions;
     property TintColor: TAlphaColor read FTintColor write SetTintColor;
   end;
-                  
+
   // ------------------------------------------------------------------------------
 
   TKsSegmentButtonPosition = (ksSegmentLeft, ksSegmentMiddle, ksSegmentRight);
@@ -1221,7 +1242,7 @@ begin
         AXPos := FTextOffset
     else
     begin
-      if (FImageIndex > -1) or (FImage.Width > 0) then AXPos := 32;
+      if (FImageIndex > -1) or (FImage.Width > 0) then AXPos := 40;
       if FIndicatorColor <> claNull then AXPos := 16;
     end;
 
@@ -1609,6 +1630,7 @@ begin
   end;
   Result.SetFontProperties('', AFontSize, AFontColor, []);
 
+  Result.ImageIndex := AImageIndex;
   if AText <> '' then
     Result.AddText(AText);
   {if AImageIndex = -1 then
@@ -1617,7 +1639,6 @@ begin
     Result.TextOut(AText, 40); }
   if ADetail <> '' then
     Result.AddDetail(ADetail);
-  Result.ImageIndex := AImageIndex;
 end;
 
 
@@ -2318,6 +2339,49 @@ begin
   case AChecked of
     True: Result := FSwitchOn;
     False: Result := FSwitchOff;
+  end;
+end;
+
+{ TksListItemRowButton }
+
+procedure TksListItemRowButton.Click(x, y: single);
+begin
+  inherited;
+
+end;
+
+constructor TksListItemRowButton.Create(ARow: TKsListItemRow);
+begin
+  inherited;
+
+end;
+
+destructor TksListItemRowButton.Destroy;
+begin
+
+  inherited;
+end;
+
+function TksListItemRowButton.Render(ACanvas: TCanvas): Boolean;
+begin
+
+end;
+
+procedure TksListItemRowButton.SetText(const Value: string);
+begin
+  if FText <> Value then
+  begin
+    FText := Value;
+    Changed;
+  end;
+end;
+
+procedure TksListItemRowButton.SetTintColor(const Value: TAlphaColor);
+begin
+  if FTintColor <> Value then
+  begin
+    FTintColor := Value;
+    Changed;
   end;
 end;
 
