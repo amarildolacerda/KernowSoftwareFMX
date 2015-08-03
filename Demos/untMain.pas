@@ -120,7 +120,7 @@ begin
     for ICount := 1 to 100 do
     begin
       with lvSegmentButtons.AddRow('Item '+IntToStr(ICount), '', None) do
-        AddSegmentButtons(180, ['one', 'two', 'three']);
+        AddSegmentButtons(180, ['one', 'two', 'three'], claSilver);
     end;
   finally
     lvSegmentButtons.EndUpdate;
