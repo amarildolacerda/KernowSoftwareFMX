@@ -114,13 +114,20 @@ end;
 procedure TForm6.BuildSegmentButtonListView;
 var
   ICount: integer;
+  AColor: TAlphaColor;
 begin
   lvSegmentButtons.BeginUpdate;
   try
     for ICount := 1 to 100 do
     begin
+      case ICount mod 4 of
+        0: AColor := claNull;
+        1: AColor := claDimgray;
+        2: AColor := claRed;
+        3: AColor := claGreen;
+      end;
       with lvSegmentButtons.AddRow('Item '+IntToStr(ICount), '', None) do
-        AddSegmentButtons(180, ['one', 'two', 'three'], claSilver);
+        AddSegmentButtons(180, ['one', 'two', 'three'], AColor);
     end;
   finally
     lvSegmentButtons.EndUpdate;

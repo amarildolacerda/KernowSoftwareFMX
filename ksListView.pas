@@ -320,8 +320,6 @@ type
     constructor Create(const AOwner: TListItem);
     destructor Destroy; override;
 
-    procedure Render(const Canvas: TCanvas; const DrawItemIndex: Integer; const DrawStates: TListItemDrawStates;
-      const SubPassNo: Integer = 0); override;
     procedure CacheRow;
     // bitmap functions...
     function DrawBitmap(ABmp: TBitmap; x, AWidth, AHeight: single): TksListItemRowImage overload;
@@ -342,7 +340,7 @@ type
     function AddButton(AWidth: integer; AText: string; const ATintColor: TAlphaColor = claNull): TksListItemRowButton; overload;
     function AddButton(AStyle: TksImageButtonStyle; const ATintColor: TAlphaColor = claNull): TksListItemRowButton; overload;
 
-    function AddSegmentButtons(AWidth: integer; ACaptions: array of string; const ATintColor: TAlphaColor = claSilver): TksListItemRowSegmentButtons; overload;
+    function AddSegmentButtons(AWidth: integer; ACaptions: array of string; const ATintColor: TAlphaColor = claDimgray): TksListItemRowSegmentButtons; overload;
 
     // text functions...
 
@@ -1017,17 +1015,6 @@ begin
   end;
 end;
 
-procedure TKsListItemRow.Render(const Canvas: TCanvas;
-  const DrawItemIndex: Integer; const DrawStates: TListItemDrawStates;
-  const SubPassNo: Integer);
-var
-  AStates: TListItemDrawStates;
-begin
-  AStates := DrawStates;
-  AStates := AStates - [TListItemDrawState.Selected];
-  inherited Render(Canvas, DrawItemIndex, AStates, SubPassNo);
-end;
-
 constructor TKsListItemRow.Create(const AOwner: TListItem);
 var
   ABmp: TBitmap;
@@ -1422,7 +1409,7 @@ end;
 
 function TKsListItemRow.AddSegmentButtons(AWidth: integer;
                                           ACaptions: array of string;
-                                          const ATintColor: TAlphaColor = claSilver): TksListItemRowSegmentButtons;
+                                          const ATintColor: TAlphaColor = claDimgray): TksListItemRowSegmentButtons;
 var
   ICount: integer;
 begin
@@ -2484,17 +2471,23 @@ begin
     FOwner.Parent.InsertObject(0, FButton);
     Application.ProcessMessages;
   end;
+  FButton.Name := '_'+CreateGuidStr;
+  FButton.TextSettings.FontColorForState.Active := ATintColor;
+  FButton.TextSettings.FontColorForState.Normal := ATintColor;
+  FButton.TextSettings.FontColorForState.Pressed := claWhite;
+  FButton.FontColor := ATintColor;
   FButton.StyleLookup := AStyleLookup;
+  FButton.TintColor := ATintColor;
+  FButton.StyledSettings := FButton.StyledSettings - [TStyledSetting.FontColor];
 
   FButton.StaysPressed := True;
   FButton.GroupName := 'cacheButton';
   FButton.Width := AWidth;
   FButton.Height := AHeight;
   FButton.Text := AText;
+
+
   FButton.IsPressed := ASelected;
-  FButton.TintColor := ATintColor;
-  FButton.TextSettings.FontColorForState.Normal := ATintColor;
-  FButton.TextSettings.FontColorForState.Pressed := claWhite;
 
   Result := FButton.MakeScreenshot;
 
