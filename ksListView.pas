@@ -39,6 +39,7 @@ const
   C_LONG_TAP_DURATION     = 5;  // 500 ms
   C_BUTTON_HEIGHT = 29;
   C_SEGMENT_BUTTON_HEIGHT = 29;
+  C_DEFAULT_BUTTON_STYLE = 'listitembutton';
 
 type
   TksListViewCheckMarks = (ksCmNone, ksCmSingleSelect, ksCmMultiSelect);
@@ -55,6 +56,7 @@ type
 
   TksListViewRowClickEvent = procedure(Sender: TObject; x, y: single; AItem: TListViewItem; AId: string; ARowObj: TksListItemRowObj) of object;
   TksListViewClickSwitchEvent = procedure(Sender: TObject; AItem: TListViewItem; ASwitch: TksListItemRowSwitch; ARowID: string) of object;
+  TksListViewClickButtonEvent = procedure(Sender: TObject; AItem: TListViewItem; AButton: TksListItemRowButton; ARowID: string) of object;
   TksListViewClickSegmentButtonEvent = procedure(Sender: TObject; AItem: TListViewItem; AButtons: TksListItemRowSegmentButtons; ARowID: string) of object;
   TksListViewFinishScrollingEvent = procedure(Sender: TObject; ATopIndex, AVisibleItems: integer) of object;
 
@@ -91,6 +93,8 @@ type
   public
     constructor Create(ARow: TKsListItemRow); virtual;
     function Render(ACanvas: TCanvas): Boolean; virtual;
+    procedure MouseDown; virtual;
+    procedure MouseUp; virtual;
     procedure Click(x, y: single); virtual;
     property Rect: TRectF read FRect write SetRect;
     property ID: string read FId write SetID;
@@ -188,13 +192,17 @@ type
     FButton: TSpeedButton;
     FTintColor: TAlphaColor;
     FText: string;
+    FStyleLookup: string;
+    FIsDown: Boolean;
     procedure SetTintColor(const Value: TAlphaColor);
     procedure SetText(const Value: string);
+    procedure SetStyleLookup(const Value: string);
   public
     constructor Create(ARow: TKsListItemRow); override;
-    destructor Destroy; override;
-    procedure Click(x, y: single); override;
     function Render(ACanvas: TCanvas): Boolean; override;
+    procedure MouseDown; override;
+    procedure MouseUp; override;
+    property StyleLookup: string read FStyleLookup write SetStyleLookup;
     property Text: string read FText write SetText;
     property TintColor: TAlphaColor read FTintColor write SetTintColor;
   end;
@@ -232,19 +240,18 @@ type
     FImagesCached: Boolean;
     FButton: TSpeedButton;
     function GetSwitchImage(AChecked: Boolean): TBitmap;
-    function GetSegmentButtonImage(APosition: TKsSegmentButtonPosition;
-      AWidth, AHeight: single; AText: string; ATintColor: TAlphaColor;
-      ASelected: Boolean): TBitmap;
+    function GetButtonImage(AWidth, AHeight: single; AText: string; ATintColor: TAlphaColor;
+      ASelected: Boolean; AStyleLookup: string): TBitmap;
   public
     constructor Create(Owner: TksListView);
     destructor Destroy; override;
     function CreateImageCache: Boolean;
     property SwitchImage[AChecked: Boolean]: TBitmap read GetSwitchImage;
-    property SegmentButtonImage[APosition: TKsSegmentButtonPosition;
-                                AWidth, AHeight: single;
-                                AText: string;
-                                ATintColor: TAlphaColor;
-                                ASelected: Boolean]: TBitmap read GetSegmentButtonImage;
+    property ButtonImage[AWidth, AHeight: single;
+                         AText: string;
+                         ATintColor: TAlphaColor;
+                         ASelected: Boolean;
+                         AStyleLookup: string]: TBitmap read GetButtonImage;
     property ImagesCached: Boolean read FImagesCached;
   end;
 
@@ -299,6 +306,7 @@ type
     procedure RecreateText;
     procedure RecreateDetail;
     procedure Changed;
+    procedure ReleaseAllDownButtons;
   public
     constructor Create(const AOwner: TListItem);
     destructor Destroy; override;
@@ -317,7 +325,9 @@ type
     function AddSwitch(x: single; AIsChecked: Boolean; const AAlign: TListItemAlign = TListItemAlign.Leading): TksListItemRowSwitch;
     function AddSwitchRight(AMargin: integer; AIsChecked: Boolean): TksListItemRowSwitch;
 
-    // segment buttons...
+    // buttons...
+    function AddButton(AWidth: integer; AText: string; const AStyleLookup: string = C_DEFAULT_BUTTON_STYLE; const ATintColor: TAlphaColor = claSilver): TksListItemRowButton;
+
     function AddSegmentButtons(AWidth: integer; ACaptions: array of string; const ATintColor: TAlphaColor = claSilver): TksListItemRowSegmentButtons; overload;
 
     // text functions...
@@ -395,6 +405,7 @@ type
     FClickedItem: TListViewItem;
     FSelectOnRightClick: Boolean;
     FOnSwitchClicked: TksListViewClickSwitchEvent;
+    FOnButtonClicked: TksListViewClickButtonEvent;
     FOnSegmentButtonClicked: TksListViewClickSegmentButtonEvent;
     FCacheTimer: TTimer;
     FScrollTimer: TTimer;
@@ -412,6 +423,8 @@ type
     function CountUncachedRows: integer;
     procedure SetCheckMarks(const Value: TksListViewCheckMarks);
     function GetIsUpdating: Boolean;
+    function RowObjectAtPoint(ARow: TKsListItemRow; x, y: single): TksListItemRowObj;
+    procedure ReleaseAllDownButtons;
     { Private declarations }
   protected
     procedure SetColorStyle(AName: string; AColor: TAlphaColor);
@@ -534,9 +547,6 @@ type
     property OnScrollViewChange;
     property OnItemClick;
 
-    property OnButtonClick;
-    property OnButtonChange;
-
     property OnDeletingItem;
     property OnDeleteItem;
     property OnDeleteChangeVisible;
@@ -557,6 +567,7 @@ type
     property PullRefreshWait;
     property OnLongClick: TksListViewRowClickEvent read FOnLongClick write FOnLongClick;
     property OnSwitchClick: TksListViewClickSwitchEvent read FOnSwitchClicked write FOnSwitchClicked;
+    property OnButtonClicked: TksListViewClickButtonEvent read FOnButtonClicked write FOnButtonClicked;
     property OnSegmentButtonClicked: TksListViewClickSegmentButtonEvent read FOnSegmentButtonClicked write FOnSegmentButtonClicked;
     property OnScrollFinish: TksListViewFinishScrollingEvent read FOnFinishScrolling write FOnFinishScrolling;
   end;
@@ -696,6 +707,16 @@ end;
 procedure TksListItemRowObj.DoChanged(Sender: TObject);
 begin
   Changed;
+end;
+
+procedure TksListItemRowObj.MouseDown;
+begin
+  // overridden in descendant classes
+end;
+
+procedure TksListItemRowObj.MouseUp;
+begin
+  // overridden in descendant classes
 end;
 
 function TksListItemRowObj.Render(ACanvas: TCanvas): Boolean;
@@ -959,6 +980,20 @@ begin
   begin
     CacheRow;
     ListView.Repaint;
+  end;
+end;
+
+procedure TKsListItemRow.ReleaseAllDownButtons;
+var
+  ICount: integer;
+begin
+  for ICount := 0 to FList.Count-1 do
+  begin
+    if (FList[ICount] is TksListItemRowButton) then
+    begin
+      (FList[ICount] as TksListItemRowButton).FIsDown := False;
+      Changed;
+    end;
   end;
 end;
 
@@ -1296,6 +1331,25 @@ begin
     {$ENDIF}
   end;
 end;
+
+function TKsListItemRow.AddButton(AWidth: integer;
+                                  AText: string;
+                                  const AStyleLookup: string = C_DEFAULT_BUTTON_STYLE;
+                                  const ATintColor: TAlphaColor = claSilver): TksListItemRowButton;
+var
+  ICount: integer;
+begin
+  Result := TksListItemRowButton.Create(Self);
+  Result.Align := TListItemAlign.Trailing;
+  Result.VertAlign := TListItemAlign.Center;
+  Result.Rect := RectF(0, 0, AWidth, C_BUTTON_HEIGHT);
+  Result.TintColor := ATintColor;
+  Result.Text := AText;
+  Result.StyleLookup := AStyleLookup;
+  ShowAccessory := False;
+  FList.Add(Result);
+end;
+
 
 function TKsListItemRow.AddSegmentButtons(AWidth: integer;
                                           ACaptions: array of string;
@@ -1803,6 +1857,7 @@ begin
 
   x := x - ItemSpaces.Left;
 
+  ReleaseAllDownButtons;
   AMouseDownRect := Rect(Round(FMouseDownPos.X-8), Round(FMouseDownPos.Y-8), Round(FMouseDownPos.X+8), Round(FMouseDownPos.Y+8));
   if not PtInRect(AMouseDownRect, Point(Round(x),Round(y))) then
     Exit;
@@ -1815,15 +1870,7 @@ begin
     if ARow <> nil then
     begin
       AId := ARow.ID;
-      for ICount := 0 to ARow.RowObjectCount - 1 do
-      begin
-        AObjRect := ARow.RowObject[ICount].Rect;
-        if (FMouseDownPos.x >= (AObjRect.Left - 5)) and
-          (FMouseDownPos.x <= (AObjRect.Right + 5)) then
-        begin
-          FClickedRowObj := ARow.RowObject[ICount];
-        end;
-      end;
+      FClickedRowObj := RowObjectAtPoint(ARow, x, y);
       ARow.ProcessClick;
       if FCheckMarks = TksListViewCheckMarks.ksCmSingleSelect then
       begin
@@ -1858,11 +1905,18 @@ begin
           if Assigned(FOnSwitchClicked) then
             FOnSwitchClicked(Self, FClickedItem, (FClickedRowObj as TksListItemRowSwitch), AId);
         end;
+        if (FClickedRowObj is TksListItemRowButton) then
+        begin
+          if Assigned(FOnButtonClicked) then
+            FOnButtonClicked(Self, FClickedItem, (FClickedRowObj as TksListItemRowButton), AId);
+        end;
         if (FClickedRowObj is TksListItemRowSegmentButtons) then
         begin
           if Assigned(FOnSegmentButtonClicked) then
             FOnSegmentButtonClicked(Self, FClickedItem, (FClickedRowObj as TksListItemRowSegmentButtons), AId);
         end;
+        if FClickedRowObj <> nil then
+          FClickedRowObj.MouseUp;
         ARow.CacheRow;
 
       end;
@@ -1909,10 +1963,40 @@ begin
 end;
 
 
+procedure TksListView.ReleaseAllDownButtons;
+var
+  ICount: integer;
+  ARow: TKsListItemRow;
+begin
+  for ICount := 0 to Items.Count-1 do
+  begin
+    ARow := CachedRow[ICount];
+    ARow.ReleaseAllDownButtons;
+
+  end;
+end;
+
 procedure TksListView.Resize;
 begin
   inherited;
   RedrawAllRows;
+end;
+
+function TksListView.RowObjectAtPoint(ARow: TKsListItemRow; x, y: single): TksListItemRowObj;
+var
+  ICount: integer;
+  AObjRect: TRectF;
+begin
+  Result := nil;
+  for ICount := 0 to ARow.RowObjectCount - 1 do
+  begin
+    AObjRect := ARow.RowObject[ICount].Rect;
+    if (FMouseDownPos.x >= (AObjRect.Left - 5)) and
+      (FMouseDownPos.x <= (AObjRect.Right + 5)) then
+    begin
+      Result := ARow.RowObject[ICount];
+    end;
+  end;
 end;
 
 procedure TksListView.EndUpdate;
@@ -1991,6 +2075,7 @@ procedure TksListView.MouseDown(Button: TMouseButton; Shift: TShiftState;
   x, y: single);
 var
   ICount: integer;
+  ARow: TKsListItemRow;
 begin
   FMouseDownPos := PointF(x-ItemSpaces.Left, y);
   FClickedItem := nil;
@@ -2003,8 +2088,10 @@ begin
     if PtInRect(GetItemRect(ICount), PointF(x,y)) then
     begin
       FClickedItem := Items[ICount];
+      ARow := CachedRow[ICount];
       if (Button = TMouseButton.mbRight) and (FSelectOnRightClick) then
         ItemIndex := Icount;
+      FClickedRowObj := RowObjectAtPoint(ARow, x, y);
     end;
   end;
   inherited;
@@ -2012,6 +2099,9 @@ begin
   FClickTimer.Interval := 100;
   FClickTimer.OnTimer := DoClickTimer;
   FClickTimer.Enabled := True;
+  if FClickedRowObj <> nil then
+    FClickedRowObj.MouseDown;
+  Invalidate;
 end;
 
 procedure TksListView.MouseMove(Shift: TShiftState; X, Y: Single);
@@ -2135,11 +2225,11 @@ begin
 
     ABmp := TBitmap.Create;
     try
-      if ICount = 0 then ABmp.Assign(FControlImageCache.SegmentButtonImage[ksSegmentLeft, ABtnWidth, AHeight, FCaptions[ICount], FTintColor, ICount = FItemIndex])
+      if ICount = 0 then ABmp.Assign(FControlImageCache.ButtonImage[ABtnWidth, AHeight, FCaptions[ICount], FTintColor, ICount = FItemIndex, 'segmentedbuttonleft'])
       else
-        if ICount = FCaptions.Count-1 then ABmp.Assign(FControlImageCache.SegmentButtonImage[ksSegmentRight, ABtnWidth, AHeight, FCaptions[ICount], FTintColor, ICount = FItemIndex])
+        if ICount = FCaptions.Count-1 then ABmp.Assign(FControlImageCache.ButtonImage[ABtnWidth, AHeight, FCaptions[ICount], FTintColor, ICount = FItemIndex, 'segmentedbuttonmiddle'])
       else
-        ABmp.Assign(FControlImageCache.SegmentButtonImage[ksSegmentMiddle, ABtnWidth, AHeight, FCaptions[ICount], FTintColor, ICount = FItemIndex]);
+        ABmp.Assign(FControlImageCache.ButtonImage[ABtnWidth, AHeight, FCaptions[ICount], FTintColor, ICount = FItemIndex, 'segmentedbuttonright']);
     
       if ABmp <> nil then
       begin
@@ -2279,20 +2369,20 @@ begin
 end;
 
 
-function TksControlBitmapCache.GetSegmentButtonImage(APosition: TKsSegmentButtonPosition;
-  AWidth, AHeight: single; AText: string; ATintColor: TAlphaColor; ASelected: Boolean): TBitmap;
+function TksControlBitmapCache.GetButtonImage(AWidth, AHeight: single; AText: string; ATintColor: TAlphaColor; ASelected: Boolean;
+  AStyleLookup: string): TBitmap;
 var
   AId: string;
 begin
   Result := nil;
   if FButton.Parent = nil then
     Exit;
-  AId := IntToStr(Ord(APosition))+'_'+
-         FloatToStr(AWidth)+'_'+
+  AId := FloatToStr(AWidth)+'_'+
          FloatToStr(AWidth)+'_'+
          AText+' '+
          BoolToStr(ASelected)+'_'+
-         IntToStr(ATintColor);
+         IntToStr(ATintColor)+'_'+
+         AStyleLookup;
   if FCachedButtons.IndexOf(AId) > -1 then
   begin
     Result := TBitmap(FCachedButtons.Objects[FCachedButtons.IndexOf(AId)]);
@@ -2306,11 +2396,12 @@ begin
     FOwner.Parent.InsertObject(0, FButton);
     Application.ProcessMessages;
   end;
-  case APosition of
+  FButton.StyleLookup := AStyleLookup;
+  {case APosition of
     ksSegmentLeft: FButton.StyleLookup := 'segmentedbuttonleft';
     ksSegmentMiddle: FButton.StyleLookup := 'segmentedbuttonmiddle';
     ksSegmentRight: FButton.StyleLookup := 'segmentedbuttonright';
-  end;
+  end;         }
   FButton.StaysPressed := True;
   FButton.GroupName := 'cacheButton';
   FButton.Width := AWidth;
@@ -2344,27 +2435,69 @@ end;
 
 { TksListItemRowButton }
 
-procedure TksListItemRowButton.Click(x, y: single);
-begin
-  inherited;
 
-end;
 
 constructor TksListItemRowButton.Create(ARow: TKsListItemRow);
 begin
   inherited;
-
+  FTintColor := claSilver;
+  FIsDown := False;
 end;
 
-destructor TksListItemRowButton.Destroy;
+procedure TksListItemRowButton.MouseDown;
 begin
-
   inherited;
+  FIsDown := True;
+  Changed;
+  FRow.CacheRow;
+end;
+
+procedure TksListItemRowButton.MouseUp;
+begin
+  inherited;
+  FIsDown := False;
+  Changed;
+  FRow.CacheRow;
 end;
 
 function TksListItemRowButton.Render(ACanvas: TCanvas): Boolean;
+var
+  ABmp: TBitmap;
+  AHeight: single;
 begin
+  Result := inherited Render(ACanvas);
+  Result := False;
+  if FControlImageCache.ImagesCached = False then
+    Exit;
 
+  AHeight := FRect.Height;
+
+  ABmp := TBitmap.Create;
+  try
+    ABmp.Assign(FControlImageCache.ButtonImage[FRect.Width, AHeight, FText, FTintColor, FIsDown, FStyleLookup]);
+    if ABmp <> nil then
+    begin
+      if IsBlankBitmap(ABmp) then
+        Exit;
+      ACanvas.DrawBitmap(ABmp, RectF(0,0,ABmp.Width,ABmp.Height), FRect, 1, True);
+      Result := True;
+    end;
+  finally
+    {$IFDEF IOS}
+    ABmp.DisposeOf;
+    {$ELSE}
+    ABmp.Free;
+    {$ENDIF}
+  end;
+end;
+
+procedure TksListItemRowButton.SetStyleLookup(const Value: string);
+begin
+  if FStyleLookup <> Value then
+  begin
+    FStyleLookup := Value;
+    Changed;
+  end;
 end;
 
 procedure TksListItemRowButton.SetText(const Value: string);
