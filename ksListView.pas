@@ -26,14 +26,16 @@ unit ksListView;
 
 interface
 
-uses
-  Classes, FMX.Types, FMX.Controls, FMX.ListView, Types, FMX.TextLayout,
-  FMX.ListView.Types, FMX.Graphics, Generics.Collections, System.UITypes,
-  FMX.ImgList, System.UIConsts, FMX.StdCtrls, FMX.Styles.Objects;
-
 {$IFDEF VER290}
   {$DEFINE XE8_OR_NEWER}
 {$ENDIF}
+
+
+uses
+  Classes, FMX.Types, FMX.Controls, FMX.ListView, Types, FMX.TextLayout,
+  FMX.ListView.Types, FMX.Graphics, Generics.Collections, System.UITypes,
+  {$IFDEF XE8_OR_NEWER} FMX.ImgList, {$ENDIF}
+  System.UIConsts, FMX.StdCtrls, FMX.Styles.Objects;
 
 const
   C_LONG_TAP_DURATION     = 5;  // 500 ms
@@ -316,7 +318,9 @@ type
     procedure CacheRow;
     // bitmap functions...
     function DrawBitmap(ABmp: TBitmap; x, AWidth, AHeight: single): TksListItemRowImage overload;
+    {$IFDEF XE8_OR_NEWER}
     function DrawBitmap(ABmpIndex: integer; x, AWidth, AHeight: single): TksListItemRowImage overload;
+    {$ENDIF}
     function DrawBitmap(ABmp: TBitmap; x, y, AWidth, AHeight: single): TksListItemRowImage overload;
     function DrawBitmapRight(ABmp: TBitmap; AWidth, AHeight, ARightPadding: single): TksListItemRowImage;
     // shape functions...
@@ -450,8 +454,8 @@ type
                     AFontColor: TAlphaColor = claBlack): TKsListItemRow;
     function AddHeader(AText: string): TKsListItemRow;
     function ItemsInView: TksVisibleItems;
-    procedure BeginUpdate; override;
-    procedure EndUpdate; override;
+    procedure BeginUpdate; {$IFDEF XE8_OR_NEWER} override; {$ENDIF}
+    procedure EndUpdate; {$IFDEF XE8_OR_NEWER} override; {$ENDIF}
     property CachedRow[index: integer]: TKsListItemRow read GetCachedRow;
     procedure UncheckAll;
     procedure CheckAll;
@@ -469,7 +473,9 @@ type
     property AllowSelection;
     property AlternatingColors;
     property ItemIndex;
+    {$IFDEF XE8_OR_NEWER}
     property Images;
+    {$ENDIF}
     property ScrollViewPos;
     property ItemSpaces;
     property SideSpace;
@@ -546,15 +552,18 @@ type
 
     property OnChange;
     property OnChangeRepainted;
+    {$IFDEF XE8_OR_NEWER}
     property OnItemsChange;
     property OnScrollViewChange;
+    property OnFilter;
+    property PullRefreshWait;
+    {$ENDIF}
     property OnItemClick;
 
     property OnDeletingItem;
     property OnDeleteItem;
     property OnDeleteChangeVisible;
     property OnSearchChange;
-    property OnFilter;
     property OnPullRefresh;
     property DeleteButtonText;
 
@@ -567,7 +576,6 @@ type
     property SearchAlwaysOnTop;
     property SelectionCrossfade;
     property PullToRefresh;
-    property PullRefreshWait;
     property OnLongClick: TksListViewRowClickEvent read FOnLongClick write FOnLongClick;
     property OnSwitchClick: TksListViewClickSwitchEvent read FOnSwitchClicked write FOnSwitchClicked;
     property OnButtonClicked: TksListViewClickButtonEvent read FOnButtonClicked write FOnButtonClicked;
@@ -1171,6 +1179,8 @@ begin
   Result := DrawBitmap(ABmp, x, 0, AWidth, AHeight);
 end;
 
+{$IFDEF XE8_OR_NEWER}
+
 function TKsListItemRow.DrawBitmap(ABmpIndex: integer;
   x, AWidth, AHeight: single): TksListItemRowImage overload;
 var
@@ -1186,6 +1196,8 @@ begin
   ABmp := il.Bitmap(ASize, ABmpIndex);
   Result := DrawBitmap(ABmp, x, AWidth, AHeight);
 end;
+
+{$ENDIF}
 
 function TKsListItemRow.DrawBitmap(ABmp: TBitmap; x, y, AWidth, AHeight: single)
   : TksListItemRowImage;
