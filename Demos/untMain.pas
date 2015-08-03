@@ -111,6 +111,9 @@ begin
   end;
 end;
 
+
+// code to create the segment buttons...
+
 procedure TForm6.BuildSegmentButtonListView;
 var
   ICount: integer;
@@ -133,6 +136,9 @@ begin
     lvSegmentButtons.EndUpdate;
   end;
 end;
+
+
+
 
 procedure TForm6.BuildSwitchListView;
 var

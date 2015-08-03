@@ -41,6 +41,9 @@ const
   C_LONG_TAP_DURATION     = 5;  // 500 ms
   C_BUTTON_HEIGHT = 29;
   C_SEGMENT_BUTTON_HEIGHT = 29;
+  C_DEFAULT_TEXT_COLOR = claDimgray;
+  C_DEFAULT_HEADER_TEXT_COLOR = claBlack;
+  C_DEFAULT_SEGMENT_BUTTON_COLOR = claNull;
 
 type
   TksListViewCheckMarks = (ksCmNone, ksCmSingleSelect, ksCmMultiSelect);
@@ -340,7 +343,10 @@ type
     function AddButton(AWidth: integer; AText: string; const ATintColor: TAlphaColor = claNull): TksListItemRowButton; overload;
     function AddButton(AStyle: TksImageButtonStyle; const ATintColor: TAlphaColor = claNull): TksListItemRowButton; overload;
 
-    function AddSegmentButtons(AWidth: integer; ACaptions: array of string; const ATintColor: TAlphaColor = claDimgray): TksListItemRowSegmentButtons; overload;
+    function AddSegmentButtons(AWidth: integer;
+                               ACaptions: array of string;
+                               const AItemIndex: integer = -1;
+                               const ATintColor: TAlphaColor = C_DEFAULT_SEGMENT_BUTTON_COLOR): TksListItemRowSegmentButtons; overload;
 
     // text functions...
 
@@ -458,7 +464,7 @@ type
                     AAccessory: TksAccessoryType;
                     const AImageIndex: integer = -1;
                     const AFontSize: integer = 14;
-                    AFontColor: TAlphaColor = claBlack): TKsListItemRow;
+                    AFontColor: TAlphaColor = C_DEFAULT_TEXT_COLOR): TKsListItemRow;
     function AddHeader(AText: string): TKsListItemRow;
     function ItemsInView: TksVisibleItems;
     procedure BeginUpdate; {$IFDEF XE8_OR_NEWER} override; {$ENDIF}
@@ -774,7 +780,7 @@ constructor TksListItemRowText.Create(ARow: TKsListItemRow);
 begin
   inherited Create(ARow);
   FFont := TFont.Create;
-  FTextColor := claBlack;
+  FTextColor := C_DEFAULT_TEXT_COLOR;
   FWordWrap := False;
 end;
 
@@ -1035,7 +1041,7 @@ begin
   ABmp.Height := Round(RowHeight);
   ABmp.Clear(claNull);
   Bitmap := ABmp;
-  FTextColor := claBlack;
+  FTextColor := C_DEFAULT_TEXT_COLOR;
   FFont := TFont.Create;
   FDetailFont := TFont.Create;
   FFont.OnChanged := DoFontChanged;
@@ -1409,7 +1415,8 @@ end;
 
 function TKsListItemRow.AddSegmentButtons(AWidth: integer;
                                           ACaptions: array of string;
-                                          const ATintColor: TAlphaColor = claDimgray): TksListItemRowSegmentButtons;
+                                          const AItemIndex: integer = -1;
+                                          const ATintColor: TAlphaColor = C_DEFAULT_SEGMENT_BUTTON_COLOR): TksListItemRowSegmentButtons;
 var
   ICount: integer;
 begin
@@ -1419,6 +1426,7 @@ begin
   Result.VertAlign := TListItemAlign.Center;
   Result.Rect := RectF(0, 0, AWidth, C_SEGMENT_BUTTON_HEIGHT);
   Result.TintColor := ATintColor;
+  Result.ItemIndex := AItemIndex;
   for ICount := Low(ACaptions) to High(ACaptions) do
     Result.Captions.Add(ACaptions[ICount]);
   ShowAccessory := False;
@@ -1723,7 +1731,7 @@ begin
   Result := AddRow('', '', None);
   Result.Owner.Purpose := TListItemPurpose.Header;
   Result.Font.Style := [];
-  Result.TextColor := claDimgray;
+  Result.TextColor := C_DEFAULT_HEADER_TEXT_COLOR;
   Result.Font.Size := 14;
   Result.TextOut(AText, 0, -3, 0, TTextAlign.Trailing);
   Result.CacheRow;
@@ -1731,7 +1739,7 @@ end;
 
 
 function TksListView.AddRow(AText, ADetail: string; AAccessory: TksAccessoryType; const AImageIndex: integer = -1;
-  const AFontSize: integer = 14; AFontColor: TAlphaColor = claBlack): TKsListItemRow;
+  const AFontSize: integer = 14; AFontColor: TAlphaColor = C_DEFAULT_TEXT_COLOR): TKsListItemRow;
 var
   AItem: TListViewItem;
 begin
@@ -1754,14 +1762,10 @@ begin
   Result.ImageIndex := AImageIndex;
   if AText <> '' then
     Result.AddText(AText);
-  {if AImageIndex = -1 then
-    Result.TextOut(AText, 0)
-  else
-    Result.TextOut(AText, 40); }
+
   if ADetail <> '' then
     Result.AddDetail(ADetail);
 end;
-
 
 
 procedure TksListView.SetCheckMarks(const Value: TksListViewCheckMarks);
@@ -1957,6 +1961,7 @@ begin
       // normal click.
       if Button = TMouseButton.mbLeft then
       begin
+        Application.ProcessMessages;
         if Assigned(FOnItemClickEx) then
           FOnItemClickEx(Self, FMouseDownPos.x, FMouseDownPos.y, FClickedItem, AId, FClickedRowObj)
       else
