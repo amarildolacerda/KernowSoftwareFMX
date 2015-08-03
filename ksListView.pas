@@ -1426,9 +1426,9 @@ begin
   Result.VertAlign := TListItemAlign.Center;
   Result.Rect := RectF(0, 0, AWidth, C_SEGMENT_BUTTON_HEIGHT);
   Result.TintColor := ATintColor;
-  Result.ItemIndex := AItemIndex;
   for ICount := Low(ACaptions) to High(ACaptions) do
     Result.Captions.Add(ACaptions[ICount]);
+  Result.ItemIndex := AItemIndex;
   ShowAccessory := False;
   FList.Add(Result);
 end;
@@ -2018,6 +2018,8 @@ end;
 
 procedure TksListView.Paint;
 begin
+  if (IsUpdating) or (FControlBitmapCache.ImagesCached = False) then
+    Exit;
   if (ItemIndex > -1) then
     ShowSelection := CachedRow[ItemIndex].CanSelect;
   inherited;
