@@ -36,7 +36,6 @@ Includes demo.
 
 - segment button component
 - not sure what else to say about this one really :-)
-- 
 
 Any suggestions for updates are welcome :-) 
 
