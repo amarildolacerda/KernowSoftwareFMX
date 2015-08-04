@@ -54,6 +54,7 @@ type
   TksImageButtonStyle = (Action, Add, Camara, Compose, Information, ArrowLeft,
     ArrowDown, ArrowRight, ArrowUp, Delete, Details, Organise, PageCurl, Pause,
     Play, Refresh, Reply, Search, Stop, Trash);
+  TksButtonState = (Pressed, Unpressed);
 
   TksListView = class;
   TKsListItemRow = class;
@@ -206,7 +207,7 @@ type
     FTintColor: TAlphaColor;
     FText: string;
     FStyleLookup: string;
-    FIsDown: Boolean;
+    FState: TksButtonState;
     procedure SetTintColor(const Value: TAlphaColor);
     procedure SetText(const Value: string);
     procedure SetStyleLookup(const Value: string);
@@ -252,18 +253,18 @@ type
     FCachedButtons: TStringList;
     FImagesCached: Boolean;
     FButton: TSpeedButton;
-    function GetSwitchImage(AChecked: Boolean): TBitmap;
+    function GetSwitchImage(AState: TksButtonState): TBitmap;
     function GetButtonImage(AWidth, AHeight: single; AText: string; ATintColor: TAlphaColor;
-      ASelected: Boolean; AStyleLookup: string): TBitmap;
+      AState: TksButtonState; AStyleLookup: string): TBitmap;
   public
     constructor Create(Owner: TksListView);
     destructor Destroy; override;
     function CreateImageCache: Boolean;
-    property SwitchImage[AChecked: Boolean]: TBitmap read GetSwitchImage;
+    property SwitchImage[AState: TksButtonState]: TBitmap read GetSwitchImage;
     property ButtonImage[AWidth, AHeight: single;
                          AText: string;
                          ATintColor: TAlphaColor;
-                         ASelected: Boolean;
+                         AState: TksButtonState;
                          AStyleLookup: string]: TBitmap read GetButtonImage;
     property ImagesCached: Boolean read FImagesCached;
   end;
@@ -1118,7 +1119,7 @@ begin
   begin
     if (FList[ICount] is TksListItemRowButton) then
     begin
-      (FList[ICount] as TksListItemRowButton).FIsDown := False;
+      (FList[ICount] as TksListItemRowButton).FState := Unpressed;
       Changed;
     end;
   end;
@@ -2220,6 +2221,7 @@ end;
 function TksListItemRowSwitch.Render(ACanvas: TCanvas): Boolean;
 var
   ABmp: TBitmap;
+  AState: TksButtonState;
 begin
   Result := inherited Render(ACanvas);
   if FControlImageCache.ImagesCached = False then
@@ -2229,7 +2231,9 @@ begin
   end;
   ABmp := TBitmap.Create;
   try
-    ABmp.Assign(FControlImageCache.SwitchImage[FIsChecked]);
+    AState := Unpressed;
+    if FIsChecked then AState := Pressed;
+    ABmp.Assign(FControlImageCache.SwitchImage[AState]);
     ACanvas.DrawBitmap(ABmp, RectF(0,0,ABmp.Width,ABmp.Height), FRect, 1);
   finally
     {$IFDEF IOS}
@@ -2372,6 +2376,8 @@ var
   ABtnRect: TRectF;
   ICount: integer;
   AHeight: single;
+  AStyle: string;
+  AState: TksButtonState;
 begin
   Result := inherited Render(ACanvas);
   if FControlImageCache.ImagesCached = False then
@@ -2383,15 +2389,26 @@ begin
     if FItemIndex = -1 then
       FItemIndex := 0;
     AHeight := FRect.Height;
-
     ABmp := TBitmap.Create;
     try
-      if ICount = 0 then ABmp.Assign(FControlImageCache.ButtonImage[ABtnWidth, AHeight, FCaptions[ICount], FTintColor, ICount = FItemIndex, 'segmentedbuttonleft'])
+      if ICount = 0 then AStyle := 'segmentedbuttonleft';
+      if ICount = FCaptions.Count-1 then AStyle := 'segmentedbuttonright';
+      if AStyle = '' then AStyle := 'segmentedbuttonmiddle';
+      AState := Unpressed;
+      if FItemIndex = ICount then AState := Pressed;
+      ABmp.Assign(FControlImageCache.ButtonImage[ABtnWidth,
+                                                 AHeight,
+                                                 FCaptions[ICount],
+                                                 FTintColor,
+                                                 AState,
+                                                 AStyle]);
+
+
+      {else
+        if ICount = FCaptions.Count-1 then ABmp.Assign(FControlImageCache.ButtonImage[ABtnWidth, AHeight, FCaptions[ICount], FTintColor, ICount = FItemIndex, ])
       else
-        if ICount = FCaptions.Count-1 then ABmp.Assign(FControlImageCache.ButtonImage[ABtnWidth, AHeight, FCaptions[ICount], FTintColor, ICount = FItemIndex, 'segmentedbuttonright'])
-      else
-        ABmp.Assign(FControlImageCache.ButtonImage[ABtnWidth, AHeight, FCaptions[ICount], FTintColor, ICount = FItemIndex, 'segmentedbuttonmiddle']);
-    
+        ABmp.Assign(FControlImageCache.ButtonImage[ABtnWidth, AHeight, FCaptions[ICount], FTintColor, ICount = FItemIndex, ]);
+      }
       if ABmp <> nil then
       begin
         if IsBlankBitmap(ABmp) then
@@ -2535,8 +2552,8 @@ begin
 end;
 
 
-function TksControlBitmapCache.GetButtonImage(AWidth, AHeight: single; AText: string; ATintColor: TAlphaColor; ASelected: Boolean;
-  AStyleLookup: string): TBitmap;
+function TksControlBitmapCache.GetButtonImage(AWidth, AHeight: single; AText: string;
+  ATintColor: TAlphaColor; AState: TksButtonState; AStyleLookup: string): TBitmap;
 var
   AId: string;
 begin
@@ -2546,7 +2563,7 @@ begin
   AId := FloatToStr(AWidth)+'_'+
          FloatToStr(AWidth)+'_'+
          AText+' '+
-         BoolToStr(ASelected)+'_'+
+         IntToStr(Ord(AState))+'_'+
          IntToStr(ATintColor)+'_'+
          AStyleLookup;
   if FCachedButtons.IndexOf(AId) > -1 then
@@ -2578,7 +2595,7 @@ begin
   FButton.Text := AText;
 
 
-  FButton.IsPressed := ASelected;
+  FButton.IsPressed := (AState = Pressed);
 
   Result := FButton.MakeScreenshot;
 
@@ -2596,12 +2613,12 @@ begin
   FCachedButtons.AddObject(AId, Result);
 end;
 
-function TksControlBitmapCache.GetSwitchImage(AChecked: Boolean): TBitmap;
+function TksControlBitmapCache.GetSwitchImage(AState: TksButtonState): TBitmap;
 begin
   Result := nil;
-  case AChecked of
-    True: Result := FSwitchOn;
-    False: Result := FSwitchOff;
+  case AState of
+    Pressed  : Result := FSwitchOn;
+    Unpressed: Result := FSwitchOff;
   end;
 end;
 
@@ -2611,13 +2628,13 @@ constructor TksListItemRowButton.Create(ARow: TKsListItemRow);
 begin
   inherited;
   FTintColor := claNull;
-  FIsDown := False;
+  FState := Unpressed;
 end;
 
 procedure TksListItemRowButton.MouseDown;
 begin
   inherited;
-  FIsDown := True;
+  FState := Pressed;
   Changed;
   FRow.CacheRow;
 end;
@@ -2625,7 +2642,7 @@ end;
 procedure TksListItemRowButton.MouseUp;
 begin
   inherited;
-  FIsDown := False;
+  FState := Unpressed;
   Changed;
   FRow.CacheRow;
 end;
@@ -2644,7 +2661,7 @@ begin
 
   ABmp := TBitmap.Create;
   try
-    ABmp.Assign(FControlImageCache.ButtonImage[FRect.Width, AHeight, FText, FTintColor, FIsDown, FStyleLookup]);
+    ABmp.Assign(FControlImageCache.ButtonImage[FRect.Width, AHeight, FText, FTintColor, FState, FStyleLookup]);
     if ABmp <> nil then
     begin
       if IsBlankBitmap(ABmp) then

@@ -139,6 +139,7 @@ begin
   try
     for ICount := 1 to 100 do
     begin
+      AColor := claNull;
       case ICount mod 4 of
         0: AColor := claNull;
         1: AColor := claDimgray;
@@ -171,8 +172,6 @@ begin
 end;
 
 procedure TForm6.BuildIndicatorListView;
-var
-  ICount: integer;
 begin
   lvIndicators.BeginUpdate;
   try
@@ -192,8 +191,6 @@ begin
 end;
 
 procedure TForm6.BuildAccessoryListView;
-var
-  ICount: integer;
 begin
   lvAccessorys.BeginUpdate;
   try
