@@ -44,7 +44,6 @@ type
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or  pidiOSDevice)]
   TksSegmentButtons = class(TControl)
   private
-    FButtonIndex: integer;
     FGroupID: string;
     FItemIndex: integer;
     FOnChange: TNotifyEvent;
