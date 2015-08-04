@@ -53,6 +53,10 @@ type
     Label7: TLabel;
     ToolBar7: TToolBar;
     Label8: TLabel;
+    ToolBar8: TToolBar;
+    ksSegmentButtons1: TksSegmentButtons;
+    Image1: TImage;
+    Image2: TImage;
     procedure FormCreate(Sender: TObject);
     procedure btnRightMenuClick(Sender: TObject);
     procedure btnLeftMenuClick(Sender: TObject);
@@ -65,6 +69,7 @@ type
     procedure Switch1Switch(Sender: TObject);
     procedure lvCheckListItemClickEx(Sender: TObject; x, y: Single;
       AItem: TListViewItem; AId: string; ARowObj: TksListItemRowObj);
+    procedure ksSegmentButtons1Change(Sender: TObject);
   private
     procedure BuildTextItemsListView;
     procedure BuildSegmentButtonListView;
@@ -98,14 +103,25 @@ begin
   SlideMenu2.ToggleMenu;
 end;
 
+
 procedure TForm6.BuildTextItemsListView;
 var
   ICount: integer;
+  ARow: TKsListItemRow;
 begin
   ksListview1.Items.BeginUpdate;
   try
-    for ICount := 0 to 100 do
-      ksListview1.AddRow('Line '+InttoStr(ICount), 'right-aligned text :-)', More).Image := imgHome.Bitmap;
+    for ICount := 1 to 30 do
+    begin
+      ARow := ksListview1.AddRow('Line '+InttoStr(ICount),            // main title
+                                 'a sub title for '+IntToStr(ICount), // subtitle
+                                 'detail text',                       // detail text
+                                 More,                                // "more" accessory
+                                 Image2.Bitmap);                      // image
+
+      // set image to circle shape
+      ARow.Image.ImageShape := ksCircleImage;
+    end;
   finally
     ksListview1.Items.EndUpdate;
   end;
@@ -136,8 +152,6 @@ begin
     lvSegmentButtons.EndUpdate;
   end;
 end;
-
-
 
 
 procedure TForm6.BuildSwitchListView;
@@ -198,7 +212,8 @@ var
 begin
   lvCheckList.BeginUpdate;
   for ICount := 1 to 50 do
-    lvCheckList.AddRow('Item '+IntToStr(ICount), '', None);
+    lvCheckList.AddRow('Item '+IntToStr(ICount), '', '', None);
+
   lvCheckList.EndUpdate;
 end;
 
@@ -229,10 +244,25 @@ begin
 
   SlideMenu2.ItemIndex := 0;
   layoutImages.Visible := False;
+
+  ksSegmentButtons1.AddButton('DEFAULT', 'DEFAULT');
+  ksSegmentButtons1.AddButton('RED', 'RED');
+  ksSegmentButtons1.AddButton('GREEN', 'GREEN');
+  ksSegmentButtons1.AddButton('BLUE', 'BLUE');
 end;
 
 
 
+
+procedure TForm6.ksSegmentButtons1Change(Sender: TObject);
+begin
+  case ksSegmentButtons1.ItemIndex of
+    0: lvCheckList.CheckMarkStyle := ksCmsDefault;
+    1: lvCheckList.CheckMarkStyle := ksCmsRed;
+    2: lvCheckList.CheckMarkStyle := ksCmsGreen;
+    3: lvCheckList.CheckMarkStyle := ksCmsBlue;
+  end;
+end;
 
 procedure TForm6.lvCheckListItemClickEx(Sender: TObject; x, y: Single;
   AItem: TListViewItem; AId: string; ARowObj: TksListItemRowObj);

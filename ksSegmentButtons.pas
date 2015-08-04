@@ -57,6 +57,7 @@ type
     function GetButton(index: integer): TKsSegmentButton;
   protected
     procedure Paint; override;
+    procedure Resize; override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -170,6 +171,11 @@ begin
   inherited;
   if csDesigning in ComponentState then
     DrawDesignBorder;
+end;
+
+procedure TksSegmentButtons.Resize;
+begin
+  ResizeButtons;
 end;
 
 procedure TksSegmentButtons.ResizeButtons;
