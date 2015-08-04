@@ -334,8 +334,7 @@ type
     function AddButton(AStyle: TksImageButtonStyle; const ATintColor: TAlphaColor = claNull): TksListItemRowButton; overload;
     function AddSegmentButtons(AWidth: integer;
                                ACaptions: array of string;
-                               const AItemIndex: integer = -1;
-                               const ATintColor: TAlphaColor = C_DEFAULT_SEGMENT_BUTTON_COLOR): TksListItemRowSegmentButtons; overload;
+                               const AItemIndex: integer = -1): TksListItemRowSegmentButtons; overload;
     // text functions...
     function TextOut(AText: string; x: single; const AVertAlign: TTextAlign = TTextAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
     function TextOut(AText: string; x, AWidth: single; const AVertAlign: TTextAlign = TTextAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
@@ -1406,8 +1405,7 @@ end;
 
 function TKsListItemRow.AddSegmentButtons(AWidth: integer;
                                           ACaptions: array of string;
-                                          const AItemIndex: integer = -1;
-                                          const ATintColor: TAlphaColor = C_DEFAULT_SEGMENT_BUTTON_COLOR): TksListItemRowSegmentButtons;
+                                          const AItemIndex: integer = -1): TksListItemRowSegmentButtons;
 var
   ICount: integer;
 begin
@@ -1416,7 +1414,7 @@ begin
   Result.Align := TListItemAlign.Trailing;
   Result.VertAlign := TListItemAlign.Center;
   Result.Rect := RectF(0, 0, AWidth, C_SEGMENT_BUTTON_HEIGHT);
-  Result.TintColor := ATintColor;
+  Result.TintColor := C_DEFAULT_SEGMENT_BUTTON_COLOR;
   for ICount := Low(ACaptions) to High(ACaptions) do
     Result.Captions.Add(ACaptions[ICount]);
   Result.ItemIndex := AItemIndex;
