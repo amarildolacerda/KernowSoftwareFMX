@@ -7,7 +7,7 @@ Firemonkey Slide menu, ListView and Segment buttons for Delphi.  Inherits from a
 
 Includes demo.
 
-# *** TksListview ****************************
+##TksListview
 
 - Cached list view provides native performance regardless of the number of text/items/graphics added
 - support for embedded switches
