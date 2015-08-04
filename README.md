@@ -21,7 +21,7 @@ Includes demo.
 - "Indicator" colours - add colour indicators to each row
 
 
-*** TksSlideMenu ****************************
+###TksSlideMenu
 
 - set menu background colour
 - set selected item colour
@@ -29,10 +29,10 @@ Includes demo.
 - add images to items
 - fade background
 - left or right aligned menus
-- non-visual component for quick integration into existing projects
+- inherites from non-visual Tcomponent for quick integration into existing projects
 - uses bitmap caching for optimised performance
 
-*** TksSegmentButtons  ****************************
+###TksSegmentButtons
 
 - segment button component
 - not sure what else to say about this one really :-)
