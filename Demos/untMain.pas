@@ -103,8 +103,8 @@ end;
 
 procedure TForm6.btnRightMenuClick(Sender: TObject);
 begin
-  BuildEverythingListView;
-  //SlideMenu2.ToggleMenu;
+  //BuildEverythingListView;
+  SlideMenu2.ToggleMenu;
 end;
 
 
@@ -122,7 +122,7 @@ begin
                                  'detail text',                       // detail text
                                  More,                                // "more" accessory
                                  Image2.Bitmap);                      // image
-      ARow.DrawEllipse(200, 0, 20, 20, claSilver, claSilver);
+      ARow.DrawRect(200, 0, 20, 20, claBlack, claRed);
       // set image to circle shape
       ARow.Image.ImageShape := ksCircleImage;
     end;
@@ -150,8 +150,8 @@ begin
       ARow.AddSegmentButtons(180, 120, ['one','two','three'], TListItemAlign.Leading);
       ARow.DrawBitmap(imgSearch.Bitmap, 310, 32, 32);
       ARow.DrawRect(360, 0, 20, 20, claBlack, claRed);
-      //ARow.DrawRoundRect(390, 0, 20, 20, 5, claBlack, claGreen);
-      //ARow.DrawEllipse(420, 0, 20, 20, claBlack, claBlue);
+      ARow.DrawRoundRect(390, 0, 20, 20, 5, claBlack, claGreen);
+      ARow.DrawEllipse(420, 0, 20, 20, claBlack, claBlue);
       ARow.ShowAccessory := True;
       // set image to circle shape
 

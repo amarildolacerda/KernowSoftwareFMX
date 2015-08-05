@@ -194,7 +194,7 @@ type
     property Thickness: single read FThickness write SetThickness;
   end;
 
-  TksListItemRowShape = class(TksListItemRowImage)
+  TksListItemRowShape = class(TksListItemRowObj)
   private
     FStroke: TksListItemStroke;
     FFill: TksListItemBrush;
@@ -1033,43 +1033,56 @@ var
   ACorners: TCorners;
   AStrokeWidth: single;
   ARect: TRectF;
+  ABitmap: TBitmap;
 begin
-  ARect := RectF(0, 0, Width, Height);
-  Bitmap.Width := Round(Width);
-  Bitmap.Height := Round(Height);
-  Bitmap.Clear(claNull);
-  ACorners := [TCorner.TopLeft, TCorner.TopRight, TCorner.BottomLeft, TCorner.BottomRight];
-  Bitmap.Canvas.BeginScene;
-  try
-    with Bitmap.Canvas.Fill do
-    begin
-      Kind := FFill.Kind;
-      Color := FFill.Color;
-    end;
-    with Bitmap.Canvas.Stroke do
-    begin
-      Kind := FStroke.Kind;
-      Color := FStroke.Color;
-      Thickness := FStroke.Thickness;
-    end;
-    if FShape = ksEllipse then
-      Bitmap.Canvas.FillEllipse(Rect, 1)
-    else
-      Bitmap.Canvas.Fill.Color := claRed;
-      Bitmap.Canvas.FillRect(Rect, FCornerRadius, FCornerRadius, ACorners, 1);
-
-
-    if FShape = ksEllipse then
-      Bitmap.Canvas.DrawEllipse(Rect, 1)
-    else
-      Bitmap.Canvas.DrawRect(Rect, FCornerRadius, FCornerRadius, ACorners, 1);
-  finally
-    Bitmap.Canvas.EndScene;
-  end;
-  //ACanvas.DrawBitmap(ABmp, Rect, Rect, 1);
-
   Result := inherited Render(ACanvas);
+  ACorners := [TCorner.TopLeft, TCorner.TopRight, TCorner.BottomLeft, TCorner.BottomRight];
+  ABitmap := TBitmap.Create;
+  try
+    ABitmap.Width := Round(Width * GetScreenScale);
+    ABitmap.Height := Round(Height * GetScreenScale);
+    ARect := RectF(0, 0, ABitmap.Width, ABitmap.Height);
+    ABitmap.Clear(claNull);
+    ABitmap.Canvas.BeginScene;
+    try
+      with ABitmap.Canvas.Fill do
+      begin
+        Kind := FFill.Kind;
+        Color := FFill.Color;
+      end;
+      with ABitmap.Canvas.Stroke do
+      begin
+        Kind := FStroke.Kind;
+        Color := FStroke.Color;
+        Thickness := FStroke.Thickness;
+      end;
+      if FShape = ksEllipse then
+        ABitmap.Canvas.DrawEllipse(ARect, 1)
+      else
+        ABitmap.Canvas.DrawRect(ARect, 0, 0, ACorners, 1);
 
+
+      if FShape = ksEllipse then
+        ABitmap.Canvas.FillEllipse(ARect, 1)
+      else
+        ABitmap.Canvas.FillRect(ARect, FCornerRadius, FCornerRadius, ACorners, 1);
+
+
+      if FShape = ksEllipse then
+        ABitmap.Canvas.DrawEllipse(ARect, 1)
+      else
+        ABitmap.Canvas.DrawRect(ARect, FCornerRadius, FCornerRadius, ACorners, 1);
+    finally
+      ABitmap.Canvas.EndScene;
+    end;
+    ACanvas.DrawBitmap(ABitmap, ARect, Rect, 1);
+  finally
+    {$IFDEF IOS}
+    ABitmap.DisposeOf;
+    {$ELSE}
+    ABitmap.Free;
+    {$ENDIF}
+  end;
 end;
 
 procedure TksListItemRowShape.SetCornerRadius(const Value: single);
@@ -1439,8 +1452,6 @@ function TKsListItemRow.DrawRect(x, y, AWidth, AHeight: single; AStroke,
   AFill: TAlphaColor): TksListItemRowShape;
 begin
   Result := TksListItemRowShape.Create(Self);
-
-  //Result.FRect := RectF(0, 0, AWidth, AHeight);
   Result.Width := AWidth;
   Result.Height := AHeight;
   Result.PlaceOffset := PointF(x,y);
@@ -2230,7 +2241,7 @@ end;
 procedure TksListView.Resize;
 begin
   inherited;
-  //RedrawAllRows;
+  RedrawAllRows;
 end;
 
 function TksListView.RowObjectAtPoint(ARow: TKsListItemRow; x, y: single): TksListItemRowObj;
