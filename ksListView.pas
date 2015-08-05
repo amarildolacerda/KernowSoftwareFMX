@@ -1107,7 +1107,7 @@ begin
     FSubTitle.PlaceOffset := PointF(AOffset, FSubTitle.PlaceOffset.Y);
   end;
   if ShowAccessory then
-    FDetail.PlaceOffset := PointF(FDetail.PlaceOffset.X+24, FDetail.PlaceOffset.Y);
+    FDetail.PlaceOffset := PointF(24, FDetail.PlaceOffset.Y);
 end;
 
 procedure TKsListItemRow.ReleaseAllDownButtons;
