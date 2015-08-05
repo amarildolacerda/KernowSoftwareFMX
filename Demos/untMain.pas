@@ -103,7 +103,6 @@ end;
 
 procedure TForm6.btnRightMenuClick(Sender: TObject);
 begin
-  //BuildEverythingListView;
   SlideMenu2.ToggleMenu;
 end;
 
@@ -122,7 +121,7 @@ begin
                                  'detail text',                       // detail text
                                  More,                                // "more" accessory
                                  Image2.Bitmap);                      // image
-      ARow.DrawRect(200, 0, 20, 20, claBlack, claRed);
+
       // set image to circle shape
       ARow.Image.ImageShape := ksCircleImage;
     end;
@@ -254,12 +253,12 @@ procedure TForm6.DoShow;
 begin
   inherited;
   BuildTextItemsListView;
-  {BuildSegmentButtonListView;
+  BuildSegmentButtonListView;
   BuildEverythingListView;
   BuildSwitchListView;
   BuildIndicatorListView;
   BuildAccessoryListView;
-  BuildCheckListView;   }
+  BuildCheckListView;
 end;
 
 procedure TForm6.FormCreate(Sender: TObject);

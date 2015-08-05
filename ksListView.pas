@@ -1031,7 +1031,6 @@ end;
 function TksListItemRowShape.Render(ACanvas: TCanvas): Boolean;
 var
   ACorners: TCorners;
-  AStrokeWidth: single;
   ARect: TRectF;
   ABitmap: TBitmap;
 begin
@@ -1532,8 +1531,6 @@ end;
 function TKsListItemRow.AddSegmentButtons(AWidth: integer;
                                           ACaptions: array of string;
                                           const AItemIndex: integer = -1): TksListItemRowSegmentButtons;
-var
-  ICount: integer;
 begin
   Result := AddSegmentButtons(0, AWidth, ACaptions, TListItemAlign.Trailing, AItemIndex);
 end;
