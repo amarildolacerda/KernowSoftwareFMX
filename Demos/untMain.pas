@@ -57,6 +57,8 @@ type
     ksSegmentButtons1: TksSegmentButtons;
     Image1: TImage;
     Image2: TImage;
+    tabEverything: TTabItem;
+    lvSmoothScrolling: TksListView;
     procedure FormCreate(Sender: TObject);
     procedure btnRightMenuClick(Sender: TObject);
     procedure btnLeftMenuClick(Sender: TObject);
@@ -77,6 +79,7 @@ type
     procedure BuildIndicatorListView;
     procedure BuildAccessoryListView;
     procedure BuildCheckListView;
+    procedure BuildEverythingListView;
     { Private declarations }
   protected
     procedure DoShow; override;
@@ -100,7 +103,8 @@ end;
 
 procedure TForm6.btnRightMenuClick(Sender: TObject);
 begin
-  SlideMenu2.ToggleMenu;
+  BuildEverythingListView;
+  //SlideMenu2.ToggleMenu;
 end;
 
 
@@ -111,19 +115,50 @@ var
 begin
   ksListview1.Items.BeginUpdate;
   try
-    for ICount := 1 to 30 do
+    for ICount := 1 to 1 do
     begin
       ARow := ksListview1.AddRow('Line '+InttoStr(ICount),            // main title
                                  'a sub title for '+IntToStr(ICount), // subtitle
                                  'detail text',                       // detail text
                                  More,                                // "more" accessory
                                  Image2.Bitmap);                      // image
-
+      ARow.DrawEllipse(200, 0, 20, 20, claSilver, claSilver);
       // set image to circle shape
       ARow.Image.ImageShape := ksCircleImage;
     end;
   finally
     ksListview1.Items.EndUpdate;
+  end;
+end;
+
+procedure TForm6.BuildEverythingListView;
+var
+  ICount: integer;
+  ARow: TKsListItemRow;
+begin
+    lvSmoothScrolling.ClearItems;
+  lvSmoothScrolling.Items.BeginUpdate;
+  try
+    for ICount := 1 to 20 do
+    begin
+      ARow := lvSmoothScrolling.AddRow('Line '+InttoStr(ICount),            // main title
+                                 'sub title', // subtitle
+                                 'detail',                       // detail text
+                                 More,                                // "more" accessory
+                                 Image2.Bitmap);                      // image
+      ARow.AddSwitch(110, True);
+      ARow.AddSegmentButtons(180, 120, ['one','two','three'], TListItemAlign.Leading);
+      ARow.DrawBitmap(imgSearch.Bitmap, 310, 32, 32);
+      ARow.DrawRect(360, 0, 20, 20, claBlack, claRed);
+      //ARow.DrawRoundRect(390, 0, 20, 20, 5, claBlack, claGreen);
+      //ARow.DrawEllipse(420, 0, 20, 20, claBlack, claBlue);
+      ARow.ShowAccessory := True;
+      // set image to circle shape
+
+      ARow.Image.ImageShape := ksCircleImage;
+    end;
+  finally
+    lvSmoothScrolling.Items.EndUpdate;
   end;
 end;
 
@@ -219,11 +254,12 @@ procedure TForm6.DoShow;
 begin
   inherited;
   BuildTextItemsListView;
-  BuildSegmentButtonListView;
+  {BuildSegmentButtonListView;
+  BuildEverythingListView;
   BuildSwitchListView;
   BuildIndicatorListView;
   BuildAccessoryListView;
-  BuildCheckListView;
+  BuildCheckListView;   }
 end;
 
 procedure TForm6.FormCreate(Sender: TObject);
@@ -236,6 +272,7 @@ begin
   SlideMenu1.AddMenuItem('INDICATORS', 'Indicator Colours', nil);
   SlideMenu1.AddMenuItem('ACCESSORYS', 'Item Accessories', nil);
   SlideMenu1.AddMenuItem('CHECKLIST', 'Check List', nil);
+  SlideMenu1.AddMenuItem('EVERYTHING', 'Wanna see smooth scrolling?', nil);
   SlideMenu1.ItemIndex := 0;
 
   SlideMenu2.AddMenuItem('ANOTHER', 'Dummy menu item', imgHome.Bitmap);
@@ -296,6 +333,7 @@ begin
   if AId = 'INDICATORS' then TabControl1.ActiveTab := tabIndicators;
   if AId = 'ACCESSORYS' then TabControl1.ActiveTab := tabItemAccessorys;
   if AId = 'CHECKLIST' then TabControl1.ActiveTab := tabCheckList;
+  if AId = 'EVERYTHING' then TabControl1.ActiveTab := tabEverything;
   Application.ProcessMessages;
 end;
 

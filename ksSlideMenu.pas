@@ -39,6 +39,9 @@ uses System.UITypes, FMX.Controls, FMX.Layouts, FMX.Objects, System.Classes,
   {$ENDIF}
   ;
 
+const
+  C_MENU_WIDTH = 250;
+
 type
   TSelectMenuItemEvent = procedure(Sender: TObject; AId: string) of object;
 
@@ -503,7 +506,7 @@ procedure TksSlideMenu.ToggleOverlap;
 var
   ANewX: Extended;
 begin
-  FCanvas.Width := 200;
+  FCanvas.Width := C_MENU_WIDTH;
   if FShowing then
   begin
     ANewX := 0-FCanvas.Width;
@@ -521,7 +524,7 @@ begin
 
     FCanvas.RedrawMenu(True);
     ANewX := 0;
-    FCanvas.Position.X := 0-200;//FCanvas.Width;
+    FCanvas.Position.X := 0-C_MENU_WIDTH;//FCanvas.Width;
     if FMenuPosition = mpRight then
     begin
       FCanvas.Position.X := TForm(Owner).Width;
@@ -540,10 +543,10 @@ var
 begin
   if ACacheFormImage then
     GenerateFormImage(Owner as TForm);
-  FCanvas.Width := 200;
+  FCanvas.Width := C_MENU_WIDTH;
   if FShowing then
   begin
-    ANewX := 0-200;
+    ANewX := 0-C_MENU_WIDTH;
     if FMenuPosition = mpRight then
       ANewX := (Owner as TForm).Width;
     TAnimator.AnimateFloatWait(FCanvas, 'Position.X', ANewX, FSlideSpeed);
@@ -556,12 +559,12 @@ begin
     FCanvas.Position.Y := FTopPadding;
     FCanvas.RedrawMenu(False);
     ANewX := 0;
-    FCanvas.Position.X := 0-200;
-    FFormImage.Position.X := 200;
+    FCanvas.Position.X := 0-C_MENU_WIDTH;
+    FFormImage.Position.X := C_MENU_WIDTH;
     if FMenuPosition = mpRight then
     begin
       FCanvas.Position.X := TForm(Owner).Width;
-      ANewX := (Owner as TForm).Width - 200;
+      ANewX := (Owner as TForm).Width - C_MENU_WIDTH;
       FFormImage.Position.X := 0-FFormImage.Width;
 
     end;
@@ -585,7 +588,7 @@ begin
     mpRight: AShadow := FShadowRight;
   end;
 
-  FCanvas.Width := 200;
+  FCanvas.Width := C_MENU_WIDTH;
   if FShowing then
   begin
     ANewX := 0;
@@ -602,13 +605,13 @@ begin
     FCanvas.Position.Y := FTopPadding;
     FCanvas.RedrawMenu(False);
     FCanvas.Position.X := 0;
-    ANewX := 200;
+    ANewX := C_MENU_WIDTH;
     if FMenuPosition = mpRight then
     begin
-      FCanvas.Position.X := TForm(Owner).Width-200;
+      FCanvas.Position.X := TForm(Owner).Width-C_MENU_WIDTH;
       AShadow.Position.X := TForm(Owner).Width;
 
-      ANewX := 0-200;
+      ANewX := 0-C_MENU_WIDTH;
     end;
     TForm(Owner).AddObject(FCanvas);
     TForm(Owner).AddObject(FFormImage);
@@ -669,8 +672,8 @@ begin
   FSlideMenu := (AOwner as TksSlideMenu);
   FBitmap := TBitmap.Create;
   FItems := AItems;
-  Position.X := -200;
-  Width := 200;
+  Position.X := -C_MENU_WIDTH;
+  Width := C_MENU_WIDTH;
   Top := 0;
   FItemHeight := 44;
   FItemIndex := -1;
@@ -740,7 +743,7 @@ begin
     ABmp.Canvas.BeginScene;
     ABmp.Canvas.Fill.Color := FBackgroundColor;
     ABmp.Canvas.FillRect(ClipRect, 0, 0, [], 1);
-    ARect := RectF(0, 0, 200, FItemHeight);
+    ARect := RectF(0, 0, C_MENU_WIDTH, FItemHeight);
     ABmp.Canvas.Fill.Color := FBackgroundColor;
     ABmp.Canvas.Stroke.Color := claBlack;
 
@@ -777,7 +780,7 @@ begin
         ABmp.Canvas.Stroke.Thickness := 1;
         // left/right menu border...
         if FSlideMenu.MenuPosition = mpLeft then
-          ABmp.Canvas.DrawLine(PointF(200/AScale, 0), PointF(200/AScale, Height), 1)
+          ABmp.Canvas.DrawLine(PointF(C_MENU_WIDTH/AScale, 0), PointF(C_MENU_WIDTH/AScale, Height), 1)
         else
           ABmp.Canvas.DrawLine(PointF(0, 0), PointF(0, Height), 1);
       end;
