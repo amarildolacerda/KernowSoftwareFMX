@@ -420,6 +420,7 @@ type
     FCheckMarkStyle: TksListViewCheckStyle;
     FUpdateCount: integer;
     FItemImageSize: integer;
+    FShowIndicatorColors: Boolean;
     procedure SetItemHeight(const Value: integer);
     procedure DoClickTimer(Sender: TObject);
     function GetCachedRow(index: integer): TKsListItemRow;
@@ -432,6 +433,7 @@ type
     procedure ReleaseAllDownButtons;
     procedure SetCheckMarkStyle(const Value: TksListViewCheckStyle);
     procedure SetItemImageSize(const Value: integer);
+    procedure SetShowIndicatorColors(const Value: Boolean);
     { Private declarations }
   protected
     procedure SetColorStyle(AName: string; AColor: TAlphaColor);
@@ -518,6 +520,7 @@ type
     property Scale;
     property SelectOnRightClick: Boolean read FSelectOnRightClick write FSelectOnRightClick default False;
     property Size;
+    property ShowIndicatorColors: Boolean read FShowIndicatorColors write SetShowIndicatorColors default False;
     property TabOrder;
     property TabStop;
     property Visible default True;
@@ -1004,10 +1007,12 @@ var
   ABmpWidth: integer;
   AImage: TBitmap;
   ASize: TSizeF;
+  lv: TksListView;
 begin
   if FCached then
     Exit;
-  AMargins := (Owner.Parent as TCustomListView).ItemSpaces;
+  lv := (ListView as TksListView);
+  AMargins := lv.ItemSpaces;
   BeginUpdate;
   try
     ABmpWidth := Round(RowWidth) - Round((AMargins.Left + AMargins.Right) * GetScreenScale);
@@ -1016,7 +1021,7 @@ begin
     Bitmap.Clear(claNull);
     Bitmap.Canvas.BeginScene;
 
-    if FIndicatorColor <> claNull then
+    if (FIndicatorColor <> claNull) and (lv.ShowIndicatorColors) then
     begin
       Bitmap.Canvas.Fill.Color := FIndicatorColor;
       Bitmap.Canvas.FillRect(RectF(0, 8, 6, RowHeight(False)-8), 0, 0, [], 1, Bitmap.Canvas.Fill);
@@ -1027,7 +1032,7 @@ begin
     begin
       ASize.cx := 32;
       ASize.cy := 32;
-      AImage := ListView.Images.Bitmap(ASize, FImageIndex);
+      AImage := lv.Images.Bitmap(ASize, FImageIndex);
       DrawBitmap(AImage, 0, ASize.cx, ASize.cy);
     end;
     {$ENDIF}
@@ -1100,7 +1105,10 @@ begin
     FSubTitle.PlaceOffset := PointF(0,9);
   end;
   AOffset := 0;
-  if FIndicatorColor <> claNull then AOffset := 16;
+  // offset for indicator colours...
+  if (ListView as TksListView).ShowIndicatorColors then
+    AOffset := 16;
+  // offset for bitmaps...
   if FImage.Bitmap.Width > 0 then AOffset := FImage.Rect.Width+8;
   begin
     FTitle.PlaceOffset := PointF(AOffset, FTitle.PlaceOffset.Y);
@@ -1674,6 +1682,7 @@ begin
   FCheckMarks := ksCmNone;
   FCheckMarkStyle := ksCmsDefault;
   FItemImageSize := 32;
+  FShowIndicatorColors := False;
 end;
 
 destructor TksListView.Destroy;
@@ -1831,6 +1840,12 @@ begin
     EndUpdate;
   end;
   Repaint;
+end;
+
+procedure TksListView.SetShowIndicatorColors(const Value: Boolean);
+begin
+  FShowIndicatorColors := Value;
+  RedrawAllRows;
 end;
 
 procedure TksListView.UncheckAll;
