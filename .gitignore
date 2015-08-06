@@ -134,3 +134,7 @@ Demos/iOSDevice32/Release/ksMenuDemo
 Demos/iOSSimulator/Release/ksMenuDemo
 Demos/iOSDevice32/Release/ksMenuDemo
 Demos/iOSDevice32/Release/ksMenuDemo
+*.dSYM
+Demos/iOSDevice32/Debug/ksMenuDemo
+Demos/ksMenuDemo.deployproj
+Demos/ksMenuDemo.deployproj

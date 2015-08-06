@@ -154,6 +154,7 @@ type
     FSlideSpeed: Single;
     FOnSelectMenuItemEvent: TSelectMenuItemEvent;
     FAfterSelectMenuItemEvent: TSelectMenuItemEvent;
+    FOnAfterSlideOut: TNotifyEvent;
   private
     FToolbar: TksSlideMenuToolbar;
     procedure SetItemHeight(const Value: integer);
@@ -210,6 +211,8 @@ type
     property OnSelectMenuItemEvent: TSelectMenuItemEvent read FOnSelectMenuItemEvent write FOnSelectMenuItemEvent;
     property AfterSelectItemEvent: TSelectMenuItemEvent read FAfterSelectMenuItemEvent write FAfterSelectMenuItemEvent;
     property Toolbar: TksSlideMenuToolbar read FToolbar write FToolbar;
+    property OnAfterSlideOut: TNotifyEvent read FOnAfterSlideOut write FOnAfterSlideOut;
+
   end;
 
   procedure Register;
@@ -500,6 +503,8 @@ begin
 
 
   FCanvas.HitTest := True;
+  if Assigned(FOnAfterSlideOut) then
+    FOnAfterSlideOut(Self);
 end;
 
 procedure TksSlideMenu.ToggleOverlap;

@@ -434,6 +434,7 @@ type
     FUpdateCount: integer;
     FItemImageSize: integer;
     FShowIndicatorColors: Boolean;
+    FIsShowing: Boolean;
     procedure SetItemHeight(const Value: integer);
     procedure DoClickTimer(Sender: TObject);
     function GetCachedRow(index: integer): TKsListItemRow;
@@ -486,6 +487,7 @@ type
     property CachedRow[index: integer]: TKsListItemRow read GetCachedRow;
     procedure UncheckAll;
     procedure CheckAll;
+    function IsShowing: Boolean;
     { Public declarations }
   published
     property Appearence: TksListViewAppearence read FAppearence write FAppearence;
@@ -1033,6 +1035,7 @@ var
   ACorners: TCorners;
   ARect: TRectF;
   ABitmap: TBitmap;
+  ARadius: single;
 begin
   Result := inherited Render(ACanvas);
   ACorners := [TCorner.TopLeft, TCorner.TopRight, TCorner.BottomLeft, TCorner.BottomRight];
@@ -1041,6 +1044,7 @@ begin
     ABitmap.Width := Round(Width * GetScreenScale);
     ABitmap.Height := Round(Height * GetScreenScale);
     ARect := RectF(0, 0, ABitmap.Width, ABitmap.Height);
+    ARadius := Round(FCornerRadius * GetScreenScale);
     ABitmap.Clear(claNull);
     ABitmap.Canvas.BeginScene;
     try
@@ -1055,22 +1059,17 @@ begin
         Color := FStroke.Color;
         Thickness := FStroke.Thickness;
       end;
-      if FShape = ksEllipse then
-        ABitmap.Canvas.DrawEllipse(ARect, 1)
-      else
-        ABitmap.Canvas.DrawRect(ARect, 0, 0, ACorners, 1);
-
 
       if FShape = ksEllipse then
         ABitmap.Canvas.FillEllipse(ARect, 1)
       else
-        ABitmap.Canvas.FillRect(ARect, FCornerRadius, FCornerRadius, ACorners, 1);
+        ABitmap.Canvas.FillRect(ARect, ARadius, ARadius, ACorners, 1);
 
 
       if FShape = ksEllipse then
         ABitmap.Canvas.DrawEllipse(ARect, 1)
       else
-        ABitmap.Canvas.DrawRect(ARect, FCornerRadius, FCornerRadius, ACorners, 1);
+        ABitmap.Canvas.DrawRect(ARect, ARadius, ARadius, ACorners, 1);
     finally
       ABitmap.Canvas.EndScene;
     end;
@@ -2193,6 +2192,7 @@ end;     }
 
 procedure TksListView.Paint;
 begin
+  FIsShowing := True;
   if not (csDesigning in ComponentState) then
   begin
     if (IsUpdating) or (AControlBitmapCache.ImagesCached = False) then
@@ -2238,7 +2238,8 @@ end;
 procedure TksListView.Resize;
 begin
   inherited;
-  RedrawAllRows;
+  if IsShowing then
+    RedrawAllRows;
 end;
 
 function TksListView.RowObjectAtPoint(ARow: TKsListItemRow; x, y: single): TksListItemRowObj;
@@ -2287,6 +2288,14 @@ end;
 begin
   Result := FUpdateCount > 0;
 end;  }
+
+function TksListView.IsShowing: Boolean;
+begin
+  FIsShowing := False;
+  Repaint;
+  Application.ProcessMessages;
+  Result := FIsShowing;
+end;
 
 function TksListView.ItemsInView: TksVisibleItems;
 var
