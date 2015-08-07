@@ -396,12 +396,16 @@ type
 
   TKsListItemRows = class(TObjectList<TKsListItemRow>)
   private
+    FActiveItems: TKsListItemRows;
     FListView: TksListView;
     FListViewItems: TListViewItems;
+    //function GetActiveItems: TksListItemRows;
     function GetCheckedCount: integer;
-    function GetFiltered: Boolean;
+
+    //function GetFiltered: Boolean;
   public
     constructor Create(AListView: TksListView; AItems: TListViewItems) ; virtual;
+    destructor Destroy; override;
     property CheckedCount: integer read GetCheckedCount;
     function AddRow(AText, ADetail: string;
                     AAccessory: TksAccessoryType;
@@ -422,7 +426,7 @@ type
 
     procedure UncheckAll;
     procedure CheckAll;
-    property Filtered: Boolean read GetFiltered;
+    //property Filtered: Boolean read GetFiltered;
 
   end;
 
@@ -1501,7 +1505,8 @@ begin
       //else
     end;
     //ListView.EnableFilter;;
-
+    //ListView.ClearItems;
+    //8ListView.RedrawAllRows;
     Exit;
   end;
 
@@ -2589,7 +2594,6 @@ begin
     if PtInRect(GetItemRect(ICount), PointF(x,y)) then
     begin
       FClickedItem := _Items[ICount].Objects.FindObject('ksRow') as TKsListItemRow;
-      Application.MainForm.Caption := (FClickedItem.Owner as TListViewItem).Text;
       //FClickedItem := Items[ICount];
       if (Button = TMouseButton.mbRight) and (FSelectOnRightClick) then
         ItemIndex := Icount;
@@ -3224,6 +3228,21 @@ begin
 
 end;
 
+{
+function TKsListItemRows.GetActiveItems: TksListItemRows;
+var
+  ICount: integer;
+begin
+  if FActiveItems <> nil then
+    FActiveItems.Free;
+  FActiveItems := TKsListItemRows.Create(FListView, FListViewItems);
+  Result := TKsListItemRows.Create(FListView, FListViewItems);
+  for ICount := 0 to Count-1 do
+  begin
+    if Items[ICount].Visible then
+      FActiveItems.AddRow('', '', None).Assign(Items[ICount]);
+  end;
+end; }
 
 function TKsListItemRows.GetCheckedCount: integer;
 var
@@ -3235,18 +3254,17 @@ begin
       Result := Result + 1;
 end;
 
-function TKsListItemRows.GetFiltered: Boolean;
-begin
-  Result := FListViewItems.Filtered;
-end;
-
 constructor TKsListItemRows.Create(AListView: TksListView; AItems: TListViewItems);
 begin
   inherited Create(False);
   FListView := AListView;
   FListViewItems := AItems;
+end;
 
-
+destructor TKsListItemRows.Destroy;
+begin
+  FActiveItems.Free;
+  inherited;
 end;
 
 initialization

@@ -126,8 +126,7 @@ begin
   ShowLoading;
   ksListview1.BeginUpdate;
       ksListView1.Items.AddHeader('Header');
-  {try
-    for ICount := 0 to 1 do
+  try
     begin
       ARow := ksListview1.Items.AddRow('Line '+InttoStr(ICount),            // main title
                                  'a sub title for '+IntToStr(ICount), // subtitle
@@ -138,11 +137,11 @@ begin
       // set image to circle shape
       ARow.Image.ImageShape := ksCircleImage;
     end;
-      ksListView1.Items.AddHeader('Header');
-  finally    }
+    //  ksListView1.Items.AddHeader('Header');
+  finally
     ksListview1.EndUpdate;
     HideLoading;
-  //end;
+  end;
 end;
 
 procedure TForm6.Button1Click(Sender: TObject);
