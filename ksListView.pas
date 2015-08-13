@@ -874,8 +874,11 @@ end;
 
 procedure TksListItemRowObj.SetAlign(const Value: TListItemAlign);
 begin
-  FAlign := Value;
-  Changed;
+  if FAlign <> Value then
+  begin
+    FAlign := Value;
+    Changed;
+  end;
 end;
 
 procedure TksListItemRowObj.SetHeight(const Value: single);
@@ -885,20 +888,29 @@ end;
 
 procedure TksListItemRowObj.SetID(const Value: string);
 begin
-  FId := Value;
-  Changed;
+  if FId <> Value then
+  begin
+    FId := Value;
+    Changed;
+  end;
 end;
 
 procedure TksListItemRowObj.SetRect(const Value: TRectF);
 begin
-  FRect := Value;
-  Changed;
+  if Value <> FRect then
+  begin
+    FRect := Value;
+    Changed;
+  end;
 end;
 
 procedure TksListItemRowObj.SetVertAlign(const Value: TListItemAlign);
 begin
-  FVertAlignment := Value;
-  Changed;
+  if FVertAlignment <> Value then
+  begin
+    FVertAlignment := Value;
+    Changed;
+  end;
 end;
 
 procedure TksListItemRowObj.SetWidth(const Value: single);
@@ -982,8 +994,11 @@ end;
 
 procedure TksListItemRowText.SetAlignment(const Value: TTextAlign);
 begin
+  if FAlignment <> Value then
+  begin
   FAlignment := Value;
   Changed;
+  end;
 end;
 
 procedure TksListItemRowText.SetFont(const Value: TFont);
@@ -994,20 +1009,29 @@ end;
 
 procedure TksListItemRowText.SetText(const Value: string);
 begin
-  FText := Value;
-  Changed;
+  if FText <> Value then
+  begin
+    FText := Value;
+    Changed;
+  end;
 end;
 
 procedure TksListItemRowText.SetTextColor(const Value: TAlphaColor);
 begin
-  FTextColor := Value;
-  Changed;
+  if FTextColor <> Value then
+  begin
+    FTextColor := Value;
+    Changed;
+  end;
 end;
 
 procedure TksListItemRowText.SetWordWrap(const Value: Boolean);
 begin
-  FWordWrap := Value;
-  Changed;
+  if FWordWrap <> Value then
+  begin
+    FWordWrap := Value;
+    Changed;
+  end;
 end;
 
 // ------------------------------------------------------------------------------
@@ -1203,14 +1227,20 @@ end;
 
 procedure TksListItemRowShape.SetCornerRadius(const Value: single);
 begin
-  FCornerRadius := Value;
-  Changed;
+  if FCornerRadius <> Value then
+  begin
+    FCornerRadius := Value;
+    Changed;
+  end;
 end;
 
 procedure TksListItemRowShape.SetShape(const Value: TksListViewShape);
 begin
-  FShape := Value;
-  Changed;
+  if FShape <> Value then
+  begin
+    FShape := Value;
+    Changed;
+  end;
 end;
 
 // ------------------------------------------------------------------------------
@@ -1343,13 +1373,18 @@ end;
 procedure TKsListItemRow.ReleaseAllDownButtons;
 var
   ICount: integer;
+  AButton: TksListItemRowButton;
 begin
   for ICount := 0 to FList.Count-1 do
   begin
     if (FList[ICount] is TksListItemRowButton) then
     begin
-      (FList[ICount] as TksListItemRowButton).FState := Unpressed;
-      Changed;
+      AButton := (FList[ICount] as TksListItemRowButton);
+      if AButton.FState <> Unpressed then
+      begin
+        AButton.FState := Unpressed;
+        Changed;
+      end;
     end;
   end;
 end;
@@ -1761,18 +1796,12 @@ end;
 
 procedure TKsListItemRow.SetChecked(const Value: Boolean);
 begin
-  FChecked := Value;
-  Changed;
-end;
-
-{procedure TKsListItemRow.SetChecked(const Value: Boolean);
-begin
-  if (Owner as TListViewItem).Checked <> Value then
+  if FChecked <> Value then
   begin
-    (Owner as TListViewItem).Checked := Value;
+    FChecked := Value;
     Changed;
   end;
-end;   }
+end;
 
 procedure TKsListItemRow.SetFontProperties(AName: string; ASize: integer;
   AColor: TAlphaColor; AStyle: TFontStyles);
@@ -1795,9 +1824,12 @@ end;
 
 procedure TKsListItemRow.SetIndicatorColor(const Value: TAlphaColor);
 begin
-  FIndicatorColor := Value;
-  RealignStandardElements;
-  Changed;
+  if FIndicatorColor <> Value then
+  begin
+    FIndicatorColor := Value;
+    RealignStandardElements;
+    Changed;
+  end;
 end;
 
 procedure TKsListItemRow.SetPurpose(const Value: TListItemPurpose);
@@ -2561,8 +2593,11 @@ end;
 
 procedure TksListItemRowSwitch.SetIsChecked(const Value: Boolean);
 begin
-  FIsChecked := Value;
-  Changed;
+  if FIsChecked <> Value then
+  begin
+    FIsChecked := Value;
+    Changed;
+  end;
 end;
 
 procedure TksListItemRowSwitch.Toggle;
@@ -2670,8 +2705,11 @@ end;
 
 procedure TKsListItemRowAccessory.SetAccessoryType(const Value: TAccessoryType);
 begin
-  FAccessoryType := Value;
-  Changed;
+  if FAccessoryType <> Value then
+  begin
+    FAccessoryType := Value;
+    Changed;
+  end;
 end;
 
 { TksListItemRowSegmentButtons }
@@ -2776,8 +2814,11 @@ end;
 
 procedure TksListItemRowSegmentButtons.SetTintColor(const Value: TAlphaColor);
 begin
-  FTintColor := Value;
-  Changed;
+  if FTintColor <> Value then
+  begin
+    FTintColor := Value;
+    Changed;
+  end;
 end;
 
 { TksControlBitmapCache }
@@ -2992,17 +3033,23 @@ end;
 procedure TksListItemRowButton.MouseDown;
 begin
   inherited;
-  FState := Pressed;
-  Changed;
-  FRow.CacheRow;
+  if FState <> Pressed then
+  begin
+    FState := Pressed;
+    Changed;
+    FRow.CacheRow;
+  end;
 end;
 
 procedure TksListItemRowButton.MouseUp;
 begin
   inherited;
-  FState := Unpressed;
-  Changed;
-  FRow.CacheRow;
+  if FState <> Unpressed then
+  begin
+    FState := Unpressed;
+    Changed;
+    FRow.CacheRow;
+  end;
 end;
 
 function TksListItemRowButton.Render(ACanvas: TCanvas): Boolean;
@@ -3243,32 +3290,47 @@ end;
 procedure TksListItemRowProgressBar.SetBackgroundColorColor(
   const Value: TAlphaColor);
 begin
-  FBackgroundColor := Value;
-  Changed;
+  if FBackgroundColor <> Value then
+  begin
+    FBackgroundColor := Value;
+    Changed;
+  end;
 end;
 
 procedure TksListItemRowProgressBar.SetBarColor(const Value: TAlphaColor);
 begin
-  FBarColor := Value;
-  Changed;
+  if FBarColor <> Value then
+  begin
+    FBarColor := Value;
+    Changed;
+  end;
 end;
 
 procedure TksListItemRowProgressBar.SetBorderColor(const Value: TAlphaColor);
 begin
-  FBorderColor := Value;
-  Changed;
+  if FBorderColor <> Value then
+  begin
+    FBorderColor := Value;
+    Changed;
+  end;
 end;
 
 procedure TksListItemRowProgressBar.SetCornerRadius(const Value: single);
 begin
-  FCornerRadius := Value;
-  Changed;
+  if FCornerRadius <> Value then
+  begin
+    FCornerRadius := Value;
+    Changed;
+  end;
 end;
 
 procedure TksListItemRowProgressBar.SetProgressPercent(const Value: integer);
 begin
-  FProgressPercent := Value;
-  Changed;
+  if FProgressPercent <> Value then
+  begin
+    FProgressPercent := Value;
+    Changed;
+  end;
 end;
 
 initialization
