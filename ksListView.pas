@@ -106,7 +106,7 @@ type
     procedure DoChanged(Sender: TObject);
   public
     constructor Create(ARow: TKsListItemRow); virtual;
-    procedure Assign(ASource: TPersistent); virtual;
+    procedure Assign(ASource: TPersistent); override;
     function Render(ACanvas: TCanvas): Boolean; virtual;
     procedure MouseDown; virtual;
     procedure MouseUp; virtual;
@@ -176,7 +176,7 @@ type
     procedure SetKind(const Value: TBrushKind);
   public
     constructor Create; virtual;
-    procedure Assign(ASource: TPersistent);
+    procedure Assign(ASource: TPersistent); override;
     property Color: TAlphaColor read FColor write SetColor;
     property Kind: TBrushKind read FKind write SetKind;
   end;
@@ -191,7 +191,7 @@ type
     procedure SetThickness(const Value: single);
   public
     constructor Create; virtual;
-    procedure Assign(ASource: TPersistent);
+    procedure Assign(ASource: TPersistent); override;
     property Color: TAlphaColor read FColor write SetColor;
     property Kind: TBrushKind read FKind write SetKind;
     property Thickness: single read FThickness write SetThickness;
@@ -223,7 +223,7 @@ type
     FImage: TStyleObject;
     procedure SetAccessoryType(const Value: TAccessoryType);
   protected
-    procedure CalculateRect(ARowBmp: TBitmap); virtual;
+    procedure CalculateRect(ARowBmp: TBitmap); override;
   public
     constructor Create(ARow: TKsListItemRow); override;
     function Render(ACanvas: TCanvas): Boolean; override;
@@ -348,8 +348,6 @@ type
     procedure SetChecked(const Value: Boolean);
     function GetPurpose: TListItemPurpose;
     procedure SetPurpose(const Value: TListItemPurpose);
-    procedure SetVisible(const Value: Boolean);
-    //procedure SetVisible(const Value: Boolean);
     property ListView: TksListView read GetListView;
     procedure DoOnListChanged(Sender: TObject; const Item: TksListItemRowObj;
       Action: TCollectionNotification);
@@ -360,7 +358,7 @@ type
   public
     constructor Create(const AOwner: TListItem); override;
     destructor Destroy; override;
-    procedure Assign(ARow: TksListItemRow);
+    procedure Assign(Source: TPersistent); override;
     procedure CacheRow;
     procedure RealignStandardElements;
     // bitmap functions...
@@ -1498,8 +1496,6 @@ end;
 
 
 procedure TKsListItemRow.ProcessClick;
-var
-  ICount: integer;
 begin
   if FAutoCheck then
   begin
@@ -1736,9 +1732,9 @@ begin
   Result := AddSwitch(AMargin, AIsChecked, TListItemAlign.Trailing)
 end;
 
-procedure TksListItemRow.Assign(ARow: TksListItemRow);
+procedure TksListItemRow.Assign(Source: TPersistent);
 begin
-
+  //
 end;
 
 procedure TKsListItemRow.SetAccessory(const Value: TAccessoryType);
@@ -1823,23 +1819,6 @@ begin
   end;
 end;
 
-procedure TksListItemRow.SetVisible(const Value: Boolean);
-begin
-  //if Value then (Owner as TListViewItem).Text := C_VISIBLE_INDICATOR+(Owner as TListViewItem).Text;
-  //if not Value then (Owner as TListViewItem).Text := StringReplace((Owner as TListViewItem).Text, C_VISIBLE_INDICATOR, '', []);
-end;
-
-{
-procedure TKsListItemRow.SetVisible(const Value: Boolean);
-begin
-  case Value of
-    True: ListView.ShowItem(Index);
-    False: ListView.HideItem(Index);
-  end;
-  FVisible := Value;
-  //Owner.
-end;
-           }
 // ------------------------------------------------------------------------------
 
 // text drawing functions...
@@ -2517,7 +2496,6 @@ procedure TksListView.MouseDown(Button: TMouseButton; Shift: TShiftState;
   x, y: single);
 var
   ICount: integer;
-  ARow: TKsListItemRow;
 begin
   FMouseDownPos := PointF(x-ItemSpaces.Left, y);
   FClickedItem := nil;
