@@ -222,6 +222,8 @@ type
     FAccessoryType: TAccessoryType;
     FImage: TStyleObject;
     procedure SetAccessoryType(const Value: TAccessoryType);
+  protected
+    procedure CalculateRect(ARowBmp: TBitmap); virtual;
   public
     constructor Create(ARow: TKsListItemRow); override;
     function Render(ACanvas: TCanvas): Boolean; override;
@@ -276,6 +278,30 @@ type
     property ItemIndex: integer read FItemIndex write SetItemIndex;
     property Captions: TStrings read FCaptions;
     property TintColor: TAlphaColor read FTintColor write SetTintColor;
+  end;
+
+  // ------------------------------------------------------------------------------
+
+  TksListItemRowProgressBar = class(TksListItemRowObj)
+  private
+    FBarColor: TAlphaColor;
+    FBackgroundColor: TAlphaColor;
+    FBorderColor: TAlphaColor;
+    FCornerRadius: single;
+    FProgressPercent: integer;
+    procedure SetBackgroundColorColor(const Value: TAlphaColor);
+    procedure SetBarColor(const Value: TAlphaColor);
+    procedure SetBorderColor(const Value: TAlphaColor);
+    procedure SetProgressPercent(const Value: integer);
+    procedure SetCornerRadius(const Value: single);
+  public
+    constructor Create(ARow: TKsListItemRow); override;
+    function Render(ACanvas: TCanvas): Boolean; override;
+    property BarColor: TAlphaColor read FBarColor write SetBarColor;
+    property BackgroundColor: TAlphaColor read FBackgroundColor write SetBackgroundColorColor;
+    property BorderColor: TAlphaColor read FBorderColor write SetBorderColor;
+    property CornerRadius: single read FCornerRadius write SetCornerRadius;
+    property ProgressPercent: integer read FProgressPercent write SetProgressPercent;
   end;
 
   // ------------------------------------------------------------------------------
@@ -348,6 +374,15 @@ type
     function DrawRect(x, y, AWidth, AHeight: single; AStroke, AFill: TAlphaColor): TksListItemRowShape;
     function DrawRoundRect(x, y, AWidth, AHeight, ACornerRadius: single; AStroke, AFill: TAlphaColor): TksListItemRowShape;
     function DrawEllipse(x, y, AWidth, AHeight: single; AStroke, AFill: TAlphaColor): TksListItemRowShape;
+
+    // progress bar
+    function DrawProgressBar(x, y, AWidth, AHeight: single; APercent: integer;
+                             ABarColor: TAlphaColor;
+                             ACornerRadius: single;
+                             const AAlign: TListItemAlign = TListItemAlign.Trailing;
+                             const ABackgroundColor: TAlphaColor = claWhite;
+                             const ABorderColor: TAlphaColor = claBlack ): TksListItemRowProgressBar;
+
     // switch
     function AddSwitch(x: single; AIsChecked: Boolean; const AAlign: TListItemAlign = TListItemAlign.Leading): TksListItemRowSwitch;
     function AddSwitchRight(AMargin: integer; AIsChecked: Boolean): TksListItemRowSwitch;
@@ -1026,28 +1061,24 @@ begin
     ARectangle.Height := FBitmap.Height;
     ARectangle.Stroke.Kind := TBrushKind.None;
     ARectangle.Fill.Bitmap.Bitmap.Assign(FBitmap);
-
     ARectangle.Fill.Kind := TBrushKind.Bitmap;
-
     if FImageShape = ksRoundRectImage then
     begin
       ARectangle.XRadius := 16;
       ARectangle.YRadius := 16;
     end;
-
     if FImageShape = ksCircleImage then
     begin
       ARectangle.XRadius := 32;
       ARectangle.YRadius := 32;
     end;
-
-    ABmp := TBitmap.Create(128, 128);
+    ABmp := TBitmap.Create(Round(Rect.Width*4), Round(Rect.Height*4));//(FBitmap.Width, FBitmap.Height);
     try
       ABmp.Clear(claNull);
       ABmp.Canvas.BeginScene;
-      ARectangle.PaintTo(ABmp.Canvas, RectF(0, 0, ABmp.Width, ABmp.Height), nil);
+      ARectangle.PaintTo(ABmp.Canvas, RectF(0, 0, Rect.Width*4, Rect.Height*4), nil);
       ABmp.Canvas.EndScene;
-      ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), Rect, 1);
+      ACanvas.DrawBitmap(ABmp, RectF(0, 0, Rect.Width*4, Rect.Height*4), Rect, 1);
     finally
       {$IFDEF IOS}
       ABmp.DisposeOf;
@@ -1056,7 +1087,11 @@ begin
       {$ENDIF}
     end;
   finally
+    {$IFDEF IOS}
+    ARectangle.DisposeOf;
+    {$ELSE}
     ARectangle.Free;
+    {$ENDIF}
   end;
 end;
 
@@ -1563,6 +1598,27 @@ begin
   Result.Shape := ksEllipse;
 end;
 
+function TksListItemRow.DrawProgressBar(x, y, AWidth, AHeight: single; APercent: integer;
+                                        ABarColor: TAlphaColor;
+                                        ACornerRadius: single;
+                                        const AAlign: TListItemAlign = TListItemAlign.Trailing;
+                                        const ABackgroundColor: TAlphaColor = claWhite;
+                                        const ABorderColor: TAlphaColor = claBlack): TksListItemRowProgressBar;
+begin
+  Result := TksListItemRowProgressBar.Create(Self);
+  Result.Width := AWidth;
+  Result.Height := AHeight;
+  Result.PlaceOffset := PointF(x,y);
+  Result.Align := AAlign;
+  Result.VertAlign := TListItemAlign.Center;
+  Result.ProgressPercent := APercent;
+  Result.BarColor := ABarColor;
+  Result.BackgroundColor := ABackgroundColor;
+  Result.BorderColor := ABorderColor;
+  Result.CornerRadius := ACornerRadius;
+  FList.Add(Result);
+end;
+
 function TKsListItemRow.AddButton(AStyle: TksImageButtonStyle; const ATintColor: TAlphaColor = claNull): TksListItemRowButton;
 var
   AStr: string;
@@ -1985,7 +2041,7 @@ var
   r: TListViewItem;
 begin
   r := FListView.AddItem;
-  //r.Objects.Clear;
+  r.Objects.Clear;
   r.Height := FListView.ItemHeight;
   Result := TKsListItemRow.Create(r);
   Add(Result);
@@ -2538,11 +2594,25 @@ end;
 
 { TKsListItemRowAccessory }
 
+procedure TKsListItemRowAccessory.CalculateRect(ARowBmp: TBitmap);
+begin
+  if FImage = nil then
+  begin
+    FResources := FRow.GetStyleResources;
+    FImage := FResources.AccessoryImages[FAccessoryType].Normal;
+    Width := FImage.Width;
+    Height := FImage.Height;
+  end;
+  inherited;
+end;
+
 constructor TKsListItemRowAccessory.Create(ARow: TKsListItemRow);
 begin
   inherited;
   FAlign := TListItemAlign.Trailing;
   FVertAlignment := TListItemAlign.Center;
+  FWidth := 32;
+  FHeight := 32;
 end;
 
 function TKsListItemRowAccessory.Render(ACanvas: TCanvas): Boolean;
@@ -2553,17 +2623,19 @@ var
 begin
   inherited Render(ACanvas);
 
-  FResources := FRow.GetStyleResources;
+{  FResources := FRow.GetStyleResources;
   FImage := FResources.AccessoryImages[FAccessoryType].Normal;
   Width := FImage.Width;
-  Height := FImage.Height;
+  Height := FImage.Height;}
 
   if (FAccessoryType = TAccessoryType.Checkmark) and
      (TksListView(FRow.ListView).CheckMarkStyle <> ksCmsDefault)  then
   begin
     ARect := RectF(Rect.Left, Rect.Top, Rect.Left + (64*GetScreenScale), Rect.Top + (64*GetScreenScale));
-    OffsetRect(ARect, (-8), 0);
+    //OffsetRect(ARect, (-8), 0);
     InflateRect(ARect, 2, 2);
+
+
 
     ABmp := TBitmap.Create(Round(64*GetScreenScale), Round(64*GetScreenScale));
     try
@@ -3145,6 +3217,80 @@ end;
 destructor TKsListItemRows.Destroy;
 begin
   inherited;
+end;
+
+{ TksListItemRowProgressBar }
+
+constructor TksListItemRowProgressBar.Create(ARow: TKsListItemRow);
+begin
+  inherited;
+  FCornerRadius := 0;
+end;
+
+function TksListItemRowProgressBar.Render(ACanvas: TCanvas): Boolean;
+var
+  ARect: TRectF;
+  ABmp: TBitmap;
+  ABarRect: TRectF;
+begin
+  Result := inherited Render(ACanvas);
+  ABmp := TBitmap.Create(Round(Rect.Width*4), Round(Rect.Height*4));
+  ARect := RectF(0, 0, ABmp.Width, ABmp.Height);
+  ABmp.Clear(claNull);
+  ABmp.Canvas.BeginScene;
+  try
+    ABmp.Canvas.Fill.Color := FBorderColor;
+    ABmp.Canvas.FillRect(ARect, FCornerRadius*4, FCornerRadius*4, AllCorners, 1);
+    InflateRect(ARect, -(2/GetScreenScale), -(2/GetScreenScale));
+    ABmp.Canvas.Fill.Color := FBackgroundColor;
+    ABmp.Canvas.FillRect(ARect, FCornerRadius*4, FCornerRadius*4, AllCorners, 1);
+    ABarRect := ARect;
+    ABarRect.Width := (ABarRect.Width / 100) * FProgressPercent;
+    ABmp.Canvas.Fill.Color := FBarColor;
+    ABmp.Canvas.FillRect(ABarRect, FCornerRadius*4, FCornerRadius*4, [TCorner.TopLeft, TCorner.BottomLeft], 1);
+
+    ABmp.Canvas.Fill.Color := claBlack;
+    ABmp.Canvas.Stroke.Color := claBlack;
+    ABmp.Canvas.Font.Size := 12 * 4;
+    ABmp.Canvas.FillText(ARect, IntToStr(FProgressPercent)+'%', False, 1, [], TTextAlign.Center, TTextAlign.Center);
+
+    ABmp.Canvas.EndScene;
+    ARect := RectF(0, 0, ABmp.Width, ABmp.Height);
+    ACanvas.DrawBitmap(ABmp, ARect, Rect, 1, False);
+  finally
+    ABmp.Free;
+  end;
+end;
+
+procedure TksListItemRowProgressBar.SetBackgroundColorColor(
+  const Value: TAlphaColor);
+begin
+  FBackgroundColor := Value;
+  Changed;
+end;
+
+procedure TksListItemRowProgressBar.SetBarColor(const Value: TAlphaColor);
+begin
+  FBarColor := Value;
+  Changed;
+end;
+
+procedure TksListItemRowProgressBar.SetBorderColor(const Value: TAlphaColor);
+begin
+  FBorderColor := Value;
+  Changed;
+end;
+
+procedure TksListItemRowProgressBar.SetCornerRadius(const Value: single);
+begin
+  FCornerRadius := Value;
+  Changed;
+end;
+
+procedure TksListItemRowProgressBar.SetProgressPercent(const Value: integer);
+begin
+  FProgressPercent := Value;
+  Changed;
 end;
 
 initialization

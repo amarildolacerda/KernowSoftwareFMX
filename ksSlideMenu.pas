@@ -503,8 +503,11 @@ begin
 
 
   FCanvas.HitTest := True;
-  if Assigned(FOnAfterSlideOut) then
-    FOnAfterSlideOut(Self);
+  if FShowing = False then
+  begin
+    if Assigned(FOnAfterSlideOut) then
+      FOnAfterSlideOut(Self);
+  end;
 end;
 
 procedure TksSlideMenu.ToggleOverlap;
@@ -626,6 +629,7 @@ begin
 
     TAnimator.AnimateFloatWait(FFormImage, 'Position.X', ANewX,  FSlideSpeed);
   end;
+  Application.ProcessMessages;
 end;
 
 procedure TksSlideMenu.UnfadeBackground;

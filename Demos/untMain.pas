@@ -60,6 +60,10 @@ type
     lvSmoothScrolling: TksListView;
     Timer1: TTimer;
     lblLoading: TLabel;
+    tabProgressBars: TTabItem;
+    ToolBar9: TToolBar;
+    Label9: TLabel;
+    lvProgressBars: TksListView;
     procedure FormCreate(Sender: TObject);
     procedure btnRightMenuClick(Sender: TObject);
     procedure btnLeftMenuClick(Sender: TObject);
@@ -81,6 +85,7 @@ type
   private
     procedure BuildTextItemsListView;
     procedure BuildSegmentButtonListView;
+    procedure BuildProgressBarsListview;
     procedure BuildSwitchListView;
     procedure BuildIndicatorListView;
     procedure BuildAccessoryListView;
@@ -107,12 +112,12 @@ uses System.UIConsts;
 procedure TForm6.btnLeftMenuClick(Sender: TObject);
 begin
 
- // SlideMenu1.ToggleMenu;
+  SlideMenu1.ToggleMenu;
 end;
 
 procedure TForm6.btnRightMenuClick(Sender: TObject);
 begin
-//  SlideMenu2.ToggleMenu;
+  SlideMenu2.ToggleMenu;
 end;
 
 
@@ -125,19 +130,17 @@ begin
     Exit;
   ShowLoading;
   ksListview1.BeginUpdate;
-      ksListView1.Items.AddHeader('Header');
   try
+    for ICount := 1 to 5 do
     begin
       ARow := ksListview1.Items.AddRow('Line '+InttoStr(ICount),            // main title
                                  'a sub title for '+IntToStr(ICount), // subtitle
                                  'detail text',                       // detail text
                                  More,                                // "more" accessory
                                  Image2.Bitmap);                      // image
-
       // set image to circle shape
       ARow.Image.ImageShape := ksCircleImage;
     end;
-    //  ksListView1.Items.AddHeader('Header');
   finally
     ksListview1.EndUpdate;
     HideLoading;
@@ -160,7 +163,7 @@ begin
   ShowLoading;
   lvSmoothScrolling.BeginUpdate;
   try
-    for ICount := 1 to 100 do
+    for ICount := 1 to 30 do
     begin
       ARow := lvSmoothScrolling.Items.AddRow('Line '+InttoStr(ICount),            // main title
                                  'sub title', // subtitle
@@ -198,6 +201,7 @@ begin
   ShowLoading;
   lvSegmentButtons.BeginUpdate;
   try
+
     for ICount := 1 to 4 do
     begin
       AColor := claNull;
@@ -260,6 +264,23 @@ begin
   end;
 end;
 
+procedure TForm6.BuildProgressBarsListview;
+begin
+  if lvProgressBars.Items.Count > 0 then
+    Exit;
+  ShowLoading;
+  lvProgressBars.BeginUpdate;
+  try
+    lvProgressBars.Items.AddRow('Progress 1', 'green/round corner', '', More).DrawProgressBar(20, 0, 120, 18, 25, claGreenyellow, 9);
+    lvProgressBars.Items.AddRow('Progress 2', 'red/round corner', '', More).DrawProgressBar(20, 0, 120, 18, 50, claIndianred, 9);
+    lvProgressBars.Items.AddRow('Progress 3', 'blue/square corner', '', More).DrawProgressBar(20, 0, 120, 18, 75, claSkyblue, 0);
+    lvProgressBars.Items.AddRow('Progress 4', 'orange/square corner', '', More).DrawProgressBar(20, 0, 120, 18, 90, claOrange, 0);
+  finally
+    lvProgressBars.EndUpdate;
+    HideLoading;
+  end;
+end;
+
 procedure TForm6.BuildAccessoryListView;
 begin
   if lvAccessorys.Items.Count > 0 then
@@ -294,13 +315,7 @@ end;
 procedure TForm6.DoShow;
 begin
   inherited;
-  BuildTextItemsListView;
-  {BuildSegmentButtonListView;
-  BuildEverythingListView;
-  BuildSwitchListView;
-  BuildIndicatorListView;
-  BuildAccessoryListView;
-  BuildCheckListView; }
+  Timer1.Enabled := True;
 end;
 
 procedure TForm6.FormCreate(Sender: TObject);
@@ -308,6 +323,7 @@ begin
   TabControl1.TabPosition := TTabPosition.None;
   TabControl1.TabIndex := 0;
   SlideMenu1.AddMenuItem('LISTVIEW', 'Graphics & Text', nil);
+  SlideMenu1.AddMenuItem('PROGRESS_BARS', 'Progress Bars', nil);
   SlideMenu1.AddMenuItem('SEGMENT_BUTTONS', 'Segment Buttons', nil);
   SlideMenu1.AddMenuItem('SWITCHES', 'Switches', nil);
   SlideMenu1.AddMenuItem('INDICATORS', 'Indicator Colours', nil);
@@ -397,6 +413,7 @@ procedure TForm6.SlideMenu1SelectMenuItemEvent(Sender: TObject; AId: string);
 begin
   if AId = 'LISTVIEW' then TabControl1.ActiveTab := tabListView;
   if AId = 'SEGMENT_BUTTONS' then TabControl1.ActiveTab := tabSegmentButtons;
+  if AId = 'PROGRESS_BARS' then TabControl1.ActiveTab := tabProgressBars;
   if AId = 'SWITCHES' then TabControl1.ActiveTab := tabSwitches;
   if AId = 'INDICATORS' then TabControl1.ActiveTab := tabIndicators;
   if AId = 'ACCESSORYS' then TabControl1.ActiveTab := tabItemAccessorys;
@@ -416,21 +433,15 @@ end;
 procedure TForm6.Timer1Timer(Sender: TObject);
 begin
   Timer1.Enabled := False;
-  //lblLoading.Visible := True;
-  try
-    //lblLoading.BringToFront;
-    //Application.ProcessMessages;
-    case TabControl1.TabIndex of
-      0: BuildTextItemsListView;
-      1: BuildSegmentButtonListView;
-      2: BuildSwitchListView;
-      3: BuildIndicatorListView;
-      4: BuildAccessoryListView;
-      5: BuildCheckListView;
-      6: BuildEverythingListView;
-    end;
-  finally
-   // lblLoading.Visible := False;
+  case TabControl1.TabIndex of
+    0: BuildTextItemsListView;
+    1: BuildProgressBarsListview;
+    2: BuildSegmentButtonListView;
+    3: BuildSwitchListView;
+    4: BuildIndicatorListView;
+    5: BuildAccessoryListView;
+    6: BuildCheckListView;
+    7: BuildEverythingListView;
   end;
 end;
 
