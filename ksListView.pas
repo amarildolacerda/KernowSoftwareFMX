@@ -35,7 +35,8 @@ uses
   Classes, FMX.Types, FMX.Controls, FMX.ListView, Types, FMX.TextLayout,
   FMX.ListView.Types, FMX.Graphics, Generics.Collections, System.UITypes,
   {$IFDEF XE8_OR_NEWER} FMX.ImgList, {$ENDIF}
-  System.UIConsts, FMX.StdCtrls, FMX.Styles.Objects, System.Generics.Collections;
+  System.UIConsts, FMX.StdCtrls, FMX.Styles.Objects, System.Generics.Collections,
+  FMX.ListBox, FMX.DateTimeCtrls;
 
 const
   C_LONG_TAP_DURATION     = 5;  // 500 ms
@@ -56,6 +57,7 @@ type
     ArrowDown, ArrowRight, ArrowUp, Delete, Details, Organise, PageCurl, Pause,
     Play, Refresh, Reply, Search, Stop, Trash);
   TksButtonState = (Pressed, Unpressed);
+  TksListItemRowSelector = (NoSelector, DateSelector, ItemPicker);
 
   TksListView = class;
   TKsListItemRow = class;
@@ -69,7 +71,8 @@ type
   TksListViewClickButtonEvent = procedure(Sender: TObject; AItem: TKsListItemRow; AButton: TksListItemRowButton; ARowID: string) of object;
   TksListViewClickSegmentButtonEvent = procedure(Sender: TObject; AItem: TKsListItemRow; AButtons: TksListItemRowSegmentButtons; ARowID: string) of object;
   TksListViewFinishScrollingEvent = procedure(Sender: TObject; ATopIndex, AVisibleItems: integer) of object;
-
+  TksListViewSelectDateEvent = procedure(Sender: TObject; AItem: TksListItemRow; ASelectedDate: TDateTime; var AAllow: Boolean) of object;
+  TksListViewSelectPickerItem = procedure(Sender: TObject; AItem: TksListItemRow; ASelected: string; var AAllow: Boolean) of object;
 
   // ------------------------------------------------------------------------------
 
@@ -128,7 +131,6 @@ type
   private
     FFont: TFont;
     FAlignment: TTextAlign;
-
     FTextColor: TAlphaColor;
     FText: string;
     FWordWrap: Boolean;
@@ -329,6 +331,9 @@ type
     FCanSelect: Boolean;
     FChecked: Boolean;
     FIndex: integer;
+    FSelector: TksListItemRowSelector;
+    FSelectionValue: Variant;
+    FPickerItems: TStrings;
     function TextHeight(AText: string): single;
     function TextWidth(AText: string): single;
     function RowHeight(const AScale: Boolean = True): single;
@@ -423,7 +428,7 @@ type
     property SearchIndex: string read GetSearchIndex write SetSearchIndex;
     property CanSelect: Boolean read FCanSelect write SetCanSelect default True;
     property Purpose: TListItemPurpose read GetPurpose write SetPurpose;
-
+    property Selector: TksListItemRowSelector read FSelector write FSelector;
   end;
 
 
@@ -455,6 +460,9 @@ type
                     AImage: TBitmap;
                     const AFontSize: integer = 14;
                     AFontColor: TAlphaColor = C_DEFAULT_TEXT_COLOR): TKsListItemRow; overload;
+    function AddRowDateSelector(AText: string; ADate: TDateTime): TKsListItemRow;
+    function AddRowItemSelector(AText, ASelected: string; AItems: TStrings): TKsListItemRow; overload;
+    function AddRowItemSelector(AText, ASelected: string; AItems: array of string): TKsListItemRow; overload;
     function AddHeader(AText: string): TKsListItemRow;
 
     procedure UncheckAll;
@@ -522,7 +530,12 @@ type
     FShowIndicatorColors: Boolean;
     FIsShowing: Boolean;
     FItems: TKsListItemRows;
-    FHiddenItems: TObjectList<TKsListItemRow>;
+    //FHiddenItems: TObjectList<TKsListItemRow>;
+    FCombo: TComboBox;
+    FDateSelector: TDateEdit;
+    FOnSelectDate: TksListViewSelectDateEvent;
+    FOnSelectPickerItem: TksListViewSelectPickerItem;
+    FKeepSelection: Boolean;
     function _Items: TListViewItems;
     procedure SetItemHeight(const Value: integer);
     procedure DoClickTimer(Sender: TObject);
@@ -534,6 +547,11 @@ type
     procedure SetItemImageSize(const Value: integer);
     procedure SetShowIndicatorColors(const Value: Boolean);
     function AddItem: TListViewItem;
+    procedure SelectDate(ASelected: TDAteTime; AOnSelectDate: TNotifyEvent);
+    procedure SelectItem(AItems: TStrings; ASelected: string; AOnSelectItem: TNotifyEvent);
+    procedure DoSelectDate(Sender: TObject);
+    procedure DoSelectPickerItem(Sender: TObject);
+    procedure ComboClosePopup(Sender: TObject);
     { Private declarations }
   protected
     procedure SetColorStyle(AName: string; AColor: TAlphaColor);
@@ -609,6 +627,8 @@ type
     property TabStop;
     property Visible default True;
     property Width;
+    property OnSelectDate: TksListViewSelectDateEvent read FOnSelectDate write FOnSelectDate;
+    property OnSelectPickerItem: TksListViewSelectPickerItem read FOnSelectPickerItem write FOnSelectPickerItem;
     { events }
     property OnApplyStyleLookup;
     { Drag and Drop events }
@@ -673,6 +693,7 @@ type
     property SearchAlwaysOnTop;
     property SelectionCrossfade;
     property PullToRefresh;
+    property KeepSelection: Boolean read FKeepSelection write FKeepSelection default False;
     property OnLongClick: TksListViewRowClickEvent read FOnLongClick write FOnLongClick;
     property OnSwitchClick: TksListViewClickSwitchEvent read FOnSwitchClicked write FOnSwitchClicked;
     property OnButtonClicked: TksListViewClickButtonEvent read FOnButtonClicked write FOnButtonClicked;
@@ -684,7 +705,8 @@ procedure Register;
 
 implementation
 
-uses SysUtils, FMX.Platform, FMX.Forms, FMX.SearchBox, FMX.Objects, System.StrUtils;
+uses SysUtils, FMX.Platform, FMX.Forms, FMX.SearchBox, FMX.Objects,
+  System.StrUtils, DateUtils;
 
 const
 {$IFDEF IOS}
@@ -739,6 +761,7 @@ type
 
 var
   AControlBitmapCache: TksControlBitmapCache;
+  //AComboSelector: TComboBox;
 
 procedure Register;
 begin
@@ -820,8 +843,11 @@ var
   w,h: single;
   ABmpWidth: single;
 begin
-  w := FWidth;
-  h := FHeight;
+  if FWidth > 0 then Rect.Width := FWidth;
+  if FHeight > 0 then Rect.Height := FHeight;
+  
+  w := Rect.Width;
+  h := Rect.Height;
 
   ABmpWidth := ARowBmp.Width / GetScreenScale;
 
@@ -830,7 +856,7 @@ begin
     OffsetRect(FRect, FPlaceOffset.X, 0);
 
   if FAlign = TListItemAlign.Trailing then
-    OffsetRect(FRect, ABmpWidth - (FWidth+ DefaultScrollBarWidth + FPlaceOffset.X {+ FRow.ListView.ItemSpaces.Right}), 0);
+    OffsetRect(FRect, ABmpWidth - (w+ DefaultScrollBarWidth + FPlaceOffset.X {+ FRow.ListView.ItemSpaces.Right}), 0);
 
   case VertAlign of
     TListItemAlign.Center: OffsetRect(FRect, 0, (FRow.Owner.Height - FRect.Height) / 2);
@@ -953,14 +979,17 @@ procedure TksListItemRowText.CalculateRect(ARowBmp: TBitmap);
 var
   ASaveFont: TFont;
 begin
+  if FWidth > 0 then Rect.Width := FWidth;
+  if FHeight > 0 then Rect.Height := FHeight;
+
   if (FWidth = 0) or (FHeight = 0) then
   begin
     ASaveFont := TFont.Create;
     try
       ASaveFont.Assign(ARowBmp.Canvas.Font);
       ARowBmp.Canvas.Font.Assign(FFont);
-      if FWidth = 0 then FWidth := ARowBmp.Canvas.TextWidth(FText);
-      if FHeight = 0 then FHeight := ARowBmp.Canvas.TextHeight(FText);
+      if FWidth = 0 then Rect.Width := ARowBmp.Canvas.TextWidth(FText);
+      if FHeight = 0 then Rect.Height := ARowBmp.Canvas.TextHeight(FText);
       ARowBmp.Canvas.Font.Assign(ASaveFont);
     finally
       {$IFDEF IOS}
@@ -970,8 +999,6 @@ begin
       {$ENDIF}
     end;
   end;
-  Rect.Width := FWidth;
-  Rect.Height := FHeight;
   inherited;
 end;
 
@@ -1416,7 +1443,7 @@ begin
   FTitle := TksListItemRowText.Create(Self);
   FSubTitle := TksListItemRowText.Create(Self);
   FDetail := TksListItemRowText.Create(Self);
-
+  FPickerItems := TStringList.Create;
   {$IFDEF MSWINDOWS}
   ScalingMode := TImageScalingMode.Original;
   {$ENDIF}
@@ -1465,6 +1492,7 @@ begin
   FTitle.DisposeOf;
   FSubTitle.DisposeOf;
   FDetail.DisposeOf;
+  FPickerItems.DisposeOf;
   {$ELSE}
   FList.Free;
   FFont.Free;
@@ -1473,6 +1501,7 @@ begin
   FTitle.Free;
   FSubTitle.Free;
   FDetail.Free;
+  FPickerItems.Free;
   {$ENDIF}
   inherited;
 end;
@@ -1551,6 +1580,18 @@ end;
 
 procedure TKsListItemRow.ProcessClick;
 begin
+  if FSelector = DateSelector then
+  begin
+    ListView.SelectDate(FSelectionValue, ListView.DoSelectDate);
+    Exit;
+  end;
+
+  if FSelector = ItemPicker then
+  begin
+    ListView.SelectItem(FPickerItems, FSelectionValue, ListView.DoSelectPickerItem);
+    Exit;
+  end;
+
   if FAutoCheck then
   begin
     Accessory := TAccessoryType.Checkmark;
@@ -2009,16 +2050,27 @@ begin
   Items.Clear;
 end;
 
+procedure TksListView.ComboClosePopup(Sender: TObject);
+begin
+  (Sender as TStyledControl).Width := 0;
+  RemoveObject(Sender as TFmxObject);
+end;
+
 constructor TksListView.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
   FItems := TKsListItemRows.Create(Self, inherited Items);
-  FHiddenItems := TObjectList<TKsListItemRow>.Create(True);
+  //FHiddenItems := TObjectList<TKsListItemRow>.Create(True);
+  FCombo := TComboBox.Create(nil);
+  FCombo.OnClosePopup := ComboClosePopup;
+
+  FDateSelector := TDateEdit.Create(nil);
+  FDateSelector.OnClosePicker := ComboClosePopup;
+
   FScreenScale := GetScreenScale;
   FAppearence := TksListViewAppearence.Create(Self);
   if AControlBitmapCache = nil then
     AControlBitmapCache := TksControlBitmapCache.Create(Self);
-
   FItemHeight := 44;
   FClickTimer := TTimer.Create(Self);
   FLastWidth := 0;
@@ -2037,6 +2089,7 @@ begin
   FItemImageSize := 32;
   FShowIndicatorColors := False;
   AControlBitmapCache.FListViews.Add(Self);
+  FKeepSelection := False;
 end;
 
 destructor TksListView.Destroy;
@@ -2047,14 +2100,16 @@ begin
   FCacheTimer.DisposeOf;
   FScrollTimer.DisposeOf;
   FItems.DisposeOf;
-  FHiddenItems.DisposeOf;
+  FCombo.DisposeOf;
+  FDateSelector.DisposeOf;
   {$ELSE}
   FAppearence.Free;
   FClickTimer.Free;
   FCacheTimer.Free;
   FScrollTimer.Free;
-  FHiddenItems.Free;
   FItems.Free;
+  FCombo.Free;
+  FDateSelector.Free;
   {$ENDIF}
   AControlBitmapCache.FListViews.Remove(Self);
   inherited;
@@ -2062,6 +2117,41 @@ end;
 procedure TKsListItemRows.Add(ARow: TKsListItemRow);
 begin
   FRows.Add(ARow);
+end;
+
+function TKsListItemRows.AddRowDateSelector(AText: string;
+  ADate: TDateTime): TKsListItemRow;
+begin
+  Result := AddRow(AText, '', FormatDateTime('ddd, dd mmmm, yyyy', ADate), More);
+  Result.Selector := DateSelector;
+  Result.FSelectionValue := ADate;
+end;
+
+function TKsListItemRows.AddRowItemSelector(AText, ASelected: string; AItems: TStrings): TKsListItemRow;
+begin
+  Result := AddRow(AText, '', ASelected, More);
+  Result.Selector := ItemPicker;
+  Result.FPickerItems.Assign(AItems);
+  Result.FSelectionValue := ASelected;
+end;
+
+function TKsListItemRows.AddRowItemSelector(AText, ASelected: string; AItems: array of string): TKsListItemRow;
+var
+  AStrings: TStrings;
+  ICount: integer;
+begin
+  AStrings := TStringList.Create;
+  try
+    for ICount := Low(AItems) to High(AItems) do
+      AStrings.Add(AItems[ICount]);
+    Result := AddRowItemSelector(AText, ASelected, AStrings);
+  finally
+    {$IFDEF IOS}
+    AStrings.DisposeOf;
+    {$ELSE}
+    AStrings.Free;
+    {$ENDIF}
+  end;
 end;
 
 function TKsListItemRows.AddHeader(AText: string): TKsListItemRow;
@@ -2121,43 +2211,38 @@ function TksListView.AddItem: TListViewItem;
 begin
   Result := inherited Items.Add;
 end;
-     {
-function TksListView.AddRow(AText, ASubTitle, ADetail: string;
-                            AAccessory: TksAccessoryType;
-                            AImage: TBitmap;
-                            const AFontSize: integer = 14;
-                            AFontColor: TAlphaColor = C_DEFAULT_TEXT_COLOR): TKsListItemRow;
-var
-  r: TListItem;
-  AItem: TListViewItem;
+
+procedure TksListView.SelectDate(ASelected: TDateTime; AOnSelectDate: TNotifyEvent);
 begin
-  r := inherited Items.Add;
-  r.Objects.Clear;
-  Result := TKsListItemRow.Create(r);
+  FDateSelector.OnChange := nil;
 
-  Result.Height := ItemHeight;
-  Result.Purpose := TListItemPurpose.None;
+  FDateSelector.Width := 0;
+  {$IFDEF MSWINDOWS}
+  FDateSelector.Width := 200;
+  {$ENDIF}
+  FDateSelector.Align := TAlignLayout.Center;
+  AddObject(FDateSelector);
+  Application.ProcessMessages;
+  FDateSelector.Date := ASelected;
+  FDateSelector.OnChange := AOnSelectDate;
+  FDateSelector.OpenPicker;
+end;
 
-  if FCheckMarks <> ksCmNone then
-    Result.AutoCheck := True;
-  Result.Name := 'ksRow';
-  Result.ShowAccessory := AAccessory <> None;
-  case AAccessory of
-    More: Result.Accessory := TAccessoryType.More;
-    Checkmark: Result.Accessory := TAccessoryType.Checkmark;
-    Detail: Result.Accessory := TAccessoryType.Detail;
-  end;
-  Result.SetFontProperties('', AFontSize, AFontColor, []);
-  Result.Image.Bitmap.Assign(AImage);
-
-  Result.Title.Text := AText;
-  Result.SubTitle.Text := ASubTitle;
-  Result.Detail.Text := ADetail;
-
-  Result.RealignStandardElements;
-end;    }
-
-
+procedure TksListView.SelectItem(AItems: TStrings; ASelected: string; AOnSelectItem: TNotifyEvent);
+begin
+  FCombo.OnChange := nil;
+  FCombo.Items.Assign(AItems);
+  FCombo.ItemIndex := AItems.IndexOf(ASelected);
+  FCombo.Width := 0;
+  {$IFDEF MSWINDOWS}
+  FCombo.Width := 200;
+  {$ENDIF}
+  FCombo.OnChange := AOnSelectItem;
+  FCombo.Align := TAlignLayout.Center;
+  AddObject(FCombo);
+  Application.ProcessMessages;
+  FCombo.DropDown;
+end;
 procedure TksListView.SetCheckMarks(const Value: TksListViewCheckMarks);
 begin
   if FCheckMarks <> Value then
@@ -2255,6 +2340,7 @@ var
   AId: string;
   AMouseDownRect: TRectF;
 begin
+
   if FClickedItem = nil then
   begin
     FClickTimer.Enabled := False;
@@ -2267,6 +2353,8 @@ begin
   if FMouseDownDuration >= C_LONG_TAP_DURATION  then
   begin
     FClickTimer.Enabled := False;
+    if FKeepSelection = False then
+      ItemIndex := -1;
 
     ARow := FClickedItem;
     if ARow <> nil then
@@ -2277,7 +2365,6 @@ begin
       if Assigned(FOnLongClick) then
         FOnLongClick(Self, FMouseDownPos.x, FMouseDownPos.y, FClickedItem, AId, FClickedRowObj);
     end;
-    ItemIndex := -1;
   end;
 end;
 
@@ -2326,6 +2413,43 @@ begin
   FLastScrollPos := Trunc(ScrollViewPos);
 end;
 
+procedure TksListView.DoSelectDate(Sender: TObject);
+var
+  AAllow: Boolean;
+begin
+  AAllow := True;
+  if Assigned(FOnSelectDate) then
+    FOnSelectDate(Self, FClickedItem, FDateSelector.Date, AAllow);
+  if AAllow then
+  begin
+    FClickedItem.FSelectionValue := FDateSelector.Date;
+    FClickedItem.Detail.Text := FormatDateTime('ddd, dd mmmm, yyyy', FDateSelector.Date);
+    FClickedItem.Cached := False;
+    FClickedItem.CacheRow;
+  end;
+end;
+
+procedure TksListView.DoSelectPickerItem(Sender: TObject);
+var
+  AAllow: Boolean;
+  ASelected: string;
+begin
+  ASelected := '';
+  if FCombo.ItemIndex > -1 then
+    ASelected := FCombo.Items[FCombo.ItemIndex];
+  AAllow := True;
+  if Assigned(FOnSelectPickerItem) then
+    FOnSelectPickerItem(Self, FClickedItem, ASelected, AAllow);
+  if AAllow then
+  begin
+    FClickedItem.FSelectionValue := ASelected;
+    FClickedItem.Detail.Text := ASelected;
+    FClickedItem.Cached := False;
+    FClickedItem.CacheRow;
+  end;
+end;
+
+
 procedure TksListView.MouseUp(Button: TMouseButton; Shift: TShiftState; x,
   y: single);
 var
@@ -2343,7 +2467,13 @@ begin
 
   x := x - ItemSpaces.Left;
 
+
+
   ReleaseAllDownButtons;
+
+
+
+
   AMouseDownRect := Rect(Round(FMouseDownPos.X-8), Round(FMouseDownPos.Y-8), Round(FMouseDownPos.X+8), Round(FMouseDownPos.Y+8));
   if not PtInRect(AMouseDownRect, Point(Round(x),Round(y))) then
     Exit;
@@ -2377,6 +2507,12 @@ begin
       if Button = TMouseButton.mbLeft then
       begin
         Application.ProcessMessages;
+        if ItemIndex > -1 then
+        begin
+          Sleep(200);
+          ItemIndex := -1;
+          Application.ProcessMessages;
+        end;
         if Assigned(FOnItemClick) then
           FOnItemClick(Self, FMouseDownPos.x, FMouseDownPos.y, FClickedItem, AId, FClickedRowObj)
       else
@@ -2410,6 +2546,9 @@ begin
       InvalidateRect(GetItemRect(TListViewItem(ARow.Owner).Index));
     end;
   end;
+  Application.ProcessMessages;
+
+
 end;
 
 
@@ -2593,12 +2732,15 @@ begin
   inherited;
 
   Application.ProcessMessages;
-  FClickTimer.Interval := 100;
+  FClickTimer.Interval := 200;
   FClickTimer.OnTimer := DoClickTimer;
   FClickTimer.Enabled := True;
   if FClickedRowObj <> nil then
     FClickedRowObj.MouseDown;
+  FClickedItem.FCached := False;
+  FClickedItem.CacheRow;
   Invalidate;
+  Application.ProcessMessages;
 end;
 
 procedure TksListView.MouseMove(Shift: TShiftState; X, Y: Single);
@@ -3389,8 +3531,16 @@ end;
 
 initialization
 
+  //AComboSelector := TComboBox.Create(nil);
+
 finalization
 
+  {$IFDEF IOS}
+  //AComboSelector.DisposeOf;
+  AControlBitmapCache.DisposeOf;
+  {$ELSE}
+  //AComboSelector.Free;
   AControlBitmapCache.Free;
+  {$ENDIF}
 
 end.
