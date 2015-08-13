@@ -382,7 +382,8 @@ type
                              const ABorderColor: TAlphaColor = claBlack ): TksListItemRowProgressBar;
 
     // switch
-    function AddSwitch(x: single; AIsChecked: Boolean; const AAlign: TListItemAlign = TListItemAlign.Leading): TksListItemRowSwitch;
+    function AddSwitch(x: single; AIsChecked: Boolean; const AAlign: TListItemAlign = TListItemAlign.
+    Trailing): TksListItemRowSwitch;
     function AddSwitchRight(AMargin: integer; AIsChecked: Boolean): TksListItemRowSwitch;
     // buttons...
     function AddButton(AWidth: integer; AText: string; const ATintColor: TAlphaColor = claNull): TksListItemRowButton; overload;
@@ -522,6 +523,7 @@ type
     FIsShowing: Boolean;
     FItems: TKsListItemRows;
     FHiddenItems: TObjectList<TKsListItemRow>;
+    function _Items: TListViewItems;
     procedure SetItemHeight(const Value: integer);
     procedure DoClickTimer(Sender: TObject);
     procedure DoScrollTimer(Sender: TObject);
@@ -1752,7 +1754,7 @@ end;
 
 function TKsListItemRow.AddSwitch(x: single;
                                   AIsChecked: Boolean;
-                                  const AAlign: TListItemAlign = TListItemAlign.Leading): TksListItemRowSwitch;
+                                  const AAlign: TListItemAlign = TListItemAlign.Trailing): TksListItemRowSwitch;
 var
   s: TSwitch;
   ASize: TSizeF;
@@ -2218,6 +2220,11 @@ begin
   RedrawAllRows;
 end;
 
+function TksListView._Items: TListViewItems;
+begin
+  Result := inherited Items;
+end;
+
 procedure TKsListItemRows.UncheckAll;
 var
   ICount: integer;
@@ -2562,24 +2569,29 @@ procedure TksListView.MouseDown(Button: TMouseButton; Shift: TShiftState;
 var
   ICount: integer;
 begin
+
   FMouseDownPos := PointF(x-ItemSpaces.Left, y);
   FClickedItem := nil;
   FClickedRowObj := nil;
 
   FCurrentMousepos := FMouseDownPos;
   FMouseDownDuration := 0;
-  for Icount := 0 to Items.Count-1 do
+
+
+
+  for Icount := 0 to _Items.Count-1 do
   begin
 
     if PtInRect(GetItemRect(ICount), PointF(x,y)) then
     begin
-      FClickedItem :=Items[ICount];
+      FClickedItem := _Items[ICount].Objects.FindObject('ksRow') as TKsListItemRow;;
       if (Button = TMouseButton.mbRight) and (FSelectOnRightClick) then
         ItemIndex := Icount;
       FClickedRowObj := RowObjectAtPoint(FClickedItem, x, y);
     end;
   end;
   inherited;
+
   Application.ProcessMessages;
   FClickTimer.Interval := 100;
   FClickTimer.OnTimer := DoClickTimer;
@@ -2809,13 +2821,6 @@ begin
                                                  FTintColor,
                                                  AState,
                                                  AStyle]);
-
-
-      {else
-        if ICount = FCaptions.Count-1 then ABmp.Assign(FControlImageCache.ButtonImage[ABtnWidth, AHeight, FCaptions[ICount], FTintColor, ICount = FItemIndex, ])
-      else
-        ABmp.Assign(FControlImageCache.ButtonImage[ABtnWidth, AHeight, FCaptions[ICount], FTintColor, ICount = FItemIndex, ]);
-      }
       if ABmp <> nil then
       begin
         if IsBlankBitmap(ABmp) then
@@ -3011,8 +3016,8 @@ begin
   FButton.Width := AWidth;
   FButton.Height := AHeight;
   FButton.Text := AText;
-
-
+  FButton.Font.Size := 11;
+  FButton.StyledSettings := [TStyledSetting.Family, TStyledSetting.Style, TStyledSetting.FontColor, TStyledSetting.Other];
   FButton.IsPressed := (AState = Pressed);
 
   Result := FButton.MakeScreenshot;
