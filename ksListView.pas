@@ -426,15 +426,19 @@ type
   end;
 
 
-  TKsListItemRows = class(TObjectList<TKsListItemRow>)
+  TKsListItemRows = class
   private
+    FRows: TObjectList<TKsListItemRow>;
     FListView: TksListView;
     FListViewItems: TListViewItems;
     function GetCheckedCount: integer;
+    function GetCount: integer;
+    function GetItems(index: integer): TKsListItemRow;
   public
     constructor Create(AListView: TksListView; AItems: TListViewItems) ; virtual;
     destructor Destroy; override;
-    property CheckedCount: integer read GetCheckedCount;
+
+    procedure Add(ARow: TKsListItemRow);
     function AddRow(AText, ADetail: string;
                     AAccessory: TksAccessoryType;
                     const AImageIndex: integer = -1;
@@ -454,7 +458,10 @@ type
 
     procedure UncheckAll;
     procedure CheckAll;
-
+    procedure Clear;
+    property CheckedCount: integer read GetCheckedCount;
+    property Count: integer read GetCount;
+    property Items[index: integer]: TKsListItemRow read GetItems; default;
   end;
 
   // ------------------------------------------------------------------------------
@@ -541,13 +548,14 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
+    procedure ClearItems;
     procedure RedrawAllRows;
     function ItemsInView: TksVisibleItems;
     procedure BeginUpdate; {$IFDEF XE8_OR_NEWER} override; {$ENDIF}
     procedure EndUpdate; {$IFDEF XE8_OR_NEWER} override; {$ENDIF}
     function IsShowing: Boolean;
     property Items: TKsListItemRows read FItems;
-    
+
     { Public declarations }
   published
     property Appearence: TksListViewAppearence read FAppearence write FAppearence;
@@ -803,6 +811,7 @@ begin
     FHeight := ASrc.Height;
   end;
 end;
+
 
 procedure TksListItemRowObj.CalculateRect(ARowBmp: TBitmap);
 var
@@ -1282,7 +1291,8 @@ begin
       ASize.cx := 32;
       ASize.cy := 32;
       AImage := lv.Images.Bitmap(ASize, FImageIndex);
-      DrawBitmap(AImage, 0, ASize.cx, ASize.cy);
+      //DrawBitmap(AImage, 0, ASize.cx, ASize.cy);
+      FImage.Bitmap.Assign(AImage);
     end;
     {$ENDIF}
 
@@ -1307,10 +1317,15 @@ begin
     FImage.CalculateRect(Bitmap);
     FImage.Render(Bitmap.Canvas);
 
+    if FImage.Bitmap.IsEmpty = False then
+    begin
+      if FTitle.PlaceOffset.X < (FImage.Width + 8) then FTitle.PlaceOffset := PointF((FImage.Width + 8), FTitle.PlaceOffset.Y);
+      if FSubTitle.PlaceOffset.X < (FImage.Width + 8) then FSubTitle.PlaceOffset := PointF((FImage.Width + 8), FSubTitle.PlaceOffset.Y);
+    end;
+
     if Purpose = TListItemPurpose.Header then
       FTitle.PlaceOffset := Pointf(32, 0);
     FTitle.CalculateRect(Bitmap);
-
     FTitle.Render(Bitmap.Canvas);
 
     FSubTitle.CalculateRect(Bitmap);
@@ -1428,12 +1443,16 @@ begin
   FImageIndex := -1;
   FCanSelect := True;
   FDetail.Align := TListItemAlign.Trailing;
-
-  FTitle.Font.Size := 14;
+   // title...
+  FTitle.Font.Size := 13;
+  FTitle.TextAlignment := TTextAlign.Leading;
+  // sub-title...
   FSubTitle.TextColor := claGray;
-  FSubTitle.Font.Size := 13;
+  FSubTitle.Font.Size := 12;
+  FSubTitle.TextAlignment := TTextAlign.Leading;
+  // detail...
   FDetail.TextColor := claDodgerblue;
-  FDetail.Font.Size := 13;
+  FDetail.Font.Size := 12;
 end;
 
 destructor TKsListItemRow.Destroy;
@@ -1961,6 +1980,12 @@ begin
   FListView.RedrawAllRows;
 end;
 
+procedure TKsListItemRows.Clear;
+begin
+  FRows.Clear;
+  FListViewItems.Clear;
+end;
+
 {function TksListView.CountUncachedRows: integer;
 var
   ICount: integer;
@@ -1977,6 +2002,12 @@ begin
     end;
   end;
 end;  }
+
+procedure TksListView.ClearItems;
+begin
+  TListView(Self).ClearItems;
+  Items.Clear;
+end;
 
 constructor TksListView.Create(AOwner: TComponent);
 begin
@@ -2028,6 +2059,11 @@ begin
   AControlBitmapCache.FListViews.Remove(Self);
   inherited;
 end;
+procedure TKsListItemRows.Add(ARow: TKsListItemRow);
+begin
+  FRows.Add(ARow);
+end;
+
 function TKsListItemRows.AddHeader(AText: string): TKsListItemRow;
 begin
   Result := AddRow('', '', None);
@@ -2128,7 +2164,6 @@ begin
   begin
     FCheckMarks := Value;
     FItems.UncheckAll;
-    RedrawAllRows;
   end;
 end;
 
@@ -2190,7 +2225,7 @@ var
   ICount: integer;
 begin
   for ICount := 0 to Count-1 do
-    Items[ICount].Checked := False;
+    Items[ICount].FChecked := False;
   FListView.RedrawAllRows;
 end;
 
@@ -3232,15 +3267,31 @@ end;
 
 
 
+function TKsListItemRows.GetCount: integer;
+begin
+  Result := FRows.Count;
+end;
+
+function TKsListItemRows.GetItems(index: integer): TKsListItemRow;
+begin
+  Result := FRows[index];
+end;
+
 constructor TKsListItemRows.Create(AListView: TksListView; AItems: TListViewItems);
 begin
-  inherited Create(False);
+  inherited Create;
+  FRows := TObjectList<TKsListItemRow>.Create(False);
   FListView := AListView;
   FListViewItems := AItems;
 end;
 
 destructor TKsListItemRows.Destroy;
 begin
+  {$IFDEF IOS}
+  FRows.DisposeOf;
+  {$ELSE}
+  FRows.Free;
+  {$ENDIF}
   inherited;
 end;
 
