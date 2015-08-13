@@ -1323,8 +1323,6 @@ begin
       if FSubTitle.PlaceOffset.X < (FImage.Width + 8) then FSubTitle.PlaceOffset := PointF((FImage.Width + 8), FSubTitle.PlaceOffset.Y);
     end;
 
-    if Purpose = TListItemPurpose.Header then
-      FTitle.PlaceOffset := Pointf(32, 0);
     FTitle.CalculateRect(Bitmap);
     FTitle.Render(Bitmap.Canvas);
 
