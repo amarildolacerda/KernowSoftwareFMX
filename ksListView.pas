@@ -510,10 +510,8 @@ type
     FItemHeight: integer;
     FClickTimer: TTimer;
     FLastWidth: integer;
-    FMouseDownDuration: integer;
     FOnLongClick: TksListViewRowClickEvent;
     FClickedRowObj: TksListItemRowObj;
-    FClickedItem: TKsListItemRow;
     FSelectOnRightClick: Boolean;
     FOnSwitchClicked: TksListViewClickSwitchEvent;
     FOnButtonClicked: TksListViewClickButtonEvent;
@@ -530,15 +528,14 @@ type
     FShowIndicatorColors: Boolean;
     FIsShowing: Boolean;
     FItems: TKsListItemRows;
-    //FHiddenItems: TObjectList<TKsListItemRow>;
     FCombo: TComboBox;
     FDateSelector: TDateEdit;
     FOnSelectDate: TksListViewSelectDateEvent;
     FOnSelectPickerItem: TksListViewSelectPickerItem;
     FKeepSelection: Boolean;
+    FMouseDownTime: TDateTime;
     function _Items: TListViewItems;
     procedure SetItemHeight(const Value: integer);
-    procedure DoClickTimer(Sender: TObject);
     procedure DoScrollTimer(Sender: TObject);
     procedure SetCheckMarks(const Value: TksListViewCheckMarks);
     function RowObjectAtPoint(ARow: TKsListItemRow; x, y: single): TksListItemRowObj;
@@ -547,8 +544,8 @@ type
     procedure SetItemImageSize(const Value: integer);
     procedure SetShowIndicatorColors(const Value: Boolean);
     function AddItem: TListViewItem;
-    procedure SelectDate(ASelected: TDAteTime; AOnSelectDate: TNotifyEvent);
-    procedure SelectItem(AItems: TStrings; ASelected: string; AOnSelectItem: TNotifyEvent);
+    procedure SelectDate(ARow: TKsListItemRow; ASelected: TDAteTime; AOnSelectDate: TNotifyEvent);
+    procedure SelectItem(ARow: TKsListItemRow; AItems: TStrings; ASelected: string; AOnSelectItem: TNotifyEvent);
     procedure DoSelectDate(Sender: TObject);
     procedure DoSelectPickerItem(Sender: TObject);
     procedure ComboClosePopup(Sender: TObject);
@@ -563,7 +560,7 @@ type
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; x, y: single); override;
     procedure DoItemChange(const AItem: TListViewItem); override;
     procedure Paint; override;
-
+    function GetRowFromYPos(y: single): TKsListItemRow;
     { Protected declarations }
   public
     constructor Create(AOwner: TComponent); override;
@@ -706,7 +703,7 @@ procedure Register;
 implementation
 
 uses SysUtils, FMX.Platform, FMX.Forms, FMX.SearchBox, FMX.Objects,
-  System.StrUtils, DateUtils;
+  System.StrUtils, DateUtils, FMX.Dialogs;
 
 const
 {$IFDEF IOS}
@@ -761,7 +758,6 @@ type
 
 var
   AControlBitmapCache: TksControlBitmapCache;
-  //AComboSelector: TComboBox;
 
 procedure Register;
 begin
@@ -1475,11 +1471,11 @@ begin
   FTitle.TextAlignment := TTextAlign.Leading;
   // sub-title...
   FSubTitle.TextColor := claGray;
-  FSubTitle.Font.Size := 12;
+  FSubTitle.Font.Size := 13;
   FSubTitle.TextAlignment := TTextAlign.Leading;
   // detail...
   FDetail.TextColor := claDodgerblue;
-  FDetail.Font.Size := 12;
+  FDetail.Font.Size := 13;
 end;
 
 destructor TKsListItemRow.Destroy;
@@ -1582,13 +1578,13 @@ procedure TKsListItemRow.ProcessClick;
 begin
   if FSelector = DateSelector then
   begin
-    ListView.SelectDate(FSelectionValue, ListView.DoSelectDate);
+    ListView.SelectDate(Self, FSelectionValue, ListView.DoSelectDate);
     Exit;
   end;
 
   if FSelector = ItemPicker then
   begin
-    ListView.SelectItem(FPickerItems, FSelectionValue, ListView.DoSelectPickerItem);
+    ListView.SelectItem(Self, FPickerItems, FSelectionValue, ListView.DoSelectPickerItem);
     Exit;
   end;
 
@@ -2027,23 +2023,6 @@ begin
   FListViewItems.Clear;
 end;
 
-{function TksListView.CountUncachedRows: integer;
-var
-  ICount: integer;
-  ARow: TKsListItemRow;
-begin
-  Result := 0;
-  for ICount := 0 to Items.Count - 1 do
-  begin
-    ARow := CachedRow[ICount];
-    if ARow <> nil then
-    begin
-      if ARow.Cached = False then
-        Result := Result + 1;
-    end;
-  end;
-end;  }
-
 procedure TksListView.ClearItems;
 begin
   TListView(Self).ClearItems;
@@ -2060,7 +2039,6 @@ constructor TksListView.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
   FItems := TKsListItemRows.Create(Self, inherited Items);
-  //FHiddenItems := TObjectList<TKsListItemRow>.Create(True);
   FCombo := TComboBox.Create(nil);
   FCombo.OnClosePopup := ComboClosePopup;
 
@@ -2212,10 +2190,10 @@ begin
   Result := inherited Items.Add;
 end;
 
-procedure TksListView.SelectDate(ASelected: TDateTime; AOnSelectDate: TNotifyEvent);
+procedure TksListView.SelectDate(ARow: TKsListItemRow; ASelected: TDateTime; AOnSelectDate: TNotifyEvent);
 begin
   FDateSelector.OnChange := nil;
-
+  FDateSelector.TagObject := ARow;
   FDateSelector.Width := 0;
   {$IFDEF MSWINDOWS}
   FDateSelector.Width := 200;
@@ -2228,9 +2206,10 @@ begin
   FDateSelector.OpenPicker;
 end;
 
-procedure TksListView.SelectItem(AItems: TStrings; ASelected: string; AOnSelectItem: TNotifyEvent);
+procedure TksListView.SelectItem(ARow: TKsListItemRow; AItems: TStrings; ASelected: string; AOnSelectItem: TNotifyEvent);
 begin
   FCombo.OnChange := nil;
+  FCombo.TagObject := ARow;
   FCombo.Items.Assign(AItems);
   FCombo.ItemIndex := AItems.IndexOf(ASelected);
   FCombo.Width := 0;
@@ -2334,41 +2313,6 @@ begin
   Inc(FUpdateCount);
 end;
 
-procedure TksListView.DoClickTimer(Sender: TObject);
-var
-  ARow: TKsListItemRow;
-  AId: string;
-  AMouseDownRect: TRectF;
-begin
-
-  if FClickedItem = nil then
-  begin
-    FClickTimer.Enabled := False;
-    FMouseDownDuration := 0;
-    Exit;
-  end;
-
-  FMouseDownDuration := FMouseDownDuration + 1;
-  AId := '';
-  if FMouseDownDuration >= C_LONG_TAP_DURATION  then
-  begin
-    FClickTimer.Enabled := False;
-    if FKeepSelection = False then
-      ItemIndex := -1;
-
-    ARow := FClickedItem;
-    if ARow <> nil then
-      AId := ARow.ID;
-    AMouseDownRect := RectF(FMouseDownPos.X-8, FMouseDownPos.Y-8, FMouseDownPos.X+8, FMouseDownPos.Y+8);
-    if PtInRect(AMouseDownRect, FCurrentMousepos) then
-    begin
-      if Assigned(FOnLongClick) then
-        FOnLongClick(Self, FMouseDownPos.x, FMouseDownPos.y, FClickedItem, AId, FClickedRowObj);
-    end;
-  end;
-end;
-
-
 procedure TksListView.DoItemChange(const AItem: TListViewItem);
 var
   ARow: TKsListItemRow;
@@ -2416,16 +2360,18 @@ end;
 procedure TksListView.DoSelectDate(Sender: TObject);
 var
   AAllow: Boolean;
+  ARow: TKsListItemRow;
 begin
   AAllow := True;
+  ARow := TKsListItemRow(FDateSelector.TagObject);
   if Assigned(FOnSelectDate) then
-    FOnSelectDate(Self, FClickedItem, FDateSelector.Date, AAllow);
+    FOnSelectDate(Self, ARow, FDateSelector.Date, AAllow);
   if AAllow then
   begin
-    FClickedItem.FSelectionValue := FDateSelector.Date;
-    FClickedItem.Detail.Text := FormatDateTime('ddd, dd mmmm, yyyy', FDateSelector.Date);
-    FClickedItem.Cached := False;
-    FClickedItem.CacheRow;
+    ARow.FSelectionValue := FDateSelector.Date;
+    ARow.Detail.Text := FormatDateTime('ddd, dd mmmm, yyyy', FDateSelector.Date);
+    ARow.Cached := False;
+    ARow.CacheRow;
   end;
 end;
 
@@ -2433,19 +2379,21 @@ procedure TksListView.DoSelectPickerItem(Sender: TObject);
 var
   AAllow: Boolean;
   ASelected: string;
+  ARow: TKsListItemRow;
 begin
   ASelected := '';
+  ARow := TKsListItemRow(FCombo.TagObject);
   if FCombo.ItemIndex > -1 then
     ASelected := FCombo.Items[FCombo.ItemIndex];
   AAllow := True;
   if Assigned(FOnSelectPickerItem) then
-    FOnSelectPickerItem(Self, FClickedItem, ASelected, AAllow);
+    FOnSelectPickerItem(Self, ARow, ASelected, AAllow);
   if AAllow then
   begin
-    FClickedItem.FSelectionValue := ASelected;
-    FClickedItem.Detail.Text := ASelected;
-    FClickedItem.Cached := False;
-    FClickedItem.CacheRow;
+    ARow.FSelectionValue := ASelected;
+    ARow.Detail.Text := ASelected;
+    ARow.Cached := False;
+    ARow.CacheRow;
   end;
 end;
 
@@ -2455,118 +2403,86 @@ procedure TksListView.MouseUp(Button: TMouseButton; Shift: TShiftState; x,
 var
   AId: string;
   ARow: TKsListItemRow;
-  ARow2: TKsListItemRow;
-  ICount: integer;
-  AMouseDownRect: TRect;
-  ALongTap: Boolean;
+  AMouseDownRect: TRectF;
 begin
   inherited;
-  FClickTimer.Enabled := False;
-  ALongTap := FMouseDownDuration >= C_LONG_TAP_DURATION ;
-  FMouseDownDuration := 0;
 
+  AMouseDownRect := RectF(FMouseDownPos.X-8, FMouseDownPos.Y-8, FMouseDownPos.X+8, FMouseDownPos.Y+8);
   x := x - ItemSpaces.Left;
-
-
-
-  ReleaseAllDownButtons;
-
-
-
-
-  AMouseDownRect := Rect(Round(FMouseDownPos.X-8), Round(FMouseDownPos.Y-8), Round(FMouseDownPos.X+8), Round(FMouseDownPos.Y+8));
-  if not PtInRect(AMouseDownRect, Point(Round(x),Round(y))) then
-    Exit;
-
-
-  if FClickedItem <> nil then
+  if PtInRect(AMouseDownRect, PointF(x, y)) then
   begin
-    AId := '';
-    ARow := FClickedItem;
-    if ARow <> nil then
+    // process a mouse click...
+    ARow := GetRowFromYPos(y);
+    FClickedRowObj := RowObjectAtPoint(ARow, x, y);
+    AId := ARow.ID;
+
+
+
+    if MilliSecondsBetween(FMouseDownTime, Now) >= 500 then
     begin
-      AId := ARow.ID;
-      FClickedRowObj := RowObjectAtPoint(ARow, x, y);
-      ARow.ProcessClick;
-      if FCheckMarks = TksListViewCheckMarks.ksCmSingleSelect then
-      begin
-        for ICount := 0 to Items.Count-1 do
-        begin
-          if ICount <> FClickedItem.Index then
-          begin
-            ARow2 := Items[ICount];
-            ARow2.Checked := False;
-            InvalidateRect(GetItemRect(TListViewItem(ARow2.Owner).Index));
-          end;
-        end;
-      end;
-    end;
-    if not ALongTap then
+      // long tap...
+      if Assigned(FOnLongClick) then
+        FOnLongClick(Self, x, y, ARow, AId, FClickedRowObj);
+    end
+    else
     begin
-      // normal click.
-      if Button = TMouseButton.mbLeft then
+      Application.ProcessMessages;
+      // remove row selection?
+      if (FKeepSelection = False) and (ItemIndex > -1) then
       begin
+        Sleep(100);
+        ItemIndex := -1;
         Application.ProcessMessages;
-        if ItemIndex > -1 then
-        begin
-          Sleep(200);
-          ItemIndex := -1;
-          Application.ProcessMessages;
-        end;
-        if Assigned(FOnItemClick) then
-          FOnItemClick(Self, FMouseDownPos.x, FMouseDownPos.y, FClickedItem, AId, FClickedRowObj)
-      else
-        if Assigned(FOnItemRightClick) then
-          FOnItemRightClick(Self, FMouseDownPos.x, FMouseDownPos.y, FClickedItem, AId, FClickedRowObj);
       end;
+      ARow.ProcessClick;
+
+      // left click...
+      if (Assigned(FOnItemClick)) and (Button = TMouseButton.mbLeft) then
+        FOnItemClick(Self, x, y, ARow, AId, FClickedRowObj);
+      // right click...
+      if (Assigned(FOnItemRightClick)) then
+        FOnItemRightClick(Self, x, y, ARow, AId, FClickedRowObj);
+
       if FClickedRowObj <> nil then
       begin
-        FClickedRowObj.Click(FMouseDownPos.X - FClickedRowObj.Rect.Left, FMouseDownPos.Y - FClickedRowObj.Rect.Top);
+        FClickedRowObj.Click(X - FClickedRowObj.Rect.Left, Y - FClickedRowObj.Rect.Top);
         if (FClickedRowObj is TksListItemRowSwitch) then
         begin
           (FClickedRowObj as TksListItemRowSwitch).Toggle;
           if Assigned(FOnSwitchClicked) then
-            FOnSwitchClicked(Self, FClickedItem, (FClickedRowObj as TksListItemRowSwitch), AId);
+            FOnSwitchClicked(Self, ARow, (FClickedRowObj as TksListItemRowSwitch), AId);
         end;
         if (FClickedRowObj is TksListItemRowButton) then
         begin
           if Assigned(FOnButtonClicked) then
-            FOnButtonClicked(Self, FClickedItem, (FClickedRowObj as TksListItemRowButton), AId);
+            FOnButtonClicked(Self, ARow, (FClickedRowObj as TksListItemRowButton), AId);
         end;
         if (FClickedRowObj is TksListItemRowSegmentButtons) then
         begin
           if Assigned(FOnSegmentButtonClicked) then
-            FOnSegmentButtonClicked(Self, FClickedItem, (FClickedRowObj as TksListItemRowSegmentButtons), AId);
+            FOnSegmentButtonClicked(Self, ARow, (FClickedRowObj as TksListItemRowSegmentButtons), AId);
         end;
         if FClickedRowObj <> nil then
           FClickedRowObj.MouseUp;
         ARow.CacheRow;
 
+
       end;
-      InvalidateRect(GetItemRect(TListViewItem(ARow.Owner).Index));
     end;
-  end;
-  Application.ProcessMessages;
-
-
-end;
-
-
-
-            {
-procedure TksListView.OnCacheTimer(Sender: TObject);
-begin
-  FCacheTimer.Enabled := False;
-  if AControlBitmapCache.ImagesCached = False then
-    AControlBitmapCache.CreateImageCache;
-  if AControlBitmapCache.ImagesCached then
+    ReleaseAllDownButtons;
+  end
+  else
   begin
-    FCacheTimer.OnTimer := nil;
-    FCacheTimer.Enabled := False;
-    Exit;
+    // mouse up was after scrolling...
   end;
-  FCacheTimer.Enabled := True;
-end;     }
+
+  // remove row selection?
+  if (FKeepSelection = False) and (ItemIndex > -1) then
+  begin
+    ItemIndex := -1;
+    Application.ProcessMessages;
+  end;
+end;
 
 procedure TksListView.Paint;
 begin
@@ -2655,6 +2571,21 @@ begin
   Invalidate;
 end;
 
+function TksListView.GetRowFromYPos(y: single): TKsListItemRow;
+var
+  ICount: integer;
+begin
+  Result := nil;
+  for Icount := 0 to _Items.Count-1 do
+  begin
+    if PtInRect(GetItemRect(ICount), PointF(1,y)) then
+    begin
+      Result := _Items[ICount].Objects.FindObject('ksRow') as TKsListItemRow;;
+      Exit;
+    end;
+  end;
+end;
+
 function TksListView.IsShowing: Boolean;
 begin
   FIsShowing := False;
@@ -2705,42 +2636,10 @@ end;
 
 procedure TksListView.MouseDown(Button: TMouseButton; Shift: TShiftState;
   x, y: single);
-var
-  ICount: integer;
 begin
-
-  FMouseDownPos := PointF(x-ItemSpaces.Left, y);
-  FClickedItem := nil;
-  FClickedRowObj := nil;
-
-  FCurrentMousepos := FMouseDownPos;
-  FMouseDownDuration := 0;
-
-
-
-  for Icount := 0 to _Items.Count-1 do
-  begin
-
-    if PtInRect(GetItemRect(ICount), PointF(x,y)) then
-    begin
-      FClickedItem := _Items[ICount].Objects.FindObject('ksRow') as TKsListItemRow;;
-      if (Button = TMouseButton.mbRight) and (FSelectOnRightClick) then
-        ItemIndex := Icount;
-      FClickedRowObj := RowObjectAtPoint(FClickedItem, x, y);
-    end;
-  end;
   inherited;
-
-  Application.ProcessMessages;
-  FClickTimer.Interval := 200;
-  FClickTimer.OnTimer := DoClickTimer;
-  FClickTimer.Enabled := True;
-  if FClickedRowObj <> nil then
-    FClickedRowObj.MouseDown;
-  FClickedItem.FCached := False;
-  FClickedItem.CacheRow;
-  Invalidate;
-  Application.ProcessMessages;
+  FMouseDownPos := PointF(x-ItemSpaces.Left, y);
+  FMouseDownTime := Now;
 end;
 
 procedure TksListView.MouseMove(Shift: TShiftState; X, Y: Single);
@@ -2822,17 +2721,10 @@ var
   APath: TPathData;
 begin
   inherited Render(ACanvas);
-
-{  FResources := FRow.GetStyleResources;
-  FImage := FResources.AccessoryImages[FAccessoryType].Normal;
-  Width := FImage.Width;
-  Height := FImage.Height;}
-
   if (FAccessoryType = TAccessoryType.Checkmark) and
      (TksListView(FRow.ListView).CheckMarkStyle <> ksCmsDefault)  then
   begin
     ARect := RectF(Rect.Left, Rect.Top, Rect.Left + (64*GetScreenScale), Rect.Top + (64*GetScreenScale));
-    //OffsetRect(ARect, (-8), 0);
     InflateRect(ARect, 2, 2);
 
 
@@ -3354,7 +3246,6 @@ var
 begin
   r := FListView.AddItem;
   r.Height := FListView.ItemHeight;
-  //r.Objects.Clear;
 
   Result := TKsListItemRow.Create(r);
   Add(Result);
@@ -3378,27 +3269,8 @@ begin
   Result.Title.Text := AText;
   Result.SubTitle.Text := ASubTitle;
   Result.Detail.Text := ADetail;
-
   Result.RealignStandardElements;
-  //r.Text := 'Sales';
-
 end;
-
-{
-function TKsListItemRows.GetActiveItems: TksListItemRows;
-var
-  ICount: integer;
-begin
-  if FActiveItems <> nil then
-    FActiveItems.Free;
-  FActiveItems := TKsListItemRows.Create(FListView, FListViewItems);
-  Result := TKsListItemRows.Create(FListView, FListViewItems);
-  for ICount := 0 to Count-1 do
-  begin
-    if Items[ICount].Visible then
-      FActiveItems.AddRow('', '', None).Assign(Items[ICount]);
-  end;
-end; }
 
 function TKsListItemRows.GetCheckedCount: integer;
 var
@@ -3531,15 +3403,12 @@ end;
 
 initialization
 
-  //AComboSelector := TComboBox.Create(nil);
 
 finalization
 
   {$IFDEF IOS}
-  //AComboSelector.DisposeOf;
   AControlBitmapCache.DisposeOf;
   {$ELSE}
-  //AComboSelector.Free;
   AControlBitmapCache.Free;
   {$ENDIF}
 
