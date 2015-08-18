@@ -2427,93 +2427,6 @@ begin
 end;
 
 
-procedure TksListView.MouseUp(Button: TMouseButton; Shift: TShiftState; x,
-  y: single);
-var
-  AId: string;
-  ARow: TKsListItemRow;
-  AMouseDownRect: TRectF;
-  ARowRect: TRectF;
-begin
-  inherited;
-
-  AMouseDownRect := RectF(FMouseDownPos.X-8, FMouseDownPos.Y-8, FMouseDownPos.X+8, FMouseDownPos.Y+8);
-  x := x - ItemSpaces.Left;
-  if PtInRect(AMouseDownRect, PointF(x, y)) then
-  begin
-    // process a mouse click...
-    ARow := GetRowFromYPos(y);
-
-    ARowRect := GetItemRect(ARow.Index);
-
-    FClickedRowObj := RowObjectAtPoint(ARow, x, y - ARowRect.Top);
-    AId := ARow.ID;
-
-    if MilliSecondsBetween(FMouseDownTime, Now) >= 500 then
-    begin
-      // long tap...
-      if Assigned(FOnLongClick) then
-        FOnLongClick(Self, x, y, ARow, AId, FClickedRowObj);
-    end
-    else
-    begin
-      Application.ProcessMessages;
-      // remove row selection?
-      if (FKeepSelection = False) and (ItemIndex > -1) then
-      begin
-        Sleep(100);
-        ItemIndex := -1;
-        Application.ProcessMessages;
-      end;
-      ARow.ProcessClick;
-
-      // left click...
-      if (Assigned(FOnItemClick)) and (Button = TMouseButton.mbLeft) then
-        FOnItemClick(Self, x, y, ARow, AId, FClickedRowObj);
-      // right click...
-      if (Assigned(FOnItemRightClick)) then
-        FOnItemRightClick(Self, x, y, ARow, AId, FClickedRowObj);
-
-      if FClickedRowObj <> nil then
-      begin
-        FClickedRowObj.Click(X - FClickedRowObj.Rect.Left, Y - FClickedRowObj.Rect.Top);
-        if (FClickedRowObj is TksListItemRowSwitch) then
-        begin
-          (FClickedRowObj as TksListItemRowSwitch).Toggle;
-          if Assigned(FOnSwitchClicked) then
-            FOnSwitchClicked(Self, ARow, (FClickedRowObj as TksListItemRowSwitch), AId);
-        end;
-        if (FClickedRowObj is TksListItemRowButton) then
-        begin
-          if Assigned(FOnButtonClicked) then
-            FOnButtonClicked(Self, ARow, (FClickedRowObj as TksListItemRowButton), AId);
-        end;
-        if (FClickedRowObj is TksListItemRowSegmentButtons) then
-        begin
-          if Assigned(FOnSegmentButtonClicked) then
-            FOnSegmentButtonClicked(Self, ARow, (FClickedRowObj as TksListItemRowSegmentButtons), AId);
-        end;
-        if FClickedRowObj <> nil then
-          FClickedRowObj.MouseUp;
-        ARow.CacheRow;
-        Invalidate;
-
-      end;
-    end;
-    ReleaseAllDownButtons;
-  end
-  else
-  begin
-    // mouse up was after scrolling...
-  end;
-
-  // remove row selection?
-  if (FKeepSelection = False) and (ItemIndex > -1) then
-  begin
-    ItemIndex := -1;
-    Application.ProcessMessages;
-  end;
-end;
 
 procedure TksListView.Paint;
 begin
@@ -2673,16 +2586,111 @@ end;
 
 procedure TksListView.MouseDown(Button: TMouseButton; Shift: TShiftState;
   x, y: single);
+var
+  ARow: TKsListItemRow;
 begin
   inherited;
   FMouseDownPos := PointF(x-ItemSpaces.Left, y);
   FMouseDownTime := Now;
+  ARow := GetRowFromYPos(y);
+  if ARow = nil then
+    ItemIndex := -1;
 end;
 
 procedure TksListView.MouseMove(Shift: TShiftState; X, Y: Single);
 begin
   inherited;
   FCurrentMousepos := PointF(x-ItemSpaces.Left, y);
+end;
+
+
+procedure TksListView.MouseUp(Button: TMouseButton; Shift: TShiftState; x,
+  y: single);
+var
+  AId: string;
+  ARow: TKsListItemRow;
+  AMouseDownRect: TRectF;
+  ARowRect: TRectF;
+begin
+  inherited;
+
+  AMouseDownRect := RectF(FMouseDownPos.X-8, FMouseDownPos.Y-8, FMouseDownPos.X+8, FMouseDownPos.Y+8);
+  x := x - ItemSpaces.Left;
+  if PtInRect(AMouseDownRect, PointF(x, y)) then
+  begin
+    // process a mouse click...
+    ARow := GetRowFromYPos(y);
+    if ARow = nil then
+      Exit;
+    ARowRect := GetItemRect(ARow.Index);
+
+    FClickedRowObj := RowObjectAtPoint(ARow, x, y - ARowRect.Top);
+    AId := ARow.ID;
+
+    if MilliSecondsBetween(FMouseDownTime, Now) >= 500 then
+    begin
+      // long tap...
+      if Assigned(FOnLongClick) then
+        FOnLongClick(Self, x, y, ARow, AId, FClickedRowObj);
+    end
+    else
+    begin
+      Application.ProcessMessages;
+      // remove row selection?
+      if (FKeepSelection = False) and (ItemIndex > -1) then
+      begin
+        Sleep(100);
+        ItemIndex := -1;
+        Application.ProcessMessages;
+      end;
+      ARow.ProcessClick;
+
+      // left click...
+      if (Assigned(FOnItemClick)) and (Button = TMouseButton.mbLeft) then
+        FOnItemClick(Self, x, y, ARow, AId, FClickedRowObj);
+      // right click...
+      if (Assigned(FOnItemRightClick)) then
+        FOnItemRightClick(Self, x, y, ARow, AId, FClickedRowObj);
+
+      if FClickedRowObj <> nil then
+      begin
+        FClickedRowObj.Click(X - FClickedRowObj.Rect.Left, Y - FClickedRowObj.Rect.Top);
+        if (FClickedRowObj is TksListItemRowSwitch) then
+        begin
+          (FClickedRowObj as TksListItemRowSwitch).Toggle;
+          if Assigned(FOnSwitchClicked) then
+            FOnSwitchClicked(Self, ARow, (FClickedRowObj as TksListItemRowSwitch), AId);
+        end;
+        if (FClickedRowObj is TksListItemRowButton) then
+        begin
+          if Assigned(FOnButtonClicked) then
+            FOnButtonClicked(Self, ARow, (FClickedRowObj as TksListItemRowButton), AId);
+        end;
+        if (FClickedRowObj is TksListItemRowSegmentButtons) then
+        begin
+          if Assigned(FOnSegmentButtonClicked) then
+            FOnSegmentButtonClicked(Self, ARow, (FClickedRowObj as TksListItemRowSegmentButtons), AId);
+        end;
+        if FClickedRowObj <> nil then
+          FClickedRowObj.MouseUp;
+        ARow.CacheRow;
+        Invalidate;
+
+      end;
+    end;
+    ReleaseAllDownButtons;
+  end
+  else
+  begin
+    // mouse up was after scrolling...
+  end;
+
+  // remove row selection?
+  if (FKeepSelection = False) and (ItemIndex > -1) then
+  begin
+    ItemIndex := -1;
+    Application.ProcessMessages;
+  end;
 end;
 
 { TksListItemRowSwitch }

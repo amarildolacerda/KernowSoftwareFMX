@@ -5,8 +5,8 @@
         <FrameworkType>FMX</FrameworkType>
         <MainSource>ksComponentsDemo.dpr</MainSource>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Release</Config>
-        <Platform Condition="'$(Platform)'==''">iOSDevice64</Platform>
+        <Config Condition="'$(Config)'==''">Debug</Config>
+        <Platform Condition="'$(Platform)'==''">Win32</Platform>
         <TargetedPlatforms>1119</TargetedPlatforms>
         <AppType>Application</AppType>
     </PropertyGroup>
@@ -336,13 +336,7 @@
         <PF_AppIdentifierAppStore>2HR3HAAL6E.com.kernow-software.kscomponents</PF_AppIdentifierAppStore>
         <PF_MobileProvisionPathAppStore>/Users/Graham/Library/MobileDevice/Provisioning Profiles/b848459e-9eeb-40bb-b398-ceb23c59fa57.mobileprovision</PF_MobileProvisionPathAppStore>
         <PF_AutoMobileProvisionAppStore>False</PF_AutoMobileProvisionAppStore>
-        <PF_EntitlementExtraKeyValuesAppStore>&lt;key&gt;get-task-allow&lt;/key&gt;
-	&lt;false/&gt;
-	&lt;key&gt;com.apple.developer.team-identifier&lt;/key&gt;
-	&lt;string&gt;2HR3HAAL6E&lt;/string&gt;
-	&lt;key&gt;beta-reports-active&lt;/key&gt;
-	&lt;true/&gt;
-	</PF_EntitlementExtraKeyValuesAppStore>
+        <PF_EntitlementExtraKeyValuesAppStore>&lt;key&gt;get-task-allow&lt;/key&gt;&lt;false/&gt;&lt;key&gt;com.apple.developer.team-identifier&lt;/key&gt;&lt;string&gt;2HR3HAAL6E&lt;/string&gt;&lt;key&gt;beta-reports-active&lt;/key&gt;&lt;true/&gt;</PF_EntitlementExtraKeyValuesAppStore>
         <VerInfo_AutoIncVersion>true</VerInfo_AutoIncVersion>
         <VerInfo_MinorVer>1</VerInfo_MinorVer>
         <VerInfo_Build>25</VerInfo_Build>
@@ -355,11 +349,7 @@
         <PF_KeyChainAccessDebug>2HR3HAAL6E.com.kernow-software.kscomponents;</PF_KeyChainAccessDebug>
         <PF_AppIdentifierDebug>2HR3HAAL6E.com.kernow-software.kscomponents</PF_AppIdentifierDebug>
         <PF_AutoMobileProvisionDebug>False</PF_AutoMobileProvisionDebug>
-        <PF_EntitlementExtraKeyValuesDebug>&lt;key&gt;get-task-allow&lt;/key&gt;
-	&lt;true/&gt;
-	&lt;key&gt;com.apple.developer.team-identifier&lt;/key&gt;
-	&lt;string&gt;2HR3HAAL6E&lt;/string&gt;
-	</PF_EntitlementExtraKeyValuesDebug>
+        <PF_EntitlementExtraKeyValuesDebug>&lt;key&gt;get-task-allow&lt;/key&gt;&lt;true/&gt;&lt;key&gt;com.apple.developer.team-identifier&lt;/key&gt;&lt;string&gt;2HR3HAAL6E&lt;/string&gt;</PF_EntitlementExtraKeyValuesDebug>
         <PF_MobileProvisionDebug>17bb81a8-19bc-463d-b4dd-78fba61743ed</PF_MobileProvisionDebug>
         <PF_AutoCertificateDebug>False</PF_AutoCertificateDebug>
         <PF_MobileProvisionPathDebug>/Users/Graham/Library/MobileDevice/Provisioning Profiles/17bb81a8-19bc-463d-b4dd-78fba61743ed.mobileprovision</PF_MobileProvisionPathDebug>
@@ -367,13 +357,7 @@
         <PF_DevTeamIdDebug>2HR3HAAL6E</PF_DevTeamIdDebug>
         <PF_MobileProvisionPathAppStore>/Users/Graham/Library/MobileDevice/Provisioning Profiles/b848459e-9eeb-40bb-b398-ceb23c59fa57.mobileprovision</PF_MobileProvisionPathAppStore>
         <PF_AppIdentifierAppStore>2HR3HAAL6E.com.kernow-software.kscomponents</PF_AppIdentifierAppStore>
-        <PF_EntitlementExtraKeyValuesAppStore>&lt;key&gt;get-task-allow&lt;/key&gt;
-	&lt;false/&gt;
-	&lt;key&gt;com.apple.developer.team-identifier&lt;/key&gt;
-	&lt;string&gt;2HR3HAAL6E&lt;/string&gt;
-	&lt;key&gt;beta-reports-active&lt;/key&gt;
-	&lt;true/&gt;
-	</PF_EntitlementExtraKeyValuesAppStore>
+        <PF_EntitlementExtraKeyValuesAppStore>&lt;key&gt;get-task-allow&lt;/key&gt;&lt;false/&gt;&lt;key&gt;com.apple.developer.team-identifier&lt;/key&gt;&lt;string&gt;2HR3HAAL6E&lt;/string&gt;&lt;key&gt;beta-reports-active&lt;/key&gt;&lt;true/&gt;</PF_EntitlementExtraKeyValuesAppStore>
         <BT_BuildType>AppStore</BT_BuildType>
         <PF_AutoCertificateAppStore>False</PF_AutoCertificateAppStore>
         <PF_MobileProvisionAppStore>b848459e-9eeb-40bb-b398-ceb23c59fa57</PF_MobileProvisionAppStore>
@@ -420,9 +404,8 @@
                 </Source>
             </Delphi.Personality>
             <Deployment Version="2">
-                <DeployFile LocalName="$(BDS)\bin\Artwork\iOS\iPad\FM_LaunchImagePortrait_768x1004.png" Configuration="Release" Class="iPad_Launch768">
+                <DeployFile LocalName="iOSDevice64\Debug\ksComponentsDemo.entitlements" Configuration="Debug" Class="ProjectiOSEntitlements">
                     <Platform Name="iOSDevice64">
-                        <RemoteName>Default~ipad.png</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
@@ -442,8 +425,8 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="iOSDevice64\Debug\ksComponentsDemo.entitlements" Configuration="Debug" Class="ProjectiOSEntitlements">
-                    <Platform Name="iOSDevice64">
+                <DeployFile LocalName="$(BDS)\bin\Artwork\iOS\iPad\FM_SettingIcon_29x29.png" Configuration="Release" Class="iPad_Setting29">
+                    <Platform Name="iOSDevice32">
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
@@ -782,19 +765,18 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="$(BDS)\bin\Artwork\iOS\iPhone\FM_SpotlightSearchIcon_40x40.png" Configuration="Release" Class="iPhone_Spotlight40">
-                    <Platform Name="iOSDevice32">
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
-                <DeployFile LocalName="iOSDevice32\Debug\ksComponentsDemo" Configuration="Debug" Class="ProjectOutput_iOS32">
+                <DeployFile LocalName="$(BDS)\bin\Artwork\iOS\iPhone\FM_ApplicationIcon_180x180.png" Configuration="Debug" Class="iPhone_AppIcon180">
                     <Platform Name="iOSDevice64">
-                        <RemoteName>ksComponentsDemo.armv7</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
                 <DeployFile LocalName="$(BDS)\bin\Artwork\iOS\iPhone\FM_ApplicationIcon_57x57.png" Configuration="Debug" Class="iPhone_AppIcon57">
                     <Platform Name="iOSDevice64">
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="$(BDS)\bin\Artwork\iOS\iPhone\FM_SpotlightSearchIcon_40x40.png" Configuration="Release" Class="iPhone_Spotlight40">
+                    <Platform Name="iOSDevice32">
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
@@ -804,8 +786,9 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="$(BDS)\bin\Artwork\iOS\iPhone\FM_ApplicationIcon_180x180.png" Configuration="Debug" Class="iPhone_AppIcon180">
+                <DeployFile LocalName="iOSDevice32\Debug\ksComponentsDemo" Configuration="Debug" Class="ProjectOutput_iOS32">
                     <Platform Name="iOSDevice64">
+                        <RemoteName>ksComponentsDemo.armv7</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
@@ -1162,8 +1145,9 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="$(BDS)\bin\Artwork\iOS\iPad\FM_SettingIcon_29x29.png" Configuration="Release" Class="iPad_Setting29">
-                    <Platform Name="iOSDevice32">
+                <DeployFile LocalName="$(BDS)\bin\Artwork\iOS\iPad\FM_LaunchImagePortrait_768x1004.png" Configuration="Release" Class="iPad_Launch768">
+                    <Platform Name="iOSDevice64">
+                        <RemoteName>Default~ipad.png</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
@@ -1543,18 +1527,18 @@
                         <Operation>1</Operation>
                     </Platform>
                 </DeployClass>
-                <ProjectRoot Platform="iOSDevice32" Name="$(PROJECTNAME).app"/>
+                <ProjectRoot Platform="Win64" Name="$(PROJECTNAME)"/>
                 <ProjectRoot Platform="Android" Name="$(PROJECTNAME)"/>
                 <ProjectRoot Platform="Win32" Name="$(PROJECTNAME)"/>
                 <ProjectRoot Platform="iOSDevice64" Name="$(PROJECTNAME).app"/>
                 <ProjectRoot Platform="OSX32" Name="$(PROJECTNAME).app"/>
                 <ProjectRoot Platform="iOSSimulator" Name="$(PROJECTNAME).app"/>
-                <ProjectRoot Platform="Win64" Name="$(PROJECTNAME)"/>
+                <ProjectRoot Platform="iOSDevice32" Name="$(PROJECTNAME).app"/>
             </Deployment>
             <Platforms>
                 <Platform value="Android">True</Platform>
-                <Platform value="iOSDevice32" ActiveMobileDevice="%iosdevice%dcb42a02842c46558b9aa387cb908719d30d3c75">True</Platform>
-                <Platform value="iOSDevice64" ActiveMobileDevice="%iosdevice%dcb42a02842c46558b9aa387cb908719d30d3c75">True</Platform>
+                <Platform value="iOSDevice32">True</Platform>
+                <Platform value="iOSDevice64">True</Platform>
                 <Platform value="iOSSimulator" ActiveMobileDevice="iPad">True</Platform>
                 <Platform value="OSX32">True</Platform>
                 <Platform value="Win32">True</Platform>
