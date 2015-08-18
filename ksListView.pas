@@ -104,6 +104,10 @@ type
     procedure SetVertAlign(const Value: TListItemAlign);
     procedure SetHeight(const Value: single);
     procedure SetWidth(const Value: single);
+    function GetOffsetX: single;
+    function GetOffsetY: single;
+    procedure SetOffsetX(const Value: single);
+    procedure SetOffsetY(const Value: single);
   protected
     procedure CalculateRect(ARowBmp: TBitmap); virtual;
     procedure DoChanged(Sender: TObject);
@@ -122,6 +126,8 @@ type
     property TagBoolean: Boolean read FTagBoolean write FTagBoolean;
     property Width: single read FWidth write SetWidth;
     property Height: single read FHeight write SetHeight;
+    property OffsetY: single read GetOffsetY write SetOffsetY;
+    property OffsetX: single read GetOffsetX write SetOffsetX;
   end;
 
 
@@ -890,6 +896,16 @@ begin
   Changed;
 end;
 
+function TksListItemRowObj.GetOffsetX: single;
+begin
+  Result := FPlaceOffset.X;
+end;
+
+function TksListItemRowObj.GetOffsetY: single;
+begin
+  Result := FPlaceOffset.Y;
+end;
+
 procedure TksListItemRowObj.MouseDown;
 begin
   // overridden in descendant classes
@@ -926,6 +942,16 @@ begin
     FId := Value;
     Changed;
   end;
+end;
+
+procedure TksListItemRowObj.SetOffsetX(const Value: single);
+begin
+  FPlaceOffset.X := Value;
+end;
+
+procedure TksListItemRowObj.SetOffsetY(const Value: single);
+begin
+  FPlaceOffset.Y := Value;
 end;
 
 procedure TksListItemRowObj.SetRect(const Value: TRectF);
@@ -1575,6 +1601,8 @@ end;
 
 
 procedure TKsListItemRow.ProcessClick;
+var
+  ICount: integer;
 begin
   if FSelector = DateSelector then
   begin
@@ -1591,12 +1619,13 @@ begin
   if FAutoCheck then
   begin
     Accessory := TAccessoryType.Checkmark;
-    Checked := not Checked;
-    // prevent deselecting if single select...
-    if TksListView(ListView).CheckMarks = TksListViewCheckMarks.ksCmSingleSelect then
-      Checked := True;
-    FCached := False;
-    CacheRow;
+    if ListView.CheckMarks = TksListViewCheckMarks.ksCmSingleSelect  then
+    begin
+      for ICount := 0 to ListView.Items.Count-1 do
+        ListView.Items[ICount].Checked := ListView.Items[ICount] = Self;
+    end
+    else
+      Checked := not Checked;
   end;
 end;
 
@@ -2404,6 +2433,7 @@ var
   AId: string;
   ARow: TKsListItemRow;
   AMouseDownRect: TRectF;
+  ARowRect: TRectF;
 begin
   inherited;
 
@@ -2413,10 +2443,11 @@ begin
   begin
     // process a mouse click...
     ARow := GetRowFromYPos(y);
-    FClickedRowObj := RowObjectAtPoint(ARow, x, y);
+
+    ARowRect := GetItemRect(ARow.Index);
+
+    FClickedRowObj := RowObjectAtPoint(ARow, x, y - ARowRect.Top);
     AId := ARow.ID;
-
-
 
     if MilliSecondsBetween(FMouseDownTime, Now) >= 500 then
     begin
@@ -2465,7 +2496,7 @@ begin
         if FClickedRowObj <> nil then
           FClickedRowObj.MouseUp;
         ARow.CacheRow;
-
+        Invalidate;
 
       end;
     end;
@@ -2542,14 +2573,20 @@ var
   AObjRect: TRectF;
 begin
   Result := nil;
-  for ICount := 0 to ARow.RowObjectCount - 1 do
+  for ICount := ARow.RowObjectCount - 1 downto 0 do
   begin
     AObjRect := ARow.RowObject[ICount].Rect;
-    if (FMouseDownPos.x >= (AObjRect.Left - 5)) and
-      (FMouseDownPos.x <= (AObjRect.Right + 5)) then
+    InflateRect(AObjRect, 4, 4);
+    if PtInRect(AObjRect, PointF(X, Y)) then
     begin
       Result := ARow.RowObject[ICount];
+      Exit;
     end;
+    {if (FMouseDownPos.x >= (AObjRect.Left - 3)) and
+      (FMouseDownPos.x <= (AObjRect.Right + 3)) then
+    begin
+      Result := ARow.RowObject[ICount];
+    end; }
   end;
 end;
 
@@ -3037,13 +3074,15 @@ begin
     Application.ProcessMessages;
   end;
   FButton.Name := '_'+CreateGuidStr;
+  FButton.StyledSettings := FButton.StyledSettings - [TStyledSetting.FontColor];
+
   FButton.TextSettings.FontColorForState.Active := ATintColor;
   FButton.TextSettings.FontColorForState.Normal := ATintColor;
   FButton.TextSettings.FontColorForState.Pressed := claWhite;
+  FButton.TintColor := ATintColor;
+
   FButton.FontColor := ATintColor;
   FButton.StyleLookup := AStyleLookup;
-  FButton.TintColor := ATintColor;
-  FButton.StyledSettings := FButton.StyledSettings - [TStyledSetting.FontColor];
 
   FButton.StaysPressed := True;
   FButton.GroupName := 'cacheButton';
@@ -3051,7 +3090,7 @@ begin
   FButton.Height := AHeight;
   FButton.Text := AText;
   FButton.Font.Size := 11;
-  FButton.StyledSettings := [TStyledSetting.Family, TStyledSetting.Style, TStyledSetting.FontColor, TStyledSetting.Other];
+  FButton.StyledSettings := [TStyledSetting.Family, TStyledSetting.Style, TStyledSetting.Other];
   FButton.IsPressed := (AState = Pressed);
 
   Result := FButton.MakeScreenshot;
@@ -3339,6 +3378,7 @@ begin
     ABmp.Canvas.FillRect(ARect, FCornerRadius*4, FCornerRadius*4, AllCorners, 1);
     ABarRect := ARect;
     ABarRect.Width := (ABarRect.Width / 100) * FProgressPercent;
+
     ABmp.Canvas.Fill.Color := FBarColor;
     ABmp.Canvas.FillRect(ABarRect, FCornerRadius*4, FCornerRadius*4, [TCorner.TopLeft, TCorner.BottomLeft], 1);
 

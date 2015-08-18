@@ -184,6 +184,7 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     procedure Clear;
+
     {$IFDEF XE8_OR_NEWER}
     function AddMenuItem(AId, AText: string; const AImageIndex: integer = -1): TksSlideMenuItem; overload;
     {$ENDIF}

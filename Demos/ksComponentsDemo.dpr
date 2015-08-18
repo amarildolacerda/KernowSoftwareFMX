@@ -1,4 +1,4 @@
-program ksMenuDemo;
+program ksComponentsDemo;
 
 uses
   System.StartUpCopy,
@@ -9,6 +9,7 @@ uses
 
 begin
   Application.Initialize;
+  Application.FormFactor.Orientations := [TFormOrientation.Portrait];
   Application.CreateForm(TForm6, Form6);
   Application.Run;
 end.

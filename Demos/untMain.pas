@@ -30,8 +30,6 @@ type
     tabSegmentButtons: TTabItem;
     ksListView1: TksListView;
     lvSegmentButtons: TksListView;
-    tabSwitches: TTabItem;
-    lvSwitches: TksListView;
     tabIndicators: TTabItem;
     lvIndicators: TksListView;
     tabItemAccessorys: TTabItem;
@@ -46,8 +44,6 @@ type
     ToolBar4: TToolBar;
     Label4: TLabel;
     Label5: TLabel;
-    ToolBar5: TToolBar;
-    Label6: TLabel;
     ToolBar6: TToolBar;
     Label7: TLabel;
     ToolBar7: TToolBar;
@@ -76,17 +72,14 @@ type
     procedure lvSegmentButtonsSegmentButtonClicked(Sender: TObject;
       AItem: TKsListItemRow; AButtons: TksListItemRowSegmentButtons;
       ARowID: string);
-    procedure lvSwitchesSwitchClick(Sender: TObject; AItem: TKsListItemRow;
-      ASwitch: TksListItemRowSwitch; ARowID: string);
     procedure lvCheckListItemClick(Sender: TObject; x, y: Single;
       AItem: TKsListItemRow; AId: string; ARowObj: TksListItemRowObj);
-    procedure ksListView1ItemClick(Sender: TObject; x, y: Single;
-      AItem: TKsListItemRow; AId: string; ARowObj: TksListItemRowObj);
+    procedure lvSegmentButtonsSwitchClick(Sender: TObject;
+      AItem: TKsListItemRow; ASwitch: TksListItemRowSwitch; ARowID: string);
   private
     procedure BuildTextItemsListView;
     procedure BuildSegmentButtonListView;
     procedure BuildProgressBarsListview;
-    procedure BuildSwitchListView;
     procedure BuildIndicatorListView;
     procedure BuildAccessoryListView;
     procedure BuildCheckListView;
@@ -167,16 +160,20 @@ begin
     begin
       ARow := lvSmoothScrolling.Items.AddRow('Line '+InttoStr(ICount),            // main title
                                  'sub title', // subtitle
-                                 'detail',                       // detail text
+                                 '',                       // detail text
                                  More,                                // "more" accessory
                                  Image2.Bitmap);                      // image
-      ARow.AddSwitch(100, True);
-      ARow.AddSegmentButtons(160, 120, ['one','two','three'], TListItemAlign.Leading);
-      ARow.DrawBitmap(imgSearch.Bitmap, 290, 32, 32);
-      ARow.DrawRect(330, 0, 20, 20, claBlack, claRed);
-      ARow.DrawRoundRect(350, 0, 20, 20, 5, claBlack, claGreen);
-      ARow.DrawEllipse(370, 0, 20, 20, claBlack, claBlue);
+      ARow.AddSegmentButtons(100, 110, ['one','two','three'], TListItemAlign.Leading).OffsetY:= -16;
+      ARow.DrawBitmap(imgSearch.Bitmap, 100, 16, 24, 24);
+
+      {ARow.DrawRect(135, 16, 20, 20, claBlack, claRed);
+      ARow.DrawRoundRect(160, 16, 20, 20, 5, claBlack, claGreen);
+      ARow.DrawEllipse(185, 16, 20, 20, claBlack, claBlue); }
+
+      ARow.AddSwitch(215, True,  TListItemAlign.Leading).OffsetY := -16;
+      ARow.DrawProgressBar(140, 16, 130, 18, Round(ICount * 3.3), claIndianred, 0, TListItemAlign.Leading).OffsetY := 16;
       ARow.ShowAccessory := True;
+
       // set image to circle shape
 
       ARow.Image.ImageShape := ksCircleImage;
@@ -202,7 +199,7 @@ begin
   lvSegmentButtons.BeginUpdate;
   try
 
-    for ICount := 1 to 4 do
+    for ICount := 1 to 10 do
     begin
       AColor := claNull;
       case ICount mod 4 of
@@ -213,7 +210,12 @@ begin
       end;
       ARow := lvSegmentButtons.Items.AddRow('Item '+IntToStr(ICount), '', None);
       ARow.AddSegmentButtons(180, ['one', 'two', 'three']).TintColor := AColor;
+
+     with lvSegmentButtons.Items.AddRow('Item '+IntToStr(ICount*2), '', None) do
+      AddSwitchRight(0, False);
     end;
+
+
   finally
     lvSegmentButtons.EndUpdate;
     HideLoading;
@@ -221,25 +223,7 @@ begin
 end;
 
 
-procedure TForm6.BuildSwitchListView;
-var
-  ICount: integer;
-begin
-  if lvSwitches.Items.Count > 0 then
-    Exit;
-  ShowLoading;
-  lvSwitches.BeginUpdate;
-  try
-    for ICount := 1 to 100 do
-    begin
-      with lvSwitches.Items.AddRow('Item '+IntToStr(ICount), '', None) do
-        AddSwitchRight(0, False);
-    end;
-  finally
-    lvSwitches.EndUpdate;
-    HideLoading;
-  end;
-end;
+
 
 procedure TForm6.BuildIndicatorListView;
 begin
@@ -248,16 +232,16 @@ begin
   ShowLoading;
   lvIndicators.BeginUpdate;
   try
-    lvIndicators.Items.AddRow('Green', '', None).IndicatorColor := claGreen;
-    lvIndicators.Items.AddRow('Yellow', '', None).IndicatorColor := claYellow;
-    lvIndicators.Items.AddRow('Blue', '', None).IndicatorColor := claBlue;
-    lvIndicators.Items.AddRow('Red', '', None).IndicatorColor := claRed;
-    lvIndicators.Items.AddRow('Orange', '', None).IndicatorColor := claOrange;
-    lvIndicators.Items.AddRow('Teal', '', None).IndicatorColor := claTeal;
-    lvIndicators.Items.AddRow('Fuchsia', '', None).IndicatorColor := claFuchsia;
-    lvIndicators.Items.AddRow('Silver', '', None).IndicatorColor := claSilver;
-    lvIndicators.Items.AddRow('Gray', '', None).IndicatorColor := claGray;
-    lvIndicators.Items.AddRow('Black', '', None).IndicatorColor := claBlack;
+    lvIndicators.Items.AddRow('Green', 'indicator color', 'some detail', More).IndicatorColor := claGreen;
+    lvIndicators.Items.AddRow('Yellow', 'indicator color', 'some detail', More).IndicatorColor := claYellow;
+    lvIndicators.Items.AddRow('Blue', 'indicator color', 'some detail', More).IndicatorColor := claBlue;
+    lvIndicators.Items.AddRow('Red', 'indicator color', 'some detail', More).IndicatorColor := claRed;
+    lvIndicators.Items.AddRow('Orange', 'indicator color', 'some detail', More).IndicatorColor := claOrange;
+    lvIndicators.Items.AddRow('Teal', 'indicator color', 'some detail', More).IndicatorColor := claTeal;
+    lvIndicators.Items.AddRow('Fuchsia', 'indicator color', 'some detail', More).IndicatorColor := claFuchsia;
+    lvIndicators.Items.AddRow('Silver', 'indicator color', 'some detail', More).IndicatorColor := claSilver;
+    lvIndicators.Items.AddRow('Gray', 'indicator color', 'some detail', More).IndicatorColor := claGray;
+    lvIndicators.Items.AddRow('Black', 'indicator color', 'some detail', More).IndicatorColor := claBlack;
   finally
     lvIndicators.EndUpdate;
     HideLoading;
@@ -338,16 +322,16 @@ end;
 
 procedure TForm6.FormCreate(Sender: TObject);
 begin
+
   TabControl1.TabPosition := TTabPosition.None;
   TabControl1.TabIndex := 0;
   SlideMenu1.AddMenuItem('LISTVIEW', 'Graphics & Text', nil);
   SlideMenu1.AddMenuItem('PROGRESS_BARS', 'Progress Bars', nil);
-  SlideMenu1.AddMenuItem('SEGMENT_BUTTONS', 'Segment Buttons', nil);
-  SlideMenu1.AddMenuItem('SWITCHES', 'Switches', nil);
+  SlideMenu1.AddMenuItem('SEGMENT_SWITCHES', 'Buttons & Switches', nil);
   SlideMenu1.AddMenuItem('INDICATORS', 'Indicator Colours', nil);
   SlideMenu1.AddMenuItem('ACCESSORYS', 'Item Accessories', nil);
   SlideMenu1.AddMenuItem('CHECKLIST', 'Check List', nil);
-  SlideMenu1.AddMenuItem('EVERYTHING', 'Wanna see smooth scrolling?', nil);
+  SlideMenu1.AddMenuItem('EVERYTHING', 'Complex but smooth :-)', nil);
   SlideMenu1.ItemIndex := 0;
 
   SlideMenu2.AddMenuItem('ANOTHER', 'Dummy menu item', imgHome.Bitmap);
@@ -367,14 +351,6 @@ end;
 procedure TForm6.HideLoading;
 begin
   lblLoading.Visible := False;
-end;
-
-procedure TForm6.ksListView1ItemClick(Sender: TObject; x, y: Single;
-  AItem: TKsListItemRow; AId: string; ARowObj: TksListItemRowObj);
-begin
-  //ShowMessage(AITem.Index.ToString);
-  //if AITem.Index = 0 then
-  //  ksListView1.HideItem(1);
 end;
 
 procedure TForm6.ksSegmentButtons1Change(Sender: TObject);
@@ -402,9 +378,8 @@ begin
               'text: '+AButtons.Captions[AButtons.ItemIndex]);
 
 end;
-
-procedure TForm6.lvSwitchesSwitchClick(Sender: TObject; AItem: TKsListItemRow;
-  ASwitch: TksListItemRowSwitch; ARowID: string);
+  procedure TForm6.lvSegmentButtonsSwitchClick(Sender: TObject;
+  AItem: TKsListItemRow; ASwitch: TksListItemRowSwitch; ARowID: string);
 var
   ACheckedStr: string;
 begin
@@ -412,7 +387,7 @@ begin
     True: ACheckedStr := '(Checked)';
     False: ACheckedStr := '(Unchecked)';
   end;
-  Label6.Text := ('Switch clicked: row '+IntToStr(AItem.Index+1))+'   '+ACheckedStr;
+  Label4.Text := ('Switch clicked: row '+IntToStr(AItem.Index+1))+'   '+ACheckedStr;
 end;
 
 procedure TForm6.ShowLoading;
@@ -430,9 +405,8 @@ end;
 procedure TForm6.SlideMenu1SelectMenuItemEvent(Sender: TObject; AId: string);
 begin
   if AId = 'LISTVIEW' then TabControl1.ActiveTab := tabListView;
-  if AId = 'SEGMENT_BUTTONS' then TabControl1.ActiveTab := tabSegmentButtons;
+  if AId = 'SEGMENT_SWITCHES' then TabControl1.ActiveTab := tabSegmentButtons;
   if AId = 'PROGRESS_BARS' then TabControl1.ActiveTab := tabProgressBars;
-  if AId = 'SWITCHES' then TabControl1.ActiveTab := tabSwitches;
   if AId = 'INDICATORS' then TabControl1.ActiveTab := tabIndicators;
   if AId = 'ACCESSORYS' then TabControl1.ActiveTab := tabItemAccessorys;
   if AId = 'CHECKLIST' then TabControl1.ActiveTab := tabCheckList;
@@ -455,11 +429,10 @@ begin
     0: BuildTextItemsListView;
     1: BuildProgressBarsListview;
     2: BuildSegmentButtonListView;
-    3: BuildSwitchListView;
-    4: BuildIndicatorListView;
-    5: BuildAccessoryListView;
-    6: BuildCheckListView;
-    7: BuildEverythingListView;
+    3: BuildIndicatorListView;
+    4: BuildAccessoryListView;
+    5: BuildCheckListView;
+    6: BuildEverythingListView;
   end;
 end;
 

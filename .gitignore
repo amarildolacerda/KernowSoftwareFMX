@@ -103,6 +103,9 @@ Finalbuilder/build_test.fbl7
 KernowSoftwareFMX.rc
 *.fbz7
 KernowSoftwareFMX.res
+Demos/Screenshots
+Demos/iosdevice32
+Demos/iosdevice64
 Demos/XE8/iOSDevice32/Release/ksFormTransition.o
 Demos/XE8/iOSDevice32/Release/ksMenuDemo
 Demos/XE8/iOSDevice32/Release/ksMenuDemo.entitlements
