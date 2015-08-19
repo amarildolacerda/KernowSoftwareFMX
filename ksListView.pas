@@ -504,7 +504,7 @@ type
 
   // ------------------------------------------------------------------------------
 
-  [ComponentPlatformsAttribute(pidWin32 or pidWin64 or pidiOSDevice)]
+  [ComponentPlatformsAttribute(pidWin32 or pidWin64 or pidiOSDevice or pidAndroid)]
   TksListView = class(TCustomListView)
   private
     FScreenScale: single;

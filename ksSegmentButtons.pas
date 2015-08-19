@@ -41,7 +41,7 @@ type
     property ID: string read FId write FId;
   end;
 
-  [ComponentPlatformsAttribute(pidWin32 or pidWin64 or  pidiOSDevice)]
+  [ComponentPlatformsAttribute(pidWin32 or pidWin64 or pidiOSDevice or pidAndroid)]
   TksSegmentButtons = class(TControl)
   private
     FGroupID: string;
