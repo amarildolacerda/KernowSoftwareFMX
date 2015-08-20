@@ -189,6 +189,8 @@ begin
     Exit;
 
   AXPos := 0;
+  if ChildrenCount = 0 then
+    Exit;
   ABtnWidth := Width / ChildrenCount;
   for ICount := 0 to ChildrenCount-1 do
   begin
