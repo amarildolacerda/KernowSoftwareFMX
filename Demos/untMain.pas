@@ -55,11 +55,11 @@ type
     tabEverything: TTabItem;
     lvSmoothScrolling: TksListView;
     Timer1: TTimer;
-    lblLoading: TLabel;
     tabProgressBars: TTabItem;
     ToolBar9: TToolBar;
     Label9: TLabel;
     lvProgressBars: TksListView;
+    lblLoading: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure btnRightMenuClick(Sender: TObject);
     procedure btnLeftMenuClick(Sender: TObject);
@@ -392,6 +392,8 @@ end;
 
 procedure TForm6.ShowLoading;
 begin
+  lblLoading.Position.X := (FormFactor.Width - lblLoading.Width) / 2;
+  lblLoading.Position.Y := (FormFactor.Height - lblLoading.Height) / 2;
   lblLoading.Visible := True;
   lblLoading.BringToFront;
   Application.ProcessMessages;
@@ -434,6 +436,7 @@ begin
     5: BuildCheckListView;
     6: BuildEverythingListView;
   end;
+  Invalidate;
 end;
 
 end.
