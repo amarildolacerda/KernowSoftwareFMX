@@ -366,7 +366,6 @@ type
     procedure SetChecked(const Value: Boolean);
     function GetPurpose: TListItemPurpose;
     procedure SetPurpose(const Value: TListItemPurpose);
-    procedure SetRowHeight(const Value: integer);
     property ListView: TksListView read GetListView;
     procedure DoOnListChanged(Sender: TObject; const Item: TksListItemRowObj;
       Action: TCollectionNotification);
@@ -443,7 +442,6 @@ type
     property CanSelect: Boolean read FCanSelect write SetCanSelect default True;
     property Purpose: TListItemPurpose read GetPurpose write SetPurpose;
     property Selector: TksListItemRowSelector read FSelector write FSelector;
-    property Height: integer read FRowHeight write SetRowHeight;
   end;
 
 
@@ -806,6 +804,7 @@ begin
   begin
     if CharInSet(AStr[ICount], ['A'..'Z','0'..'9']) then
       Result := Result + UpCase(AStr[ICount]);
+
   end;
 end;
 
@@ -1002,8 +1001,6 @@ end;
 procedure TksListItemRowText.CalculateRect(ARowBmp: TBitmap);
 var
   ASaveFont: TFont;
-  ATextLayout: TTextLayout;
-  APoint: TPointF;
 begin
 
   if FWidth > 0 then Rect.Width := FWidth;
@@ -1371,8 +1368,9 @@ begin
     ADetailHeight := FDetail.CalculateTextHeight(Bitmap.Canvas);
     if ADetailHeight >= Bitmap.Height then
     begin
-      Bitmap.Height := Round(ADetailHeight);
       Owner.Height := Round(ADetailHeight);
+      Height := Round(ADetailHeight * GetScreenScale);
+      Bitmap.Height := Round(Height);
     end;
     Bitmap.Width := Round(ABmpWidth) ;
 
@@ -1460,8 +1458,8 @@ begin
         Exit;
       end;
     end;
-//    Bitmap.Canvas.Fill.Color := claRed;
-//    Bitmap.Canvas.
+    //Bitmap.Canvas.Fill.Color := claRed;
+    //Bitmap.Canvas.DrawRect(RectF(0, 0, Bitmap.Width, Bitmap.Height), 0, 0, AllCorners, 1);
     Bitmap.Canvas.EndScene;
     FCached := True;
   finally
@@ -1991,12 +1989,6 @@ end;
 procedure TKsListItemRow.SetPurpose(const Value: TListItemPurpose);
 begin
   (Owner as TListItem).Purpose := Value;
-end;
-
-procedure TksListItemRow.SetRowHeight(const Value: integer);
-begin
-  FRowHeight := Value;
-  (Owner as TListItem).Height := Value;
 end;
 
 procedure TKsListItemRow.SetSearchIndex(const Value: string);
@@ -2561,8 +2553,10 @@ end;
 procedure TksListView.Resize;
 begin
   inherited;
+  {$IFDEF MSWINDOWS}
   if IsShowing then
     RedrawAllRows;
+  {$ENDIF}
 end;
 
 function TksListView.RowObjectAtPoint(ARow: TKsListItemRow; x, y: single): TksListItemRowObj;
