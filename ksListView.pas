@@ -50,6 +50,11 @@ const
   C_DEFAULT_TEXT_COLOR = claBlack;
   C_DEFAULT_HEADER_TEXT_COLOR = claBlack;
   C_DEFAULT_SEGMENT_BUTTON_COLOR = claNull;
+
+  C_TITLE    = 'TITLE';
+  C_SUBTITLE = 'SUBTITLE';
+  C_DETAIL   = 'DETAIL';
+
   //C_VISIBLE_INDICATOR = '@@@';
 
 type
@@ -146,6 +151,7 @@ type
     FTextColor: TAlphaColor;
     FText: string;
     FWordWrap: Boolean;
+
     procedure SetFont(const Value: TFont);
     procedure SetAlignment(const Value: TTextAlign);
     procedure SetTextColor(const Value: TAlphaColor);
@@ -566,6 +572,7 @@ type
     procedure DoSelectPickerItem(Sender: TObject);
     procedure ComboClosePopup(Sender: TObject);
     procedure DoOnDeleteItem(Sender: TObject; AIndex: Integer);
+
     { Private declarations }
   protected
     procedure SetColorStyle(AName: string; AColor: TAlphaColor);
@@ -719,8 +726,8 @@ procedure Register;
 
 implementation
 
-uses SysUtils, FMX.Platform, FMX.Forms, FMX.SearchBox, FMX.Objects,
-  System.StrUtils, DateUtils, FMX.Dialogs;
+uses SysUtils, FMX.Platform, FMX.SearchBox, FMX.Objects,
+  System.StrUtils, DateUtils, FMX.Forms;
 
 type
   TksControlBitmapCache = class
@@ -759,7 +766,7 @@ type
 var
   AControlBitmapCache: TksControlBitmapCache;
   DefaultScrollBarWidth: integer = 7;
-
+  AFormFactor: TFormFactor;
 
 procedure Register;
 begin
@@ -776,6 +783,15 @@ begin
   Service := IFMXScreenService(TPlatformServices.Current.GetPlatformService
     (IFMXScreenService));
   Result := Service.GetScreenScale;
+end;
+
+function GetScreenWidth: single;
+begin
+  Result := AFormFactor.Width;
+  {$IFDEF MSWINDOWS}
+  if Screen.ActiveForm <> nil then
+    Result := Screen.ActiveForm.ClientRect.Width;
+  {$ENDIF}
 end;
 
 function IsBlankBitmap(ABmp: TBitmap): Boolean;
@@ -1001,7 +1017,6 @@ procedure TksListItemRowText.CalculateRect(ARowBmp: TBitmap);
 var
   ASaveFont: TFont;
 begin
-
   if FWidth > 0 then Rect.Width := FWidth;
   if FHeight > 0 then Rect.Height := FHeight;
 
@@ -1011,7 +1026,15 @@ begin
     try
       ASaveFont.Assign(ARowBmp.Canvas.Font);
       ARowBmp.Canvas.Font.Assign(FFont);
-      if FWidth = 0 then Rect.Width := ARowBmp.Canvas.TextWidth(FText);
+
+      if FWidth = 0 then
+      begin
+        if FId = C_TITLE then Rect.Width := (GetScreenWidth * 0.5) - 32;
+        if FId = C_SUBTITLE then Rect.Width := (GetScreenWidth * 0.5) - 32;
+        if FId = C_DETAIL then Rect.Width := (GetScreenWidth * 0.5) - 32;
+        if Rect.Width = 0 then
+          Rect.Width := ARowBmp.Canvas.TextWidth(FText);
+      end;
 
       if FHeight = 0 then
       begin
@@ -1021,7 +1044,6 @@ begin
           Rect.Height := FHeight;
           FRow.Height := Round(FHeight);
         end;
-
       end;
       ARowBmp.Canvas.Font.Assign(ASaveFont);
     finally
@@ -1040,26 +1062,33 @@ var
   ATextLayout: TTextLayout;
   APoint: TPointF;
 begin
-  if FWordWrap = False then
-     Result := ACanvas.TextHeight(FText)
-  else
-  begin
+  //if FWordWrap = False then
+  //   Result := ACanvas.TextHeight(FText)
+  //else
+  //begin
 
     ATextLayout := TTextLayoutManager.DefaultTextLayout.Create;
     ATextLayout.BeginUpdate;
 
     // Setting the layout MaxSize
     APoint.X := FWidth;
+    if FWidth = 0 then
+    begin
+      if FId = C_TITLE then APoint.X := AFormFactor.Width / 2;
+      if FId = C_SUBTITLE then APoint.X := AFormFactor.Width / 2;
+      if FId = C_DETAIL then APoint.X := AFormFactor.Width / 2;
+    end;
+
     APoint.Y := 1000;
     ATextLayout.MaxSize := aPoint;
 
     ATextLayout.Text := FText;
-    ATextLayout.WordWrap := True ;
+    ATextLayout.WordWrap := FWordWrap;
     ATextLayout.Font := FFont;
     ATextLayout.HorizontalAlign := FAlignment;
     ATextLayout.EndUpdate;
     Result := ATextLayout.Height;
-  end;
+ // end;
 end;
 
 constructor TksListItemRowText.Create(ARow: TKsListItemRow);
@@ -1082,12 +1111,41 @@ begin
 end;
 
 function TksListItemRowText.Render(ACanvas: TCanvas): Boolean;
+var
+  ATextLayout: TTextLayout;
+  APoint: TPointF;
 begin
   inherited Render(ACanvas);
-  ACanvas.Fill.Color := FTextColor;
+{  ACanvas.Fill.Color := FTextColor;
   ACanvas.Font.Assign(FFont);
   ACanvas.FillText(Rect, FText, FWordWrap, 1, [], FAlignment);
+  Result := True; }
+
+  //if FWordWrap = False then
+  //   Result := ACanvas.TextHeight(FText)
+  //else
+  //begin
+
+  ATextLayout := TTextLayoutManager.DefaultTextLayout.Create;
+  ATextLayout.BeginUpdate;
+
+  // Setting the layout MaxSize
+  APoint.X := FWidth;
+  APoint.Y := 1000;
+  ATextLayout.MaxSize := aPoint;
+
+  ATextLayout.Text := FText;
+  ATextLayout.WordWrap := FWordWrap;
+  ATextLayout.Font := FFont;
+  ATextLayout.Color := FTextColor;
+  ATextLayout.HorizontalAlign := FAlignment;
+  ATextLayout.EndUpdate;
+  ATextLayout.Trimming := TTextTrimming.Character;
+  ATextLayout.TopLeft := Rect.TopLeft;
+  ATextLayout.MaxSize := PointF(Rect.Width, Rect.Height);
+  ATextLayout.RenderLayout(ACanvas);
   Result := True;
+
 end;
 
 procedure TksListItemRowText.SetAlignment(const Value: TTextAlign);
@@ -1365,6 +1423,7 @@ begin
     Bitmap.Height := Round(RowHeight);
 
     ADetailHeight := FDetail.CalculateTextHeight(Bitmap.Canvas);
+
     if ADetailHeight >= Bitmap.Height then
     begin
       Owner.Height := Round(ADetailHeight);
@@ -1556,18 +1615,21 @@ begin
   FAutoCheck := False;
   FImageIndex := -1;
   FCanSelect := True;
-  FDetail.Align := TListItemAlign.Trailing;
    // title...
   FTitle.Font.Size := 13;
   FTitle.TextAlignment := TTextAlign.Leading;
+  FTitle.ID := C_TITLE;
   // sub-title...
   FSubTitle.TextColor := claGray;
   FSubTitle.Font.Size := 13;
   FSubTitle.TextAlignment := TTextAlign.Leading;
+  FSubTitle.ID := C_SUBTITLE;
   // detail...
+  FDetail.Align := TListItemAlign.Trailing;
   FDetail.TextColor := claDodgerblue;
   FDetail.Font.Size := 13;
-  FDetail.Width := 150;
+  //FDetail.Width := 150;
+  FDetail.ID := C_DETAIL;
   FDetail.TextAlignment := TTextAlign.Trailing;
   FRowHeight := lv.ItemHeight;
 end;
@@ -3567,13 +3629,16 @@ initialization
   {$IFDEF MSWINDOWS}
   DefaultScrollBarWidth := 16;
   {$ENDIF}
+  AFormFactor := TFormFactor.Create;
 
 finalization
 
   {$IFDEF IOS}
   AControlBitmapCache.DisposeOf;
+  AFormFactor.DisposeOf;
   {$ELSE}
   AControlBitmapCache.Free;
+  AFormFactor.Free;
   {$ENDIF}
 
 

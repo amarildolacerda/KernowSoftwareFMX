@@ -5,8 +5,8 @@
         <FrameworkType>FMX</FrameworkType>
         <MainSource>ksComponentsDemo.dpr</MainSource>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Release</Config>
-        <Platform Condition="'$(Platform)'==''">Android</Platform>
+        <Config Condition="'$(Config)'==''">Debug</Config>
+        <Platform Condition="'$(Platform)'==''">Win32</Platform>
         <TargetedPlatforms>1119</TargetedPlatforms>
         <AppType>Application</AppType>
     </PropertyGroup>
@@ -1328,15 +1328,15 @@
                 <ProjectRoot Platform="Android" Name="$(PROJECTNAME)"/>
                 <ProjectRoot Platform="Win32" Name="$(PROJECTNAME)"/>
                 <ProjectRoot Platform="iOSDevice64" Name="$(PROJECTNAME).app"/>
+                <ProjectRoot Platform="OSX32" Name="$(PROJECTNAME).app"/>
                 <ProjectRoot Platform="Win64" Name="$(PROJECTNAME)"/>
                 <ProjectRoot Platform="iOSSimulator" Name="$(PROJECTNAME).app"/>
-                <ProjectRoot Platform="OSX32" Name="$(PROJECTNAME).app"/>
             </Deployment>
             <Platforms>
-                <Platform value="Android" ActiveMobileDevice="SH4AMWR02260">True</Platform>
-                <Platform value="iOSDevice32">True</Platform>
-                <Platform value="iOSDevice64">True</Platform>
-                <Platform value="iOSSimulator" ActiveMobileDevice="iPhone">True</Platform>
+                <Platform value="Android">True</Platform>
+                <Platform value="iOSDevice32" ActiveMobileDevice="%iosdevice%dcb42a02842c46558b9aa387cb908719d30d3c75">True</Platform>
+                <Platform value="iOSDevice64" ActiveMobileDevice="%iosdevice%dcb42a02842c46558b9aa387cb908719d30d3c75">True</Platform>
+                <Platform value="iOSSimulator" ActiveMobileDevice="%iossimulator%DB0307E1-91CB-4144-87D6-CFD28B7480BB">True</Platform>
                 <Platform value="OSX32">True</Platform>
                 <Platform value="Win32">True</Platform>
                 <Platform value="Win64">True</Platform>
