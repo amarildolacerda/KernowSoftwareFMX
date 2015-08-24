@@ -41,7 +41,7 @@ uses System.UITypes, FMX.Controls, FMX.Layouts, FMX.Objects, System.Classes,
 
 const
   C_MENU_WIDTH = 250;
-
+  C_DEFAULT_BACKGROUND = $FF222222;
 type
   TSelectMenuItemEvent = procedure(Sender: TObject; AId: string) of object;
 
@@ -85,13 +85,14 @@ type
     FTextColor: TAlphaColor;
     FFont: TFont;
     procedure SetFont(const Value: TFont);
+    procedure SetBitmap(const Value: TBitmap);
   public
     constructor Create(AOwner: TComponent); virtual;
     destructor Destroy; override;
     procedure DrawToCanvas(ACanvas: TCanvas; ARect: TRectF);
     property Height: integer read FHeight default 44;
   published
-    property Bitmap: TBitmap read FBitmap;
+    property Bitmap: TBitmap read FBitmap write SetBitmap;
     property Visible: Boolean read FVisible write FVisible default True;
     property Color: TAlphaColor read FHeaderColor write FHeaderColor default TAlphaColor($FF323232);
     property Text: string read FText write FText;
@@ -122,7 +123,7 @@ type
     constructor CreateWithItems(AOwner: TComponent; AItems: TksSlideMenuItems);
     destructor Destroy; override;
     procedure RedrawMenu(AddBorder: Boolean);
-    property BackgroundColor: TAlphaColor read FBackgroundColor write FBackgroundColor default claNavy;
+    property BackgroundColor: TAlphaColor read FBackgroundColor write FBackgroundColor default C_DEFAULT_BACKGROUND;
     property SelectedColor: TAlphaColor read FSelectedColor write FSelectedColor default claRed;
     property SelectedFontColor: TAlphaColor read FSelectedFontColor write FSelectedFontColor default claWhite;
     property UnselectedFontColor: TAlphaColor read FUnselectedFontColor write FUnselectedFontColor default claWhite;
@@ -251,6 +252,8 @@ begin
   if FImages <> nil then
     AImage := Images.Bitmap(ASize, AImageIndex);
   Result := AddMenuItem(AId, AText, AImage);
+  if ItemIndex = -1 then
+    ItemIndex := 0;
 end;
 
 {$ENDIF}
@@ -689,7 +692,7 @@ begin
   FItemIndex := -1;
   WrapMode := TImageWrapMode.Original;
   MarginWrapMode := TImageWrapMode.Original;
-  FBackgroundColor := claNavy;
+  FBackgroundColor := C_DEFAULT_BACKGROUND;
   FSelectedColor := claRed;
   FSelectedFontColor := claWhite;
   FUnselectedFontColor := claWhite;
@@ -854,6 +857,7 @@ begin
   FFont.Size := 14;
   FHeight := 44;
   FVisible := True;
+  FText := 'TksSlideMenu';
 end;
 
 destructor TksSlideMenuToolbar.Destroy;
@@ -880,6 +884,11 @@ begin
   ACanvas.FillText(ATextRect, FText, False, 1, [], TTextAlign.Leading);
   ACanvas.Stroke.Color := claBlack;
   ACanvas.DrawLine(PointF(0, ARect.Bottom), PointF(ARect.Right, ARect.Bottom), 1);
+end;
+
+procedure TksSlideMenuToolbar.SetBitmap(const Value: TBitmap);
+begin
+  FBitmap.Assign(Value);
 end;
 
 procedure TksSlideMenuToolbar.SetFont(const Value: TFont);
