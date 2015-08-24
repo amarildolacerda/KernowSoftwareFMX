@@ -140,6 +140,7 @@ begin
   end;
 end;
 
+
 procedure TForm6.Button1Click(Sender: TObject);
 begin
   ShowMessage(BoolToStr(ksListView1.IsShowing, True)+#13+#13+

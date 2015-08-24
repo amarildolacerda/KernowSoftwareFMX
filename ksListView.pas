@@ -150,6 +150,7 @@ type
     procedure SetTextColor(const Value: TAlphaColor);
     procedure SetText(const Value: string);
     procedure SetWordWrap(const Value: Boolean);
+    function CalculateTextHeight(ACanvas: TCanvas): single;
   protected
     procedure CalculateRect(ARowBmp: TBitmap); override;
   public
@@ -345,6 +346,7 @@ type
     FSelector: TksListItemRowSelector;
     FSelectionValue: Variant;
     FPickerItems: TStrings;
+    FRowHeight: integer;
     function TextHeight(AText: string): single;
     function TextWidth(AText: string): single;
     function RowHeight(const AScale: Boolean = True): single;
@@ -364,6 +366,7 @@ type
     procedure SetChecked(const Value: Boolean);
     function GetPurpose: TListItemPurpose;
     procedure SetPurpose(const Value: TListItemPurpose);
+    procedure SetRowHeight(const Value: integer);
     property ListView: TksListView read GetListView;
     procedure DoOnListChanged(Sender: TObject; const Item: TksListItemRowObj;
       Action: TCollectionNotification);
@@ -440,6 +443,7 @@ type
     property CanSelect: Boolean read FCanSelect write SetCanSelect default True;
     property Purpose: TListItemPurpose read GetPurpose write SetPurpose;
     property Selector: TksListItemRowSelector read FSelector write FSelector;
+    property Height: integer read FRowHeight write SetRowHeight;
   end;
 
 
@@ -998,7 +1002,10 @@ end;
 procedure TksListItemRowText.CalculateRect(ARowBmp: TBitmap);
 var
   ASaveFont: TFont;
+  ATextLayout: TTextLayout;
+  APoint: TPointF;
 begin
+
   if FWidth > 0 then Rect.Width := FWidth;
   if FHeight > 0 then Rect.Height := FHeight;
 
@@ -1009,7 +1016,17 @@ begin
       ASaveFont.Assign(ARowBmp.Canvas.Font);
       ARowBmp.Canvas.Font.Assign(FFont);
       if FWidth = 0 then Rect.Width := ARowBmp.Canvas.TextWidth(FText);
-      if FHeight = 0 then Rect.Height := ARowBmp.Canvas.TextHeight(FText);
+
+      if FHeight = 0 then
+      begin
+        FHeight := CalculateTextHeight(ARowBmp.Canvas);
+        if FHeight > FRow.Height  then
+        begin
+          Rect.Height := FHeight;
+          FRow.Height := Round(FHeight);
+        end;
+
+      end;
       ARowBmp.Canvas.Font.Assign(ASaveFont);
     finally
       {$IFDEF IOS}
@@ -1020,6 +1037,33 @@ begin
     end;
   end;
   inherited;
+end;
+
+function TksListItemRowText.CalculateTextHeight(ACanvas: TCanvas): single;
+var
+  ATextLayout: TTextLayout;
+  APoint: TPointF;
+begin
+  if FWordWrap = False then
+     Result := ACanvas.TextHeight(FText)
+  else
+  begin
+
+    ATextLayout := TTextLayoutManager.DefaultTextLayout.Create;
+    ATextLayout.BeginUpdate;
+
+    // Setting the layout MaxSize
+    APoint.X := FWidth;
+    APoint.Y := 1000;
+    ATextLayout.MaxSize := aPoint;
+
+    ATextLayout.Text := FText;
+    ATextLayout.WordWrap := True ;
+    ATextLayout.Font := FFont;
+    ATextLayout.HorizontalAlign := FAlignment;
+    ATextLayout.EndUpdate;
+    Result := ATextLayout.Height;
+  end;
 end;
 
 constructor TksListItemRowText.Create(ARow: TKsListItemRow);
@@ -1313,6 +1357,7 @@ var
   AImage: TBitmap;
   ASize: TSizeF;
   lv: TksListView;
+  ADetailHeight: single;
 begin
   if FCached then
     Exit;
@@ -1322,6 +1367,13 @@ begin
   try
     ABmpWidth := (Round(RowWidth)) - Round((AMargins.Left + AMargins.Right)) * GetScreenScale;
     Bitmap.Height := Round(RowHeight);
+
+    ADetailHeight := FDetail.CalculateTextHeight(Bitmap.Canvas);
+    if ADetailHeight >= Bitmap.Height then
+    begin
+      Bitmap.Height := Round(ADetailHeight);
+      Owner.Height := Round(ADetailHeight);
+    end;
     Bitmap.Width := Round(ABmpWidth) ;
 
     {$IFDEF MSWINDOWS}
@@ -1367,8 +1419,11 @@ begin
       end;
     end;
 
-    FImage.CalculateRect(Bitmap);
-    FImage.Render(Bitmap.Canvas);
+    if FImage.Bitmap.IsEmpty = False then
+    begin
+      FImage.CalculateRect(Bitmap);
+      FImage.Render(Bitmap.Canvas);
+    end;
 
     if FImage.Bitmap.IsEmpty = False then
     begin
@@ -1376,14 +1431,23 @@ begin
       if FSubTitle.PlaceOffset.X < (FImage.Width + 8) then FSubTitle.PlaceOffset := PointF((FImage.Width + 8), FSubTitle.PlaceOffset.Y);
     end;
 
-    FTitle.CalculateRect(Bitmap);
-    FTitle.Render(Bitmap.Canvas);
+    if FTitle.Text <> '' then
+    begin
+      FTitle.CalculateRect(Bitmap);
+      FTitle.Render(Bitmap.Canvas);
+    end;
 
-    FSubTitle.CalculateRect(Bitmap);
-    FSubTitle.Render(Bitmap.Canvas);
+    if FSubTitle.Text <> '' then
+    begin
+      FSubTitle.CalculateRect(Bitmap);
+      FSubTitle.Render(Bitmap.Canvas);
+    end;
 
-    FDetail.CalculateRect(Bitmap);
-    FDetail.Render(Bitmap.Canvas);
+    if FDetail.Text <> '' then
+    begin
+      FDetail.CalculateRect(Bitmap);
+      FDetail.Render(Bitmap.Canvas);
+    end;
 
     for ICount := 0 to FList.Count - 1 do
     begin
@@ -1506,6 +1570,9 @@ begin
   // detail...
   FDetail.TextColor := claDodgerblue;
   FDetail.Font.Size := 13;
+  FDetail.Width := 150;
+  FDetail.TextAlignment := TTextAlign.Trailing;
+  FRowHeight := lv.ItemHeight;
 end;
 
 destructor TKsListItemRow.Destroy;
@@ -1924,6 +1991,12 @@ end;
 procedure TKsListItemRow.SetPurpose(const Value: TListItemPurpose);
 begin
   (Owner as TListItem).Purpose := Value;
+end;
+
+procedure TksListItemRow.SetRowHeight(const Value: integer);
+begin
+  FRowHeight := Value;
+  (Owner as TListItem).Height := Value;
 end;
 
 procedure TKsListItemRow.SetSearchIndex(const Value: string);
@@ -2488,8 +2561,8 @@ end;
 procedure TksListView.Resize;
 begin
   inherited;
-  //if IsShowing then
-  //  RedrawAllRows;
+  if IsShowing then
+    RedrawAllRows;
 end;
 
 function TksListView.RowObjectAtPoint(ARow: TKsListItemRow; x, y: single): TksListItemRowObj;
