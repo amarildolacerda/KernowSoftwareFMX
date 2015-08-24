@@ -78,6 +78,7 @@ type
   TksListViewFinishScrollingEvent = procedure(Sender: TObject; ATopIndex, AVisibleItems: integer) of object;
   TksListViewSelectDateEvent = procedure(Sender: TObject; AItem: TksListItemRow; ASelectedDate: TDateTime; var AAllow: Boolean) of object;
   TksListViewSelectPickerItem = procedure(Sender: TObject; AItem: TksListItemRow; ASelected: string; var AAllow: Boolean) of object;
+  TksDeleteItemEvent = procedure(Sender: TObject; AIndex: Integer) of object;
 
   // ------------------------------------------------------------------------------
 
@@ -481,6 +482,7 @@ type
     procedure UncheckAll;
     procedure CheckAll;
     procedure Clear;
+    procedure Delete(index: integer);
     property CheckedCount: integer read GetCheckedCount;
     property Count: integer read GetCount;
     property Items[index: integer]: TKsListItemRow read GetItems; default;
@@ -547,6 +549,7 @@ type
     FOnSelectPickerItem: TksListViewSelectPickerItem;
     FKeepSelection: Boolean;
     FMouseDownTime: TDateTime;
+    FOnDeleteItem: TksDeleteItemEvent;
     function _Items: TListViewItems;
     procedure SetItemHeight(const Value: integer);
     procedure DoScrollTimer(Sender: TObject);
@@ -562,6 +565,7 @@ type
     procedure DoSelectDate(Sender: TObject);
     procedure DoSelectPickerItem(Sender: TObject);
     procedure ComboClosePopup(Sender: TObject);
+    procedure DoOnDeleteItem(Sender: TObject; AIndex: Integer);
     { Private declarations }
   protected
     procedure SetColorStyle(AName: string; AColor: TAlphaColor);
@@ -2131,6 +2135,8 @@ end;
 constructor TksListView.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
+
+
   FItems := TKsListItemRows.Create(Self, inherited Items);
   FCombo := TComboBox.Create(nil);
   FCombo.OnClosePopup := ComboClosePopup;
@@ -2140,6 +2146,9 @@ begin
 
   FScreenScale := GetScreenScale;
   FAppearence := TksListViewAppearence.Create(Self);
+
+  FOnDeleteItem := OnDeleteItem;
+  OnDeleteItem := DoOnDeleteItem;
 
   if AControlBitmapCache = nil then
     AControlBitmapCache := TksControlBitmapCache.Create(Self);
@@ -2424,6 +2433,13 @@ end;
 procedure TksListView.DoItemClick(const AItem: TListViewItem);
 begin
   inherited;
+end;
+
+procedure TksListView.DoOnDeleteItem(Sender: TObject; AIndex: Integer);
+begin
+  Items.Delete(Aindex);
+  if Assigned(FOnDeleteItem) then
+    FOnDeleteItem(Sender, AIndex);
 end;
 
 procedure TksListView.DoScrollTimer(Sender: TObject);
@@ -3439,6 +3455,11 @@ begin
   FRows := TObjectList<TKsListItemRow>.Create(False);
   FListView := AListView;
   FListViewItems := AItems;
+end;
+
+procedure TKsListItemRows.Delete(index: integer);
+begin
+  FRows.Delete(index);
 end;
 
 destructor TKsListItemRows.Destroy;
