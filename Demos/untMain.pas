@@ -22,8 +22,6 @@ type
     imgMenu: TImage;
     imgContact: TImage;
     layoutImages: TLayout;
-    SlideMenu1: TksSlideMenu;
-    SlideMenu2: TksSlideMenu;
     imgAbout: TImage;
     TabControl1: TTabControl;
     tabListView: TTabItem;
@@ -60,6 +58,8 @@ type
     Label9: TLabel;
     lvProgressBars: TksListView;
     lblLoading: TLabel;
+    SlideMenu2: TksSlideMenu;
+    SlideMenu1: TksSlideMenu;
     procedure FormCreate(Sender: TObject);
     procedure btnRightMenuClick(Sender: TObject);
     procedure btnLeftMenuClick(Sender: TObject);
@@ -78,8 +78,8 @@ type
       AItem: TKsListItemRow; ASwitch: TksListItemRowSwitch; ARowID: string);
   private
     procedure BuildTextItemsListView;
-    procedure BuildSegmentButtonListView;
     procedure BuildProgressBarsListview;
+    procedure BuildSegmentButtonListView;
     procedure BuildIndicatorListView;
     procedure BuildAccessoryListView;
     procedure BuildCheckListView;
@@ -165,10 +165,6 @@ begin
                                  Image2.Bitmap);                      // image
       ARow.AddSegmentButtons(100, 110, ['one','two','three'], TListItemAlign.Leading).OffsetY:= -16;
       ARow.DrawBitmap(imgSearch.Bitmap, 100, 16, 24, 24);
-
-      {ARow.DrawRect(135, 16, 20, 20, claBlack, claRed);
-      ARow.DrawRoundRect(160, 16, 20, 20, 5, claBlack, claGreen);
-      ARow.DrawEllipse(185, 16, 20, 20, claBlack, claBlue); }
 
       ARow.AddSwitch(215, True,  TListItemAlign.Leading).OffsetY := -16;
       ARow.DrawProgressBar(140, 16, 130, 18, Round(ICount * 3.3), claIndianred, 0, TListItemAlign.Leading).OffsetY := 16;
@@ -262,19 +258,19 @@ begin
     try
       // row 1
       ARow := AddRow('Progress 1', 'green/round corner', '', More);
-      ARow.DrawProgressBar(20, 0, 120, 18, 25, claGreenyellow, 9);
+      ARow.DrawProgressBar(0, 0, 120, 18, 25, claGreenyellow, 9);
 
       // row 2
       ARow := AddRow('Progress 2', 'red/round corner', '', More);
-      ARow.DrawProgressBar(20, 0, 120, 18, 50, claIndianred, 9);
+      ARow.DrawProgressBar(0, 0, 120, 18, 50, claIndianred, 9);
 
       // row 3
       ARow := AddRow('Progress 3', 'blue/square corner', '', More);
-      ARow.DrawProgressBar(20, 0, 120, 18, 75, claSkyblue, 0);
+      ARow.DrawProgressBar(0, 0, 120, 18, 75, claSkyblue, 0);
 
       // row 4
       ARow := AddRow('Progress 4', 'orange/square corner', '', More);
-      ARow.DrawProgressBar(20, 0, 120, 18, 90, claOrange, 0);
+      ARow.DrawProgressBar(0, 0, 120, 18, 90, claOrange, 0);
     finally
       lvProgressBars.EndUpdate;
     end;
@@ -331,7 +327,7 @@ begin
   SlideMenu1.AddMenuItem('INDICATORS', 'Indicator Colours', nil);
   SlideMenu1.AddMenuItem('ACCESSORYS', 'Item Accessories', nil);
   SlideMenu1.AddMenuItem('CHECKLIST', 'Check List', nil);
-  SlideMenu1.AddMenuItem('EVERYTHING', 'Complex but smooth :-)', nil);
+  SlideMenu1.AddMenuItem('EVERYTHING', 'Complex but oh so smooth ;-)', nil);
   SlideMenu1.ItemIndex := 0;
 
   SlideMenu2.AddMenuItem('ANOTHER', 'Dummy menu item', imgHome.Bitmap);

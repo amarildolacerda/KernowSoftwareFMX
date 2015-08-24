@@ -1,26 +1,26 @@
 ﻿{ *******************************************************************************
-  *                                                                              *
-  *  TksListView - Cached ListView Component                                     *
-  *                                                                              *
-  *  https://github.com/gmurt/KernowSoftwareFMX                                  *
-  *                                                                              *
-  *  Copyright 2015 Graham Murt                                                  *
-  *                                                                              *
-  *  email: graham@kernow-software.co.uk                                         *
-  *                                                                              *
-  *  Licensed under the Apache License, Version 2.0 (the "License");             *
-  *  you may not use this file except in compliance with the License.            *
-  *  You may obtain a copy of the License at                                     *
-  *                                                                              *
-  *    http://www.apache.org/licenses/LICENSE-2.0                                *
-  *                                                                              *
-  *  Unless required by applicable law or agreed to in writing, software         *
-  *  distributed under the License is distributed on an "AS IS" BASIS,           *
-  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.    *
-  *  See the License for the specific language governing permissions and         *
-  *  limitations under the License.                                              *
-  *                                                                              *
-  *******************************************************************************}
+*                                                                              *
+*  TksListView - Cached ListView Component                                     *
+*                                                                              *
+*  https://github.com/gmurt/KernowSoftwareFMX                                  *
+*                                                                              *
+*  Copyright 2015 Graham Murt                                                  *
+*                                                                              *
+*  email: graham@kernow-software.co.uk                                         *
+*                                                                              *
+*  Licensed under the Apache License, Version 2.0 (the "License");             *
+*  you may not use this file except in compliance with the License.            *
+*  You may obtain a copy of the License at                                     *
+*                                                                              *
+*    http://www.apache.org/licenses/LICENSE-2.0                                *
+*                                                                              *
+*  Unless required by applicable law or agreed to in writing, software         *
+*  distributed under the License is distributed on an "AS IS" BASIS,           *
+*  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.    *
+*  See the License for the specific language governing permissions and         *
+*  limitations under the License.                                              *
+*                                                                              *
+*******************************************************************************}
 
 unit ksListView;
 
@@ -41,7 +41,12 @@ uses
 const
   C_LONG_TAP_DURATION     = 5;  // 500 ms
   C_BUTTON_HEIGHT = 29;
+  {$IFDEF ANDROID}
+  C_SEGMENT_BUTTON_HEIGHT = 42;
+  {$ELSE}
   C_SEGMENT_BUTTON_HEIGHT = 29;
+  {$ENDIF}
+
   C_DEFAULT_TEXT_COLOR = claBlack;
   C_DEFAULT_HEADER_TEXT_COLOR = claBlack;
   C_DEFAULT_SEGMENT_BUTTON_COLOR = claNull;
@@ -711,23 +716,6 @@ implementation
 uses SysUtils, FMX.Platform, FMX.Forms, FMX.SearchBox, FMX.Objects,
   System.StrUtils, DateUtils, FMX.Dialogs;
 
-const
-{$IFDEF IOS}
-  DefaultScrollBarWidth = 7;
-{$ELSE}
-{$IFDEF MACOS}
-  DefaultScrollBarWidth = 7;
-{$ENDIF}
-{$ENDIF}
-
-{$IFDEF MSWINDOWS}
-  DefaultScrollBarWidth = 16;
-{$ENDIF}
-
-{$IFDEF ANDROID}
-  DefaultScrollBarWidth = 7;
-{$ENDIF}
-
 type
   TksControlBitmapCache = class
   private
@@ -764,6 +752,8 @@ type
 
 var
   AControlBitmapCache: TksControlBitmapCache;
+  DefaultScrollBarWidth: integer = 7;
+
 
 procedure Register;
 begin
@@ -858,14 +848,22 @@ begin
     OffsetRect(FRect, FPlaceOffset.X, 0);
 
   if FAlign = TListItemAlign.Trailing then
-    OffsetRect(FRect, ABmpWidth - (w+ DefaultScrollBarWidth + FPlaceOffset.X {+ FRow.ListView.ItemSpaces.Right}), 0);
-
+  begin
+    OffsetRect(FRect, ABmpWidth - (4 + w+ DefaultScrollBarWidth + FPlaceOffset.X {+ FRow.ListView.ItemSpaces.Right}), 0);
+    if (Self is TKsListItemRowAccessory) = False then
+    begin
+      if FRow.ShowAccessory then
+        OffsetRect(FRect, 0-FRow.FAccessory.Width, 0);
+    end;
+  end;
   case VertAlign of
     TListItemAlign.Center: OffsetRect(FRect, 0, (FRow.Owner.Height - FRect.Height) / 2);
     TListItemAlign.Trailing: OffsetRect(FRect, 0, (FRow.Owner.Height - FRect.Height));
   end;
 
   OffsetRect(FRect, 0, FPlaceOffset.Y);
+
+
 end;
 
 procedure TksListItemRowObj.Changed;
@@ -1326,7 +1324,11 @@ begin
     Bitmap.Height := Round(RowHeight);
     Bitmap.Width := Round(ABmpWidth) ;
 
+    {$IFDEF MSWINDOWS}
+    ScalingMode := TImageScalingMode.Original;
+    {$ELSE}
     ScalingMode := TImageScalingMode.StretchWithAspect;
+    {$ENDIF}
     Bitmap.Clear(claNull);
     Bitmap.Canvas.BeginScene;
 
@@ -1394,6 +1396,8 @@ begin
         Exit;
       end;
     end;
+//    Bitmap.Canvas.Fill.Color := claRed;
+//    Bitmap.Canvas.
     Bitmap.Canvas.EndScene;
     FCached := True;
   finally
@@ -1430,8 +1434,8 @@ begin
     FTitle.PlaceOffset := PointF(AOffset, FTitle.PlaceOffset.Y);
     FSubTitle.PlaceOffset := PointF(AOffset, FSubTitle.PlaceOffset.Y);
   end;
-  if ShowAccessory then
-    FDetail.PlaceOffset := PointF(24, FDetail.PlaceOffset.Y);
+  //if ShowAccessory then
+  //  FDetail.PlaceOffset := PointF(FAccessory.Width, FDetail.PlaceOffset.Y);
 end;
 
 procedure TKsListItemRow.ReleaseAllDownButtons;
@@ -2076,15 +2080,18 @@ begin
 
   FScreenScale := GetScreenScale;
   FAppearence := TksListViewAppearence.Create(Self);
+
   if AControlBitmapCache = nil then
     AControlBitmapCache := TksControlBitmapCache.Create(Self);
+  FCacheTimer := TTimer.Create(Self);
+  FCacheTimer.Interval := 100;
+  FCacheTimer.Enabled := True;
+  AControlBitmapCache.FListViews.Add(Self);
+
   FItemHeight := 44;
   FClickTimer := TTimer.Create(Self);
   FLastWidth := 0;
   FSelectOnRightClick := False;
-  FCacheTimer := TTimer.Create(Self);
-  FCacheTimer.Interval := 100;
-  FCacheTimer.Enabled := True;
   FLastScrollPos := 0;
   FScrolling := False;
   FScrollTimer := TTimer.Create(Self);
@@ -2095,8 +2102,8 @@ begin
   FCheckMarkStyle := ksCmsDefault;
   FItemImageSize := 32;
   FShowIndicatorColors := False;
-  AControlBitmapCache.FListViews.Add(Self);
   FKeepSelection := False;
+  ItemSpaces.Right := 0;
 end;
 
 destructor TksListView.Destroy;
@@ -2118,9 +2125,11 @@ begin
   FCombo.Free;
   FDateSelector.Free;
   {$ENDIF}
-  AControlBitmapCache.FListViews.Remove(Self);
+  if AControlBitmapCache <> nil then
+    AControlBitmapCache.FListViews.Remove(Self);
   inherited;
 end;
+
 procedure TKsListItemRows.Add(ARow: TKsListItemRow);
 begin
   FRows.Add(ARow);
@@ -2433,8 +2442,11 @@ begin
   FIsShowing := True;
   if not (csDesigning in ComponentState) then
   begin
-    if (IsUpdating) or (AControlBitmapCache.ImagesCached = False) then
+    if (IsUpdating) then
       Exit;
+    if (AControlBitmapCache <> nil) then
+      if AControlBitmapCache.ImagesCached = False then
+        Exit;
     if (ItemIndex > -1) then
       ShowSelection := Items[ItemIndex].CanSelect;
   end;
@@ -2476,8 +2488,8 @@ end;
 procedure TksListView.Resize;
 begin
   inherited;
-  if IsShowing then
-    RedrawAllRows;
+  //if IsShowing then
+  //  RedrawAllRows;
 end;
 
 function TksListView.RowObjectAtPoint(ARow: TKsListItemRow; x, y: single): TksListItemRowObj;
@@ -2498,7 +2510,7 @@ begin
     {if (FMouseDownPos.x >= (AObjRect.Left - 3)) and
       (FMouseDownPos.x <= (AObjRect.Right + 3)) then
     begin
-      Result := ARow.RowObject[ICount];
+      Result := ARow.RowObject[ICou/nt];
     end; }
   end;
 end;
@@ -2740,12 +2752,21 @@ end;
 
 procedure TKsListItemRowAccessory.CalculateRect(ARowBmp: TBitmap);
 begin
-  if FImage = nil then
+  if (FAccessoryType = TAccessoryType.Checkmark) and
+     (TksListView(FRow.ListView).CheckMarkStyle <> ksCmsDefault)  then
   begin
-    FResources := FRow.GetStyleResources;
-    FImage := FResources.AccessoryImages[FAccessoryType].Normal;
-    Width := FImage.Width;
-    Height := FImage.Height;
+    Width := 20;
+    Height := 20;
+  end
+  else
+  begin
+    if FImage = nil then
+    begin
+      //FResources := FRow.GetStyleResources;
+      //FImage := FResources.AccessoryImages[FAccessoryType].Normal;
+      Width := FImage.Width;
+      Height := FImage.Height;
+    end;
   end;
   inherited;
 end;
@@ -2755,8 +2776,13 @@ begin
   inherited;
   FAlign := TListItemAlign.Trailing;
   FVertAlignment := TListItemAlign.Center;
-  FWidth := 32;
-  FHeight := 32;
+  FResources := FRow.GetStyleResources;
+  FImage := FResources.AccessoryImages[FAccessoryType].Normal;
+  FWidth := FImage.Width;
+  FHeight := FImage.Height;
+  {$IFNDEF ANDROID}
+  FWidth := FWidth + 8;
+  {$ENDIF}
 end;
 
 function TKsListItemRowAccessory.Render(ACanvas: TCanvas): Boolean;
@@ -2764,6 +2790,7 @@ var
   ARect: TRectF;
   ABmp: TBitmap;
   APath: TPathData;
+  ADestRect: TRectF;
 begin
   inherited Render(ACanvas);
   if (FAccessoryType = TAccessoryType.Checkmark) and
@@ -2771,8 +2798,6 @@ begin
   begin
     ARect := RectF(Rect.Left, Rect.Top, Rect.Left + (64*GetScreenScale), Rect.Top + (64*GetScreenScale));
     InflateRect(ARect, 2, 2);
-
-
 
     ABmp := TBitmap.Create(Round(64*GetScreenScale), Round(64*GetScreenScale));
     try
@@ -2808,9 +2833,14 @@ begin
         APath.Free;
         {$ENDIF}
       end;
-      ABmp.Canvas.EndScene;
 
-      ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), RectF(ARect.Left, ARect.Top, ARect.Left+20, ARect.Top+20), 1);
+      ABmp.Canvas.EndScene;
+      ADestRect := Rect;
+      ACanvas.DrawBitmap(ABmp,
+                         RectF(0, 0, ABmp.Width, ABmp.Height),
+                         ADestRect,
+                         1);
+
     finally
       {$IFDEF IOS}
       ABmp.DisposeOf;
@@ -3451,6 +3481,9 @@ end;
 
 initialization
 
+  {$IFDEF MSWINDOWS}
+  DefaultScrollBarWidth := 16;
+  {$ENDIF}
 
 finalization
 
@@ -3459,5 +3492,6 @@ finalization
   {$ELSE}
   AControlBitmapCache.Free;
   {$ENDIF}
+
 
 end.
