@@ -794,18 +794,13 @@ end;
 function CreateGuidStr: string;
 var
   AGuid: TGUID;
-  AStr: string;
-  ICount: integer;
 begin
   Result := '';
   CreateGUID(AGuid);
-  AStr := GUIDToString(AGuid);
-  for ICount := 1 to Length(AStr) do
-  begin
-    if CharInSet(AStr[ICount], ['A'..'Z','0'..'9']) then
-      Result := Result + UpCase(AStr[ICount]);
-
-  end;
+  Result := GUIDToString(AGuid);
+  Result := StringReplace(Result, '{', '', [rfReplaceAll]);
+  Result := StringReplace(Result, '-', '', [rfReplaceAll]);
+  Result := StringReplace(Result, '}', '', [rfReplaceAll]);
 end;
 
 // ------------------------------------------------------------------------------
