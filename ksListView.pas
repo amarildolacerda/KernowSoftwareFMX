@@ -2739,6 +2739,7 @@ end;
 procedure TksListView.MouseDown(Button: TMouseButton; Shift: TShiftState;
   x, y: single);
 var
+
   ARow: TKsListItemRow;
 begin
   if y < 0 then
