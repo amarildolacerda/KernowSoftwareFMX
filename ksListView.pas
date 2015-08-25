@@ -1062,12 +1062,8 @@ var
   ATextLayout: TTextLayout;
   APoint: TPointF;
 begin
-  //if FWordWrap = False then
-  //   Result := ACanvas.TextHeight(FText)
-  //else
-  //begin
-
-    ATextLayout := TTextLayoutManager.DefaultTextLayout.Create;
+  ATextLayout := TTextLayoutManager.DefaultTextLayout.Create;
+  try
     ATextLayout.BeginUpdate;
 
     // Setting the layout MaxSize
@@ -1088,7 +1084,13 @@ begin
     ATextLayout.HorizontalAlign := FAlignment;
     ATextLayout.EndUpdate;
     Result := ATextLayout.Height;
- // end;
+  finally
+    {$IFDEF IOS}
+    ATextLayout.DisposeOf;
+    {$ELSE}
+    ATextLayout.Free;
+    {$ENDIF}
+  end;
 end;
 
 constructor TksListItemRowText.Create(ARow: TKsListItemRow);
@@ -1116,36 +1118,33 @@ var
   APoint: TPointF;
 begin
   inherited Render(ACanvas);
-{  ACanvas.Fill.Color := FTextColor;
-  ACanvas.Font.Assign(FFont);
-  ACanvas.FillText(Rect, FText, FWordWrap, 1, [], FAlignment);
-  Result := True; }
-
-  //if FWordWrap = False then
-  //   Result := ACanvas.TextHeight(FText)
-  //else
-  //begin
-
   ATextLayout := TTextLayoutManager.DefaultTextLayout.Create;
-  ATextLayout.BeginUpdate;
+  try
+    ATextLayout.BeginUpdate;
 
-  // Setting the layout MaxSize
-  APoint.X := FWidth;
-  APoint.Y := 1000;
-  ATextLayout.MaxSize := aPoint;
+    // Setting the layout MaxSize
+    APoint.X := FWidth;
+    APoint.Y := 1000;
+    ATextLayout.MaxSize := aPoint;
 
-  ATextLayout.Text := FText;
-  ATextLayout.WordWrap := FWordWrap;
-  ATextLayout.Font := FFont;
-  ATextLayout.Color := FTextColor;
-  ATextLayout.HorizontalAlign := FAlignment;
-  ATextLayout.EndUpdate;
-  ATextLayout.Trimming := TTextTrimming.Character;
-  ATextLayout.TopLeft := Rect.TopLeft;
-  ATextLayout.MaxSize := PointF(Rect.Width, Rect.Height);
-  ATextLayout.RenderLayout(ACanvas);
-  Result := True;
-
+    ATextLayout.Text := FText;
+    ATextLayout.WordWrap := FWordWrap;
+    ATextLayout.Font := FFont;
+    ATextLayout.Color := FTextColor;
+    ATextLayout.HorizontalAlign := FAlignment;
+    ATextLayout.EndUpdate;
+    ATextLayout.Trimming := TTextTrimming.Character;
+    ATextLayout.TopLeft := Rect.TopLeft;
+    ATextLayout.MaxSize := PointF(Rect.Width, Rect.Height);
+    ATextLayout.RenderLayout(ACanvas);
+    Result := True;
+  finally
+    {$IFDEF IOS}
+    ATextLayout.DisposeOf;
+    {$ELSE}
+    ATextLayout.Free;
+    {$ENDIF}
+  end;
 end;
 
 procedure TksListItemRowText.SetAlignment(const Value: TTextAlign);
@@ -1408,8 +1407,6 @@ var
   ICount: integer;
   AMargins: TBounds;
   ABmpWidth: single;
-  AImage: TBitmap;
-  ASize: TSizeF;
   lv: TksListView;
   ADetailHeight: single;
 begin
@@ -3138,6 +3135,7 @@ var
   ICount: integer;
 begin
   {$IFDEF IOS}
+  FCacheTimer.DisposeOf;
   FSwitchOn.DisposeOf;
   FSwitchOff.DisposeOf;
   for ICount := FCachedButtons.Count-1 downto 0 do
@@ -3145,6 +3143,7 @@ begin
   FCachedButtons.DisposeOf;
   FListViews.DisposeOf;
   {$ELSE}
+  FCacheTimer.Free;
   FSwitchOn.Free;
   FSwitchOff.Free;
   for ICount := FCachedButtons.Count-1 downto 0 do
