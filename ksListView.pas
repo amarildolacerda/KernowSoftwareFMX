@@ -1409,6 +1409,10 @@ var
   ABmpWidth: single;
   lv: TksListView;
   ADetailHeight: single;
+  {$IFDEF XE8_OR_NEWER}
+  AImage: TBitmap;
+  ASize: TSize;
+  {$ENDIF}
 begin
   if FCached then
     Exit;
