@@ -2741,6 +2741,8 @@ procedure TksListView.MouseDown(Button: TMouseButton; Shift: TShiftState;
 var
   ARow: TKsListItemRow;
 begin
+  if y < 0 then
+    Exit;
   inherited;
   FMouseDownPos := PointF(x-ItemSpaces.Left, y);
   FMouseDownTime := Now;
@@ -2751,6 +2753,8 @@ end;
 
 procedure TksListView.MouseMove(Shift: TShiftState; X, Y: Single);
 begin
+  if y < 0 then
+    Exit;
   inherited;
   FCurrentMousepos := PointF(x-ItemSpaces.Left, y);
 end;
@@ -2764,8 +2768,9 @@ var
   AMouseDownRect: TRectF;
   ARowRect: TRectF;
 begin
+  if y < 0 then
+    Exit;
   inherited;
-
   AMouseDownRect := RectF(FMouseDownPos.X-8, FMouseDownPos.Y-8, FMouseDownPos.X+8, FMouseDownPos.Y+8);
   x := x - ItemSpaces.Left;
   if PtInRect(AMouseDownRect, PointF(x, y)) then
