@@ -13,7 +13,6 @@ uses
 type
   TForm6 = class(TForm)
     ToolBar1: TToolBar;
-    btnLeftMenu: TButton;
     btnRightMenu: TButton;
     Label1: TLabel;
     imgHome: TImage;
@@ -60,6 +59,7 @@ type
     lblLoading: TLabel;
     SlideMenu2: TksSlideMenu;
     SlideMenu1: TksSlideMenu;
+    btnLeftMenu: TButton;
     procedure FormCreate(Sender: TObject);
     procedure btnRightMenuClick(Sender: TObject);
     procedure btnLeftMenuClick(Sender: TObject);
