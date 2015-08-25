@@ -2790,6 +2790,7 @@ begin
       if Assigned(FOnLongClick) then
         FOnLongClick(Self, x, y, ARow, AId, FClickedRowObj);
     end
+
     else
     begin
       Application.ProcessMessages;
