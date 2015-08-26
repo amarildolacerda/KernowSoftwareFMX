@@ -2746,6 +2746,8 @@ begin
   if y < 0 then
     Exit;
   inherited;
+  if (Button = TMouseButton.mbRight) then
+    ItemIndex := GetRowFromYPos(y).Index;
   FMouseDownPos := PointF(x-ItemSpaces.Left, y);
   FMouseDownTime := Now;
   ARow := GetRowFromYPos(y);
@@ -2809,7 +2811,7 @@ begin
       if (Assigned(FOnItemClick)) and (Button = TMouseButton.mbLeft) then
         FOnItemClick(Self, x, y, ARow, AId, FClickedRowObj);
       // right click...
-      if (Assigned(FOnItemRightClick)) then
+      if (Assigned(FOnItemRightClick)) and (Button = TMouseButton.mbRight) then
         FOnItemRightClick(Self, x, y, ARow, AId, FClickedRowObj);
 
       if FClickedRowObj <> nil then
