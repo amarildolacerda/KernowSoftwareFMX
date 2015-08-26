@@ -3,13 +3,14 @@ program ksComponentsDemo;
 uses
   System.StartUpCopy,
   FMX.Forms,
-  untMain in 'untMain.pas' {Form6};
+  untMain in 'untMain.pas' {frmMain},
+  untSourceCode in 'untSourceCode.pas' {frmSourceCode};
 
 {$R *.res}
 
 begin
   Application.Initialize;
   Application.FormFactor.Orientations := [TFormOrientation.Portrait];
-  Application.CreateForm(TForm6, Form6);
+  Application.CreateForm(TfrmMain, frmMain);
   Application.Run;
 end.

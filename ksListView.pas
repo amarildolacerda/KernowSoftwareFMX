@@ -1029,9 +1029,9 @@ begin
 
       if FWidth = 0 then
       begin
-        if FId = C_TITLE then Rect.Width := (GetScreenWidth * 0.5) - 32;
-        if FId = C_SUBTITLE then Rect.Width := (GetScreenWidth * 0.5) - 32;
-        if FId = C_DETAIL then Rect.Width := (GetScreenWidth * 0.5) - 32;
+        if FId = C_TITLE then Rect.Width := (FRow.ListView.Width * 0.5) - 32;
+        if FId = C_SUBTITLE then Rect.Width := (FRow.ListView.Width * 0.5) - 32;
+        if FId = C_DETAIL then Rect.Width := (FRow.ListView.Width * 0.5) - 32;
         if Rect.Width = 0 then
           Rect.Width := ARowBmp.Canvas.TextWidth(FText);
       end;
@@ -1070,9 +1070,9 @@ begin
     APoint.X := FWidth;
     if FWidth = 0 then
     begin
-      if FId = C_TITLE then APoint.X := AFormFactor.Width / 2;
-      if FId = C_SUBTITLE then APoint.X := AFormFactor.Width / 2;
-      if FId = C_DETAIL then APoint.X := AFormFactor.Width / 2;
+      if FId = C_TITLE then APoint.X := FRow.ListView.Width / 2;
+      if FId = C_SUBTITLE then APoint.X := FRow.ListView.Width / 2;
+      if FId = C_DETAIL then APoint.X := FRow.ListView.Width / 2;
     end;
 
     APoint.Y := 1000;

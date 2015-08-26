@@ -2,16 +2,20 @@ unit untMain;
 
 interface
 
+{$IFDEF VER290}
+  {$DEFINE XE8_OR_NEWER}
+{$ENDIF}
+
 uses
   System.SysUtils, System.Types, System.UITypes, System.Classes,
   System.Variants,
   FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.StdCtrls,
   FMX.Controls.Presentation, ksSlideMenu, FMX.Layouts, FMX.Objects,
   FMX.TabControl, FMX.ListBox, FMX.ListView.Types, FMX.ListView, ksListView,
-  ksSegmentButtons;
+  ksSegmentButtons, FMX.Memo {$IFDEF XE8_OR_NEWER} ,FMX.ScrollBox {$ENDIF};
 
 type
-  TForm6 = class(TForm)
+  TfrmMain = class(TForm)
     ToolBar1: TToolBar;
     btnRightMenu: TButton;
     Label1: TLabel;
@@ -57,11 +61,23 @@ type
     Label9: TLabel;
     lvProgressBars: TksListView;
     lblLoading: TLabel;
-    SlideMenu2: TksSlideMenu;
     SlideMenu1: TksSlideMenu;
     btnLeftMenu: TButton;
+    Memo1: TMemo;
+    Memo2: TMemo;
+    Memo3: TMemo;
+    Memo4: TMemo;
+    Memo5: TMemo;
+    Memo6: TMemo;
+    Memo7: TMemo;
+    imgSource1: TImage;
+    imgSource2: TImage;
+    imgSource3: TImage;
+    imgSource4: TImage;
+    imgSource5: TImage;
+    imgSource6: TImage;
+    imgSource7: TImage;
     procedure FormCreate(Sender: TObject);
-    procedure btnRightMenuClick(Sender: TObject);
     procedure btnLeftMenuClick(Sender: TObject);
     procedure SlideMenu1SelectMenuItemEvent(Sender: TObject; AId: string);
     procedure Switch1Switch(Sender: TObject);
@@ -76,6 +92,7 @@ type
       AItem: TKsListItemRow; AId: string; ARowObj: TksListItemRowObj);
     procedure lvSegmentButtonsSwitchClick(Sender: TObject;
       AItem: TKsListItemRow; ASwitch: TksListItemRowSwitch; ARowID: string);
+    procedure btnRightMenuClick(Sender: TObject);
   private
     procedure BuildTextItemsListView;
     procedure BuildProgressBarsListview;
@@ -94,27 +111,21 @@ type
   end;
 
 var
-  Form6: TForm6;
+  frmMain: TfrmMain;
 
 implementation
 
-uses System.UIConsts;
+uses System.UIConsts, untSourceCode;
 
 {$R *.fmx}
 
-procedure TForm6.btnLeftMenuClick(Sender: TObject);
+procedure TfrmMain.btnLeftMenuClick(Sender: TObject);
 begin
 
   SlideMenu1.ToggleMenu;
 end;
 
-procedure TForm6.btnRightMenuClick(Sender: TObject);
-begin
-  SlideMenu2.ToggleMenu;
-end;
-
-
-procedure TForm6.BuildTextItemsListView;
+procedure TfrmMain.BuildTextItemsListView;
 var
   ICount: integer;
   ARow: TKsListItemRow;
@@ -126,7 +137,7 @@ begin
   try
     for ICount := 1 to 30 do
     begin
-      ARow := ksListview1.Items.AddRow('Line '+InttoStr(ICount),            // main title
+      ARow := ksListview1.Items.AddRow('Line '+InttoStr(ICount),      // main title
                                  'a sub title for '+IntToStr(ICount), // subtitle
                                  'detail text',                       // detail text
                                  More,                                // "more" accessory
@@ -144,13 +155,13 @@ end;
 
 
 
-procedure TForm6.Button1Click(Sender: TObject);
+procedure TfrmMain.Button1Click(Sender: TObject);
 begin
   ShowMessage(BoolToStr(ksListView1.IsShowing, True)+#13+#13+
               BoolToStr(lvSegmentButtons.IsShowing, True));
 end;
 
-procedure TForm6.BuildEverythingListView;
+procedure TfrmMain.BuildEverythingListView;
 var
   ICount: integer;
   ARow: TKsListItemRow;
@@ -162,11 +173,11 @@ begin
   try
     for ICount := 1 to 30 do
     begin
-      ARow := lvSmoothScrolling.Items.AddRow('Line '+InttoStr(ICount),            // main title
-                                 'sub title', // subtitle
-                                 '',                       // detail text
-                                 More,                                // "more" accessory
-                                 Image2.Bitmap);                      // image
+      ARow := lvSmoothScrolling.Items.AddRow('Line '+InttoStr(ICount),  // main title
+                                             'sub title',               // subtitle
+                                             '',                        // detail text
+                                             More,                      // "more" accessory
+                                             Image2.Bitmap);            // image
       ARow.AddSegmentButtons(100, 110, ['one','two','three'], TListItemAlign.Leading).OffsetY:= -16;
       ARow.DrawBitmap(imgSearch.Bitmap, 100, 16, 24, 24);
 
@@ -175,7 +186,6 @@ begin
       ARow.ShowAccessory := True;
 
       // set image to circle shape
-
       ARow.Image.ImageShape := ksCircleImage;
     end;
   finally
@@ -187,7 +197,7 @@ end;
 
 // code to create the segment buttons...
 
-procedure TForm6.BuildSegmentButtonListView;
+procedure TfrmMain.BuildSegmentButtonListView;
 var
   ICount: integer;
   AColor: TAlphaColor;
@@ -225,7 +235,7 @@ end;
 
 
 
-procedure TForm6.BuildIndicatorListView;
+procedure TfrmMain.BuildIndicatorListView;
 begin
   if lvIndicators.Items.Count > 0 then
     Exit;
@@ -248,7 +258,7 @@ begin
   end;
 end;
 
-procedure TForm6.BuildProgressBarsListview;
+procedure TfrmMain.BuildProgressBarsListview;
 var
   ARow: TKsListItemRow;
 begin
@@ -283,7 +293,20 @@ begin
   HideLoading;
 end;
 
-procedure TForm6.BuildAccessoryListView;
+procedure TfrmMain.btnRightMenuClick(Sender: TObject);
+begin
+  case TabControl1.TabIndex of
+    0: DisplaySourceCode(Memo1.Lines, imgSource1.Bitmap);
+    1: DisplaySourceCode(Memo2.Lines, imgSource2.Bitmap);
+    2: DisplaySourceCode(Memo3.Lines, imgSource3.Bitmap);
+    3: DisplaySourceCode(Memo4.Lines, imgSource4.Bitmap);
+    4: DisplaySourceCode(Memo5.Lines, imgSource5.Bitmap);
+    5: DisplaySourceCode(Memo6.Lines, imgSource6.Bitmap);
+    6: DisplaySourceCode(Memo7.Lines, imgSource7.Bitmap);
+  end;
+end;
+
+procedure TfrmMain.BuildAccessoryListView;
 begin
   if lvAccessorys.Items.Count > 0 then
     Exit;
@@ -300,7 +323,7 @@ begin
   end;
 end;
 
-procedure Tform6.BuildCheckListView;
+procedure TfrmMain.BuildCheckListView;
 var
   ICount: integer;
 begin
@@ -314,13 +337,20 @@ begin
   lvCheckList.EndUpdate;
 end;
 
-procedure TForm6.DoShow;
+procedure TfrmMain.DoShow;
 begin
   inherited;
   Timer1.Enabled := True;
+  Memo1.Visible := False;
+  Memo2.Visible := False;
+  Memo3.Visible := False;
+  Memo4.Visible := False;
+  Memo5.Visible := False;
+  Memo6.Visible := False;
+  Memo7.Visible := False;
 end;
 
-procedure TForm6.FormCreate(Sender: TObject);
+procedure TfrmMain.FormCreate(Sender: TObject);
 begin
 
   TabControl1.TabPosition := TTabPosition.None;
@@ -334,9 +364,9 @@ begin
   SlideMenu1.AddMenuItem('EVERYTHING', 'Complex but oh so smooth ;-)', nil);
   SlideMenu1.ItemIndex := 0;
 
-  SlideMenu2.AddMenuItem('ANOTHER', 'Dummy menu item', imgHome.Bitmap);
+  //SlideMenu2.AddMenuItem('ANOTHER', 'Dummy menu item', imgHome.Bitmap);
 
-  SlideMenu2.ItemIndex := 0;
+  //SlideMenu2.ItemIndex := 0;
   layoutImages.Visible := False;
 
   ksSegmentButtons1.AddButton('DEFAULT', 'DEFAULT');
@@ -348,12 +378,12 @@ end;
 
 
 
-procedure TForm6.HideLoading;
+procedure TfrmMain.HideLoading;
 begin
   lblLoading.Visible := False;
 end;
 
-procedure TForm6.ksSegmentButtons1Change(Sender: TObject);
+procedure TfrmMain.ksSegmentButtons1Change(Sender: TObject);
 begin
   case ksSegmentButtons1.ItemIndex of
     0: lvCheckList.CheckMarkStyle := ksCmsDefault;
@@ -363,13 +393,13 @@ begin
   end;
 end;
 
-procedure TForm6.lvCheckListItemClick(Sender: TObject; x, y: Single;
+procedure TfrmMain.lvCheckListItemClick(Sender: TObject; x, y: Single;
   AItem: TKsListItemRow; AId: string; ARowObj: TksListItemRowObj);
 begin
   Label3.Text := 'Checked count: '+IntToStr(lvCheckList.Items.CheckedCount);
 end;
 
-procedure TForm6.lvSegmentButtonsSegmentButtonClicked(Sender: TObject;
+procedure TfrmMain.lvSegmentButtonsSegmentButtonClicked(Sender: TObject;
   AItem: TKsListItemRow; AButtons: TksListItemRowSegmentButtons;
   ARowID: string);
 begin
@@ -378,7 +408,7 @@ begin
               'text: '+AButtons.Captions[AButtons.ItemIndex]);
 
 end;
-  procedure TForm6.lvSegmentButtonsSwitchClick(Sender: TObject;
+  procedure TfrmMain.lvSegmentButtonsSwitchClick(Sender: TObject;
   AItem: TKsListItemRow; ASwitch: TksListItemRowSwitch; ARowID: string);
 var
   ACheckedStr: string;
@@ -390,7 +420,7 @@ begin
   Label4.Text := ('Switch clicked: row '+IntToStr(AItem.Index+1))+'   '+ACheckedStr;
 end;
 
-procedure TForm6.ShowLoading;
+procedure TfrmMain.ShowLoading;
 begin
   lblLoading.Position.X := (FormFactor.Width - lblLoading.Width) / 2;
   lblLoading.Position.Y := (FormFactor.Height - lblLoading.Height) / 2;
@@ -399,12 +429,12 @@ begin
   Application.ProcessMessages;
 end;
 
-procedure TForm6.SlideMenu1AfterSlideOut(Sender: TObject);
+procedure TfrmMain.SlideMenu1AfterSlideOut(Sender: TObject);
 begin
   Timer1.Enabled := True;
 end;
 
-procedure TForm6.SlideMenu1SelectMenuItemEvent(Sender: TObject; AId: string);
+procedure TfrmMain.SlideMenu1SelectMenuItemEvent(Sender: TObject; AId: string);
 begin
   if AId = 'LISTVIEW' then TabControl1.ActiveTab := tabListView;
   if AId = 'SEGMENT_SWITCHES' then TabControl1.ActiveTab := tabSegmentButtons;
@@ -416,7 +446,7 @@ begin
   Application.ProcessMessages;
 end;
 
-procedure TForm6.Switch1Switch(Sender: TObject);
+procedure TfrmMain.Switch1Switch(Sender: TObject);
 begin
   case Switch1.IsChecked of
     True: lvCheckList.CheckMarks := TksListViewCheckMarks.ksCmMultiSelect;
@@ -424,7 +454,7 @@ begin
   end;
 end;
 
-procedure TForm6.Timer1Timer(Sender: TObject);
+procedure TfrmMain.Timer1Timer(Sender: TObject);
 begin
   Timer1.Enabled := False;
   case TabControl1.TabIndex of
