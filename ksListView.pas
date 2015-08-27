@@ -36,7 +36,7 @@ uses
   FMX.ListView.Types, FMX.Graphics, Generics.Collections, System.UITypes,
   {$IFDEF XE8_OR_NEWER} FMX.ImgList, {$ENDIF}
   System.UIConsts, FMX.StdCtrls, FMX.Styles.Objects, System.Generics.Collections,
-  FMX.ListBox, FMX.DateTimeCtrls;
+  FMX.ListBox, FMX.DateTimeCtrls, FMX.Menus;
 
 const
   C_LONG_TAP_DURATION     = 5;  // 500 ms
@@ -54,8 +54,6 @@ const
   C_TITLE    = 'TITLE';
   C_SUBTITLE = 'SUBTITLE';
   C_DETAIL   = 'DETAIL';
-
-  //C_VISIBLE_INDICATOR = '@@@';
 
 type
   TksListViewCheckMarks = (ksCmNone, ksCmSingleSelect, ksCmMultiSelect);
@@ -174,21 +172,6 @@ type
 
   // ------------------------------------------------------------------------------
 
-  TksListItemRowImage = class(TksListItemRowObj)
-  private
-    FBitmap: TBitmap;
-    FImageShape: TksItemImageShape;
-    procedure SetBitmap(const Value: TBitmap);
-    procedure SetImageShape(const Value: TksItemImageShape);
-  public
-    constructor Create(ARow: TKsListItemRow); override;
-    destructor Destroy; override;
-    procedure Assign(ASource: TPersistent); override;
-    function Render(ACanvas: TCanvas): Boolean; override;
-    property Bitmap: TBitmap read FBitmap write SetBitmap;
-    property ImageShape: TksItemImageShape read FImageShape write SetImageShape default ksRectangleImage;
-  end;
-
   TksListItemBrush = class(TPersistent)
   private
     FColor: TAlphaColor;
@@ -216,6 +199,23 @@ type
     property Color: TAlphaColor read FColor write SetColor;
     property Kind: TBrushKind read FKind write SetKind;
     property Thickness: single read FThickness write SetThickness;
+  end;
+
+  TksListItemRowImage = class(TksListItemRowObj)
+  private
+    FBitmap: TBitmap;
+    FImageShape: TksItemImageShape;
+    FBorder: TksListItemStroke;
+    procedure SetBitmap(const Value: TBitmap);
+    procedure SetImageShape(const Value: TksItemImageShape);
+  public
+    constructor Create(ARow: TKsListItemRow); override;
+    destructor Destroy; override;
+    procedure Assign(ASource: TPersistent); override;
+    function Render(ACanvas: TCanvas): Boolean; override;
+    property Bitmap: TBitmap read FBitmap write SetBitmap;
+    property Border: TksListItemStroke read FBorder;
+    property ImageShape: TksItemImageShape read FImageShape write SetImageShape default ksRectangleImage;
   end;
 
   TksListItemRowShape = class(TksListItemRowObj)
@@ -385,7 +385,6 @@ type
     destructor Destroy; override;
     procedure Assign(Source: TPersistent); override;
     procedure CacheRow;
-    procedure RealignStandardElements;
     // bitmap functions...
     function DrawBitmap(ABmp: TBitmap; x, AWidth, AHeight: single): TksListItemRowImage overload;
     {$IFDEF XE8_OR_NEWER}
@@ -596,7 +595,7 @@ type
     procedure EndUpdate; {$IFDEF XE8_OR_NEWER} override; {$ENDIF}
     function IsShowing: Boolean;
     property Items: TKsListItemRows read FItems;
-
+    procedure ShowPopupMenu(APopup: TPopupMenu; x, y: single);
     { Public declarations }
   published
     property Appearence: TksListViewAppearence read FAppearence write FAppearence;
@@ -766,7 +765,6 @@ type
 var
   AControlBitmapCache: TksControlBitmapCache;
   DefaultScrollBarWidth: integer = 7;
-  AFormFactor: TFormFactor;
 
 procedure Register;
 begin
@@ -783,15 +781,6 @@ begin
   Service := IFMXScreenService(TPlatformServices.Current.GetPlatformService
     (IFMXScreenService));
   Result := Service.GetScreenScale;
-end;
-
-function GetScreenWidth: single;
-begin
-  Result := AFormFactor.Width;
-  {$IFDEF MSWINDOWS}
-  if Screen.ActiveForm <> nil then
-    Result := Screen.ActiveForm.ClientRect.Width;
-  {$ENDIF}
 end;
 
 function IsBlankBitmap(ABmp: TBitmap): Boolean;
@@ -1016,6 +1005,7 @@ end;
 procedure TksListItemRowText.CalculateRect(ARowBmp: TBitmap);
 var
   ASaveFont: TFont;
+
 begin
   if FWidth > 0 then Rect.Width := FWidth;
   if FHeight > 0 then Rect.Height := FHeight;
@@ -1055,6 +1045,13 @@ begin
     end;
   end;
   inherited;
+  if (FId = C_TITLE) or (FId = C_SUBTITLE) then
+  begin
+    if FRow.Image.Bitmap.IsEmpty = False then
+      Rect.Offset(FRow.Image.Width+8, 0);
+    if FRow.ListView.ShowIndicatorColors then
+      Rect.Offset(16, 0);
+  end;
 end;
 
 function TksListItemRowText.CalculateTextHeight(ACanvas: TCanvas): single;
@@ -1211,6 +1208,7 @@ constructor TksListItemRowImage.Create(ARow: TKsListItemRow);
 begin
   inherited Create(ARow);
   FBitmap := TBitmap.Create;
+  FBorder := TksListItemStroke.Create;
   FBitmap.OnChange := DoChanged;
   FVertAlignment := TListItemAlign.Center;
   FImageShape := ksRectangleImage;
@@ -1220,8 +1218,10 @@ destructor TksListItemRowImage.Destroy;
 begin
   {$IFDEF IOS}
   FBitmap.DisposeOf;
+  FBorder.DisposeOf;
   {$ELSE}
   FBitmap.Free;
+  FBorder.Free;
   {$ENDIF}
   inherited;
 end;
@@ -1241,13 +1241,13 @@ begin
     ARectangle.Fill.Kind := TBrushKind.Bitmap;
     if FImageShape = ksRoundRectImage then
     begin
-      ARectangle.XRadius := 16;
-      ARectangle.YRadius := 16;
+      ARectangle.XRadius := FBitmap.Width / 4;;
+      ARectangle.YRadius := FBitmap.Width / 4;;
     end;
     if FImageShape = ksCircleImage then
     begin
-      ARectangle.XRadius := 32;
-      ARectangle.YRadius := 32;
+      ARectangle.XRadius := FBitmap.Width / 2;
+      ARectangle.YRadius := FBitmap.Width / 2;
     end;
     ABmp := TBitmap.Create(Round(Rect.Width*4), Round(Rect.Height*4));//(FBitmap.Width, FBitmap.Height);
     try
@@ -1255,6 +1255,11 @@ begin
       ABmp.Canvas.BeginScene;
       ARectangle.PaintTo(ABmp.Canvas, RectF(0, 0, Rect.Width*4, Rect.Height*4), nil);
       ABmp.Canvas.EndScene;
+      ACanvas.Stroke.Color := FBorder.Color;
+
+      ACanvas.Stroke.Thickness := FBorder.Thickness;
+      ACanvas.DrawEllipse(Rect, 1);
+
       ACanvas.DrawBitmap(ABmp, RectF(0, 0, Rect.Width*4, Rect.Height*4), Rect, 1);
     finally
       {$IFDEF IOS}
@@ -1453,7 +1458,6 @@ begin
       ASize.cx := 32;
       ASize.cy := 32;
       AImage := lv.Images.Bitmap(ASize, FImageIndex);
-      //DrawBitmap(AImage, 0, ASize.cx, ASize.cy);
       FImage.Bitmap.Assign(AImage);
     end;
     {$ENDIF}
@@ -1480,12 +1484,6 @@ begin
     begin
       FImage.CalculateRect(Bitmap);
       FImage.Render(Bitmap.Canvas);
-    end;
-
-    if FImage.Bitmap.IsEmpty = False then
-    begin
-      if FTitle.PlaceOffset.X < (FImage.Width + 8) then FTitle.PlaceOffset := PointF((FImage.Width + 8), FTitle.PlaceOffset.Y);
-      if FSubTitle.PlaceOffset.X < (FImage.Width + 8) then FSubTitle.PlaceOffset := PointF((FImage.Width + 8), FSubTitle.PlaceOffset.Y);
     end;
 
     if FTitle.Text <> '' then
@@ -1517,8 +1515,6 @@ begin
         Exit;
       end;
     end;
-    //Bitmap.Canvas.Fill.Color := claRed;
-    //Bitmap.Canvas.DrawRect(RectF(0, 0, Bitmap.Width, Bitmap.Height), 0, 0, AllCorners, 1);
     Bitmap.Canvas.EndScene;
     FCached := True;
   finally
@@ -1534,29 +1530,6 @@ begin
     CacheRow;
     ListView.Repaint;
   end;
-end;
-
-procedure TKsListItemRow.RealignStandardElements;
-var
-  AOffset: single;
-begin
-  if FSubTitle.Text <> '' then
-  begin
-    FTitle.PlaceOffset := PointF(0, -9);
-    FSubTitle.PlaceOffset := PointF(0,9);
-  end;
-  AOffset := 0;
-  // offset for indicator colours...
-  if (ListView as TksListView).ShowIndicatorColors then
-    AOffset := 16;
-  // offset for bitmaps...
-  if FImage.Bitmap.Width > 0 then AOffset := FImage.Width+8;
-  begin
-    FTitle.PlaceOffset := PointF(AOffset, FTitle.PlaceOffset.Y);
-    FSubTitle.PlaceOffset := PointF(AOffset, FSubTitle.PlaceOffset.Y);
-  end;
-  //if ShowAccessory then
-  //  FDetail.PlaceOffset := PointF(FAccessory.Width, FDetail.PlaceOffset.Y);
 end;
 
 procedure TKsListItemRow.ReleaseAllDownButtons;
@@ -1629,7 +1602,6 @@ begin
   FDetail.Align := TListItemAlign.Trailing;
   FDetail.TextColor := claDodgerblue;
   FDetail.Font.Size := 13;
-  //FDetail.Width := 150;
   FDetail.ID := C_DETAIL;
   FDetail.TextAlignment := TTextAlign.Trailing;
   FRowHeight := lv.ItemHeight;
@@ -2043,7 +2015,6 @@ begin
   if FIndicatorColor <> Value then
   begin
     FIndicatorColor := Value;
-    RealignStandardElements;
     Changed;
   end;
 end;
@@ -2351,7 +2322,11 @@ begin
   Result.SubTitle.Text := ASubTitle;
   Result.Detail.Text := ADetail;
 
-  Result.RealignStandardElements;
+  if ASubTitle <> '' then
+  begin
+    Result.Title.PlaceOffset := PointF(0, -9);
+    Result.SubTitle.PlaceOffset := PointF(0,9);
+  end;
   r.Text := '';
 end;
 
@@ -2452,6 +2427,15 @@ procedure TksListView.SetShowIndicatorColors(const Value: Boolean);
 begin
   FShowIndicatorColors := Value;
   RedrawAllRows;
+end;
+
+procedure TksListView.ShowPopupMenu(APopup: TPopupMenu; x, y: single);
+var
+  APoint: TPointF;
+begin
+  APoint := LocalToAbsolute(TPointF.Create(x, y));
+  APoint := Scene.LocalToScreen(APoint);
+  APopup.Popup(Round(APoint.X), Round(APoint.Y));
 end;
 
 function TksListView._Items: TListViewItems;
@@ -2648,11 +2632,6 @@ begin
       Result := ARow.RowObject[ICount];
       Exit;
     end;
-    {if (FMouseDownPos.x >= (AObjRect.Left - 3)) and
-      (FMouseDownPos.x <= (AObjRect.Right + 3)) then
-    begin
-      Result := ARow.RowObject[ICou/nt];
-    end; }
   end;
 end;
 
@@ -2799,12 +2778,6 @@ begin
     begin
       Application.ProcessMessages;
       // remove row selection?
-      if (FKeepSelection = False) and (ItemIndex > -1) then
-      begin
-        Sleep(100);
-        ItemIndex := -1;
-        Application.ProcessMessages;
-      end;
       ARow.ProcessClick;
 
       // left click...
@@ -2837,8 +2810,17 @@ begin
           FClickedRowObj.MouseUp;
         ARow.CacheRow;
         Invalidate;
-
       end;
+
+
+      if (FKeepSelection = False) and (ItemIndex > -1) then
+      begin
+        Sleep(100);
+        ItemIndex := -1;
+        Application.ProcessMessages;
+      end;
+
+
     end;
     ReleaseAllDownButtons;
   end
@@ -2912,8 +2894,6 @@ begin
   begin
     if FImage = nil then
     begin
-      //FResources := FRow.GetStyleResources;
-      //FImage := FResources.AccessoryImages[FAccessoryType].Normal;
       Width := FImage.Width;
       Height := FImage.Height;
     end;
@@ -3420,7 +3400,7 @@ end;
 
 constructor TksListItemStroke.Create;
 begin
-  FColor := claBlack;
+  FColor := claNull;
   FKind := TBrushKind.Solid;
   FThickness := 1;
 end;
@@ -3498,7 +3478,11 @@ begin
   Result.Title.Text := AText;
   Result.SubTitle.Text := ASubTitle;
   Result.Detail.Text := ADetail;
-  Result.RealignStandardElements;
+  if ASubTitle <> '' then
+  begin
+    Result.Title.PlaceOffset := PointF(0, -9);
+    Result.SubTitle.PlaceOffset := PointF(0,9);
+  end;
 end;
 
 function TKsListItemRows.GetCheckedCount: integer;
@@ -3641,7 +3625,6 @@ initialization
   {$IFDEF MSWINDOWS}
   DefaultScrollBarWidth := 16;
   {$ENDIF}
-  AFormFactor := TFormFactor.Create;
 
 finalization
 
@@ -3650,7 +3633,7 @@ finalization
   AFormFactor.DisposeOf;
   {$ELSE}
   AControlBitmapCache.Free;
-  AFormFactor.Free;
+
   {$ENDIF}
 
 

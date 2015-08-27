@@ -12,7 +12,7 @@ uses
   FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.StdCtrls,
   FMX.Controls.Presentation, ksSlideMenu, FMX.Layouts, FMX.Objects,
   FMX.TabControl, FMX.ListBox, FMX.ListView.Types, FMX.ListView, ksListView,
-  ksSegmentButtons, FMX.Memo {$IFDEF XE8_OR_NEWER} ,FMX.ScrollBox {$ENDIF};
+  ksSegmentButtons, FMX.Memo {$IFDEF XE8_OR_NEWER} ,FMX.ScrollBox, FMX.Menus {$ENDIF};
 
 type
   TfrmMain = class(TForm)
@@ -77,6 +77,9 @@ type
     imgSource5: TImage;
     imgSource6: TImage;
     imgSource7: TImage;
+    PopupMenu1: TPopupMenu;
+    MenuItem1: TMenuItem;
+    MenuItem2: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure btnLeftMenuClick(Sender: TObject);
     procedure SlideMenu1SelectMenuItemEvent(Sender: TObject; AId: string);
@@ -93,6 +96,9 @@ type
     procedure lvSegmentButtonsSwitchClick(Sender: TObject;
       AItem: TKsListItemRow; ASwitch: TksListItemRowSwitch; ARowID: string);
     procedure btnRightMenuClick(Sender: TObject);
+    procedure ksListView1ItemClickRight(Sender: TObject; x, y: Single;
+      AItem: TKsListItemRow; AId: string; ARowObj: TksListItemRowObj);
+    procedure MenuItem1Click(Sender: TObject);
   private
     procedure BuildTextItemsListView;
     procedure BuildProgressBarsListview;
@@ -150,7 +156,6 @@ begin
     HideLoading;
   end;
 end;
-
 
 
 
@@ -383,6 +388,12 @@ begin
   lblLoading.Visible := False;
 end;
 
+procedure TfrmMain.ksListView1ItemClickRight(Sender: TObject; x, y: Single;
+  AItem: TKsListItemRow; AId: string; ARowObj: TksListItemRowObj);
+begin
+  ksListView1.ShowPopupMenu(PopupMenu1, x, y);
+end;
+
 procedure TfrmMain.ksSegmentButtons1Change(Sender: TObject);
 begin
   case ksSegmentButtons1.ItemIndex of
@@ -418,6 +429,11 @@ begin
     False: ACheckedStr := '(Unchecked)';
   end;
   Label4.Text := ('Switch clicked: row '+IntToStr(AItem.Index+1))+'   '+ACheckedStr;
+end;
+
+procedure TfrmMain.MenuItem1Click(Sender: TObject);
+begin
+  ShowMessage(inttostr(ksListView1.ItemIndex));
 end;
 
 procedure TfrmMain.ShowLoading;
