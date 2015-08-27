@@ -3630,10 +3630,8 @@ finalization
 
   {$IFDEF IOS}
   AControlBitmapCache.DisposeOf;
-  AFormFactor.DisposeOf;
   {$ELSE}
   AControlBitmapCache.Free;
-
   {$ENDIF}
 
 
