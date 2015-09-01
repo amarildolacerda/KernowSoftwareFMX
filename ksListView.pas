@@ -1133,12 +1133,20 @@ var
   APoint: TPointF;
 begin
   inherited Render(ACanvas);
-  ATextLayout := TTextLayoutManager.DefaultTextLayout.Create;
+  ATextLayout := TTextLayoutManager.DefaultTextLayout.Create(ACanvas);
   try
     ATextLayout.BeginUpdate;
 
+
     // Setting the layout MaxSize
     APoint.X := FWidth;
+    if FWidth = 0 then
+    begin
+      if FId = C_TITLE then APoint.X := FRow.ListView.Width / 2;
+      if FId = C_SUBTITLE then APoint.X := FRow.ListView.Width / 2;
+      if FId = C_DETAIL then APoint.X := FRow.ListView.Width / 2;
+    end;
+
     APoint.Y := 1000;
     ATextLayout.MaxSize := aPoint;
 
@@ -1147,7 +1155,9 @@ begin
     ATextLayout.Font := FFont;
     ATextLayout.Color := FTextColor;
     ATextLayout.HorizontalAlign := FAlignment;
+
     ATextLayout.EndUpdate;
+
     ATextLayout.Trimming := TTextTrimming.Character;
     ATextLayout.TopLeft := Rect.TopLeft;
     ATextLayout.MaxSize := PointF(Rect.Width, Rect.Height);

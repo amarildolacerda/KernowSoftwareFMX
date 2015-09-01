@@ -151,6 +151,9 @@ begin
                                  'detail text',                       // detail text
                                  More,                                // "more" accessory
                                  Image2.Bitmap);                      // image
+
+
+
       // set image to circle shape
       ARow.Image.ImageShape := ksCircleImage;
     end;

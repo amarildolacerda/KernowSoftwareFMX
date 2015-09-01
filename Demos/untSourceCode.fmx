@@ -3,7 +3,7 @@ object frmSourceCode: TfrmSourceCode
   Top = 0
   Caption = 'Form1'
   ClientHeight = 452
-  ClientWidth = 377
+  ClientWidth = 374
   FormFactor.Width = 320
   FormFactor.Height = 480
   FormFactor.Devices = [Desktop]
@@ -12,20 +12,20 @@ object frmSourceCode: TfrmSourceCode
   object Rectangle1: TRectangle
     Align = Client
     Fill.Color = claWhite
-    Size.Width = 377.000000000000000000
+    Size.Width = 374.000000000000000000
     Size.Height = 408.000000000000000000
     Size.PlatformDefault = False
     Stroke.Kind = None
   end
   object ToolBar1: TToolBar
-    Size.Width = 377.000000000000000000
+    Size.Width = 374.000000000000000000
     Size.Height = 44.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 1
     object Label1: TLabel
       Align = Contents
       StyledSettings = [Family, Style, FontColor]
-      Size.Width = 377.000000000000000000
+      Size.Width = 374.000000000000000000
       Size.Height = 44.000000000000000000
       Size.PlatformDefault = False
       TextSettings.Font.Size = 14.000000000000000000
@@ -36,7 +36,7 @@ object frmSourceCode: TfrmSourceCode
       Align = Right
       CanFocus = False
       StyledSettings = [Family, Style, FontColor]
-      Position.X = 333.000000000000000000
+      Position.X = 330.000000000000000000
       Size.Width = 44.000000000000000000
       Size.Height = 44.000000000000000000
       Size.PlatformDefault = False
@@ -62,11 +62,11 @@ object frmSourceCode: TfrmSourceCode
   end
   object ScrollBox1: TScrollBox
     Align = Client
-    Size.Width = 377.000000000000000000
+    Size.Width = 374.000000000000000000
     Size.Height = 408.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 6
-    Viewport.Width = 377.000000000000000000
+    Viewport.Width = 374.000000000000000000
     Viewport.Height = 408.000000000000000000
     object Image1: TImage
       MultiResBitmap = <
