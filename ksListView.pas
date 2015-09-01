@@ -30,13 +30,20 @@ interface
   {$DEFINE XE8_OR_NEWER}
 {$ENDIF}
 
+{$IFDEF VER300}
+  {$DEFINE XE8_OR_NEWER}
+  {$DEFINE XE10_OR_NEWER}
+{$ENDIF}
 
 uses
   Classes, FMX.Types, FMX.Controls, FMX.ListView, Types, FMX.TextLayout,
   FMX.ListView.Types, FMX.Graphics, Generics.Collections, System.UITypes,
   {$IFDEF XE8_OR_NEWER} FMX.ImgList, {$ENDIF}
   System.UIConsts, FMX.StdCtrls, FMX.Styles.Objects, System.Generics.Collections,
-  FMX.ListBox, FMX.DateTimeCtrls, FMX.Menus;
+  FMX.ListBox, FMX.DateTimeCtrls, FMX.Menus
+  {$IFDEF XE10_OR_NEWER}, FMX.ListView.Appearances {$ENDIF}
+
+  ;
 
 const
   C_LONG_TAP_DURATION     = 5;  // 500 ms
@@ -67,13 +74,19 @@ type
   TksButtonState = (Pressed, Unpressed);
   TksListItemRowSelector = (NoSelector, DateSelector, ItemPicker);
 
+
+
   TksListView = class;
   TKsListItemRow = class;
   TksListItemRowObj = class;
   TksListItemRowSwitch = class;
   TksListItemRowButton = class;
   TksListItemRowSegmentButtons = class;
-
+  {$IFDEF XE10_OR_NEWER}
+  TksListViewItems = TAppearanceListViewItems;
+  {$ELSE}
+  TksListViewItems = TListViewItems;
+  {$ENDIF}
   TksListViewRowClickEvent = procedure(Sender: TObject; x, y: single; AItem: TKsListItemRow; AId: string; ARowObj: TksListItemRowObj) of object;
   TksListViewClickSwitchEvent = procedure(Sender: TObject; AItem: TKsListItemRow; ASwitch: TksListItemRowSwitch; ARowID: string) of object;
   TksListViewClickButtonEvent = procedure(Sender: TObject; AItem: TKsListItemRow; AButton: TksListItemRowButton; ARowID: string) of object;
@@ -455,12 +468,16 @@ type
   private
     FRows: TObjectList<TKsListItemRow>;
     FListView: TksListView;
+    {$IFDEF XE10_OR_NEWER}
+    FListViewItems: TAppearanceListViewItems;
+    {$ELSE}
     FListViewItems: TListViewItems;
+    {$ENDIF}
     function GetCheckedCount: integer;
     function GetCount: integer;
     function GetItems(index: integer): TKsListItemRow;
   public
-    constructor Create(AListView: TksListView; AItems: TListViewItems) ; virtual;
+    constructor Create(AListView: TksListView; AItems: TksListViewItems) ; virtual;
     destructor Destroy; override;
 
     procedure Add(ARow: TKsListItemRow);
@@ -555,8 +572,7 @@ type
     FKeepSelection: Boolean;
     FMouseDownTime: TDateTime;
     FOnDeleteItem: TksDeleteItemEvent;
-    function _Items: TListViewItems;
-    procedure SetItemHeight(const Value: integer);
+    function _Items: TksListViewItems;
     procedure DoScrollTimer(Sender: TObject);
     procedure SetCheckMarks(const Value: TksListViewCheckMarks);
     function RowObjectAtPoint(ARow: TKsListItemRow; x, y: single): TksListItemRowObj;
@@ -575,19 +591,21 @@ type
     { Private declarations }
   protected
     procedure SetColorStyle(AName: string; AColor: TAlphaColor);
-    procedure Resize; override;
     procedure ApplyStyle; override;
-    procedure DoItemClick(const AItem: TListViewItem); override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; x, y: single); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Single); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; x, y: single); override;
+    {$IFNDEF XE10_OR_NEWER}
     procedure DoItemChange(const AItem: TListViewItem); override;
-    procedure Paint; override;
+    {$ENDIF}
     function GetRowFromYPos(y: single): TKsListItemRow;
+    procedure SetKsItemHeight(const Value: integer);
     { Protected declarations }
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
+    procedure Paint; override;
+    procedure Resize; override;
     procedure ClearItems;
     procedure RedrawAllRows;
     function ItemsInView: TksVisibleItems;
@@ -599,7 +617,7 @@ type
     { Public declarations }
   published
     property Appearence: TksListViewAppearence read FAppearence write FAppearence;
-    property ItemHeight: integer read FItemHeight write SetItemHeight default 44;
+    property ItemHeight: integer read FItemHeight write SetKsItemHeight default 44;
     property ItemImageSize: integer read FItemImageSize write SetItemImageSize default 32;
     property OnEditModeChange;
     property OnEditModeChanging;
@@ -2156,7 +2174,7 @@ end;
 
 procedure TksListView.ClearItems;
 begin
-  TListView(Self).ClearItems;
+  TListView(Self).Items.Clear;
   Items.Clear;
 end;
 
@@ -2397,7 +2415,8 @@ begin
   end;
 end;
 
-procedure TksListView.SetItemHeight(const Value: integer);
+
+procedure TksListView.SetKsItemHeight(const Value: integer);
 begin
   BeginUpdate;
   try
@@ -2409,6 +2428,8 @@ begin
   end;
   Repaint;
 end;
+
+
 
 procedure TksListView.SetItemImageSize(const Value: integer);
 begin
@@ -2438,7 +2459,7 @@ begin
   APopup.Popup(Round(APoint.X), Round(APoint.Y));
 end;
 
-function TksListView._Items: TListViewItems;
+function TksListView._Items: TksListViewItems;
 begin
   Result := inherited Items;
 end;
@@ -2467,20 +2488,19 @@ begin
   Inc(FUpdateCount);
 end;
 
+{$IFNDEF XE10_OR_NEWER}
+
 procedure TksListView.DoItemChange(const AItem: TListViewItem);
 var
   ARow: TKsListItemRow;
 begin
-  inherited;
+  inherited DoItemChange(AItem);
   ARow := Items[AItem.Index];
   ARow.FCached := False;
   ARow.CacheRow;
 end;
 
-procedure TksListView.DoItemClick(const AItem: TListViewItem);
-begin
-  inherited;
-end;
+{$ENDIF}
 
 procedure TksListView.DoOnDeleteItem(Sender: TObject; AIndex: Integer);
 begin
@@ -2662,7 +2682,11 @@ begin
   begin
     if PtInRect(GetItemRect(ICount), PointF(1,y)) then
     begin
+      {$IFDEF XE10_OR_NEWER}
+      Result := _Items[ICount].Objects.FindDrawable('ksRow') as TKsListItemRow;;
+      {$ELSE}
       Result := _Items[ICount].Objects.FindObject('ksRow') as TKsListItemRow;;
+      {$ENDIF}
       Exit;
     end;
   end;
@@ -3507,7 +3531,7 @@ begin
   Result := FRows[index];
 end;
 
-constructor TKsListItemRows.Create(AListView: TksListView; AItems: TListViewItems);
+constructor TKsListItemRows.Create(AListView: TksListView; AItems: TksListViewItems);
 begin
   inherited Create;
   FRows := TObjectList<TKsListItemRow>.Create(False);

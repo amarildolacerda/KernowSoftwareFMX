@@ -6,13 +6,21 @@ interface
   {$DEFINE XE8_OR_NEWER}
 {$ENDIF}
 
+{$IFDEF VER300}
+  {$DEFINE XE8_OR_NEWER}
+  {$DEFINE XE10_OR_NEWER}
+{$ENDIF}
+
 uses
   System.SysUtils, System.Types, System.UITypes, System.Classes,
   System.Variants,
   FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.StdCtrls,
   FMX.Controls.Presentation, ksSlideMenu, FMX.Layouts, FMX.Objects,
   FMX.TabControl, FMX.ListBox, FMX.ListView.Types, FMX.ListView, ksListView,
-  ksSegmentButtons, FMX.Memo {$IFDEF XE8_OR_NEWER} ,FMX.ScrollBox, FMX.Menus {$ENDIF};
+  ksSegmentButtons, FMX.Memo
+  {$IFDEF XE8_OR_NEWER} ,FMX.ScrollBox, FMX.Menus {$ENDIF}
+  {$IFDEF XE10_OR_NEWER}, FMX.ListView.Appearances, FMX.ListView.Adapters.Base {$ENDIF}
+  ;
 
 type
   TfrmMain = class(TForm)
@@ -77,9 +85,6 @@ type
     imgSource5: TImage;
     imgSource6: TImage;
     imgSource7: TImage;
-    PopupMenu1: TPopupMenu;
-    MenuItem1: TMenuItem;
-    MenuItem2: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure btnLeftMenuClick(Sender: TObject);
     procedure SlideMenu1SelectMenuItemEvent(Sender: TObject; AId: string);
@@ -96,8 +101,6 @@ type
     procedure lvSegmentButtonsSwitchClick(Sender: TObject;
       AItem: TKsListItemRow; ASwitch: TksListItemRowSwitch; ARowID: string);
     procedure btnRightMenuClick(Sender: TObject);
-    procedure ksListView1ItemClickRight(Sender: TObject; x, y: Single;
-      AItem: TKsListItemRow; AId: string; ARowObj: TksListItemRowObj);
     procedure MenuItem1Click(Sender: TObject);
   private
     procedure BuildTextItemsListView;
@@ -386,12 +389,6 @@ end;
 procedure TfrmMain.HideLoading;
 begin
   lblLoading.Visible := False;
-end;
-
-procedure TfrmMain.ksListView1ItemClickRight(Sender: TObject; x, y: Single;
-  AItem: TKsListItemRow; AId: string; ARowObj: TksListItemRowObj);
-begin
-  ksListView1.ShowPopupMenu(PopupMenu1, x, y);
 end;
 
 procedure TfrmMain.ksSegmentButtons1Change(Sender: TObject);

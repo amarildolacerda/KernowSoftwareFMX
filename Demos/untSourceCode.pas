@@ -6,6 +6,11 @@ interface
   {$DEFINE XE8_OR_NEWER}
 {$ENDIF}
 
+{$IFDEF VER300}
+  {$DEFINE XE8_OR_NEWER}
+  {$DEFINE XE10_OR_NEWER}
+{$ENDIF}
+
 uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
   FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.StdCtrls,
