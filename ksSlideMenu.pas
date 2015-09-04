@@ -30,6 +30,11 @@ interface
   {$DEFINE XE8_OR_NEWER}
 {$ENDIF}
 
+{$IFDEF VER300}
+  {$DEFINE XE8_OR_NEWER}
+  {$DEFINE XE10_OR_NEWER}
+{$ENDIF}
+
 
 uses System.UITypes, FMX.Controls, FMX.Layouts, FMX.Objects, System.Classes,
   FMX.Types, Generics.Collections, FMX.Graphics, System.UIConsts, FMX.Effects,
