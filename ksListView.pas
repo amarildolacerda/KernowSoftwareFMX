@@ -476,6 +476,7 @@ type
     function GetCheckedCount: integer;
     function GetCount: integer;
     function GetItems(index: integer): TKsListItemRow;
+    procedure ReindexRows;
   public
     constructor Create(AListView: TksListView; AItems: TksListViewItems) ; virtual;
     destructor Destroy; override;
@@ -3541,6 +3542,14 @@ begin
   Result := FRows[index];
 end;
 
+procedure TKsListItemRows.ReindexRows;
+var
+  ICount: integer;
+begin
+  for ICount := 0 to Count-1 do
+    Items[ICount].Index := ICount;
+end;
+
 constructor TKsListItemRows.Create(AListView: TksListView; AItems: TksListViewItems);
 begin
   inherited Create;
@@ -3552,6 +3561,8 @@ end;
 procedure TKsListItemRows.Delete(index: integer);
 begin
   FRows.Delete(index);
+  FListView._Items.Delete(index);
+  ReindexRows;
 end;
 
 destructor TKsListItemRows.Destroy;
