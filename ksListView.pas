@@ -573,6 +573,7 @@ type
     FKeepSelection: Boolean;
     FMouseDownTime: TDateTime;
     FOnDeleteItem: TksDeleteItemEvent;
+    FHeaderHeight: integer;
     function _Items: TksListViewItems;
     procedure DoScrollTimer(Sender: TObject);
     procedure SetCheckMarks(const Value: TksListViewCheckMarks);
@@ -601,6 +602,7 @@ type
     {$ENDIF}
     function GetRowFromYPos(y: single): TKsListItemRow;
     procedure SetKsItemHeight(const Value: integer);
+    procedure SetKsHeaderHeight(const Value: integer);
     { Protected declarations }
   public
     constructor Create(AOwner: TComponent); override;
@@ -619,6 +621,7 @@ type
   published
     property Appearence: TksListViewAppearence read FAppearence write FAppearence;
     property ItemHeight: integer read FItemHeight write SetKsItemHeight default 44;
+    property HeaderHeight: integer read FHeaderHeight write SetKsHeaderHeight default 44;
     property ItemImageSize: integer read FItemImageSize write SetItemImageSize default 32;
     property OnEditModeChange;
     property OnEditModeChanging;
@@ -883,8 +886,8 @@ begin
     end;
   end;
   case VertAlign of
-    TListItemAlign.Center: OffsetRect(FRect, 0, (FRow.Owner.Height - FRect.Height) / 2);
-    TListItemAlign.Trailing: OffsetRect(FRect, 0, (FRow.Owner.Height - FRect.Height));
+    TListItemAlign.Center: OffsetRect(FRect, 0, (FRow.Height - FRect.Height) / 2);
+    TListItemAlign.Trailing: OffsetRect(FRect, 0, (FRow.Height - FRect.Height));
   end;
 
   OffsetRect(FRect, 0, FPlaceOffset.Y);
@@ -1686,6 +1689,8 @@ var
 begin
   lv := TksListView(Owner.Parent);
   Result := lv.ItemHeight;
+  if Purpose = TListItemPurpose.Header then
+    Result := lv.HeaderHeight;
   if AScale then
     Result := Result * GetScreenScale;
 end;
@@ -2221,6 +2226,7 @@ begin
   AControlBitmapCache.FListViews.Add(Self);
 
   FItemHeight := 44;
+  FHeaderHeight := 44;
   FClickTimer := TTimer.Create(Self);
   FLastWidth := 0;
   FSelectOnRightClick := False;
@@ -2306,9 +2312,10 @@ function TKsListItemRows.AddHeader(AText: string): TKsListItemRow;
 begin
   Result := AddRow('', '', None);
   Result.Owner.Purpose := TListItemPurpose.Header;
+  Result.Height := FListView.HeaderHeight;
+  Result.Owner.Height := FListView.HeaderHeight;
   Result.Title.Text := AText;
   Result.VertAlign := TListItemAlign.Trailing;
-  Result.CacheRow;
 end;
 
 function TKsListItemRows.AddRow(AText, ADetail: string; AAccessory: TksAccessoryType;
@@ -2427,14 +2434,27 @@ begin
 end;
 
 
+procedure TksListView.SetKsHeaderHeight(const Value: integer);
+begin
+  BeginUpdate;
+  try
+    FHeaderHeight := Value;
+    ItemAppearance.HeaderHeight := Value;
+    RedrawAllRows;
+  finally
+    EndUpdate;
+  end;
+  Repaint;
+end;
+
 procedure TksListView.SetKsItemHeight(const Value: integer);
 begin
   BeginUpdate;
   try
     FItemHeight := Value;
+    ItemAppearance.ItemHeight := Value;
     RedrawAllRows;
   finally
-    ItemAppearance.ItemHeight := Value;
     EndUpdate;
   end;
   Repaint;
@@ -2596,8 +2616,8 @@ begin
   FIsShowing := True;
   if not (csDesigning in ComponentState) then
   begin
-    if (IsUpdating) then
-      Exit;
+    //if (IsUpdating) then
+    //  Exit;
     if (AControlBitmapCache <> nil) then
       if AControlBitmapCache.ImagesCached = False then
         Exit;
