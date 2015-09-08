@@ -62,6 +62,16 @@ const
   C_SUBTITLE = 'SUBTITLE';
   C_DETAIL   = 'DETAIL';
 
+  {$IFDEF ANDROID}
+  C_PAGE_SIZE = 30;
+  {$ENDIF}
+  {$IFDEF IOS}
+  C_PAGE_SIZE = 50;
+  {$ENDIF}
+  {$IFDEF MSWINDOWS}
+  C_PAGE_SIZE = 30;
+  {$ENDIF}
+
 type
   TksListViewCheckMarks = (ksCmNone, ksCmSingleSelect, ksCmMultiSelect);
   TksListViewCheckStyle = (ksCmsDefault, ksCmsRed, ksCmsGreen, ksCmsBlue);
@@ -73,11 +83,13 @@ type
     Play, Refresh, Reply, Search, Stop, Trash);
   TksButtonState = (Pressed, Unpressed);
   TksListItemRowSelector = (NoSelector, DateSelector, ItemPicker);
+  TksScrollDirection = (sdUp, sdDown);
 
 
 
   TksListView = class;
   TKsListItemRow = class;
+  TKsListItemRows = class;
   TksListItemRowObj = class;
   TksListItemRowSwitch = class;
   TksListItemRowButton = class;
@@ -95,7 +107,6 @@ type
   TksListViewSelectDateEvent = procedure(Sender: TObject; AItem: TksListItemRow; ASelectedDate: TDateTime; var AAllow: Boolean) of object;
   TksListViewSelectPickerItem = procedure(Sender: TObject; AItem: TksListItemRow; ASelected: string; var AAllow: Boolean) of object;
   TksDeleteItemEvent = procedure(Sender: TObject; AIndex: Integer) of object;
-
   // ------------------------------------------------------------------------------
 
   TksVisibleItems = record
@@ -393,11 +404,15 @@ type
     procedure ProcessClick;
     procedure Changed;
     procedure ReleaseAllDownButtons;
+  protected
   public
     constructor Create(const AOwner: TListItem); override;
     destructor Destroy; override;
+    procedure Render(const Canvas: TCanvas; const DrawItemIndex: Integer; const DrawStates: TListItemDrawStates;
+      const SubPassNo: Integer = 0); override;
     procedure Assign(Source: TPersistent); override;
     procedure CacheRow;
+    procedure ReleaseRow;
     // bitmap functions...
     function DrawBitmap(ABmp: TBitmap; x, AWidth, AHeight: single): TksListItemRowImage overload;
     {$IFDEF XE8_OR_NEWER}
@@ -481,6 +496,7 @@ type
     constructor Create(AListView: TksListView; AItems: TksListViewItems) ; virtual;
     destructor Destroy; override;
 
+    //procedure CacheRowsInThread;
     procedure Add(ARow: TKsListItemRow);
     function AddRow(AText, ADetail: string;
                     AAccessory: TksAccessoryType;
@@ -537,6 +553,8 @@ type
   // ------------------------------------------------------------------------------
 
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or pidiOSDevice or pidAndroid)]
+
+
   TksListView = class(TCustomListView)
   private
     FScreenScale: single;
@@ -574,7 +592,12 @@ type
     FMouseDownTime: TDateTime;
     FOnDeleteItem: TksDeleteItemEvent;
     FHeaderHeight: integer;
+    FScrollDirection: TksScrollDirection;
+    FLastRenderedIndex: integer;
+    FLoadingBitmap: TBitmap;
+    function PageFromRowIndex(AIndex: integer): integer;
     function _Items: TksListViewItems;
+
     procedure DoScrollTimer(Sender: TObject);
     procedure SetCheckMarks(const Value: TksListViewCheckMarks);
     function RowObjectAtPoint(ARow: TKsListItemRow; x, y: single): TksListItemRowObj;
@@ -589,7 +612,11 @@ type
     procedure DoSelectPickerItem(Sender: TObject);
     procedure ComboClosePopup(Sender: TObject);
     procedure DoOnDeleteItem(Sender: TObject; AIndex: Integer);
-
+    procedure DoRenderRow(ARow: TKsListItemRow);
+    procedure CachePages;
+    function LoadingBitmap: TBitmap;
+    //procedure CachePage(APage: integer);
+    //procedure ReleasePage(APage: integer);
     { Private declarations }
   protected
     procedure SetColorStyle(AName: string; AColor: TAlphaColor);
@@ -617,6 +644,7 @@ type
     function IsShowing: Boolean;
     property Items: TKsListItemRows read FItems;
     procedure ShowPopupMenu(APopup: TPopupMenu; x, y: single);
+
     { Public declarations }
   published
     property Appearence: TksListViewAppearence read FAppearence write FAppearence;
@@ -748,7 +776,7 @@ procedure Register;
 implementation
 
 uses SysUtils, FMX.Platform, FMX.SearchBox, FMX.Objects,
-  System.StrUtils, DateUtils, FMX.Forms;
+  System.StrUtils, DateUtils, FMX.Forms, Math;
 
 type
   TksControlBitmapCache = class
@@ -787,6 +815,9 @@ type
 var
   AControlBitmapCache: TksControlBitmapCache;
   DefaultScrollBarWidth: integer = 7;
+
+  ATextLayout: TTextLayout;
+
 
 procedure Register;
 begin
@@ -1078,38 +1109,29 @@ end;
 
 function TksListItemRowText.CalculateTextHeight(ACanvas: TCanvas): single;
 var
-  ATextLayout: TTextLayout;
   APoint: TPointF;
 begin
-  ATextLayout := TTextLayoutManager.DefaultTextLayout.Create;
-  try
-    ATextLayout.BeginUpdate;
+  ATextLayout.BeginUpdate;
 
-    // Setting the layout MaxSize
-    APoint.X := FWidth;
-    if FWidth = 0 then
-    begin
-      if FId = C_TITLE then APoint.X := FRow.ListView.Width / 2;
-      if FId = C_SUBTITLE then APoint.X := FRow.ListView.Width / 2;
-      if FId = C_DETAIL then APoint.X := FRow.ListView.Width / 2;
-    end;
-
-    APoint.Y := 1000;
-    ATextLayout.MaxSize := aPoint;
-
-    ATextLayout.Text := FText;
-    ATextLayout.WordWrap := FWordWrap;
-    ATextLayout.Font := FFont;
-    ATextLayout.HorizontalAlign := FAlignment;
-    ATextLayout.EndUpdate;
-    Result := ATextLayout.Height;
-  finally
-    {$IFDEF IOS}
-    ATextLayout.DisposeOf;
-    {$ELSE}
-    ATextLayout.Free;
-    {$ENDIF}
+  // Setting the layout MaxSize
+  APoint.X := FWidth;
+  if FWidth = 0 then
+  begin
+    if FId = C_TITLE then APoint.X := FRow.ListView.Width / 2;
+    if FId = C_SUBTITLE then APoint.X := FRow.ListView.Width / 2;
+    if FId = C_DETAIL then APoint.X := FRow.ListView.Width / 2;
   end;
+
+  APoint.Y := 1000;
+  ATextLayout.MaxSize := aPoint;
+
+  ATextLayout.Text := FText;
+  ATextLayout.WordWrap := FWordWrap;
+  ATextLayout.Font := FFont;
+  ATextLayout.HorizontalAlign := FAlignment;
+  ATextLayout.EndUpdate;
+  Result := ATextLayout.Height;
+
 end;
 
 constructor TksListItemRowText.Create(ARow: TKsListItemRow);
@@ -1133,47 +1155,37 @@ end;
 
 function TksListItemRowText.Render(ACanvas: TCanvas): Boolean;
 var
-  ATextLayout: TTextLayout;
   APoint: TPointF;
 begin
   inherited Render(ACanvas);
-  ATextLayout := TTextLayoutManager.DefaultTextLayout.Create(ACanvas);
-  try
-    ATextLayout.BeginUpdate;
+  ATextLayout.BeginUpdate;
 
 
-    // Setting the layout MaxSize
-    APoint.X := FWidth;
-    if FWidth = 0 then
-    begin
-      if FId = C_TITLE then APoint.X := FRow.ListView.Width / 2;
-      if FId = C_SUBTITLE then APoint.X := FRow.ListView.Width / 2;
-      if FId = C_DETAIL then APoint.X := FRow.ListView.Width / 2;
-    end;
-
-    APoint.Y := 1000;
-    ATextLayout.MaxSize := aPoint;
-
-    ATextLayout.Text := FText;
-    ATextLayout.WordWrap := FWordWrap;
-    ATextLayout.Font := FFont;
-    ATextLayout.Color := FTextColor;
-    ATextLayout.HorizontalAlign := FAlignment;
-
-    ATextLayout.EndUpdate;
-
-    ATextLayout.Trimming := TTextTrimming.Character;
-    ATextLayout.TopLeft := Rect.TopLeft;
-    ATextLayout.MaxSize := PointF(Rect.Width, Rect.Height);
-    ATextLayout.RenderLayout(ACanvas);
-    Result := True;
-  finally
-    {$IFDEF IOS}
-    ATextLayout.DisposeOf;
-    {$ELSE}
-    ATextLayout.Free;
-    {$ENDIF}
+  // Setting the layout MaxSize
+  APoint.X := FWidth;
+  if FWidth = 0 then
+  begin
+    if FId = C_TITLE then APoint.X := FRow.ListView.Width / 2;
+    if FId = C_SUBTITLE then APoint.X := FRow.ListView.Width / 2;
+    if FId = C_DETAIL then APoint.X := FRow.ListView.Width / 2;
   end;
+
+  APoint.Y := 1000;
+  ATextLayout.MaxSize := aPoint;
+
+  ATextLayout.Text := FText;
+  ATextLayout.WordWrap := FWordWrap;
+  ATextLayout.Font := FFont;
+  ATextLayout.Color := FTextColor;
+  ATextLayout.HorizontalAlign := FAlignment;
+
+  ATextLayout.EndUpdate;
+
+  ATextLayout.Trimming := TTextTrimming.Character;
+  ATextLayout.TopLeft := Rect.TopLeft;
+  ATextLayout.MaxSize := PointF(Rect.Width, Rect.Height);
+  ATextLayout.RenderLayout(ACanvas);
+  Result := True;
 end;
 
 procedure TksListItemRowText.SetAlignment(const Value: TTextAlign);
@@ -1443,20 +1455,31 @@ procedure TKsListItemRow.CacheRow;
 var
   ICount: integer;
   AMargins: TBounds;
-  ABmpWidth: single;
   lv: TksListView;
   ADetailHeight: single;
   {$IFDEF XE8_OR_NEWER}
   AImage: TBitmap;
   ASize: TSize;
   {$ENDIF}
+  ABmpWidth: single;
 begin
+
   if FCached then
     Exit;
+
+  if OwnsBitmap = False then
+  begin
+    Bitmap := TBitmap.Create(1,1);
+    Bitmap.BitmapScale := GetScreenScale;
+    OwnsBitmap := True;
+    //
+  end;
+
   lv := (ListView as TksListView);
   AMargins := lv.ItemSpaces;
   BeginUpdate;
   try
+
     ABmpWidth := (Round(RowWidth)) - Round((AMargins.Left + AMargins.Right)) * GetScreenScale;
     Bitmap.Height := Round(RowHeight);
 
@@ -1468,7 +1491,8 @@ begin
       Height := Round(ADetailHeight * GetScreenScale);
       Bitmap.Height := Round(Height);
     end;
-    Bitmap.Width := Round(ABmpWidth) ;
+
+    Bitmap.Width := Round(ABmpWidth);
 
     {$IFDEF MSWINDOWS}
     ScalingMode := TImageScalingMode.Original;
@@ -1583,9 +1607,28 @@ begin
   end;
 end;
 
+procedure TksListItemRow.ReleaseRow;
+begin
+  if OwnsBitmap then
+  begin
+    OwnsBitmap := False;
+    Bitmap := ListView.LoadingBitmap;
+    FCached := False;
+  end;
+end;
+
+procedure TksListItemRow.Render(const Canvas: TCanvas;
+  const DrawItemIndex: Integer; const DrawStates: TListItemDrawStates;
+  const SubPassNo: Integer);
+begin
+  if OwnsBitmap = False then
+    Bitmap := ListView.LoadingBitmap;
+  ListView.DoRenderRow(Self);
+  inherited;
+end;
+
 constructor TKsListItemRow.Create(const AOwner: TListItem);
 var
-  ABmp: TBitmap;
   lv: TksListView;
 begin
   inherited Create(AOwner);
@@ -1601,19 +1644,14 @@ begin
   {$ENDIF}
   PlaceOffset.X := 0;
   FIndicatorColor := claNull;
-  OwnsBitmap := True;
   FList := TksListItemObjects.Create(True);
   FList.OnNotify := DoOnListChanged;
 
   FImage.Width := lv.ItemImageSize;
   FImage.Height := lv.ItemImageSize;
 
-  ABmp := TBitmap.Create;
-  ABmp.BitmapScale := GetScreenScale;
-  ABmp.Width := Round(RowWidth);
-  ABmp.Height := Round(RowHeight);
-  ABmp.Clear(claNull);
-  Bitmap := ABmp;
+  OwnsBitmap := False;
+
   FTextColor := C_DEFAULT_TEXT_COLOR;
   FFont := TFont.Create;
   FCached := False;
@@ -1734,8 +1772,6 @@ function TKsListItemRow.GetSearchIndex: string;
 begin
   Result := TListViewItem(Owner).Text;
 end;
-
-
 
 procedure TKsListItemRow.ProcessClick;
 var
@@ -2035,6 +2071,8 @@ begin
   FFont.Style := AStyle;
 end;
 
+
+
 procedure TKsListItemRow.SetImageIndex(const Value: integer);
 begin
   if FImageIndex <> Value then
@@ -2071,6 +2109,7 @@ begin
     Changed;
   end;
 end;
+
 
 // ------------------------------------------------------------------------------
 
@@ -2188,6 +2227,26 @@ begin
   FListViewItems.Clear;
 end;
 
+procedure TksListView.CachePages;
+var
+  ACurrentPage: integer;
+  ICount: integer;
+  AStartIndex, AEndIndex: integer;
+begin
+  ACurrentPage := PageFromRowIndex(FLastRenderedIndex);
+  AStartIndex := Max(((ACurrentPage-1) * C_PAGE_SIZE), 0);
+  AEndIndex := Min(((ACurrentPage+1) * C_PAGE_SIZE), Items.Count-1);
+  for ICount := 0 to Items.Count-1 do
+  begin
+    if (ICount in [AStartIndex..AEndIndex]) then
+      Items[ICount].CacheRow
+    else
+      Items[ICount].ReleaseRow;
+  end;
+  Invalidate;
+
+end;
+
 procedure TksListView.ClearItems;
 begin
   TListView(Self).Items.Clear;
@@ -2227,6 +2286,7 @@ begin
 
   FItemHeight := 44;
   FHeaderHeight := 44;
+
   FClickTimer := TTimer.Create(Self);
   FLastWidth := 0;
   FSelectOnRightClick := False;
@@ -2242,6 +2302,7 @@ begin
   FShowIndicatorColors := False;
   FKeepSelection := False;
   ItemSpaces.Right := 0;
+  FScrollDirection := sdDown;
 end;
 
 destructor TksListView.Destroy;
@@ -2467,7 +2528,6 @@ begin
   BeginUpdate;
   try
     FItemImageSize := Value;
-    RedrawAllRows;
   finally
     ItemAppearance.ItemHeight := Value;
     EndUpdate;
@@ -2540,28 +2600,40 @@ begin
     FOnDeleteItem(Sender, AIndex);
 end;
 
+procedure TksListView.DoRenderRow(ARow: TKsListItemRow);
+begin
+  FLastRenderedIndex := ARow.Index;
+end;
+
 procedure TksListView.DoScrollTimer(Sender: TObject);
 var
   AVisibleItems: TksVisibleItems;
 begin
-
   if FScrolling = False then
   begin
     if Trunc(ScrollViewPos) <> FLastScrollPos then
     begin
       FScrolling := True;
+      FScrollTimer.Interval := 100;
       FLastScrollPos := Trunc(ScrollViewPos);
+      if ScrollViewPos > FLastScrollPos then
+        FScrollDirection := sdDown
+      else
+        FScrollDirection := sdUp;
       Exit;
     end;
   end
   else
   begin
+
     if FLastScrollPos = Trunc(ScrollViewPos) then
     begin
       FScrolling := False;
+      FScrollTimer.Interval := 500;
+      CachePages;
+
       if Assigned(FOnFinishScrolling) then
       begin
-        AVisibleItems := ItemsInView;
         FOnFinishScrolling(Self, AVisibleItems.IndexStart, AVisibleItems.Count);
       end;
     end;
@@ -2611,13 +2683,16 @@ end;
 
 
 
+function TksListView.PageFromRowIndex(AIndex: integer): integer;
+begin
+  Result := AIndex div C_PAGE_SIZE;
+end;
+
 procedure TksListView.Paint;
 begin
   FIsShowing := True;
   if not (csDesigning in ComponentState) then
   begin
-    //if (IsUpdating) then
-    //  Exit;
     if (AControlBitmapCache <> nil) then
       if AControlBitmapCache.ImagesCached = False then
         Exit;
@@ -2655,7 +2730,6 @@ begin
   begin
     ARow := Items[ICount];
     ARow.ReleaseAllDownButtons;
-
   end;
 end;
 
@@ -2687,21 +2761,14 @@ begin
 end;
 
 procedure TksListView.EndUpdate;
-var
-  ICount: integer;
-  ARow: TKsListItemRow;
 begin
   inherited EndUpdate;
   Dec(FUpdateCount);
   if FUpdateCount > 0 then
     Exit;
-  for ICount := 0 to Items.Count - 1 do
-  begin
-    ARow := Items[ICount];
-    if ARow <> nil then
-      ARow.CacheRow;
-  end;
-  Invalidate;
+  if Items.Count = 0 then
+    Exit;
+  CachePages;
 end;
 
 function TksListView.GetRowFromYPos(y: single): TKsListItemRow;
@@ -2769,6 +2836,23 @@ begin
       Result.Count := Result.Count + 1;
     end;
   end;
+end;
+
+function TksListView.LoadingBitmap: TBitmap;
+begin
+  if FLoadingBitmap = nil then
+  begin
+    FLoadingBitmap := TBitmap.Create;
+    FLoadingBitmap.BitmapScale := GetScreenScale;
+    FLoadingBitmap.Width := Round(Width * GetScreenScale);
+    FLoadingBitmap.Height := Round(FItemHeight * GetScreenScale);
+    FLoadingBitmap.Clear(claNull);
+    FLoadingBitmap.Canvas.BeginScene;
+    FLoadingBitmap.Canvas.Fill.Color := claDimgray;
+    FLoadingBitmap.Canvas.FillText(RectF(0, 0, 200, FItemHeight), 'PLEASE WAIT...', False, 1, [], TTextAlign.Leading);
+    FLoadingBitmap.Canvas.EndScene;
+  end;
+  Result := FLoadingBitmap;
 end;
 
 procedure TksListView.MouseDown(Button: TMouseButton; Shift: TShiftState;
@@ -3199,7 +3283,6 @@ function TksControlBitmapCache.CreateImageCache: Boolean;
 var
   ASwitch: TSwitch;
   AForm: TFmxObject;
-  ICount: integer;
 begin
   Result := False;
   if FCreatingCache then
@@ -3266,8 +3349,6 @@ begin
   end;
 
   Application.ProcessMessages;
-  for ICount := 0 to FListViews.Count-1 do
-    TksListView(FListViews[ICount]).RedrawAllRows;
 end;
 
 
@@ -3576,6 +3657,7 @@ begin
   FRows := TObjectList<TKsListItemRow>.Create(False);
   FListView := AListView;
   FListViewItems := AItems;
+
 end;
 
 procedure TKsListItemRows.Delete(index: integer);
@@ -3589,6 +3671,7 @@ destructor TKsListItemRows.Destroy;
 begin
   {$IFDEF IOS}
   FRows.DisposeOf;
+  FRowThread.DisposeOf;
   {$ELSE}
   FRows.Free;
   {$ENDIF}
@@ -3687,6 +3770,7 @@ end;
 
 initialization
 
+  ATextLayout := TTextLayoutManager.DefaultTextLayout.Create;
   {$IFDEF MSWINDOWS}
   DefaultScrollBarWidth := 16;
   {$ENDIF}
@@ -3695,8 +3779,10 @@ finalization
 
   {$IFDEF IOS}
   AControlBitmapCache.DisposeOf;
+  ATextLayout.DisposeOf;
   {$ELSE}
   AControlBitmapCache.Free;
+  ATextLayout.Free;
   {$ENDIF}
 
 
