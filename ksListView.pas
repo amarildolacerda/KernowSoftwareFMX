@@ -63,7 +63,7 @@ const
   C_DETAIL   = 'DETAIL';
 
   {$IFDEF ANDROID}
-  C_PAGE_SIZE = 50
+  C_PAGE_SIZE = 50;
   {$ENDIF}
   {$IFDEF IOS}
   C_PAGE_SIZE = 50;
