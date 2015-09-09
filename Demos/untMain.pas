@@ -110,8 +110,6 @@ type
     procedure BuildAccessoryListView;
     procedure BuildCheckListView;
     procedure BuildEverythingListView;
-    procedure ShowLoading;
-    procedure HideLoading;
     { Private declarations }
   protected
     procedure DoShow; override;
@@ -141,10 +139,9 @@ var
 begin
   if ksListView1.Items.Count > 0 then
     Exit;
-  ShowLoading;
   ksListview1.BeginUpdate;
   try
-    for ICount := 1 to 30 do
+    for ICount := 1 to 100 do
     begin
       ARow := ksListview1.Items.AddRow('Line '+InttoStr(ICount),      // main title
                                  'a sub title for '+IntToStr(ICount), // subtitle
@@ -159,7 +156,6 @@ begin
     end;
   finally
     ksListview1.EndUpdate;
-    HideLoading;
   end;
 end;
 
@@ -179,7 +175,6 @@ var
 begin
   if lvSmoothScrolling.Items.Count > 0 then
     Exit;
-  ShowLoading;
   lvSmoothScrolling.BeginUpdate;
   try
     for ICount := 1 to 30 do
@@ -201,7 +196,6 @@ begin
     end;
   finally
     lvSmoothScrolling.EndUpdate;
-    HideLoading;
   end;
 end;
 
@@ -216,7 +210,6 @@ var
 begin
   if lvSegmentButtons.Items.Count > 0 then
     Exit;
-  ShowLoading;
   lvSegmentButtons.BeginUpdate;
   try
 
@@ -239,7 +232,6 @@ begin
 
   finally
     lvSegmentButtons.EndUpdate;
-    HideLoading;
   end;
 end;
 
@@ -250,7 +242,6 @@ procedure TfrmMain.BuildIndicatorListView;
 begin
   if lvIndicators.Items.Count > 0 then
     Exit;
-  ShowLoading;
   lvIndicators.BeginUpdate;
   try
     lvIndicators.Items.AddRow('Green', 'indicator color', 'some detail', More).IndicatorColor := claGreen;
@@ -265,7 +256,6 @@ begin
     lvIndicators.Items.AddRow('Black', 'indicator color', 'some detail', More).IndicatorColor := claBlack;
   finally
     lvIndicators.EndUpdate;
-    HideLoading;
   end;
 end;
 
@@ -275,7 +265,6 @@ var
 begin
   if lvProgressBars.Items.Count > 0 then
     Exit;
-  ShowLoading;
 
   lvProgressBars.BeginUpdate;
   with lvProgressBars.Items do
@@ -301,7 +290,6 @@ begin
     end;
   end;
 
-  HideLoading;
 end;
 
 procedure TfrmMain.btnRightMenuClick(Sender: TObject);
@@ -321,7 +309,6 @@ procedure TfrmMain.BuildAccessoryListView;
 begin
   if lvAccessorys.Items.Count > 0 then
     Exit;
-  ShowLoading;
   lvAccessorys.BeginUpdate;
   try
     lvAccessorys.Items.AddRow('No Accessory', '', None);
@@ -330,7 +317,6 @@ begin
     lvAccessorys.Items.AddRow('"Detail" Accessory', '', Detail);
   finally
     lvAccessorys.EndUpdate;
-    HideLoading;
   end;
 end;
 
@@ -340,11 +326,9 @@ var
 begin
   if lvCheckList.Items.Count > 0 then
     Exit;
-  ShowLoading;
   lvCheckList.BeginUpdate;
   for ICount := 1 to 50 do
     lvCheckList.Items.AddRow('Item '+IntToStr(ICount), '', '', None);
-  HideLoading;
   lvCheckList.EndUpdate;
 end;
 
@@ -384,14 +368,6 @@ begin
   ksSegmentButtons1.AddButton('RED', 'RED');
   ksSegmentButtons1.AddButton('GREEN', 'GREEN');
   ksSegmentButtons1.AddButton('BLUE', 'BLUE');
-end;
-
-
-
-
-procedure TfrmMain.HideLoading;
-begin
-  lblLoading.Visible := False;
 end;
 
 procedure TfrmMain.ksSegmentButtons1Change(Sender: TObject);
@@ -434,15 +410,6 @@ end;
 procedure TfrmMain.MenuItem1Click(Sender: TObject);
 begin
   ShowMessage(inttostr(ksListView1.ItemIndex));
-end;
-
-procedure TfrmMain.ShowLoading;
-begin
-  lblLoading.Position.X := (FormFactor.Width - lblLoading.Width) / 2;
-  lblLoading.Position.Y := (FormFactor.Height - lblLoading.Height) / 2;
-  lblLoading.Visible := True;
-  lblLoading.BringToFront;
-  Application.ProcessMessages;
 end;
 
 procedure TfrmMain.SlideMenu1AfterSlideOut(Sender: TObject);

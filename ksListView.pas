@@ -63,13 +63,13 @@ const
   C_DETAIL   = 'DETAIL';
 
   {$IFDEF ANDROID}
-  C_PAGE_SIZE = 30;
+  C_PAGE_SIZE = 50
   {$ENDIF}
   {$IFDEF IOS}
   C_PAGE_SIZE = 50;
   {$ENDIF}
   {$IFDEF MSWINDOWS}
-  C_PAGE_SIZE = 30;
+  C_PAGE_SIZE = 500;
   {$ENDIF}
 
 type
@@ -595,7 +595,6 @@ type
     FScrollDirection: TksScrollDirection;
     FLastRenderedIndex: integer;
     FLoadingBitmap: TBitmap;
-    function PageFromRowIndex(AIndex: integer): integer;
     function _Items: TksListViewItems;
 
     procedure DoScrollTimer(Sender: TObject);
@@ -2229,22 +2228,19 @@ end;
 
 procedure TksListView.CachePages;
 var
-  ACurrentPage: integer;
   ICount: integer;
   AStartIndex, AEndIndex: integer;
 begin
-  ACurrentPage := PageFromRowIndex(FLastRenderedIndex);
-  AStartIndex := Max(((ACurrentPage-1) * C_PAGE_SIZE), 0);
-  AEndIndex := Min(((ACurrentPage+1) * C_PAGE_SIZE), Items.Count-1);
+  AStartIndex := Max(FLastRenderedIndex-C_PAGE_SIZE, 0);
+  AEndIndex := AStartIndex + (C_PAGE_SIZE * 2);
   for ICount := 0 to Items.Count-1 do
   begin
-    if (ICount in [AStartIndex..AEndIndex]) then
+    if (ICount >= AStartIndex) and (ICount <= AEndIndex) then
       Items[ICount].CacheRow
     else
       Items[ICount].ReleaseRow;
   end;
   Invalidate;
-
 end;
 
 procedure TksListView.ClearItems;
@@ -2679,13 +2675,6 @@ begin
     ARow.Cached := False;
     ARow.CacheRow;
   end;
-end;
-
-
-
-function TksListView.PageFromRowIndex(AIndex: integer): integer;
-begin
-  Result := AIndex div C_PAGE_SIZE;
 end;
 
 procedure TksListView.Paint;
