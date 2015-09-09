@@ -3671,7 +3671,6 @@ destructor TKsListItemRows.Destroy;
 begin
   {$IFDEF IOS}
   FRows.DisposeOf;
-  FRowThread.DisposeOf;
   {$ELSE}
   FRows.Free;
   {$ENDIF}
