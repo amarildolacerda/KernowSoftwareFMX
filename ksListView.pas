@@ -398,6 +398,8 @@ type
     procedure SetChecked(const Value: Boolean);
     function GetPurpose: TListItemPurpose;
     procedure SetPurpose(const Value: TListItemPurpose);
+    function GetSearchText: string;
+    procedure SetSearchText(const Value: string);
     property ListView: TksListView read GetListView;
     procedure DoOnListChanged(Sender: TObject; const Item: TksListItemRowObj;
       Action: TCollectionNotification);
@@ -480,6 +482,7 @@ type
     property CanSelect: Boolean read FCanSelect write SetCanSelect default True;
     property Purpose: TListItemPurpose read GetPurpose write SetPurpose;
     property Selector: TksListItemRowSelector read FSelector write FSelector;
+    property SearchText: string read GetSearchText write SetSearchText;
   end;
 
 
@@ -1811,6 +1814,11 @@ begin
   Result := TListViewItem(Owner).Text;
 end;
 
+function TksListItemRow.GetSearchText: string;
+begin
+  Result := (Owner as TListViewItem).Text;
+end;
+
 procedure TKsListItemRow.ProcessClick;
 var
   ICount: integer;
@@ -2137,6 +2145,11 @@ end;
 procedure TKsListItemRow.SetSearchIndex(const Value: string);
 begin
   TListViewItem(Owner).Text := Value;
+end;
+
+procedure TksListItemRow.SetSearchText(const Value: string);
+begin
+  (Owner as TListViewItem).Text := Value;
 end;
 
 procedure TKsListItemRow.SetShowAccessory(const Value: Boolean);
@@ -2629,7 +2642,8 @@ end;
 
 procedure TksListView.DoOnDeleteItem(Sender: TObject; AIndex: Integer);
 begin
-  Items.Delete(Aindex);
+  _Items.Delete(AIndex);
+  //Items.Delete(Aindex);
   if Assigned(FOnDeleteItem) then
     FOnDeleteItem(Sender, AIndex);
 end;
@@ -3620,7 +3634,6 @@ var
 begin
   r := FListView.AddItem;
   r.Height := FListView.ItemHeight;
-
   Result := TKsListItemRow.Create(r);
   Add(Result);
   Result.Index := Count-1;
@@ -3648,6 +3661,7 @@ begin
     Result.Title.PlaceOffset := PointF(0, -9);
     Result.SubTitle.PlaceOffset := PointF(0,9);
   end;
+  Result.SearchText := AText+ASubtitle+ADetail;
 end;
 
 function TKsListItemRows.GetCheckedCount: integer;
