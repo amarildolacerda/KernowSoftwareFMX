@@ -579,7 +579,6 @@ type
     FOnSwitchClicked: TksListViewClickSwitchEvent;
     FOnButtonClicked: TksListViewClickButtonEvent;
     FOnSegmentButtonClicked: TksListViewClickSegmentButtonEvent;
-    FCacheTimer: TTimer;
     FScrollTimer: TTimer;
     FLastScrollPos: integer;
     FScrolling: Boolean;
@@ -801,6 +800,7 @@ type
     function GetSwitchImage(AState: TksButtonState): TBitmap;
     function GetButtonImage(AWidth, AHeight: single; AText: string; ATintColor: TAlphaColor;
       AState: TksButtonState; AStyleLookup: string): TBitmap;
+    procedure InvalidateListViews;
     procedure OnCacheTimer(Sender: TObject);
   public
     constructor Create(Owner: TksListView);
@@ -2326,9 +2326,6 @@ begin
 
   if AControlBitmapCache = nil then
     AControlBitmapCache := TksControlBitmapCache.Create(Self);
-  FCacheTimer := TTimer.Create(Self);
-  FCacheTimer.Interval := 100;
-  FCacheTimer.Enabled := True;
   AControlBitmapCache.FListViews.Add(Self);
 
   FItemHeight := 44;
@@ -2365,7 +2362,6 @@ begin
   {$ELSE}
   FAppearence.Free;
   FClickTimer.Free;
-  FCacheTimer.Free;
   FScrollTimer.Free;
   FItems.Free;
   FCombo.Free;
@@ -3467,6 +3463,14 @@ begin
   end;
 end;
 
+procedure TksControlBitmapCache.InvalidateListViews;
+var
+  ICount: integer;
+begin
+  for ICount := 0 to FListViews.Count-1 do
+    FListViews[ICount].Invalidate;
+end;
+
 procedure TksControlBitmapCache.OnCacheTimer(Sender: TObject);
 begin
   FCacheTimer.Enabled := False;
@@ -3476,6 +3480,7 @@ begin
   begin
     FCacheTimer.OnTimer := nil;
     FCacheTimer.Enabled := False;
+    InvalidateListViews;
     Exit;
   end;
   FCacheTimer.Enabled := True;
@@ -3705,9 +3710,12 @@ end;
 
 procedure TKsListItemRows.Delete(index: integer);
 begin
-  FRows.Delete(index);
-  FListView._Items.Delete(index);
-  ReindexRows;
+  if (index > -1) and (index <= (Count-1)) then
+  begin
+    FRows.Delete(index);
+    FListView._Items.Delete(index);
+    ReindexRows;
+  end;
 end;
 
 destructor TKsListItemRows.Destroy;
