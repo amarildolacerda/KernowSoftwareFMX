@@ -419,6 +419,7 @@ type
     procedure Assign(Source: TPersistent); override;
     procedure CacheRow;
     procedure ReleaseRow;
+
     // bitmap functions...
     function DrawBitmap(ABmp: TBitmap; x, AWidth, AHeight: single): TksListItemRowImage overload;
     {$IFDEF XE8_OR_NEWER}
@@ -529,6 +530,9 @@ type
     procedure CheckAll;
     procedure Clear;
     procedure Delete(index: integer);
+    procedure DeleteSelected;
+    procedure DeleteFirst;
+    procedure DeleteLast;
     property CheckedCount: integer read GetCheckedCount;
     property Count: integer read GetCount;
     property Items[index: integer]: TKsListItemRow read GetItems; default;
@@ -596,7 +600,6 @@ type
     FOnSelectPickerItem: TksListViewSelectPickerItem;
     FKeepSelection: Boolean;
     FMouseDownTime: TDateTime;
-    FOnDeleteItem: TksDeleteItemEvent;
     FHeaderHeight: integer;
     FScrollDirection: TksScrollDirection;
     FLastRenderedIndex: integer;
@@ -616,7 +619,7 @@ type
     procedure DoSelectDate(Sender: TObject);
     procedure DoSelectPickerItem(Sender: TObject);
     procedure ComboClosePopup(Sender: TObject);
-    procedure DoOnDeleteItem(Sender: TObject; AIndex: Integer);
+    //procedure DoOnDeleteItem(Sender: TObject; AIndex: Integer);
     procedure DoRenderRow(ARow: TKsListItemRow);
     procedure CachePages;
     function LoadingBitmap: TBitmap;
@@ -2321,8 +2324,8 @@ begin
   FScreenScale := GetScreenScale;
   FAppearence := TksListViewAppearence.Create(Self);
 
-  FOnDeleteItem := OnDeleteItem;
-  OnDeleteItem := DoOnDeleteItem;
+  //FOnDeleteItem := OnDeleteItem;
+  //OnDeleteItem := DoOnDeleteItem;
 
   if AControlBitmapCache = nil then
     AControlBitmapCache := TksControlBitmapCache.Create(Self);
@@ -2468,6 +2471,11 @@ begin
     Result.SubTitle.PlaceOffset := PointF(0,9);
   end;
   r.Text := '';
+
+  if FListView.FUpdateCount = 0 then
+  begin
+    Result.CacheRow;
+  end;
 end;
 
 function TksListView.AddItem: TListViewItem;
@@ -2635,14 +2643,14 @@ begin
 end;
 
 {$ENDIF}
-
+     {
 procedure TksListView.DoOnDeleteItem(Sender: TObject; AIndex: Integer);
 begin
-  _Items.Delete(AIndex);
+  //_Items.Delete(AIndex);
   //Items.Delete(Aindex);
   if Assigned(FOnDeleteItem) then
     FOnDeleteItem(Sender, AIndex);
-end;
+end; }
 
 procedure TksListView.DoRenderRow(ARow: TKsListItemRow);
 begin
@@ -3716,6 +3724,24 @@ begin
     FListView._Items.Delete(index);
     ReindexRows;
   end;
+end;
+
+procedure TKsListItemRows.DeleteFirst;
+begin
+  if Count > 0 then
+    Delete(0);
+end;
+
+procedure TKsListItemRows.DeleteLast;
+begin
+  if Count > 0 then
+    Delete(Count-1);
+end;
+
+procedure TKsListItemRows.DeleteSelected;
+begin
+  if FListView.ItemIndex > -1 then
+    Delete(FListView.ItemIndex);
 end;
 
 destructor TKsListItemRows.Destroy;
