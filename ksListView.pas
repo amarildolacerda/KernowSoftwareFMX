@@ -180,7 +180,6 @@ type
     procedure SetText(const Value: string);
     procedure SetWordWrap(const Value: Boolean);
     function CalculateTextHeight: single;
-   //function CalculateTextHeight: single;
   protected
     procedure CalculateRect(ARowBmp: TBitmap); override;
   public
@@ -379,8 +378,6 @@ type
     FSelectionValue: Variant;
     FPickerItems: TStrings;
     FRowHeight: integer;
-    //function TextHeight(AText: string): single;
-    //function TextWidth(AText: string): single;
     function RowHeight(const AScale: Boolean = True): single;
     function RowWidth(const AScale: Boolean = True): single;
     function GetListView: TksListView;
@@ -489,7 +486,6 @@ type
 
   TKsListItemRows = class
   private
-    FRows: TObjectList<TKsListItemRow>;
     FListView: TksListView;
     {$IFDEF XE10_OR_NEWER}
     FListViewItems: TAppearanceListViewItems;
@@ -500,12 +496,9 @@ type
     function GetCount: integer;
     function GetItems(index: integer): TKsListItemRow;
     procedure ReindexRows;
+    function KsRowFromRow(AIndex: integer): TKsListItemRow;
   public
     constructor Create(AListView: TksListView; AItems: TksListViewItems) ; virtual;
-    destructor Destroy; override;
-
-    //procedure CacheRowsInThread;
-    procedure Add(ARow: TKsListItemRow);
     function AddRow(AText, ADetail: string;
                     AAccessory: TksAccessoryType;
                     const AImageIndex: integer = -1;
@@ -604,6 +597,7 @@ type
     FScrollDirection: TksScrollDirection;
     FLastRenderedIndex: integer;
     FLoadingBitmap: TBitmap;
+    FOnDeleteItem: TksDeleteItemEvent;
     function _Items: TksListViewItems;
 
     procedure DoScrollTimer(Sender: TObject);
@@ -619,12 +613,10 @@ type
     procedure DoSelectDate(Sender: TObject);
     procedure DoSelectPickerItem(Sender: TObject);
     procedure ComboClosePopup(Sender: TObject);
-    //procedure DoOnDeleteItem(Sender: TObject; AIndex: Integer);
+    procedure DoOnDeleteItem(Sender: TObject; AIndex: Integer);
     procedure DoRenderRow(ARow: TKsListItemRow);
     procedure CachePages;
     function LoadingBitmap: TBitmap;
-    //procedure CachePage(APage: integer);
-    //procedure ReleasePage(APage: integer);
     { Private declarations }
   protected
     procedure SetColorStyle(AName: string; AColor: TAlphaColor);
@@ -638,6 +630,8 @@ type
     function GetRowFromYPos(y: single): TKsListItemRow;
     procedure SetKsItemHeight(const Value: integer);
     procedure SetKsHeaderHeight(const Value: integer);
+    //procedure DoItemsChange; override;
+
     { Protected declarations }
   public
     constructor Create(AOwner: TComponent); override;
@@ -756,7 +750,7 @@ type
     {$ENDIF}
 
     property OnDeletingItem;
-    property OnDeleteItem;
+    property OnDeleteItem: TKsDeleteItemEvent read FOnDeleteItem write FOnDeleteItem;
     property OnDeleteChangeVisible;
     property OnSearchChange;
     property OnPullRefresh;
@@ -1654,8 +1648,8 @@ procedure TksListItemRow.ReleaseRow;
 begin
   if OwnsBitmap then
   begin
-    OwnsBitmap := False;
     Bitmap := ListView.LoadingBitmap;
+    OwnsBitmap := False;
     FCached := False;
   end;
 end;
@@ -1751,19 +1745,6 @@ begin
   Result := Result - 40;
 {$ENDIF}
 end;
-       {
-function TKsListItemRow.TextHeight(AText: string): single;
-begin
-  ATextLayout.fon
-  Bitmap.Canvas.Font.Assign(FFont);
-  Result := Bitmap.Canvas.TextHeight(AText);
-end; }
-            {
-function TKsListItemRow.TextWidth(AText: string): single;
-begin
-  Bitmap.Canvas.Font.Assign(FFont);
-  Result := Bitmap.Canvas.TextWidth(AText);
-end;    }
 
 function TKsListItemRow.RowHeight(const AScale: Boolean = True): single;
 var
@@ -2277,7 +2258,6 @@ end;
 
 procedure TKsListItemRows.Clear;
 begin
-  FRows.Clear;
   FListViewItems.Clear;
 end;
 
@@ -2313,6 +2293,7 @@ constructor TksListView.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
 
+  TListView(Self).OnDeleteItem := DoOnDeleteItem;
 
   FItems := TKsListItemRows.Create(Self, inherited Items);
   FCombo := TComboBox.Create(nil);
@@ -2323,9 +2304,6 @@ begin
 
   FScreenScale := GetScreenScale;
   FAppearence := TksListViewAppearence.Create(Self);
-
-  //FOnDeleteItem := OnDeleteItem;
-  //OnDeleteItem := DoOnDeleteItem;
 
   if AControlBitmapCache = nil then
     AControlBitmapCache := TksControlBitmapCache.Create(Self);
@@ -2357,7 +2335,6 @@ begin
   {$IFDEF IOS}
   FAppearence.DisposeOf;
   FClickTimer.DisposeOf;
-  FCacheTimer.DisposeOf;
   FScrollTimer.DisposeOf;
   FItems.DisposeOf;
   FCombo.DisposeOf;
@@ -2373,11 +2350,6 @@ begin
   if AControlBitmapCache <> nil then
     AControlBitmapCache.FListViews.Remove(Self);
   inherited;
-end;
-
-procedure TKsListItemRows.Add(ARow: TKsListItemRow);
-begin
-  FRows.Add(ARow);
 end;
 
 function TKsListItemRows.AddRowDateSelector(AText: string;
@@ -2443,7 +2415,6 @@ begin
   r.Objects.Clear;
   r.Height := FListView.ItemHeight;
   Result := TKsListItemRow.Create(r);
-  Add(Result);
   Result.Index := Count-1;
   Result.Height := FListView.ItemHeight;
   Result.Purpose := TListItemPurpose.None;
@@ -2641,16 +2612,14 @@ begin
   ARow.FCached := False;
   ARow.CacheRow;
 end;
-
 {$ENDIF}
-     {
+
 procedure TksListView.DoOnDeleteItem(Sender: TObject; AIndex: Integer);
 begin
-  //_Items.Delete(AIndex);
-  //Items.Delete(Aindex);
+  FItems.ReindexRows;
   if Assigned(FOnDeleteItem) then
     FOnDeleteItem(Sender, AIndex);
-end; }
+end;
 
 procedure TksListView.DoRenderRow(ARow: TKsListItemRow);
 begin
@@ -2828,9 +2797,9 @@ begin
     if PtInRect(GetItemRect(ICount), PointF(1,y)) then
     begin
       {$IFDEF XE10_OR_NEWER}
-      Result := _Items[ICount].Objects.FindDrawable('ksRow') as TKsListItemRow;;
+      Result := _Items[ICount].Objects.FindDrawable('ksRow') as TKsListItemRow;
       {$ELSE}
-      Result := _Items[ICount].Objects.FindObject('ksRow') as TKsListItemRow;;
+      Result := _Items[ICount].Objects.FindObject('ksRow') as TKsListItemRow;
       {$ENDIF}
       Exit;
     end;
@@ -3648,7 +3617,6 @@ begin
   r := FListView.AddItem;
   r.Height := FListView.ItemHeight;
   Result := TKsListItemRow.Create(r);
-  Add(Result);
   Result.Index := Count-1;
   Result.Height := FListView.ItemHeight;
   Result.Purpose := TListItemPurpose.None;
@@ -3691,36 +3659,46 @@ end;
 
 function TKsListItemRows.GetCount: integer;
 begin
-  Result := FRows.Count;
+  Result := FListView._Items.Count;
 end;
 
 function TKsListItemRows.GetItems(index: integer): TKsListItemRow;
 begin
-  Result := FRows[index];
+  Result := KsRowFromRow(index);
+end;
+
+function TKsListItemRows.KsRowFromRow(AIndex: integer): TKsListItemRow;
+begin
+  {$IFDEF XE10_OR_NEWER}
+  Result := FListView._Items[AIndex].Objects.FindDrawable('ksRow') as TKsListItemRow;
+  {$ELSE}
+  Result := FListView._Items[AIndex].Objects.FindObject('ksRow') as TKsListItemRow;
+  {$ENDIF}
 end;
 
 procedure TKsListItemRows.ReindexRows;
 var
   ICount: integer;
+  ARow: TKsListItemRow;
 begin
-  for ICount := 0 to Count-1 do
-    Items[ICount].Index := ICount;
+  for ICount := 0 to FListView._Items.Count-1 do
+  begin
+    ARow := KsRowFromRow(Icount);
+    ARow.Index := ICount;
+  end;
 end;
 
 constructor TKsListItemRows.Create(AListView: TksListView; AItems: TksListViewItems);
 begin
   inherited Create;
-  FRows := TObjectList<TKsListItemRow>.Create(False);
   FListView := AListView;
   FListViewItems := AItems;
-
 end;
 
 procedure TKsListItemRows.Delete(index: integer);
 begin
   if (index > -1) and (index <= (Count-1)) then
   begin
-    FRows.Delete(index);
     FListView._Items.Delete(index);
     ReindexRows;
   end;
@@ -3742,16 +3720,6 @@ procedure TKsListItemRows.DeleteSelected;
 begin
   if FListView.ItemIndex > -1 then
     Delete(FListView.ItemIndex);
-end;
-
-destructor TKsListItemRows.Destroy;
-begin
-  {$IFDEF IOS}
-  FRows.DisposeOf;
-  {$ELSE}
-  FRows.Free;
-  {$ENDIF}
-  inherited;
 end;
 
 { TksListItemRowProgressBar }
