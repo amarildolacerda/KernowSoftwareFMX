@@ -141,7 +141,7 @@ begin
     Exit;
   ksListview1.BeginUpdate;
   try
-    for ICount := 1 to 100 do
+    for ICount := 1 to 50 do
     begin
       ARow := ksListview1.Items.AddRow('Line '+InttoStr(ICount),      // main title
                                  'a sub title for '+IntToStr(ICount), // subtitle
@@ -222,10 +222,10 @@ begin
         2: AColor := claRed;
         3: AColor := claGreen;
       end;
-      ARow := lvSegmentButtons.Items.AddRow('Item '+IntToStr(ICount), '', None);
+      ARow := lvSegmentButtons.Items.AddRow('Item '+IntToStr(ICount), '', '', None);
       ARow.AddSegmentButtons(180, ['one', 'two', 'three']).TintColor := AColor;
 
-     with lvSegmentButtons.Items.AddRow('Item '+IntToStr(ICount*2), '', None) do
+     with lvSegmentButtons.Items.AddRow('Item '+IntToStr(ICount*2), '', '', None) do
       AddSwitchRight(0, False);
     end;
 
@@ -311,10 +311,10 @@ begin
     Exit;
   lvAccessorys.BeginUpdate;
   try
-    lvAccessorys.Items.AddRow('No Accessory', '', None);
-    lvAccessorys.Items.AddRow('"More" Accessory', '', More);
-    lvAccessorys.Items.AddRow('"Checkmark" Accessory', '', Checkmark);
-    lvAccessorys.Items.AddRow('"Detail" Accessory', '', Detail);
+    lvAccessorys.Items.AddRow('No Accessory', '', '', None);
+    lvAccessorys.Items.AddRow('"More" Accessory', '', '', More);
+    lvAccessorys.Items.AddRow('"Checkmark" Accessory', '', '', Checkmark);
+    lvAccessorys.Items.AddRow('"Detail" Accessory', '', '', Detail);
   finally
     lvAccessorys.EndUpdate;
   end;
