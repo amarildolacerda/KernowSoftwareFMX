@@ -5,7 +5,8 @@ Kernow Software FMX Components for XE7, XE8 & XE10 Seattle.
 
 Firemonkey Slide menu, ListView and Segment buttons for Delphi.  Inherits from a non-visual component to keep things simple.
 
-Includes demo.
+Includes demo with source.  Demo App also available on app store: 
+https://itunes.apple.com/gb/app/kscomponents-reference/id1031179701?mt=8
 
 ###TksListview
 
