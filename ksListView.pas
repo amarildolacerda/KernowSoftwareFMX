@@ -500,12 +500,6 @@ type
   public
     constructor Create(AListView: TksListView; AItems: TksListViewItems) ; virtual;
 
-    function AddRow(AText, ADetail: string;
-                    AAccessory: TksAccessoryType;
-                    const AImageIndex: integer = -1;
-                    const AFontSize: integer = 14;
-                    AFontColor: TAlphaColor = C_DEFAULT_TEXT_COLOR): TKsListItemRow; overload; deprecated;
-
     function AddRow(AText, ASubTitle, ADetail: string;
                     AAccessory: TksAccessoryType;
                     const AImageIndex: integer = -1;
@@ -2267,9 +2261,11 @@ end;
 procedure TksListView.CachePages;
 var
   ICount: integer;
-  AStartIndex, AEndIndex: integer;
   AFilteredIndex: integer;
 begin
+  if _Items.Count = 0 then
+    Exit;
+  AFilteredIndex := 0;
   for ICount := 0 to _Items.Count-1 do
   begin
     if _Items[ICount].Index = FLastRenderedIndex then
@@ -2407,20 +2403,14 @@ begin
   Result.VertAlign := TListItemAlign.Trailing;
 end;
 
-function TKsListItemRows.AddRow(AText, ADetail: string; AAccessory: TksAccessoryType;
-  const AImageIndex: integer = -1; const AFontSize: integer = 14;
-  AFontColor: TAlphaColor = C_DEFAULT_TEXT_COLOR): TKsListItemRow;
-begin
-  Result := AddRow(AText, '', ADetail, AAccessory, AImageIndex, AFontSize, AFontColor);
-end;
-
-
 function TKsListItemRows.AddRow(AText, ASubTitle, ADetail: string; AAccessory: TksAccessoryType;
   const AImageIndex: integer = -1; const AFontSize: integer = 14;
   AFontColor: TAlphaColor = C_DEFAULT_TEXT_COLOR): TKsListItemRow;
 var
   ABmp: TBitmap;
+  {$IFDEF XE8_OR_NEWER}
   ASize: TSize;
+  {$ENDIF}
 begin
   ABmp := nil;
   {$IFDEF XE8_OR_NEWER}
