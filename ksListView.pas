@@ -173,7 +173,7 @@ type
     FTextColor: TAlphaColor;
     FText: string;
     FWordWrap: Boolean;
-
+    FFullWidth: Boolean;
     procedure SetFont(const Value: TFont);
     procedure SetAlignment(const Value: TTextAlign);
     procedure SetTextColor(const Value: TAlphaColor);
@@ -1056,7 +1056,7 @@ end;
 procedure TksListItemRowText.CalculateRect(ARowBmp: TBitmap);
 var
   ASaveFont: TFont;
-
+  AWidthFactor: single;
 begin
   if FWidth > 0 then Rect.Width := FWidth;
   if FHeight > 0 then Rect.Height := FHeight;
@@ -1070,9 +1070,17 @@ begin
 
       if FWidth = 0 then
       begin
-        if FId = C_TITLE then Rect.Width := (FRow.ListView.Width * 0.5) - 32;
-        if FId = C_SUBTITLE then Rect.Width := (FRow.ListView.Width * 0.5) - 32;
-        if FId = C_DETAIL then Rect.Width := (FRow.ListView.Width * 0.5) - 32;
+        AWidthFactor := 0;
+        if FId = C_TITLE then AWidthFactor := 0.6;
+        if FId = C_SUBTITLE then AWidthFactor := 0.6;
+        if FId = C_DETAIL then AWidthFactor := 0.4;
+
+        if FFullWidth then
+          AWidthFactor := 1;
+
+        if FId = C_TITLE then Rect.Width := (FRow.ListView.Width * AWidthFactor) - 32;
+        if FId = C_SUBTITLE then Rect.Width := (FRow.ListView.Width * AWidthFactor) - 32;
+        if FId = C_DETAIL then Rect.Width := (FRow.ListView.Width * AWidthFactor) - 32;
         if Rect.Width = 0 then
           Rect.Width := ARowBmp.Canvas.TextWidth(FText);
       end;
@@ -1138,6 +1146,7 @@ begin
   FFont := TFont.Create;
   FTextColor := C_DEFAULT_TEXT_COLOR;
   FWordWrap := False;
+  FFullWidth := False;
   VertAlign := TListItemAlign.Center;
 end;
 
@@ -1541,18 +1550,21 @@ begin
 
     if FTitle.Text <> '' then
     begin
+      FTitle.FFullWidth := FDetail.Text = '';
       FTitle.CalculateRect(Bitmap);
       FTitle.Render(Bitmap.Canvas);
     end;
 
     if FSubTitle.Text <> '' then
     begin
+      FSubTitle.FFullWidth := FDetail.Text = '';
       FSubTitle.CalculateRect(Bitmap);
       FSubTitle.Render(Bitmap.Canvas);
     end;
 
     if FDetail.Text <> '' then
     begin
+      FDetail.FFullWidth := (FTitle.Text+FSubTitle.Text) = '';
       FDetail.CalculateRect(Bitmap);
       FDetail.Render(Bitmap.Canvas);
     end;
