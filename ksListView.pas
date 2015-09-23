@@ -1,6 +1,6 @@
-﻿{ *******************************************************************************
+﻿{*******************************************************************************
 *                                                                              *
-*  TksListView - Cached ListView Component                                     *
+*  TksListView - High-Performance Mobile ListView Component                    *
 *                                                                              *
 *  https://github.com/gmurt/KernowSoftwareFMX                                  *
 *                                                                              *
@@ -71,6 +71,9 @@ const
   {$IFDEF MSWINDOWS}
   C_PAGE_SIZE = 500;
   {$ENDIF}
+
+  C_LEFT_MARGIN = 10;
+  C_DEFAULT_SEPARATOR_COLOR = $FFE0E0E0;
 
 type
   TksListViewCheckMarks = (ksCmNone, ksCmSingleSelect, ksCmMultiSelect);
@@ -263,10 +266,11 @@ type
 
   TKsListItemRowAccessory = class(TksListItemRowObj)
   private
-    FResources: TListItemStyleResources;
+    //FResources: TListItemStyleResources;
     FAccessoryType: TAccessoryType;
     FImage: TStyleObject;
     procedure SetAccessoryType(const Value: TAccessoryType);
+    procedure CalculateImageSize;
   protected
     procedure CalculateRect(ARowBmp: TBitmap); override;
   public
@@ -378,6 +382,7 @@ type
     FSelectionValue: Variant;
     FPickerItems: TStrings;
     FRowHeight: integer;
+    FBackgroundColor: TAlphaColor;
     function RowHeight(const AScale: Boolean = True): single;
     function RowWidth(const AScale: Boolean = True): single;
     function GetListView: TksListView;
@@ -397,6 +402,7 @@ type
     procedure SetPurpose(const Value: TListItemPurpose);
     function GetSearchText: string;
     procedure SetSearchText(const Value: string);
+    procedure SetBackgroundColor(const Value: TAlphaColor);
     property ListView: TksListView read GetListView;
     procedure DoOnListChanged(Sender: TObject; const Item: TksListItemRowObj;
       Action: TCollectionNotification);
@@ -416,7 +422,8 @@ type
     procedure Assign(Source: TPersistent); override;
     procedure CacheRow;
     procedure ReleaseRow;
-
+    procedure SetRowFontStyle(AFontStyle: TFontStyles);
+    procedure SetRowTextColor(AColor: TAlphaColor);
     // bitmap functions...
     function DrawBitmap(ABmp: TBitmap; x, AWidth, AHeight: single): TksListItemRowImage overload;
     {$IFDEF XE8_OR_NEWER}
@@ -481,6 +488,7 @@ type
     property Purpose: TListItemPurpose read GetPurpose write SetPurpose;
     property Selector: TksListItemRowSelector read FSelector write FSelector;
     property SearchText: string read GetSearchText write SetSearchText;
+    property BackgroundColor: TAlphaColor read FBackgroundColor write SetBackgroundColor default claNull;
   end;
 
 
@@ -536,19 +544,24 @@ type
     FBackground: TAlphaColor;
     FItemBackground: TAlphaColor;
     FAlternatingItemBackground: TAlphaColor;
+    FSeparatorColor: TAlphaColor;
+    FHeaderColor: TAlphaColor;
+    FSelectedColor: TAlphaColor;
     procedure SetBackground(const Value: TAlphaColor);
     procedure SetItemBackground(const Value: TAlphaColor);
     procedure SetAlternatingItemBackground(const Value: TAlphaColor);
+    procedure SetSeparatorBackground(const Value: TAlphaColor);
+    procedure SetHeaderColor(const Value: TAlphaColor);
+    procedure SetSelectedColor(const Value: TAlphaColor);
   public
     constructor Create(AListView: TksListView);
   published
-    property Background: TAlphaColor read FBackground write SetBackground
-      default claWhite;
-    property ItemBackground: TAlphaColor read FItemBackground
-      write SetItemBackground default claWhite;
-    property AlternatingItemBackground: TAlphaColor
-      read FAlternatingItemBackground write SetAlternatingItemBackground
-      default claGainsboro;
+    property Background: TAlphaColor read FBackground write SetBackground default claWhite;
+    property HeaderColor: TAlphaColor read FHeaderColor write SetHeaderColor default claNull;
+    property SeparatorColor: TAlphaColor read FSeparatorColor write SetSeparatorBackground default claNull;
+    property ItemBackground: TAlphaColor read FItemBackground write SetItemBackground default claWhite;
+    property SelectedColor: TAlphaColor read FSelectedColor write SetSelectedColor default claNull;
+    property AlternatingItemBackground: TAlphaColor read FAlternatingItemBackground write SetAlternatingItemBackground default claGainsboro;
   end;
 
   // ------------------------------------------------------------------------------
@@ -595,6 +608,7 @@ type
     FLastRenderedIndex: integer;
     FLoadingBitmap: TBitmap;
     FOnDeleteItem: TksDeleteItemEvent;
+    FLastIndex: integer;
     function _Items: TksListViewItems;
 
     procedure DoScrollTimer(Sender: TObject);
@@ -641,7 +655,7 @@ type
     function IsShowing: Boolean;
     property Items: TKsListItemRows read FItems;
     procedure ShowPopupMenu(APopup: TPopupMenu; x, y: single);
-
+    procedure SelectFirstItem;
     { Public declarations }
   published
     property Appearence: TksListViewAppearence read FAppearence write FAppearence;
@@ -659,7 +673,6 @@ type
     property Images;
     {$ENDIF}
     property ScrollViewPos;
-    property ItemSpaces;
     property SideSpace;
     property OnItemClick: TksListViewRowClickEvent read FOnItemClick write FOnItemClick;
     property OnItemClickRight: TksListViewRowClickEvent read FOnItemRightClick write FOnItemRightClick;
@@ -780,7 +793,6 @@ type
   private
     FGuid: string;
     FOwner: TksListView;
-
     FSwitchOn: TBitmap;
     FSwitchOff: TBitmap;
     FCreatingCache: Boolean;
@@ -788,12 +800,17 @@ type
     FImagesCached: Boolean;
     FButton: TSpeedButton;
     FCacheTimer: TTimer;
+    FResources: TListItemStyleResources;
     FListViews: TObjectList<TksListView>;
+    FMoreAccessory: TStyleObject;
+    FCheckmarkAccessory: TStyleObject;
+    FDetailAccessory: TStyleObject;
     function GetSwitchImage(AState: TksButtonState): TBitmap;
     function GetButtonImage(AWidth, AHeight: single; AText: string; ATintColor: TAlphaColor;
       AState: TksButtonState; AStyleLookup: string): TBitmap;
     procedure InvalidateListViews;
     procedure OnCacheTimer(Sender: TObject);
+    function GetAccessory(AAccessoryType: TAccessoryType): TStyleObject;
   public
     constructor Create(Owner: TksListView);
     destructor Destroy; override;
@@ -805,7 +822,7 @@ type
                          AState: TksButtonState;
                          AStyleLookup: string]: TBitmap read GetButtonImage;
     property ImagesCached: Boolean read FImagesCached;
-
+    property Accessory[AAccessoryType: TAccessoryType]: TStyleObject read GetAccessory;
   end;
 
 
@@ -919,8 +936,10 @@ begin
     TListItemAlign.Trailing: OffsetRect(FRect, 0, (FRow.Height - FRect.Height));
   end;
 
-  OffsetRect(FRect, 0, FPlaceOffset.Y);
-
+  if FAlign = TListItemAlign.Leading then
+    OffsetRect(FRect, C_LEFT_MARGIN, FPlaceOffset.Y)
+  else
+  OffsetRect(FRect, 0, FPlaceOffset.Y)
 
 end;
 
@@ -1071,9 +1090,9 @@ begin
       if FWidth = 0 then
       begin
         AWidthFactor := 0;
-        if FId = C_TITLE then AWidthFactor := 0.6;
-        if FId = C_SUBTITLE then AWidthFactor := 0.6;
-        if FId = C_DETAIL then AWidthFactor := 0.4;
+        if FId = C_TITLE then AWidthFactor := 0.5;
+        if FId = C_SUBTITLE then AWidthFactor := 0.5;
+        if FId = C_DETAIL then AWidthFactor := 0.5;
 
         if FFullWidth then
           AWidthFactor := 1;
@@ -1486,8 +1505,10 @@ begin
   BeginUpdate;
   try
 
+
+
     ABmpWidth := (Round(RowWidth)) - Round((AMargins.Left + AMargins.Right)) * GetScreenScale;
-    Bitmap.Height := Round(RowHeight);
+    Bitmap.Height := Trunc(RowHeight);
 
     ADetailHeight := FDetail.CalculateTextHeight;
 
@@ -1663,14 +1684,61 @@ end;
 procedure TksListItemRow.Render(const Canvas: TCanvas;
   const DrawItemIndex: Integer; const DrawStates: TListItemDrawStates;
   const SubPassNo: Integer);
+var
+  ARect: TRectF;
+  ANextItem: TKsListItemRow;
+  ANextItemIsHeader: Boolean;
 begin
+  ANextItemIsHeader := False;
+  if Index < ListView.Items.Count-1 then
+  begin
+    ANextItem := ListView.Items[Index+1];
+    ANextItemIsHeader := ANextItem.Purpose = TListItemPurpose.Header;
+  end;
+
   if OwnsBitmap = False then
   begin
     Bitmap := ListView.LoadingBitmap;
     ListView.FScrolling := True;
   end;
+
+  {$IFDEF VER290}
+  ARect := FLocalRect;
+  {$ELSE}
+  ARect := LocalRect;
+  {$ENDIF}
+
+  if Purpose = TListItemPurpose.Header then
+  begin
+    if ListView.Appearence.HeaderColor <> claNull then
+    begin
+      ARect.Bottom := ARect.Bottom+1;
+      Canvas.Fill.Color := ListView.Appearence.HeaderColor;
+      Canvas.FillRect(ARect, 0, 0, AllCorners, 1);
+      ARect.Bottom := ARect.Bottom-1;
+    end;
+  end;
+
+  if Purpose = TListItemPurpose.None then
+  begin
+    Canvas.Fill.Color := ListView.Appearence.ItemBackground;
+    if FBackgroundColor <> claNull then
+      Canvas.Fill.Color := FBackgroundColor;
+
+    if (Index = ListView.ItemIndex) and (ListView.ShowSelection) then
+      Canvas.Fill.Color := ListView.Appearence.SelectedColor;
+    Canvas.FillRect(ARect, 0, 0, AllCorners, 1);
+  end;
+
   ListView.DoRenderRow(Self);
   inherited;
+  if (Purpose = TListItemPurpose.None) and (ANextItemIsHeader = False) then
+  begin
+    Canvas.Fill.Color := ListView.Appearence.SeparatorColor;
+    if Canvas.Fill.Color = claNull then
+      Canvas.Fill.Color := C_DEFAULT_SEPARATOR_COLOR;
+    Canvas.FillRect(RectF(0, ARect.Bottom-1, ARect.Right, ARect.Bottom), 0, 0, AllCorners, 1, Canvas.Fill);
+  end;
 end;
 
 constructor TKsListItemRow.Create(const AOwner: TListItem);
@@ -1707,6 +1775,7 @@ begin
   FCanSelect := True;
    // title...
   FTitle.Font.Size := 13;
+  FTitle.TextColor := claDimgray;
   FTitle.TextAlignment := TTextAlign.Leading;
   FTitle.ID := C_TITLE;
   // sub-title...
@@ -1721,6 +1790,7 @@ begin
   FDetail.ID := C_DETAIL;
   FDetail.TextAlignment := TTextAlign.Trailing;
   FRowHeight := lv.ItemHeight;
+  FBackgroundColor := claNull;
 end;
 
 destructor TKsListItemRow.Destroy;
@@ -1781,6 +1851,7 @@ function TKsListItemRow.GetAccessory: TAccessoryType;
 begin
   Result := FAccessory.AccessoryType;
 end;
+
 
 function TKsListItemRow.GetListView: TksListView;
 begin
@@ -2082,6 +2153,15 @@ begin
   Changed;
 end;
 
+procedure TksListItemRow.SetBackgroundColor(const Value: TAlphaColor);
+begin
+  if FBackgroundColor <> Value then
+  begin
+    FBackgroundColor := Value;
+    Changed;
+  end;
+end;
+
 procedure TKsListItemRow.SetCanSelect(const Value: Boolean);
 begin
   if FCanSelect <> Value then
@@ -2133,6 +2213,36 @@ end;
 procedure TKsListItemRow.SetPurpose(const Value: TListItemPurpose);
 begin
   (Owner as TListItem).Purpose := Value;
+end;
+
+procedure TksListItemRow.SetRowFontStyle(AFontStyle: TFontStyles);
+var
+  ICount: integer;
+begin
+  FFont.Style := AFontStyle;
+  for ICount := 0 to FList.Count-1 do
+  begin
+    if (FList[ICount] is TksListItemRowText) then
+      (FList[ICount] as TksListItemRowText).Font.Style := AFontStyle;
+  end;
+  FTitle.Font.Style := AFontStyle;
+  FSubTitle.Font.Style := AFontStyle;
+  FDetail.Font.Style := AFontStyle;
+end;
+
+procedure TksListItemRow.SetRowTextColor(AColor: TAlphaColor);
+var
+  ICount: integer;
+begin
+  FTextColor := AColor;
+  for ICount := 0 to FList.Count-1 do
+  begin
+    if (FList[ICount] is TksListItemRowText) then
+      (FList[ICount] as TksListItemRowText).TextColor := AColor;
+  end;
+  FTitle.TextColor := AColor;
+  FSubTitle.TextColor:= AColor;
+  FDetail.TextColor := AColor;
 end;
 
 procedure TKsListItemRow.SetSearchIndex(const Value: string);
@@ -2230,6 +2340,7 @@ begin
   FListView := AListView;
   FBackground := claWhite;
   FItemBackground := claWhite;
+  FSeparatorColor := $FFE0E0E0;
   FAlternatingItemBackground := claGainsboro;
 end;
 
@@ -2246,9 +2357,28 @@ begin
   FListView.ApplyStyle;
 end;
 
+procedure TksListViewAppearence.SetHeaderColor(const Value: TAlphaColor);
+begin
+  FHeaderColor := Value;
+  FListView.ApplyStyle;
+end;
+
 procedure TksListViewAppearence.SetItemBackground(const Value: TAlphaColor);
 begin
   FItemBackground := Value;
+  FListView.ApplyStyle;
+end;
+
+procedure TksListViewAppearence.SetSelectedColor(const Value: TAlphaColor);
+begin
+  FSelectedColor := Value;
+  FListView.ApplyStyle;
+end;
+
+procedure TksListViewAppearence.SetSeparatorBackground(
+  const Value: TAlphaColor);
+begin
+  FSeparatorColor := Value;
   FListView.ApplyStyle;
 end;
 
@@ -2345,6 +2475,7 @@ begin
   FShowIndicatorColors := False;
   FKeepSelection := False;
   ItemSpaces.Right := 0;
+  ItemSpaces.Left := 0;
   FScrollDirection := sdDown;
 end;
 
@@ -2409,10 +2540,14 @@ function TKsListItemRows.AddHeader(AText: string): TKsListItemRow;
 begin
   Result := AddRow('', '', '', None);
   Result.Owner.Purpose := TListItemPurpose.Header;
+  Result.CanSelect := False;
   Result.Height := FListView.HeaderHeight;
   Result.Owner.Height := FListView.HeaderHeight;
   Result.Title.Text := AText;
+  Result.Title.TextColor := claBlack;
   Result.VertAlign := TListItemAlign.Trailing;
+  if FListView.FUpdateCount = 0 then
+    Result.CacheRow;
 end;
 
 function TKsListItemRows.AddRow(AText, ASubTitle, ADetail: string; AAccessory: TksAccessoryType;
@@ -2493,6 +2628,23 @@ begin
   FDateSelector.OpenPicker;
 end;
 
+procedure TksListView.SelectFirstItem;
+var
+  AIndex: integer;
+  ICount: integer;
+begin
+  AIndex := -1;
+  for ICount := 0 to Items.Count-1 do
+  begin
+    if Items[ICount].Purpose = TListItemPurpose.None then
+    begin
+      AIndex := ICount;
+      Break;
+    end;
+  end;
+  ItemIndex := AIndex;
+end;
+
 procedure TksListView.SelectItem(ARow: TKsListItemRow; AItems: TStrings; ASelected: string; AOnSelectItem: TNotifyEvent);
 begin
   FCombo.OnChange := nil;
@@ -2538,7 +2690,6 @@ begin
     Invalidate;
   end;
 end;
-
 
 procedure TksListView.SetKsHeaderHeight(const Value: integer);
 begin
@@ -2609,12 +2760,29 @@ begin
   FListView.RedrawAllRows;
 end;
 
+
+  function GetColorFromStyle(const ObjectName: string; const DefaultColor: TAlphaColor): TAlphaColor;
+  var
+    StyleObject: TFmxObject;
+  begin
+    StyleObject := FindStyleResource(ObjectName);
+    if StyleObject is TColorObject then
+      Result := TColorObject(StyleObject).Color
+    else if StyleObject is TText then
+      Result := TText(StyleObject).Color
+    else
+      Result := DefaultColor;
+  end;
+
 procedure TksListView.ApplyStyle;
 begin
   SetColorStyle('background', FAppearence.Background);
   SetColorStyle('itembackground', FAppearence.ItemBackground);
-  SetColorStyle('alternatingitembackground',
-    FAppearence.AlternatingItemBackground);
+  if FAppearence.SeparatorColor = claNull then
+    SetColorStyle('frame', C_DEFAULT_SEPARATOR_COLOR)
+  else
+    SetColorStyle('frame', FAppearence.SeparatorColor);
+  SetColorStyle('alternatingitembackground', FAppearence.AlternatingItemBackground);
   inherited;
 end;
 
@@ -2657,6 +2825,9 @@ begin
   begin
     if Trunc(ScrollViewPos) <> FLastScrollPos then
     begin
+      if (FKeepSelection = False) and (ItemIndex > -1) then
+        ItemIndex := -1;
+
       FScrolling := True;
       FScrollTimer.Interval := 100;
       FLastScrollPos := Trunc(ScrollViewPos);
@@ -2727,14 +2898,13 @@ end;
 
 procedure TksListView.Paint;
 begin
+
   FIsShowing := True;
   if not (csDesigning in ComponentState) then
   begin
     if (AControlBitmapCache <> nil) then
       if AControlBitmapCache.ImagesCached = False then
         Exit;
-    if (ItemIndex > -1) and (ItemIndex <= Items.Count-1) then
-      ShowSelection := Items[ItemIndex].CanSelect;
   end;
   inherited;
 end;
@@ -2897,17 +3067,26 @@ end;
 procedure TksListView.MouseDown(Button: TMouseButton; Shift: TShiftState;
   x, y: single);
 var
-
   ARow: TKsListItemRow;
 begin
-  if y < 0 then
+  ARow := GetRowFromYPos(y);
+  if (y < 0) or (ARow = nil) then
     Exit;
+
+  FLastIndex := ItemIndex;
   inherited;
+  if ARow.CanSelect = False then
+  begin
+    ItemIndex := FLastIndex;
+    Exit;
+  end;
+
+
   if (Button = TMouseButton.mbRight) then
-    ItemIndex := GetRowFromYPos(y).Index;
+    ItemIndex := ARow.Index;
   FMouseDownPos := PointF(x-ItemSpaces.Left, y);
   FMouseDownTime := Now;
-  ARow := GetRowFromYPos(y);
+
   if ARow = nil then
     ItemIndex := -1;
 end;
@@ -2932,6 +3111,7 @@ begin
   if y < 0 then
     Exit;
   inherited;
+
   AMouseDownRect := RectF(FMouseDownPos.X-8, FMouseDownPos.Y-8, FMouseDownPos.X+8, FMouseDownPos.Y+8);
   x := x - ItemSpaces.Left;
   if PtInRect(AMouseDownRect, PointF(x, y)) then
@@ -2940,16 +3120,21 @@ begin
     ARow := GetRowFromYPos(y);
     if ARow = nil then
       Exit;
+      if ARow.CanSelect = False then
+      begin
+        ItemIndex := FLastIndex;
+        Exit;
+      end;
+
     ARowRect := GetItemRect(ARow.Index);
 
     FClickedRowObj := RowObjectAtPoint(ARow, x, y - ARowRect.Top);
     AId := ARow.ID;
 
-    if MilliSecondsBetween(FMouseDownTime, Now) >= 500 then
+    if (MilliSecondsBetween(FMouseDownTime, Now) >= 500) and (Assigned(FOnLongClick)) then
     begin
       // long tap...
-      if Assigned(FOnLongClick) then
-        FOnLongClick(Self, x, y, ARow, AId, FClickedRowObj);
+      FOnLongClick(Self, x, y, ARow, AId, FClickedRowObj);
     end
 
     else
@@ -2957,13 +3142,15 @@ begin
       Application.ProcessMessages;
       // remove row selection?
       ARow.ProcessClick;
-
-      // left click...
-      if (Assigned(FOnItemClick)) and (Button = TMouseButton.mbLeft) then
-        FOnItemClick(Self, x, y, ARow, AId, FClickedRowObj);
-      // right click...
-      if (Assigned(FOnItemRightClick)) and (Button = TMouseButton.mbRight) then
-        FOnItemRightClick(Self, x, y, ARow, AId, FClickedRowObj);
+      if ARow.CanSelect then
+      begin
+        // left click...
+        if (Assigned(FOnItemClick)) and (Button = TMouseButton.mbLeft) then
+          FOnItemClick(Self, x, y, ARow, AId, FClickedRowObj);
+        // right click...
+        if (Assigned(FOnItemRightClick)) and (Button = TMouseButton.mbRight) then
+          FOnItemRightClick(Self, x, y, ARow, AId, FClickedRowObj);
+      end;
 
       if FClickedRowObj <> nil then
       begin
@@ -2991,9 +3178,10 @@ begin
       end;
 
 
-      if (FKeepSelection = False) and (ItemIndex > -1) then
+      Application.ProcessMessages;
+      if (FKeepSelection = False) and (ItemIndex > -1) and (FScrolling = False) then
       begin
-        Sleep(100);
+        //Sleep(200);
         ItemIndex := -1;
         Application.ProcessMessages;
       end;
@@ -3008,11 +3196,11 @@ begin
   end;
 
   // remove row selection?
-  if (FKeepSelection = False) and (ItemIndex > -1) then
+  {if (FKeepSelection = False) and (ItemIndex > -1) and (FScrolling = False) then
   begin
     ItemIndex := -1;
     Application.ProcessMessages;
-  end;
+  end; }
 end;
 
 { TksListItemRowSwitch }
@@ -3060,6 +3248,15 @@ end;
 
 { TKsListItemRowAccessory }
 
+procedure TKsListItemRowAccessory.CalculateImageSize;
+begin
+  FImage := AControlBitmapCache.Accessory[FAccessoryType];
+  if FImage = nil then
+    Exit;
+  FWidth := FImage.Width;
+  FHeight := FImage.Height;
+end;
+
 procedure TKsListItemRowAccessory.CalculateRect(ARowBmp: TBitmap);
 begin
   if (FAccessoryType = TAccessoryType.Checkmark) and
@@ -3070,7 +3267,7 @@ begin
   end
   else
   begin
-    if FImage = nil then
+    if FImage <> nil then
     begin
       Width := FImage.Width;
       Height := FImage.Height;
@@ -3084,10 +3281,9 @@ begin
   inherited;
   FAlign := TListItemAlign.Trailing;
   FVertAlignment := TListItemAlign.Center;
-  FResources := FRow.GetStyleResources;
-  FImage := FResources.AccessoryImages[FAccessoryType].Normal;
-  FWidth := FImage.Width;
-  FHeight := FImage.Height;
+  FWidth := 0;
+  FHeight := 0;
+  CalculateImageSize;
   {$IFNDEF ANDROID}
   FWidth := FWidth + 8;
   {$ENDIF}
@@ -3100,6 +3296,7 @@ var
   APath: TPathData;
   ADestRect: TRectF;
 begin
+  CalculateImageSize;
   inherited Render(ACanvas);
   if (FAccessoryType = TAccessoryType.Checkmark) and
      (TksListView(FRow.ListView).CheckMarkStyle <> ksCmsDefault)  then
@@ -3159,8 +3356,10 @@ begin
   end
   else
   begin
-    FImage := FResources.AccessoryImages[FAccessoryType].Normal;
-    FImage.DrawToCanvas(ACanvas, Rect, 1);
+    if FImage <> nil then
+    begin
+      FImage.DrawToCanvas(ACanvas, Rect, 1);
+    end;
   end;
   Result := True;
 end;
@@ -3381,6 +3580,11 @@ begin
     AForm.InsertObject(0, FButton);
     Application.ProcessMessages;
 
+    FResources := FOwner.GetStyleResources;
+    FMoreAccessory := FResources.AccessoryImages[TAccessoryType.More].Normal;
+    FDetailAccessory := FResources.AccessoryImages[TAccessoryType.Detail].Normal;
+    FCheckmarkAccessory := FResources.AccessoryImages[TAccessoryType.Checkmark].Normal;
+
     FImagesCached := True;
 
   finally
@@ -3390,6 +3594,17 @@ begin
   Application.ProcessMessages;
 end;
 
+
+function TksControlBitmapCache.GetAccessory(
+  AAccessoryType: TAccessoryType): TStyleObject;
+begin
+  Result := nil;
+  case AAccessoryType of
+    TAccessoryType.More: Result := FMoreAccessory;
+    TAccessoryType.Detail: Result := FDetailAccessory;
+    TAccessoryType.Checkmark: Result := FCheckmarkAccessory;
+  end;
+end;
 
 function TksControlBitmapCache.GetButtonImage(AWidth, AHeight: single; AText: string;
   ATintColor: TAlphaColor; AState: TksButtonState; AStyleLookup: string): TBitmap;
@@ -3630,8 +3845,6 @@ begin
 end;
 
 { TKsListItemRows }
-
-
 
 function TKsListItemRows.GetCheckedCount: integer;
 var

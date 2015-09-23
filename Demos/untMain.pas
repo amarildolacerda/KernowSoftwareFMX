@@ -69,7 +69,6 @@ type
     Label9: TLabel;
     lvProgressBars: TksListView;
     lblLoading: TLabel;
-    SlideMenu1: TksSlideMenu;
     btnLeftMenu: TButton;
     Memo1: TMemo;
     Memo2: TMemo;
@@ -85,6 +84,7 @@ type
     imgSource5: TImage;
     imgSource6: TImage;
     imgSource7: TImage;
+    SlideMenu1: TksSlideMenu;
     procedure FormCreate(Sender: TObject);
     procedure btnLeftMenuClick(Sender: TObject);
     procedure SlideMenu1SelectMenuItemEvent(Sender: TObject; AId: string);
