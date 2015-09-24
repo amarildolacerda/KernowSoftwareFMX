@@ -490,6 +490,8 @@ var
   //ALastIndex: integer;
   lv: TksListView;
 begin
+  if FMenu.ListView = nil then
+    Exit;
   lv := FMenu.FListView;
   //ALastIndex := lv.item
   lv.Position.X := 0;
