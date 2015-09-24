@@ -609,6 +609,9 @@ type
     FLoadingBitmap: TBitmap;
     FOnDeleteItem: TksDeleteItemEvent;
     FLastIndex: integer;
+    FMoreAccessory: TStyleObject;
+    FCheckmarkAccessory: TStyleObject;
+    FDetailAccessory: TStyleObject;
     function _Items: TksListViewItems;
 
     procedure DoScrollTimer(Sender: TObject);
@@ -628,6 +631,7 @@ type
     procedure DoRenderRow(ARow: TKsListItemRow);
     procedure CachePages;
     function LoadingBitmap: TBitmap;
+    function GetAccessory(AAccessoryType: TAccessoryType): TStyleObject;
     { Private declarations }
   protected
     procedure SetColorStyle(AName: string; AColor: TAlphaColor);
@@ -641,6 +645,7 @@ type
     function GetRowFromYPos(y: single): TKsListItemRow;
     procedure SetKsItemHeight(const Value: integer);
     procedure SetKsHeaderHeight(const Value: integer);
+    property Accessory[AAccessoryType: TAccessoryType]: TStyleObject read GetAccessory;
     { Protected declarations }
   public
     constructor Create(AOwner: TComponent); override;
@@ -792,37 +797,25 @@ type
   TksControlBitmapCache = class
   private
     FGuid: string;
-    FOwner: TksListView;
     FSwitchOn: TBitmap;
     FSwitchOff: TBitmap;
     FCreatingCache: Boolean;
     FCachedButtons: TStringList;
     FImagesCached: Boolean;
     FButton: TSpeedButton;
-    FCacheTimer: TTimer;
-    FResources: TListItemStyleResources;
-    FListViews: TObjectList<TksListView>;
-    FMoreAccessory: TStyleObject;
-    FCheckmarkAccessory: TStyleObject;
-    FDetailAccessory: TStyleObject;
     function GetSwitchImage(AState: TksButtonState): TBitmap;
     function GetButtonImage(AWidth, AHeight: single; AText: string; ATintColor: TAlphaColor;
       AState: TksButtonState; AStyleLookup: string): TBitmap;
-    procedure InvalidateListViews;
-    procedure OnCacheTimer(Sender: TObject);
-    function GetAccessory(AAccessoryType: TAccessoryType): TStyleObject;
-  public
-    constructor Create(Owner: TksListView);
-    destructor Destroy; override;
     function CreateImageCache: Boolean;
+  public
+    constructor Create;
+    destructor Destroy; override;
     property SwitchImage[AState: TksButtonState]: TBitmap read GetSwitchImage;
     property ButtonImage[AWidth, AHeight: single;
                          AText: string;
                          ATintColor: TAlphaColor;
                          AState: TksButtonState;
                          AStyleLookup: string]: TBitmap read GetButtonImage;
-    property ImagesCached: Boolean read FImagesCached;
-    property Accessory[AAccessoryType: TAccessoryType]: TStyleObject read GetAccessory;
   end;
 
 
@@ -1489,8 +1482,8 @@ var
   {$ENDIF}
   ABmpWidth: single;
 begin
-  if AControlBitmapCache.ImagesCached = False then
-    Exit;
+  //if AControlBitmapCache.ImagesCached = False then
+  //  Exit;
 
   if FCached then
     Exit;
@@ -1534,7 +1527,7 @@ begin
     if (FIndicatorColor <> claNull) and (lv.ShowIndicatorColors) then
     begin
       Bitmap.Canvas.Fill.Color := FIndicatorColor;
-      Bitmap.Canvas.FillRect(RectF(0, 8, 6, RowHeight(False)-8), 0, 0, [], 1, Bitmap.Canvas.Fill);
+      Bitmap.Canvas.FillRect(RectF(8, 8, 14, RowHeight(False)-8), 0, 0, [], 1, Bitmap.Canvas.Fill);
     end;
 
     {$IFDEF XE8_OR_NEWER}
@@ -2455,10 +2448,11 @@ begin
   FScreenScale := GetScreenScale;
   FAppearence := TksListViewAppearence.Create(Self);
 
-  if AControlBitmapCache = nil then
-    AControlBitmapCache := TksControlBitmapCache.Create(Self);
+  //if AControlBitmapCache = nil then
+   // AControlBitmapCache := TksControlBitmapCache.Create(Self);
 
-  AControlBitmapCache.FListViews.Add(Self);
+
+  //AControlBitmapCache.FListViews.Add(Self);
 
   FItemHeight := 44;
   FHeaderHeight := 44;
@@ -2499,8 +2493,8 @@ begin
   FCombo.Free;
   FDateSelector.Free;
   {$ENDIF}
-  if AControlBitmapCache <> nil then
-    AControlBitmapCache.FListViews.Remove(Self);
+  //if AControlBitmapCache <> nil then
+  //  AControlBitmapCache.FListViews.Remove(Self);
   inherited;
 end;
 
@@ -2787,6 +2781,11 @@ begin
     SetColorStyle('frame', FAppearence.SeparatorColor);
   SetColorStyle('alternatingitembackground', FAppearence.AlternatingItemBackground);
   inherited;
+
+  //if FResources = nil then FResources := GetStyleResources;
+
+
+
 end;
 
 procedure TksListView.BeginUpdate;
@@ -2901,13 +2900,18 @@ end;
 
 procedure TksListView.Paint;
 begin
-
   FIsShowing := True;
+
+  if FMoreAccessory = nil then FMoreAccessory := GetStyleResources.AccessoryImages[TAccessoryType.More].Normal;
+  if FDetailAccessory = nil then FDetailAccessory := GetStyleResources.AccessoryImages[TAccessoryType.Detail].Normal;
+  if FCheckmarkAccessory = nil then FCheckmarkAccessory := GetStyleResources.AccessoryImages[TAccessoryType.Checkmark].Normal;
+
+
   if not (csDesigning in ComponentState) then
   begin
     if (AControlBitmapCache <> nil) then
-      if AControlBitmapCache.ImagesCached = False then
-        Exit;
+    //  if AControlBitmapCache.ImagesCached = False then
+    //    Exit;
   end;
   inherited;
 end;
@@ -2981,6 +2985,19 @@ begin
   CachePages;
   Application.ProcessMessages;
   Invalidate;
+end;
+
+function TksListView.GetAccessory(AAccessoryType: TAccessoryType): TStyleObject;
+begin
+  Result := nil;
+
+  case AAccessoryType of
+    TAccessoryType.More: Result := FMoreAccessory;
+    TAccessoryType.Detail: Result := FDetailAccessory;
+    TAccessoryType.Checkmark: Result := FCheckmarkAccessory;
+  end;
+  //if Result <> nil then
+   // Beep;
 end;
 
 function TksListView.GetRowFromYPos(y: single): TKsListItemRow;
@@ -3078,20 +3095,20 @@ begin
 
   FLastIndex := ItemIndex;
   inherited;
-  if ARow.CanSelect = False then
-  begin
-    ItemIndex := FLastIndex;
-    Exit;
-  end;
-
 
   if (Button = TMouseButton.mbRight) then
     ItemIndex := ARow.Index;
   FMouseDownPos := PointF(x-ItemSpaces.Left, y);
   FMouseDownTime := Now;
 
-  if ARow = nil then
-    ItemIndex := -1;
+  if ARow.CanSelect = False then
+  begin
+    ItemIndex := FLastIndex;
+    Exit;
+  end;
+
+  //if ARow = nil then
+   // ItemIndex := -1;
 end;
 
 procedure TksListView.MouseMove(Shift: TShiftState; X, Y: Single);
@@ -3123,11 +3140,11 @@ begin
     ARow := GetRowFromYPos(y);
     if ARow = nil then
       Exit;
-      if ARow.CanSelect = False then
+      {if ARow.CanSelect = False then
       begin
         ItemIndex := FLastIndex;
         Exit;
-      end;
+      end;  }
 
     ARowRect := GetItemRect(ARow.Index);
 
@@ -3215,11 +3232,11 @@ var
   AState: TksButtonState;
 begin
   Result := inherited Render(ACanvas);
-  if AControlBitmapCache.ImagesCached = False then
-  begin
-    Result := False;
-    Exit;
-  end;
+  //if AControlBitmapCache.ImagesCached = False then
+  //begin
+  //  Result := False;
+  //  Exit;
+  //end;
   ABmp := TBitmap.Create;
   try
     AState := Unpressed;
@@ -3253,7 +3270,9 @@ end;
 
 procedure TKsListItemRowAccessory.CalculateImageSize;
 begin
-  FImage := AControlBitmapCache.Accessory[FAccessoryType];
+  //if AControlBitmapCache = nil then
+
+  FImage := FRow.ListView.Accessory[FAccessoryType];
   if FImage = nil then
     Exit;
   FWidth := FImage.Width;
@@ -3416,8 +3435,8 @@ var
   AState: TksButtonState;
 begin
   Result := inherited Render(ACanvas);
-  if AControlBitmapCache.ImagesCached = False then
-    Exit;
+  //if AControlBitmapCache.ImagesCached = False then
+  //  Exit;
   ABtnWidth := Trunc(FWidth / FCaptions.Count);
   ABtnRect := RectF(Rect.Left, Rect.Top, Rect.Left + ABtnWidth, Rect.Bottom);
   for ICount := 0 to FCaptions.Count-1 do
@@ -3480,20 +3499,21 @@ end;
 
 { TksControlBitmapCache }
 
-constructor TksControlBitmapCache.Create(Owner: TksListView);
+constructor TksControlBitmapCache.Create;
 begin
   inherited Create;
-  FOwner := Owner;
+  //FOwner := Owner;
   FImagesCached := False;
   FCreatingCache := False;
-  FButton := TSpeedButton.Create(Owner.Parent);
+  FButton := TSpeedButton.Create(nil);
   FButton.Height := C_SEGMENT_BUTTON_HEIGHT;
   FCachedButtons := TStringList.Create;
   FGuid := CreateGuidStr;
-  FCacheTimer := TTimer.Create(nil);
+
+  {FCacheTimer := TTimer.Create(nil);
   FCacheTimer.Interval := 100;
-  FCacheTimer.OnTimer := OnCacheTimer;
-  FListViews := TObjectList<TksListView>.Create(False);
+  FCacheTimer.OnTimer := OnCacheTimer; }
+  //FListViews := TObjectList<TksListView>.Create(False);
 end;
 
 destructor TksControlBitmapCache.Destroy;
@@ -3501,7 +3521,7 @@ var
   ICount: integer;
 begin
   {$IFDEF IOS}
-  FCacheTimer.DisposeOf;
+  //FCacheTimer.DisposeOf;
   FSwitchOn.DisposeOf;
   FSwitchOff.DisposeOf;
   for ICount := FCachedButtons.Count-1 downto 0 do
@@ -3509,13 +3529,11 @@ begin
   FCachedButtons.DisposeOf;
   FListViews.DisposeOf;
   {$ELSE}
-  FCacheTimer.Free;
   FSwitchOn.Free;
   FSwitchOff.Free;
   for ICount := FCachedButtons.Count-1 downto 0 do
     FCachedButtons.Objects[ICount].Free;
   FCachedButtons.Free;
-  FListViews.Free;
   {$ENDIF}
   inherited;
 end;
@@ -3525,21 +3543,55 @@ var
   ASwitch: TSwitch;
   AForm: TFmxObject;
 begin
-  Result := False;
-  if FCreatingCache then
-    Exit;
   if (FImagesCached) then
   begin
     Result := True;
     Exit;
   end;
 
+  Result := False;
+  if Application.MainForm = nil then
+    Exit;
+
+//  if FCreatingCache then
+//    Exit;
+
   try
     FCreatingCache := True;
     Result := False;
-    AForm := FOwner.Parent;
-    while (AForm is TForm) = False do
-        AForm := AForm.Parent;
+
+    //AListView := TListView.Create(Application.MainForm);
+    //Application.MainForm.AddObject(AListView);
+    Application.ProcessMessages;
+
+    {AListView.ApplyStyleLookup;
+    AResources := TListItemStyleResources.Create; //AListView.getsCreate;
+    try
+      FMoreAccessory := AResources.AccessoryImages[TAccessoryType.More].Normal;
+      FDetailAccessory := AResources.AccessoryImages[TAccessoryType.Detail].Normal;
+      FCheckmarkAccessory := AResources.AccessoryImages[TAccessoryType.Checkmark].Normal;
+    finally
+      AResources.Free;
+    end;
+    Application.MainForm.RemoveObject(AListView);
+    AListView.Free;
+            }
+    //if FMoreAccessory = nil then
+   //   Exit;
+
+    AForm := Application.MainForm;
+
+
+
+    {while (AForm is TForm) = False do
+    begin
+      if AForm = nil then
+      begin
+        AForm := Application.MainForm;
+        Break;
+      end;
+      AForm := AForm.Parent;
+    end; }
 
     ASwitch := TSwitch.Create(AForm);
     try
@@ -3579,14 +3631,15 @@ begin
       end;
     end;
 
-    FButton.Position := FOwner.Position;
+    //FButton.Position := FOwner.Position;
+
     AForm.InsertObject(0, FButton);
     Application.ProcessMessages;
 
-    FResources := FOwner.GetStyleResources;
+    {FResources := FOwner.GetStyleResources;
     FMoreAccessory := FResources.AccessoryImages[TAccessoryType.More].Normal;
     FDetailAccessory := FResources.AccessoryImages[TAccessoryType.Detail].Normal;
-    FCheckmarkAccessory := FResources.AccessoryImages[TAccessoryType.Checkmark].Normal;
+    FCheckmarkAccessory := FResources.AccessoryImages[TAccessoryType.Checkmark].Normal; }
 
     FImagesCached := True;
 
@@ -3597,7 +3650,19 @@ begin
   Application.ProcessMessages;
 end;
 
+        {
+function TksListView.GetAccessory(AAccessoryType: TAccessoryType): TStyleObject;
+begin
+  Result := nil;
+  case AAccessoryType of
+    TAccessoryType.More: Result := FMoreAccessory;
+    TAccessoryType.Detail: Result := FDetailAccessory;
+    TAccessoryType.Checkmark: Result := FCheckmarkAccessory;
+  end;
+end;
+       }
 
+       {
 function TksControlBitmapCache.GetAccessory(
   AAccessoryType: TAccessoryType): TStyleObject;
 begin
@@ -3607,13 +3672,15 @@ begin
     TAccessoryType.Detail: Result := FDetailAccessory;
     TAccessoryType.Checkmark: Result := FCheckmarkAccessory;
   end;
-end;
+end;}
 
 function TksControlBitmapCache.GetButtonImage(AWidth, AHeight: single; AText: string;
   ATintColor: TAlphaColor; AState: TksButtonState; AStyleLookup: string): TBitmap;
 var
   AId: string;
 begin
+  if FImagesCached = False then
+    CreateImageCache;
   Result := nil;
   if FButton.Parent = nil then
     Exit;
@@ -3630,10 +3697,10 @@ begin
   end;
   if FButton.Parent = nil then
   begin
-    if FOwner.Parent = nil then
-      Exit;
-    FButton.Position := FOwner.Position;
-    FOwner.Parent.InsertObject(0, FButton);
+    //if FOwner.Parent = nil then
+    //  Exit;
+    //FButton.Position := FOwner.Position;
+    Application.MainForm.InsertObject(0, FButton);
     Application.ProcessMessages;
   end;
   FButton.Name := '_'+CreateGuidStr;
@@ -3674,35 +3741,13 @@ end;
 
 function TksControlBitmapCache.GetSwitchImage(AState: TksButtonState): TBitmap;
 begin
+  if FImagesCached = False then
+    CreateImageCache;
   Result := nil;
   case AState of
     Pressed  : Result := FSwitchOn;
     Unpressed: Result := FSwitchOff;
   end;
-end;
-
-procedure TksControlBitmapCache.InvalidateListViews;
-var
-  ICount: integer;
-begin
-  for ICount := 0 to FListViews.Count-1 do
-    FListViews[ICount].Invalidate;
-end;
-
-procedure TksControlBitmapCache.OnCacheTimer(Sender: TObject);
-begin
-  FCacheTimer.Enabled := False;
-  if ImagesCached = False then
-    CreateImageCache;
-  if ImagesCached then
-  begin
-    FCacheTimer.OnTimer := nil;
-    FCacheTimer.Enabled := False;
-    InvalidateListViews;
-    FOwner.RedrawAllRows;
-    Exit;
-  end;
-  FCacheTimer.Enabled := True;
 end;
 
 { TksListItemRowButton }
@@ -3742,8 +3787,8 @@ var
 begin
   inherited Render(ACanvas);
   Result := False;
-  if AControlBitmapCache.ImagesCached = False then
-    Exit;
+  //if AControlBitmapCache.ImagesCached = False then
+ //   Exit;
 
   ABmp := TBitmap.Create;
   try
@@ -4019,6 +4064,7 @@ end;
 
 initialization
 
+  AControlBitmapCache := TksControlBitmapCache.Create;
   ATextLayout := TTextLayoutManager.DefaultTextLayout.Create;
   {$IFDEF MSWINDOWS}
   DefaultScrollBarWidth := 16;
