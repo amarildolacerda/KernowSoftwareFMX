@@ -147,13 +147,17 @@ type
     FSlideMenu: TksSlideMenu;
     FListView: TksListView;
     FImage: TImage;
-    function CalculateListViewHeight: single;
+    function GetToolBarHeight: single;
+    procedure CreateListView;
+    //function CalculateListViewHeight: single;
+    procedure SetListViewHeight;
     procedure ItemClick(Sender: TObject; x, y: Single; AItem: TKsListItemRow; AId: string; ARowObj: TksListItemRowObj);
   protected
     procedure Paint; override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
+    procedure AfterConstruction; override;
     procedure SwitchToImage;
     procedure SwitchToMenu;
     property ListView: TksListView read FListView;
@@ -179,9 +183,12 @@ type
     FAfterSelectMenuItemEvent: TSelectMenuItemEvent;
     FOnAfterSlideOut: TNotifyEvent;
     FToolBar: TksSlideMenuToolbar;
-  private
+    {$IFDEF XE8_OR_NEWER}
+    FImages: TCustomImageList;
+    {$ENDIF}
     FHeaderHeight: integer;
     FItemHeight: integer;
+    FToggleButton: TCustomButton;
     procedure SetTopPadding(const Value: integer);
     procedure DoBackgroundClick(Sender: TObject);
     procedure ToggleOverlap(ACacheFormImage: Boolean);
@@ -191,21 +198,16 @@ type
     procedure GenerateFormImage(AForm: TForm);
     procedure GenerateShadows;
     procedure HidePickers;
+    procedure SetToggleButton(const Value: TCustomButton);
+    procedure DoToggleButtonClick(Sender: TObject);
+  private
     procedure MenuItemSelected(Sender: TObject; x, y: single; AItem: TKsListItemRow; AId: string; ARowObj: TksListItemRowObj);
-    function GetItemIndex: Integer;
-    procedure SetItemIndex(const Value: Integer);
-    {$IFDEF XE8_OR_NEWER}
-    function GetImages: TCustomImageList;
-    procedure SetImages(const Value: TCustomImageList);
-    {$ENDIF}
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     procedure Clear;
     procedure AddHeader(AText: string);
-    {$IFDEF XE8_OR_NEWER}
     function AddMenuItem(AId, AText: string; const AImageIndex: integer = -1): TksSlideMenuItem; overload;
-    {$ENDIF}
     function AddMenuItem(AId, AText: string; AImage: TBitmap): TksSlideMenuItem; overload;
     procedure ToggleMenu;
     procedure UpdateMenu;
@@ -214,9 +216,8 @@ type
   published
     property Appearence: TksSlideMenuAppearence read FAppearence write FAppearence;
     property Font: TFont read FFont write FFont;
-    property ItemIndex: Integer read GetItemIndex write SetItemIndex;
     {$IFDEF XE8_OR_NEWER}
-    property Images: TCustomImageList read GetImages write SetImages;
+    property Images: TCustomImageList read FImages write FImages;
     {$ENDIF}
     property ItemHeight: integer read FItemHeight write FItemHeight default C_DEFAULT_ITEM_HEIGHT;
     property HeaderHeight: integer read FHeaderHeight write FHeaderHeight default C_DEFAULT_HEADER_HEIGHT;
@@ -227,6 +228,7 @@ type
     property OnSelectMenuItemEvent: TSelectMenuItemEvent read FOnSelectMenuItemEvent write FOnSelectMenuItemEvent;
     property AfterSelectItemEvent: TSelectMenuItemEvent read FAfterSelectMenuItemEvent write FAfterSelectMenuItemEvent;
     property Toolbar: TksSlideMenuToolbar read FToolbar write FToolbar;
+    property ToggleButton: TCustomButton read FToggleButton write SetToggleButton;
     property OnAfterSlideOut: TNotifyEvent read FOnAfterSlideOut write FOnAfterSlideOut;
 
   end;
@@ -235,7 +237,7 @@ type
 
 implementation
 
-uses FMX.Platform, SysUtils, FMX.Ani, FMX.Pickers;
+uses FMX.Platform, SysUtils, FMX.Ani, FMX.Pickers, Math;
 
 procedure Register;
 begin
@@ -261,7 +263,12 @@ begin
   AResult.Font.Assign(FFont);
 end;
 
-{$IFDEF XE8_OR_NEWER}
+
+function TksSlideMenu.AddMenuItem(AId, AText: string; AImage: TBitmap): TksSlideMenuItem;
+begin
+  Result := FItems.AddMenuItem(AId, AText, AImage);
+  Result.Font.Assign(FFont);
+end;
 
 function TksSlideMenu.AddMenuItem(AId, AText: string; const AImageIndex: integer = -1): TksSlideMenuItem;
 var
@@ -271,18 +278,13 @@ begin
   AImage := nil;
   ASize.Width := 64;
   ASize.Height := 64;
+  {$IFDEF XE8_OR_NEWER}
   if Images <> nil then
     AImage := Images.Bitmap(ASize, AImageIndex);
+  {$ENDIF}
   Result := AddMenuItem(AId, AText, AImage);
 end;
 
-{$ENDIF}
-
-function TksSlideMenu.AddMenuItem(AId, AText: string; AImage: TBitmap): TksSlideMenuItem;
-begin
-  Result := FItems.AddMenuItem(AId, AText, AImage);
-  Result.Font.Assign(FFont);
-end;
 
 procedure TksSlideMenu.Clear;
 begin
@@ -300,11 +302,12 @@ begin
   FAppearence := TksSlideMenuAppearence.Create(Self);
   FMenu := TksSlideMenuContainer.Create(Self);
   FToolbar := TksSlideMenuToolbar.Create(Self);
+  FFormImage := TImage.Create(Self);
+  FBackground := TRectangle.Create(Self);
+  
   FShowing := False;
   FTopPadding := 0;
   FFont.Size := C_DEFAULT_FONT_SIZE;
-  FBackground := TRectangle.Create(Self);
-  FFormImage := TImage.Create(Self);
   FFormImage.OnClick := DoBackgroundClick;
   FMenuPosition := mpLeft;
   FMenuStyle := msReveal;
@@ -317,9 +320,9 @@ end;
 destructor TksSlideMenu.Destroy;
 begin
   FFont.Free;
-  FItems.Free;
   FAppearence.Free;
   FToolbar.Free;
+  FItems.Free;
   if IsChild(FMenu) then FMenu.Free;
   if IsChild(FShadowLeft) then FShadowLeft.Free;
   if IsChild(FShadowRight) then FShadowRight.Free;
@@ -330,6 +333,11 @@ end;
 
 
 procedure TksSlideMenu.DoBackgroundClick(Sender: TObject);
+begin
+  ToggleMenu;
+end;
+
+procedure TksSlideMenu.DoToggleButtonClick(Sender: TObject);
 begin
   ToggleMenu;
 end;
@@ -427,24 +435,11 @@ begin
   end;
 end;
 
-{$IFDEF XE8_OR_NEWER}
-
-function TksSlideMenu.GetImages: TCustomImageList;
-begin
-  Result := FMenu.ListView.Images;
-end;
-
-procedure TksSlideMenu.SetImages(const Value: TCustomImageList);
-begin
-  FMenu.ListView.Images := Value;
-end;
-
-{$ENDIF}
-
+ {
 function TksSlideMenu.GetItemIndex: Integer;
 begin
   Result := FMenu.ListView.ItemIndex;
-end;
+end;}
 
 procedure TksSlideMenu.HidePickers;
 var
@@ -474,36 +469,56 @@ var
   AItem: TksSlideMenuItem;
   ARow: TKsListItemRow;
   ALastIndex: integer;
+  lv: TksListView;
 begin
-  ALastIndex := FMenu.FListView.ItemIndex;
-  FMenu.ListView.Position.X := 0;
-  FMenu.ListView.Position.Y := 0;
+  lv := FMenu.FListView;
+  ALastIndex := lv.ItemIndex;
+  lv.Position.X := 0;
+  lv.Position.Y := 0;
   if FToolBar.Visible then
-    FMenu.ListView.Position.Y := C_TOOLBAR_HEIGHT;
+    lv.Position.Y := C_TOOLBAR_HEIGHT;
 
-  FMenu.ListView.Width := C_MENU_WIDTH;
+  lv.Width := C_MENU_WIDTH;
 
 
   FMenu.Width := C_MENU_WIDTH;
-  FMenu.ListView.Appearence.Background := FAppearence.ItemColor;
-  FMenu.ListView.Appearence.ItemBackground := FAppearence.ItemColor;
-  FMenu.ListView.Appearence.HeaderColor := FAppearence.HeaderColor;
-  FMenu.ListView.Appearence.SeparatorColor := FAppearence.HeaderColor;
-  FMenu.ListView.Appearence.SelectedColor := FAppearence.SelectedItemColor;
-  FMenu.ListView.HeaderHeight := FHeaderHeight;
-  FMenu.ListView.ItemHeight := FItemHeight;
-  FMenu.ListView.ItemImageSize := 24;
-  FMenu.ListView.BeginUpdate;
+  lv.Appearence.Background := FAppearence.ItemColor;
+  lv.Appearence.ItemBackground := FAppearence.ItemColor;
+  lv.Appearence.HeaderColor := FAppearence.HeaderColor;
+  lv.Appearence.SeparatorColor := FAppearence.HeaderColor;
+  lv.Appearence.SelectedColor := FAppearence.SelectedItemColor;
+  lv.HeaderHeight := FHeaderHeight;
+  lv.ItemHeight := FItemHeight;
+  lv.ItemImageSize := 24;
+  lv.BeginUpdate;
   try
-    FMenu.ListView.Items.Clear;
+    lv.Items.Clear;
+
+    if FItems.Count = 0 then
+    begin
+      // add some sample items...
+      AddMenuItem('', 'Menu Item 1');
+      AddMenuItem('', 'Menu Item 2');
+      AddHeader('SAMPLE HEADER 1');
+      AddMenuItem('', 'Menu Item 3');
+      AddMenuItem('', 'Menu Item 4');
+      AddMenuItem('', 'Menu Item 5');
+      AddHeader('SAMPLE HEADER 2');
+      AddMenuItem('', 'Menu Item 6');
+      AddMenuItem('', 'Menu Item 7');
+      AddMenuItem('', 'Menu Item 8');
+      AddMenuItem('', 'Menu Item 9');
+      AddMenuItem('', 'Menu Item 10');
+    end;
+
     for ICount := 0 to FItems.Count-1 do
     begin
       AItem := FItems[ICount];
       if AItem.IsHeader then
-        ARow := FMenu.ListView.Items.AddHeader(AItem.Text)
+        ARow := lv.Items.AddHeader(AItem.Text)
       else
       begin
-        ARow := FMenu.ListView.Items.AddRow(AItem.Text, '', '', More);
+        ARow := lv.Items.AddRow(AItem.Text, '', '', More);
         ARow.Image.Bitmap.Assign(AItem.Image);
         ARow.ID := AItem.ID;
 
@@ -511,20 +526,27 @@ begin
       ARow.Title.TextColor := FAppearence.FontColor;
     end;
   finally
-    FMenu.ListView.EndUpdate;
+    lv.EndUpdate;
   end;
   if ALastIndex = -1 then
   begin
-    FMenu.ListView.SelectFirstItem;
-    ALastIndex := FMenu.ListView.ItemIndex;
+    lv.SelectFirstItem;
+    ALastIndex := lv.ItemIndex;
     if ALastIndex > -1 then
-      FMenu.ListView.Items[ALastIndex].BackgroundColor := FAppearence.SelectedItemColor;
+      lv.Items[ALastIndex].BackgroundColor := FAppearence.SelectedItemColor;
   end;
-end;
 
+end;
+     {
 procedure TksSlideMenu.SetItemIndex(const Value: Integer);
 begin
   FMenu.ListView.ItemIndex := Value;
+end; }
+
+procedure TksSlideMenu.SetToggleButton(const Value: TCustomButton);
+begin
+  FToggleButton := Value;
+  FToggleButton.OnClick := DoToggleButtonClick;
 end;
 
 procedure TksSlideMenu.SetTopPadding(const Value: integer);
@@ -539,13 +561,18 @@ end;
 
 procedure TksSlideMenu.ToggleMenu;
 begin
+  if FMenu = nil then
+    Exit;
+  FMenu.CreateListView;
   if FMenu.HitTest = False then
     Exit;
 
   HidePickers;
   FMenu.HitTest := False;
+  FMenu.Height := (Owner as TForm).ClientHeight;
 
-  FMenu.Height := (Owner as TForm).Height;
+
+
   if FMenu.ListView.Items.Count = 0 then
     UpdateMenu;
   Application.ProcessMessages;
@@ -775,7 +802,7 @@ begin
 end;
 
 { TksSlideMenuContainer }
-
+              {
 function TksSlideMenuContainer.CalculateListViewHeight: single;
 var
   ICount: integer;
@@ -785,27 +812,31 @@ begin
   begin
     Result := Result + FListView.Items[ICount].Height;
   end;
-end;
+end;    }
 
 constructor TksSlideMenuContainer.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
-  FListView := TksListView.Create(Self);
-  FImage := TImage.Create(Self);
-
   FSlideMenu := (AOwner as TksSlideMenu);
-  FListView.KeepSelection := True;
-
-  FListView.CanSwipeDelete := False;
-
-  AddObject(FListView);
-  AddObject(FImage);
-  FListView.ShowSelection := False;
-  HitTest := True;
+  FImage := TImage.Create(Self);
   FImage.HitTest := False;
-  FListView.OnItemClick := ItemClick;
   ClipChildren := True;
+  HitTest := True;
+  AddObject(FImage);
+  FListView := nil;
+end;
 
+procedure TksSlideMenuContainer.CreateListView;
+begin
+  if FListView <> nil then
+    Exit;
+  FListView := TksListView.Create(Self);
+  FListView.KeepSelection := True;
+  FListView.CanSwipeDelete := False;
+  FListView.ShowSelection := False;
+  FListView.OnItemClick := ItemClick;
+  AddObject(FListView);
+  Application.ProcessMessages;
 end;
 
 destructor TksSlideMenuContainer.Destroy;
@@ -813,6 +844,13 @@ begin
   if IsChild(FListView) then FListView.Free;
   if IsChild(FImage) then FImage.Free;
   inherited;
+end;
+
+function TksSlideMenuContainer.GetToolBarHeight: single;
+begin
+  Result := 0;
+  if FSlideMenu.Toolbar.Visible then
+    Result := C_TOOLBAR_HEIGHT;
 end;
 
 procedure TksSlideMenuContainer.ItemClick(Sender: TObject; x, y: Single;
@@ -833,6 +871,12 @@ begin
   FSlideMenu.MenuItemSelected(Self, x, y, AItem, AId, ARowObj);
 end;
 
+procedure TksSlideMenuContainer.AfterConstruction;
+begin
+  inherited;
+  CreateListView;
+end;
+
 procedure TksSlideMenuContainer.Paint;
 begin
   inherited;
@@ -843,27 +887,50 @@ begin
   end;
 end;
 
+procedure TksSlideMenuContainer.SetListViewHeight;
+var
+  AHeight: single;
+begin
+  AHeight := Height;
+  if FSlideMenu.Toolbar.Visible then
+  begin
+    FListView.Position.Y := C_TOOLBAR_HEIGHT;
+    AHeight := AHeight - C_TOOLBAR_HEIGHT;
+  end;
+
+  FListView.Height := AHeight;
+end;
+
 procedure TksSlideMenuContainer.SwitchToImage;
 var
   ABmp: TBitmap;
+  ARect: TRectF;
+  //AScrollPos: single;
 begin
+  //AScrollPos := FListView.ScrollViewPos;
+
   FListView.HitTest := False;
   FImage.Position.X := 0;
   FImage.Position.Y := 0;
-  if FSlideMenu.Toolbar.Visible then
-    FImage.Position.Y := C_TOOLBAR_HEIGHT;
+
+  SetListViewHeight;
+
   FImage.Width := C_MENU_WIDTH;
-  FListView.Height := CalculateListViewHeight;
-  FImage.Height := CalculateListViewHeight;
-  ABmp := TBitmap.Create(Round(FListView.Width*4), Round(FListView.Height*4));
+  FImage.Height := FListView.Height+GetToolBarHeight;
+
+  ABmp := TBitmap.Create(Round(FImage.Width*GetScreenScale), Round(FImage.Height*GetScreenScale));
   try
     ABmp.Canvas.BeginScene;
-    ABmp.BitmapScale := 2;
+    ABmp.BitmapScale := GetScreenScale;
     FListView.Visible := True;
-    FListView.PaintTo(ABmp.Canvas, RectF(0, 0, ABmp.Width, ABmp.Height));
+    ARect := RectF(0, 0, FListView.Width * GetScreenScale, FListView.Height * GetScreenScale);
+    if FSlideMenu.Toolbar.Visible then
+      OffsetRect(ARect, 0, C_TOOLBAR_HEIGHT*GetScreenScale);
+    FListView.PaintTo(ABmp.Canvas, ARect);
     FListView.Visible := False;
     ABmp.Canvas.EndScene;
     FImage.Bitmap.Assign(ABmp);
+
   finally
     ABmp.Free;
   end;
@@ -876,12 +943,12 @@ procedure TksSlideMenuContainer.SwitchToMenu;
 var
   AIndex: integer;
 begin
-  FListView.Height := (FSlideMenu.Owner as TForm).Height;
-  FListView.Visible := True;
-  AIndex := FSlideMenu.ItemIndex;
-  FSlideMenu.UpdateMenu;
+  AIndex := FListView.ItemIndex;
+
+  SetListViewHeight;
   if AIndex > -1 then
     FListView.Items[AIndex].BackgroundColor := FSlideMenu.Appearence.SelectedItemColor;
+  FListView.Visible := True;
   FImage.Visible := False;
   Application.ProcessMessages;
   FListView.HitTest := True;
@@ -897,6 +964,7 @@ begin
   FVisible := True;
   FSlideMenu := ASlideMenu;
   FFont.Size := C_DEFAULT_TOOLBAR_FONT_SIZE;
+  FText := FSlideMenu.ClassName;
 end;
 
 destructor TksSlideMenuToolbar.Destroy;

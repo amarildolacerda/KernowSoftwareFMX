@@ -86,7 +86,6 @@ type
     imgSource7: TImage;
     SlideMenu1: TksSlideMenu;
     procedure FormCreate(Sender: TObject);
-    procedure btnLeftMenuClick(Sender: TObject);
     procedure SlideMenu1SelectMenuItemEvent(Sender: TObject; AId: string);
     procedure Switch1Switch(Sender: TObject);
     procedure ksSegmentButtons1Change(Sender: TObject);
@@ -125,12 +124,6 @@ implementation
 uses System.UIConsts, untSourceCode;
 
 {$R *.fmx}
-
-procedure TfrmMain.btnLeftMenuClick(Sender: TObject);
-begin
-
-  SlideMenu1.ToggleMenu;
-end;
 
 procedure TfrmMain.BuildTextItemsListView;
 var
@@ -357,7 +350,7 @@ begin
   SlideMenu1.AddMenuItem('ACCESSORYS', 'Item Accessories', nil);
   SlideMenu1.AddMenuItem('CHECKLIST', 'Check List', nil);
   SlideMenu1.AddMenuItem('EVERYTHING', 'Complex but oh so smooth ;-)', nil);
-  SlideMenu1.ItemIndex := 0;
+
 
   //SlideMenu2.AddMenuItem('ANOTHER', 'Dummy menu item', imgHome.Bitmap);
 

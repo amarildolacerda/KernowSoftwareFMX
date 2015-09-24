@@ -1489,6 +1489,8 @@ var
   {$ENDIF}
   ABmpWidth: single;
 begin
+  if AControlBitmapCache.ImagesCached = False then
+    Exit;
 
   if FCached then
     Exit;
@@ -2455,6 +2457,7 @@ begin
 
   if AControlBitmapCache = nil then
     AControlBitmapCache := TksControlBitmapCache.Create(Self);
+
   AControlBitmapCache.FListViews.Add(Self);
 
   FItemHeight := 44;
@@ -3696,6 +3699,7 @@ begin
     FCacheTimer.OnTimer := nil;
     FCacheTimer.Enabled := False;
     InvalidateListViews;
+    FOwner.RedrawAllRows;
     Exit;
   end;
   FCacheTimer.Enabled := True;

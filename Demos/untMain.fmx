@@ -119,6 +119,26 @@ object frmMain: TfrmMain
     Size.Height = 44.000000000000000000
     Size.PlatformDefault = False
   end
+  object TSpeedButton
+    Size.Width = 80.000000000000000000
+    Size.Height = 44.000000000000000000
+    Size.PlatformDefault = False
+  end
+  object TSpeedButton
+    Size.Width = 80.000000000000000000
+    Size.Height = 44.000000000000000000
+    Size.PlatformDefault = False
+  end
+  object TSpeedButton
+    Size.Width = 80.000000000000000000
+    Size.Height = 44.000000000000000000
+    Size.PlatformDefault = False
+  end
+  object TSpeedButton
+    Size.Width = 80.000000000000000000
+    Size.Height = 44.000000000000000000
+    Size.PlatformDefault = False
+  end
   object ToolBar1: TToolBar
     Size.Width = 393.000000000000000000
     Size.Height = 44.000000000000000000
@@ -159,7 +179,6 @@ object frmMain: TfrmMain
       TabOrder = 1
       Text = 'MENU'
       TextSettings.Font.Size = 14.000000000000000000
-      OnClick = btnLeftMenuClick
     end
   end
   object TabControl1: TTabControl
@@ -202,8 +221,8 @@ object frmMain: TfrmMain
           Toolbar.Text = 'MENU OPTIONS'
           Toolbar.Font.Size = 14.000000000000000000
           OnAfterSlideOut = SlideMenu1AfterSlideOut
-          Left = 24
-          Top = 184
+          Left = 16
+          Top = 192
         end
       end
       object ToolBar3: TToolBar
@@ -227,7 +246,12 @@ object frmMain: TfrmMain
       end
       object Memo1: TMemo
         Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
-        DataDetectorTypes = []
+        Align = Bottom
+        Position.Y = 216.000000000000000000
+        Size.Width = 393.000000000000000000
+        Size.Height = 59.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 2
         Lines.Strings = (
           'procedure TfrmMain.BuildTextItemsListView;'
           'var'
@@ -264,16 +288,8 @@ object frmMain: TfrmMain
           '    HideLoading;'
           '  end;'
           'end;')
-        StyledSettings = [Family, Style, FontColor]
         TextSettings.Font.Size = 10.000000000000000000
-        Align = Bottom
-        Position.Y = 216.000000000000000000
-        Size.Width = 393.000000000000000000
-        Size.Height = 59.000000000000000000
-        Size.PlatformDefault = False
-        TabOrder = 2
-        Viewport.Width = 380.000000000000000000
-        Viewport.Height = 51.000000000000000000
+        StyledSettings = [Family, Style, FontColor]
         object imgSource1: TImage
           MultiResBitmap.Height = 438
           MultiResBitmap.Width = 731
@@ -1087,7 +1103,7 @@ object frmMain: TfrmMain
           Align = Right
           Position.X = 330.000000000000000000
           Size.Width = 50.000000000000000000
-          Size.Height = 51.000000000000000000
+          Size.Height = 46.000000000000000000
           Size.PlatformDefault = False
           WrapMode = Original
         end
@@ -1134,7 +1150,12 @@ object frmMain: TfrmMain
       end
       object Memo2: TMemo
         Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
-        DataDetectorTypes = []
+        Align = Bottom
+        Position.Y = 216.000000000000000000
+        Size.Width = 393.000000000000000000
+        Size.Height = 59.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 2
         Lines.Strings = (
           'procedure TfrmMain.BuildProgressBarsListview;'
           'var'
@@ -1180,16 +1201,8 @@ object frmMain: TfrmMain
           ''
           '  HideLoading;'
           'end;')
-        StyledSettings = [Family, Style, FontColor]
         TextSettings.Font.Size = 10.000000000000000000
-        Align = Bottom
-        Position.Y = 216.000000000000000000
-        Size.Width = 393.000000000000000000
-        Size.Height = 59.000000000000000000
-        Size.PlatformDefault = False
-        TabOrder = 2
-        Viewport.Width = 380.000000000000000000
-        Viewport.Height = 51.000000000000000000
+        StyledSettings = [Family, Style, FontColor]
         object imgSource2: TImage
           MultiResBitmap.Height = 591
           MultiResBitmap.Width = 587
@@ -2198,9 +2211,8 @@ object frmMain: TfrmMain
               FileName = 'C:\Users\Graham\Desktop\ks\2.fw.png'
             end>
           Align = Right
-          Position.X = 330.000000000000000000
           Size.Width = 50.000000000000000000
-          Size.Height = 51.000000000000000000
+          Size.Height = 50.000000000000000000
           Size.PlatformDefault = False
           WrapMode = Original
         end
@@ -2248,7 +2260,12 @@ object frmMain: TfrmMain
       end
       object Memo3: TMemo
         Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
-        DataDetectorTypes = []
+        Align = Bottom
+        Position.Y = 216.000000000000000000
+        Size.Width = 393.000000000000000000
+        Size.Height = 59.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 2
         Lines.Strings = (
           'procedure TfrmMain.BuildSegmentButtonListView;'
           'var'
@@ -2290,16 +2307,8 @@ object frmMain: TfrmMain
           '    HideLoading;'
           '  end;'
           'end;')
-        StyledSettings = [Family, Style, FontColor]
         TextSettings.Font.Size = 10.000000000000000000
-        Align = Bottom
-        Position.Y = 216.000000000000000000
-        Size.Width = 393.000000000000000000
-        Size.Height = 59.000000000000000000
-        Size.PlatformDefault = False
-        TabOrder = 2
-        Viewport.Width = 380.000000000000000000
-        Viewport.Height = 51.000000000000000000
+        StyledSettings = [Family, Style, FontColor]
         object imgSource3: TImage
           MultiResBitmap.Height = 591
           MultiResBitmap.Width = 683
@@ -3274,9 +3283,8 @@ object frmMain: TfrmMain
               FileName = 'C:\Users\Graham\Desktop\ks\3.fw.png'
             end>
           Align = Right
-          Position.X = 330.000000000000000000
           Size.Width = 50.000000000000000000
-          Size.Height = 51.000000000000000000
+          Size.Height = 50.000000000000000000
           Size.PlatformDefault = False
         end
       end
@@ -3321,7 +3329,12 @@ object frmMain: TfrmMain
       end
       object Memo4: TMemo
         Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
-        DataDetectorTypes = []
+        Align = Bottom
+        Position.Y = 216.000000000000000000
+        Size.Width = 393.000000000000000000
+        Size.Height = 59.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 2
         Lines.Strings = (
           'procedure TfrmMain.BuildIndicatorListView;'
           'begin'
@@ -3365,16 +3378,8 @@ object frmMain: TfrmMain
           '    HideLoading;'
           '  end;'
           'end;')
-        StyledSettings = [Family, Style, FontColor]
         TextSettings.Font.Size = 10.000000000000000000
-        Align = Bottom
-        Position.Y = 216.000000000000000000
-        Size.Width = 393.000000000000000000
-        Size.Height = 59.000000000000000000
-        Size.PlatformDefault = False
-        TabOrder = 2
-        Viewport.Width = 380.000000000000000000
-        Viewport.Height = 46.000000000000000000
+        StyledSettings = [Family, Style, FontColor]
         object imgSource4: TImage
           MultiResBitmap.Height = 403
           MultiResBitmap.Width = 899
@@ -4571,9 +4576,8 @@ object frmMain: TfrmMain
               FileName = 'C:\Users\Graham\Desktop\ks\4.fw.png'
             end>
           Align = Right
-          Position.X = 330.000000000000000000
           Size.Width = 50.000000000000000000
-          Size.Height = 46.000000000000000000
+          Size.Height = 50.000000000000000000
           Size.PlatformDefault = False
         end
       end
@@ -4617,7 +4621,12 @@ object frmMain: TfrmMain
       end
       object Memo5: TMemo
         Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
-        DataDetectorTypes = []
+        Align = Bottom
+        Position.Y = 216.000000000000000000
+        Size.Width = 393.000000000000000000
+        Size.Height = 59.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 2
         Lines.Strings = (
           'procedure TfrmMain.BuildAccessoryListView;'
           'begin'
@@ -4637,16 +4646,8 @@ object frmMain: TfrmMain
           '    HideLoading;'
           '  end;'
           'end;')
-        StyledSettings = [Family, Style, FontColor]
         TextSettings.Font.Size = 10.000000000000000000
-        Align = Bottom
-        Position.Y = 216.000000000000000000
-        Size.Width = 393.000000000000000000
-        Size.Height = 59.000000000000000000
-        Size.PlatformDefault = False
-        TabOrder = 2
-        Viewport.Width = 380.000000000000000000
-        Viewport.Height = 51.000000000000000000
+        StyledSettings = [Family, Style, FontColor]
         object imgSource5: TImage
           MultiResBitmap.Height = 303
           MultiResBitmap.Width = 601
@@ -5230,9 +5231,8 @@ object frmMain: TfrmMain
               FileName = 'C:\Users\Graham\Desktop\ks\5.fw.png'
             end>
           Align = Right
-          Position.X = 330.000000000000000000
           Size.Width = 50.000000000000000000
-          Size.Height = 51.000000000000000000
+          Size.Height = 50.000000000000000000
           Size.PlatformDefault = False
         end
       end
@@ -5299,9 +5299,8 @@ object frmMain: TfrmMain
           Align = Left
           IsChecked = False
           Position.X = 113.000000000000000000
-          Position.Y = 4.000000000000000000
           Size.Width = 55.000000000000000000
-          Size.Height = 35.000000000000000000
+          Size.Height = 44.000000000000000000
           Size.PlatformDefault = False
           TabOrder = 1
           OnSwitch = Switch1Switch
@@ -5332,7 +5331,12 @@ object frmMain: TfrmMain
       end
       object Memo6: TMemo
         Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
-        DataDetectorTypes = []
+        Align = Bottom
+        Position.Y = 172.000000000000000000
+        Size.Width = 393.000000000000000000
+        Size.Height = 59.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 2
         Lines.Strings = (
           'procedure TfrmMain.BuildCheckListView;'
           'var'
@@ -5362,16 +5366,8 @@ object frmMain: TfrmMain
             'ingleSelect;'
           '  end;'
           'end;')
-        StyledSettings = [Family, Style, FontColor]
         TextSettings.Font.Size = 10.000000000000000000
-        Align = Bottom
-        Position.Y = 172.000000000000000000
-        Size.Width = 393.000000000000000000
-        Size.Height = 59.000000000000000000
-        Size.PlatformDefault = False
-        TabOrder = 2
-        Viewport.Width = 380.000000000000000000
-        Viewport.Height = 51.000000000000000000
+        StyledSettings = [Family, Style, FontColor]
         object imgSource6: TImage
           MultiResBitmap.Height = 243
           MultiResBitmap.Width = 586
@@ -5784,9 +5780,8 @@ object frmMain: TfrmMain
               FileName = 'C:\Users\Graham\Desktop\ks\6.fw.png'
             end>
           Align = Right
-          Position.X = 330.000000000000000000
           Size.Width = 50.000000000000000000
-          Size.Height = 51.000000000000000000
+          Size.Height = 50.000000000000000000
           Size.PlatformDefault = False
         end
       end
@@ -5813,7 +5808,12 @@ object frmMain: TfrmMain
       end
       object Memo7: TMemo
         Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
-        DataDetectorTypes = []
+        Align = Bottom
+        Position.Y = 260.000000000000000000
+        Size.Width = 393.000000000000000000
+        Size.Height = 59.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 2
         Lines.Strings = (
           'procedure TfrmMain.BuildEverythingListView;'
           'var'
@@ -5863,16 +5863,8 @@ object frmMain: TfrmMain
           '    HideLoading;'
           '  end;'
           'end;')
-        StyledSettings = [Family, Style, FontColor]
         TextSettings.Font.Size = 10.000000000000000000
-        Align = Bottom
-        Position.Y = 260.000000000000000000
-        Size.Width = 393.000000000000000000
-        Size.Height = 59.000000000000000000
-        Size.PlatformDefault = False
-        TabOrder = 2
-        Viewport.Width = 380.000000000000000000
-        Viewport.Height = 46.000000000000000000
+        StyledSettings = [Family, Style, FontColor]
         object imgSource7: TImage
           MultiResBitmap.Height = 562
           MultiResBitmap.Width = 980
@@ -7079,9 +7071,8 @@ object frmMain: TfrmMain
               FileName = 'C:\Users\Graham\Desktop\ks\7.fw.png'
             end>
           Align = Right
-          Position.X = 330.000000000000000000
           Size.Width = 50.000000000000000000
-          Size.Height = 46.000000000000000000
+          Size.Height = 50.000000000000000000
           Size.PlatformDefault = False
         end
       end
@@ -8321,8 +8312,8 @@ object frmMain: TfrmMain
     Enabled = False
     Interval = 200
     OnTimer = Timer1Timer
-    Left = 24
-    Top = 236
+    Left = 16
+    Top = 244
   end
   object lblLoading: TLabel
     StyledSettings = [Family, Style]
