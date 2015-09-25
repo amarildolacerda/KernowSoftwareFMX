@@ -688,8 +688,8 @@ begin
       ANewX := TForm(Owner).Width-C_MENU_WIDTH;
     end;
     TForm(Owner).AddObject(FFormImage);
-    TForm(Owner).AddObject(FMenu);
     FadeBackground;
+    TForm(Owner).AddObject(FMenu);
     TAnimator.AnimateFloatWait(FMenu, 'Position.X', ANewX,  FSlideSpeed);
 
   end;
