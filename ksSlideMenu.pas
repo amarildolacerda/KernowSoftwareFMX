@@ -905,12 +905,12 @@ begin
   FListView.CanSwipeDelete := False;
   FListView.ShowSelection := False;
   FListView.OnItemClick := ItemClick;
-  //FListView.Height := 1;
+  FListView.Height := 1;
   FListView.Transparent := True;
   Application.MainForm.AddObject(FListView);
   Application.ProcessMessages;
-  FListView.Transparent := False;
   AddObject(FListView);
+  FListView.Transparent := False;
 end;
 
 destructor TksSlideMenuContainer.Destroy;
@@ -946,9 +946,14 @@ procedure TksSlideMenuContainer.Paint;
 begin
   inherited;
   Canvas.Clear(FSlideMenu.Appearence.ItemColor);
-  if FSlideMenu.Toolbar.Visible then
-  begin
-    FSlideMenu.Toolbar.DrawToCanvas(Canvas, RectF(0, 0, Width, C_TOOLBAR_HEIGHT));
+  Canvas.BeginScene;
+  try
+    if FSlideMenu.Toolbar.Visible then
+    begin
+      FSlideMenu.Toolbar.DrawToCanvas(Canvas, RectF(0, 0, Width, C_TOOLBAR_HEIGHT));
+    end;
+  finally
+    Canvas.EndScene;
   end;
 end;
 

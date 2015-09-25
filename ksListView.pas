@@ -412,7 +412,6 @@ type
     procedure ReleaseAllDownButtons;
     function TextWidth(AText: string): single;
     function TextHeight(AText: string): single;
-
   protected
   public
     constructor Create(const AOwner: TListItem); override;
@@ -609,9 +608,6 @@ type
     FLoadingBitmap: TBitmap;
     FOnDeleteItem: TksDeleteItemEvent;
     FLastIndex: integer;
-    FMoreAccessory: TStyleObject;
-    FCheckmarkAccessory: TStyleObject;
-    FDetailAccessory: TStyleObject;
     function _Items: TksListViewItems;
 
     procedure DoScrollTimer(Sender: TObject);
@@ -631,7 +627,7 @@ type
     procedure DoRenderRow(ARow: TKsListItemRow);
     procedure CachePages;
     function LoadingBitmap: TBitmap;
-    function GetAccessory(AAccessoryType: TAccessoryType): TStyleObject;
+    //function GetAccessory(AAccessoryType: TAccessoryType): TStyleObject;
     { Private declarations }
   protected
     procedure SetColorStyle(AName: string; AColor: TAlphaColor);
@@ -645,7 +641,7 @@ type
     function GetRowFromYPos(y: single): TKsListItemRow;
     procedure SetKsItemHeight(const Value: integer);
     procedure SetKsHeaderHeight(const Value: integer);
-    property Accessory[AAccessoryType: TAccessoryType]: TStyleObject read GetAccessory;
+
     { Protected declarations }
   public
     constructor Create(AOwner: TComponent); override;
@@ -803,10 +799,14 @@ type
     FCachedButtons: TStringList;
     FImagesCached: Boolean;
     FButton: TSpeedButton;
+    FMoreAccessory: TStyleObject;
+    FCheckmarkAccessory: TStyleObject;
+    FDetailAccessory: TStyleObject;
     function GetSwitchImage(AState: TksButtonState): TBitmap;
     function GetButtonImage(AWidth, AHeight: single; AText: string; ATintColor: TAlphaColor;
       AState: TksButtonState; AStyleLookup: string): TBitmap;
     function CreateImageCache: Boolean;
+    function GetAccessory(AAccessoryType: TAccessoryType): TStyleObject;
   public
     constructor Create;
     destructor Destroy; override;
@@ -816,6 +816,7 @@ type
                          ATintColor: TAlphaColor;
                          AState: TksButtonState;
                          AStyleLookup: string]: TBitmap read GetButtonImage;
+    property Accessory[AAccessoryType: TAccessoryType]: TStyleObject read GetAccessory;
   end;
 
 
@@ -1204,6 +1205,7 @@ begin
   ATextLayout.TopLeft := Rect.TopLeft;
   ATextLayout.MaxSize := PointF(Rect.Width, Rect.Height);
   ATextLayout.RenderLayout(ACanvas);
+
   Result := True;
 end;
 
@@ -1486,6 +1488,10 @@ begin
   //  Exit;
 
   if FCached then
+    Exit;
+
+  FCached := False;
+  if AControlBitmapCache.Accessory[TAccessoryType.More] = nil then
     Exit;
 
   if OwnsBitmap = False then
@@ -2400,6 +2406,7 @@ var
   ICount: integer;
   AFilteredIndex: integer;
 begin
+  Application.ProcessMessages;
   if _Items.Count = 0 then
     Exit;
   AFilteredIndex := 0;
@@ -2417,7 +2424,7 @@ begin
       Items[_Items[ICount].Index].ReleaseRow;
   end;
   Application.ProcessMessages;
-  Invalidate;
+  //Invalidate;
 end;
 
 procedure TksListView.ClearItems;
@@ -2899,13 +2906,25 @@ begin
 end;
 
 procedure TksListView.Paint;
+var
+  AResources: TListItemStyleResources;
 begin
+  if FIsShowing = False then
+  begin
+    // cache rows on first show...
+    CachePages;
+    Invalidate;
+  end;
   FIsShowing := True;
 
-  if FMoreAccessory = nil then FMoreAccessory := GetStyleResources.AccessoryImages[TAccessoryType.More].Normal;
-  if FDetailAccessory = nil then FDetailAccessory := GetStyleResources.AccessoryImages[TAccessoryType.Detail].Normal;
-  if FCheckmarkAccessory = nil then FCheckmarkAccessory := GetStyleResources.AccessoryImages[TAccessoryType.Checkmark].Normal;
+  if AControlBitmapCache.FMoreAccessory = nil then
+  begin
+    AResources := GetStyleResources;
+    AControlBitmapCache.FMoreAccessory := AResources.AccessoryImages[TAccessoryType.More].Normal;
+    AControlBitmapCache.FDetailAccessory := AResources.AccessoryImages[TAccessoryType.Detail].Normal;
+    AControlBitmapCache.FCheckmarkAccessory := AResources.AccessoryImages[TAccessoryType.Checkmark].Normal;
 
+  end;
 
   if not (csDesigning in ComponentState) then
   begin
@@ -2987,7 +3006,7 @@ begin
   Invalidate;
 end;
 
-function TksListView.GetAccessory(AAccessoryType: TAccessoryType): TStyleObject;
+function TksControlBitmapCache.GetAccessory(AAccessoryType: TAccessoryType): TStyleObject;
 begin
   Result := nil;
 
@@ -3078,7 +3097,7 @@ begin
     FLoadingBitmap.Clear(claNull);
     FLoadingBitmap.Canvas.BeginScene;
     FLoadingBitmap.Canvas.Fill.Color := claDimgray;
-    FLoadingBitmap.Canvas.FillText(RectF(0, 0, 200, FItemHeight), 'PLEASE WAIT...', False, 1, [], TTextAlign.Leading);
+    FLoadingBitmap.Canvas.FillText(RectF(8, 0, 200, FItemHeight), 'PLEASE WAIT...', False, 1, [], TTextAlign.Leading);
     FLoadingBitmap.Canvas.EndScene;
   end;
   Result := FLoadingBitmap;
@@ -3272,7 +3291,7 @@ procedure TKsListItemRowAccessory.CalculateImageSize;
 begin
   //if AControlBitmapCache = nil then
 
-  FImage := FRow.ListView.Accessory[FAccessoryType];
+  FImage := AControlBitmapCache.Accessory[FAccessoryType];
   if FImage = nil then
     Exit;
   FWidth := FImage.Width;
@@ -3281,6 +3300,9 @@ end;
 
 procedure TKsListItemRowAccessory.CalculateRect(ARowBmp: TBitmap);
 begin
+  if FImage = nil then
+    CalculateImageSize;
+
   if (FAccessoryType = TAccessoryType.Checkmark) and
      (TksListView(FRow.ListView).CheckMarkStyle <> ksCmsDefault)  then
   begin
@@ -3527,7 +3549,6 @@ begin
   for ICount := FCachedButtons.Count-1 downto 0 do
     FCachedButtons.Objects[ICount].DisposeOf;
   FCachedButtons.DisposeOf;
-  FListViews.DisposeOf;
   {$ELSE}
   FSwitchOn.Free;
   FSwitchOff.Free;
