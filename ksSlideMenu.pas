@@ -379,17 +379,6 @@ begin
   ToggleMenu;
 end;
 
-procedure TksSlideMenu.FadeBackground;
-begin
-  FBackground.Fill.Color := claBlack;
-  FBackground.Align := TAlignLayout.Contents;
-  FBackground.OnClick := DoBackgroundClick;
-  FBackground.Opacity := 0;
-  TForm(Owner).AddObject(FBackground);
-  FBackground.BringToFront;
-  TAnimator.AnimateFloat(FBackground, 'Opacity', 0.2, FSlideSpeed);
-end;
-
 procedure TksSlideMenu.GenerateFormImage(AForm: TForm);
 var
   AScale: single;
@@ -743,9 +732,21 @@ begin
   Application.ProcessMessages;
 end;
 
+procedure TksSlideMenu.FadeBackground;
+begin
+  FBackground.Fill.Color := claBlack;
+  FBackground.Align := TAlignLayout.Contents;
+  FBackground.OnClick := DoBackgroundClick;
+  FBackground.Opacity := 0;
+  TForm(Owner).AddObject(FBackground);
+  FBackground.BringToFront;
+  TAnimator.AnimateFloat(FBackground, 'Opacity', 0.2, FSlideSpeed);
+end;
+
 procedure TksSlideMenu.UnfadeBackground;
 begin
   TAnimator.AnimateFloat(FBackground, 'Opacity', 0, FSlideSpeed);
+  TForm(Owner).RemoveObject(FBackground);
 end;
 
 { TksSlideMenuItem }
