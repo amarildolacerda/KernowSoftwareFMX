@@ -1004,7 +1004,6 @@ var
   ABmp: TBitmap;
   ARect: TRectF;
   AListViewHeight: single;
-  //AScrollPos: single;
 begin
   FListView.HitTest := False;
   FImage.Position.X := 0;
@@ -1024,6 +1023,7 @@ begin
     FListView.Visible := False;
     AListViewHeight := CalculateListViewHeight;
     ABmp.Canvas.Fill.Color := FSlideMenu.Appearence.ItemColor;
+    //ABmp.Canvas.Fill.Color := claYellow;
     ABmp.Canvas.FillRect(RectF(0, AListViewHeight, C_MENU_WIDTH, FListView.Height), 0, 0, AllCorners, 1, ABmp.Canvas.Fill);
     ABmp.Canvas.EndScene;
     FImage.Bitmap.Assign(ABmp);
@@ -1034,8 +1034,11 @@ begin
     ABmp.Free;
     {$ENDIF}
   end;
+  RemoveObject(FListView);
   FListView.Visible := False;
+  AddObject(FImage);
   FImage.Visible := True;
+  FImage.BringToFront;
   Application.ProcessMessages;
 end;
 
@@ -1048,6 +1051,7 @@ begin
   SetListViewHeight;
   if AIndex > -1 then
     FListView.Items[AIndex].BackgroundColor := GetColorOrDefault(FSlideMenu.Appearence.SelectedItemColor, C_DEFAULT_SELECTED_COLOR);
+  AddObject(FListView);
   FListView.Visible := True;
   FImage.Visible := False;
   Application.ProcessMessages;

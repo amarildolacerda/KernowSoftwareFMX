@@ -246,7 +246,7 @@ var
   ABmp: TBitmap;
   r: TRectF;
 begin
-  if AAccessoryCheck.Width > 0 then
+  if AAccessoryCheck <> nil then
   begin
     ACanvas.DrawBitmap(AAccessoryCheck, RectF(0, 0, AAccessoryCheck.Width, AAccessoryCheck.Height), ARect, 1, False);
     Exit;
@@ -265,7 +265,13 @@ begin
     ABmp.Canvas.DrawLine(PointF(ABmp.Width/3, ABmp.Height-4), PointF(ABmp.Width-4, 0),  1);
 
     ABmp.Canvas.EndScene;
-    AAccessoryCheck.Assign(ABmp);
+
+    AAccessoryCheck := TBitmap.Create(ABmp.Width, ABmp.Height);
+    AAccessoryCheck.Canvas.BeginScene;
+    AAccessoryCheck.Canvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), RectF(0, 0, ABmp.Width, ABmp.Height), 1, False);
+    AAccessoryCheck.Canvas.EndScene;
+
+    //AAccessoryCheck.Assign(ABmp);
     ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ARect, 1, False);
   finally
     {$IFDEF IOS}
@@ -283,11 +289,12 @@ var
   APadding: single;
 begin
 
-  if AAccessoryMore.Width > 0 then
+  if AAccessoryMore <> nil then
   begin
     ACanvas.DrawBitmap(AAccessoryMore, RectF(0, 0, AAccessoryMore.Width, AAccessoryMore.Height), ARect, 1, False);
     Exit;
   end;
+
   ABmp := TBitmap.Create(Round(ARect.Width * GetScreenScale), Round(ARect.Height * GetScreenScale));
   try
     ABmp.Clear(claNull);
@@ -302,7 +309,6 @@ begin
 
     APath := TPathData.Create;
     try
-      //APath.
       APath.MoveTo(PointF(ABmp.Width / 2, ABmp.Height-APadding));
       APath.LineTo(PointF(ABmp.Width-APadding, (ABmp.Height/2)));
       APath.LineTo(PointF(ABmp.Width / 2, APadding));
@@ -319,7 +325,13 @@ begin
     end;
 
     ABmp.Canvas.EndScene;
-    AAccessoryMore.Assign(ABmp);
+
+    AAccessoryMore := TBitmap.Create(ABmp.Width, ABmp.Height);
+    AAccessoryMore.Canvas.BeginScene;
+    AAccessoryMore.Canvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), RectF(0, 0, ABmp.Width, ABmp.Height), 1, False);
+    AAccessoryMore.Canvas.EndScene;
+    //AAccessoryMore.Assign(ABmp);
+
     ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ARect, 1, False);
   finally
     {$IFDEF IOS}
@@ -333,12 +345,12 @@ end;
 initialization
 
   _ScreenScale := 0;
-  AAccessoryCheck := TBitmap.Create;
-  AAccessoryMore := TBitmap.Create;
+  AAccessoryMore := nil;
+  AAccessoryCheck := nil;
 
 finalization
 
-  AAccessoryCheck.Free;
-  AAccessoryMore.Free;
+  if AAccessoryCheck <> nil then AAccessoryCheck.Free;
+  if AAccessoryMore <> nil then AAccessoryMore.Free;
 
 end.
