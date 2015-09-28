@@ -1017,6 +1017,8 @@ begin
     ABmp.BitmapScale := GetScreenScale;
     FListView.Visible := True;
     ARect := RectF(0, 0, FListView.Width * GetScreenScale, FListView.Height * GetScreenScale);
+
+    FSlideMenu.Toolbar.DrawToCanvas(ABmp.Canvas, RectF(0, 0, C_MENU_WIDTH, C_TOOLBAR_HEIGHT));
     if FSlideMenu.Toolbar.Visible then
       OffsetRect(ARect, 0, C_TOOLBAR_HEIGHT*GetScreenScale);
     FListView.PaintTo(ABmp.Canvas, ARect);

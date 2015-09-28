@@ -3538,25 +3538,25 @@ var
   ABarRect: TRectF;
 begin
   Result := inherited Render(ACanvas);
-  ABmp := TBitmap.Create(Round(Rect.Width*4), Round(Rect.Height*4));
+  ABmp := TBitmap.Create(Round(Rect.Width*GetScreenScale), Round(Rect.Height*GetScreenScale));
   ARect := RectF(0, 0, ABmp.Width, ABmp.Height);
   ABmp.Clear(claNull);
   ABmp.Canvas.BeginScene;
   try
     ABmp.Canvas.Fill.Color := FBorderColor;
-    ABmp.Canvas.FillRect(ARect, FCornerRadius*4, FCornerRadius*4, AllCorners, 1);
+    ABmp.Canvas.FillRect(ARect, FCornerRadius*GetScreenScale, FCornerRadius*GetScreenScale, AllCorners, 1);
     InflateRect(ARect, -(2/GetScreenScale), -(2/GetScreenScale));
     ABmp.Canvas.Fill.Color := FBackgroundColor;
-    ABmp.Canvas.FillRect(ARect, FCornerRadius*4, FCornerRadius*4, AllCorners, 1);
+    ABmp.Canvas.FillRect(ARect, FCornerRadius*GetScreenScale, FCornerRadius*GetScreenScale, AllCorners, 1);
     ABarRect := ARect;
     ABarRect.Width := (ABarRect.Width / 100) * FProgressPercent;
 
     ABmp.Canvas.Fill.Color := FBarColor;
-    ABmp.Canvas.FillRect(ABarRect, FCornerRadius*4, FCornerRadius*4, [TCorner.TopLeft, TCorner.BottomLeft], 1);
+    ABmp.Canvas.FillRect(ABarRect, FCornerRadius*GetScreenScale, FCornerRadius*GetScreenScale, [TCorner.TopLeft, TCorner.BottomLeft], 1);
 
     ABmp.Canvas.Fill.Color := claBlack;
     ABmp.Canvas.Stroke.Color := claBlack;
-    ABmp.Canvas.Font.Size := 12 * 4;
+    ABmp.Canvas.Font.Size := 12 * GetScreenScale;
     ABmp.Canvas.FillText(ARect, IntToStr(FProgressPercent)+'%', False, 1, [], TTextAlign.Center, TTextAlign.Center);
 
     ABmp.Canvas.EndScene;
