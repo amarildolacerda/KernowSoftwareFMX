@@ -252,9 +252,13 @@ type
 
   procedure Register;
 
+var
+  MenuAnimating: Boolean;
+
 implementation
 
 uses FMX.Platform, SysUtils, FMX.Ani, FMX.Pickers, Math;
+
 
 procedure Register;
 begin
@@ -395,16 +399,22 @@ begin
     ABmp.Canvas.BeginScene;
     AForm.PaintTo(ABmp.Canvas);
     ABmp.Canvas.EndScene;
+
     ABmp.Canvas.BeginScene;
     ABmp.Canvas.Stroke.Color := claBlack;
     ABmp.Canvas.StrokeThickness := 1;
     ABmp.Canvas.DrawLine(PointF(0, 0), PointF(0, ABmp.Height), 1);
     ABmp.Canvas.EndScene;
+
     FFormImage.Width := Round(AForm.Width);
     FFormImage.Height := Round(AForm.Height);
     FFormImage.Bitmap.Assign(ABmp);
   finally
+    {$IFDEF IOS}
+    ABmp.DisposeOf;
+    {$ELSE}
     ABmp.Free;
+    {$ENDIF}
   end;
   FFormImage.Visible := True;
   FMenu.Visible := True;
@@ -435,7 +445,11 @@ begin
     FShadowLeft.Height := Round(AForm.Height);
     FShadowLeft.Bitmap.Assign(ABmp);
   finally
+    {$IFDEF IOS}
+    ABmp.DisposeOf;
+    {$ELSE}
     ABmp.Free;
+    {$ENDIF}
   end;
 
   ABmp := TBitmap.Create;
@@ -457,7 +471,11 @@ begin
     FShadowRight.Height := Round(AForm.Height);
     FShadowRight.Bitmap.Assign(ABmp);
   finally
+    {$IFDEF IOS}
+    ABmp.DisposeOf;
+    {$ELSE}
     ABmp.Free;
+    {$ENDIF}
   end;
 end;
 
@@ -483,11 +501,10 @@ begin
   FItemIndex := AItem.Index;
   if Assigned(FOnSelectMenuItemEvent) then
     FOnSelectMenuItemEvent(Self, AId);
+  Application.ProcessMessages;
   GenerateFormImage(Owner as TForm);
   Application.ProcessMessages;
   ToggleMenu;
-  if Assigned(FOnAfterSlideOut) then
-    FOnAfterSlideOut(Self);
 end;
 
 
@@ -580,7 +597,7 @@ begin
   begin
     lv.SelectFirstItem;
     FItemIndex := lv.ItemIndex;
-
+    lv.ScrollTo(FItemIndex);
   end;
   if (FItemIndex > -1) and (FItemIndex <= lv.Items.Count-1) then
     lv.Items[FItemIndex].BackgroundColor := ASelectedColor;
@@ -627,6 +644,7 @@ begin
 
   FMenu.SwitchToImage;
 
+  MenuAnimating := True;
   case FMenuStyle of
     msOverlap: ToggleOverlap(not FShowing);
     msReveal: ToggleReveal(not FShowing);
@@ -635,7 +653,7 @@ begin
 
   if FShowing then
     FMenu.SwitchToMenu;
-
+  MenuAnimating := False;
   FMenu.HitTest := True;
   if FShowing = False then
   begin
@@ -692,6 +710,7 @@ var
 begin
   if ACacheFormImage then
     GenerateFormImage(Owner as TForm);
+  Application.ProcessMessages;
 
   AShadow := nil;
   case FMenuPosition of
@@ -729,7 +748,6 @@ begin
 
     TAnimator.AnimateFloatWait(FFormImage, 'Position.X', ANewX,  FSlideSpeed);
   end;
-  Application.ProcessMessages;
 end;
 
 procedure TksSlideMenu.FadeBackground;
@@ -762,8 +780,13 @@ end;
 
 destructor TksSlideMenuItem.Destroy;
 begin
+  {$IFDEF IOS}
+  FImage.DisposeOf;
+  FFont.DisposeOf;
+  {$ELSE}
   FImage.Free;
   FFont.Free;
+  {$ENDIF}
   inherited;
 end;
 
@@ -906,17 +929,22 @@ begin
   FListView.ShowSelection := False;
   FListView.OnItemClick := ItemClick;
   FListView.Height := 1;
-  FListView.Transparent := True;
-  Application.MainForm.AddObject(FListView);
-  Application.ProcessMessages;
+  //FListView.Transparent := True;
+  //Application.MainForm.AddObject(FListView);
+  //Application.ProcessMessages;
   AddObject(FListView);
-  FListView.Transparent := False;
+  //FListView.Transparent := False;
 end;
 
 destructor TksSlideMenuContainer.Destroy;
 begin
+  {$IFDEF IOS}
+  if IsChild(FListView) then FListView.DisposeOf;
+  if IsChild(FImage) then FImage.DisposeOf;
+  {$ELSE}
   if IsChild(FListView) then FListView.Free;
   if IsChild(FImage) then FImage.Free;
+  {$ENDIF}
   inherited;
 end;
 
@@ -1000,7 +1028,11 @@ begin
     ABmp.Canvas.EndScene;
     FImage.Bitmap.Assign(ABmp);
   finally
+    {$IFDEF IOS}
+    ABmp.DisposeOf;
+    {$ELSE}
     ABmp.Free;
+    {$ENDIF}
   end;
   FListView.Visible := False;
   FImage.Visible := True;
@@ -1051,8 +1083,13 @@ end;
 
 destructor TksSlideMenuToolbar.Destroy;
 begin
+  {$IFDEF IOS}
+  FBitmap.DisposeOf;
+  FFont.DisposeOf;
+  {$ELSE}
   FBitmap.Free;
   FFont.Free;
+  {$ENDIF}
   inherited;
 end;
 
@@ -1088,6 +1125,10 @@ procedure TksSlideMenuToolbar.SetFont(const Value: TFont);
 begin
   FFont.Assign(Value);
 end;
+
+initialization
+
+  MenuAnimating := False;
 
 end.
 

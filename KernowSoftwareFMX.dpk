@@ -33,6 +33,7 @@ requires
 contains
   ksListView in 'ksListView.pas',
   ksSlideMenu in 'ksSlideMenu.pas',
-  ksSegmentButtons in 'ksSegmentButtons.pas';
+  ksSegmentButtons in 'ksSegmentButtons.pas',
+  ksDrawFunctions in 'ksDrawFunctions.pas';
 
 end.

@@ -37,14 +37,9 @@ type
     TabControl1: TTabControl;
     tabListView: TTabItem;
     tabSegmentButtons: TTabItem;
-    ksListView1: TksListView;
-    lvSegmentButtons: TksListView;
     tabIndicators: TTabItem;
-    lvIndicators: TksListView;
     tabItemAccessorys: TTabItem;
-    lvAccessorys: TksListView;
     tabCheckList: TTabItem;
-    lvCheckList: TksListView;
     ToolBar2: TToolBar;
     Label2: TLabel;
     Switch1: TSwitch;
@@ -59,15 +54,12 @@ type
     Label8: TLabel;
     ToolBar8: TToolBar;
     ksSegmentButtons1: TksSegmentButtons;
-    Image1: TImage;
     Image2: TImage;
     tabEverything: TTabItem;
-    lvSmoothScrolling: TksListView;
     Timer1: TTimer;
     tabProgressBars: TTabItem;
     ToolBar9: TToolBar;
     Label9: TLabel;
-    lvProgressBars: TksListView;
     lblLoading: TLabel;
     btnLeftMenu: TButton;
     Memo1: TMemo;
@@ -84,13 +76,20 @@ type
     imgSource5: TImage;
     imgSource6: TImage;
     imgSource7: TImage;
+    lvProgressBars: TksListView;
+    ksListView1: TksListView;
     SlideMenu1: TksSlideMenu;
+    lvSegmentButtons: TksListView;
+    lvIndicators: TksListView;
+    lvAccessorys: TksListView;
+    lvCheckList: TksListView;
+    Image1: TImage;
+    lvSmoothScrolling: TksListView;
     procedure FormCreate(Sender: TObject);
     procedure SlideMenu1SelectMenuItemEvent(Sender: TObject; AId: string);
     procedure Switch1Switch(Sender: TObject);
     procedure ksSegmentButtons1Change(Sender: TObject);
     procedure Button1Click(Sender: TObject);
-    procedure Timer1Timer(Sender: TObject);
     procedure SlideMenu1AfterSlideOut(Sender: TObject);
     procedure lvSegmentButtonsSegmentButtonClicked(Sender: TObject;
       AItem: TKsListItemRow; AButtons: TksListItemRowSegmentButtons;
@@ -178,11 +177,12 @@ begin
                                              More,                      // "more" accessory
                                              Image2.Bitmap);            // image
       ARow.AddSegmentButtons(100, 110, ['one','two','three'], TListItemAlign.Leading).OffsetY:= -16;
+
       ARow.DrawBitmap(imgSearch.Bitmap, 100, 16, 24, 24);
 
       ARow.AddSwitch(215, True,  TListItemAlign.Leading).OffsetY := -16;
       ARow.DrawProgressBar(140, 16, 130, 18, Round(ICount * 3.3), claIndianred, 0, TListItemAlign.Leading).OffsetY := 16;
-      ARow.ShowAccessory := True;
+     ARow.ShowAccessory := True;
 
       // set image to circle shape
       ARow.Image.ImageShape := ksCircleImage;
@@ -205,12 +205,11 @@ begin
     Exit;
   lvSegmentButtons.BeginUpdate;
   try
-
     for ICount := 1 to 10 do
     begin
       AColor := claNull;
       case ICount mod 4 of
-        0: AColor := claNull;
+        0: AColor := claBlue;
         1: AColor := claDimgray;
         2: AColor := claRed;
         3: AColor := claGreen;
@@ -218,7 +217,8 @@ begin
       ARow := lvSegmentButtons.Items.AddRow('Item '+IntToStr(ICount), '', '', None);
       ARow.AddSegmentButtons(180, ['one', 'two', 'three']).TintColor := AColor;
 
-     with lvSegmentButtons.Items.AddRow('Item '+IntToStr(ICount*2), '', '', None) do
+     //lvSegmentButtons.RecalcSize;
+     with lvSegmentButtons.Items.AddRow('Item '+IntToStr(ICount), '', '', None) do
       AddSwitchRight(0, False);
     end;
 
@@ -260,6 +260,7 @@ begin
     Exit;
 
   lvProgressBars.BeginUpdate;
+  //lvProgressBars.Width;
   with lvProgressBars.Items do
   begin
     try
@@ -336,6 +337,8 @@ begin
   Memo5.Visible := False;
   Memo6.Visible := False;
   Memo7.Visible := False;
+
+
 end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
@@ -361,6 +364,15 @@ begin
   ksSegmentButtons1.AddButton('RED', 'RED');
   ksSegmentButtons1.AddButton('GREEN', 'GREEN');
   ksSegmentButtons1.AddButton('BLUE', 'BLUE');
+
+
+ BuildTextItemsListView;
+ BuildProgressBarsListview;
+ BuildSegmentButtonListView;
+ BuildIndicatorListView;
+ BuildAccessoryListView;
+ BuildCheckListView;
+ BuildEverythingListView;
 end;
 
 procedure TfrmMain.ksSegmentButtons1Change(Sender: TObject);
@@ -419,6 +431,7 @@ begin
   if AId = 'ACCESSORYS' then TabControl1.ActiveTab := tabItemAccessorys;
   if AId = 'CHECKLIST' then TabControl1.ActiveTab := tabCheckList;
   if AId = 'EVERYTHING' then TabControl1.ActiveTab := tabEverything;
+
   Application.ProcessMessages;
 end;
 
@@ -428,21 +441,6 @@ begin
     True: lvCheckList.CheckMarks := TksListViewCheckMarks.ksCmMultiSelect;
     False: lvCheckList.CheckMarks := TksListViewCheckMarks.ksCmSingleSelect;
   end;
-end;
-
-procedure TfrmMain.Timer1Timer(Sender: TObject);
-begin
-  Timer1.Enabled := False;
-  case TabControl1.TabIndex of
-    0: BuildTextItemsListView;
-    1: BuildProgressBarsListview;
-    2: BuildSegmentButtonListView;
-    3: BuildIndicatorListView;
-    4: BuildAccessoryListView;
-    5: BuildCheckListView;
-    6: BuildEverythingListView;
-  end;
-  Invalidate;
 end;
 
 end.
