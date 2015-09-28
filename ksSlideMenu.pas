@@ -978,7 +978,7 @@ begin
   try
     if FSlideMenu.Toolbar.Visible then
     begin
-      FSlideMenu.Toolbar.DrawToCanvas(Canvas, RectF(0, 0, Width*GetScreenScale, C_TOOLBAR_HEIGHT*GetScreenScale));
+      FSlideMenu.Toolbar.DrawToCanvas(Canvas, RectF(0, 0, C_MENU_WIDTH, C_TOOLBAR_HEIGHT));
     end;
   finally
     Canvas.EndScene;
@@ -1018,7 +1018,8 @@ begin
     FListView.Visible := True;
     ARect := RectF(0, 0, FListView.Width * GetScreenScale, FListView.Height * GetScreenScale);
 
-    FSlideMenu.Toolbar.DrawToCanvas(ABmp.Canvas, RectF(0, 0, C_MENU_WIDTH, C_TOOLBAR_HEIGHT));
+    FSlideMenu.Toolbar.DrawToCanvas(ABmp.Canvas, RectF(0, 0, C_MENU_WIDTH*GetScreenScale, C_TOOLBAR_HEIGHT*GetScreenScale));
+
     if FSlideMenu.Toolbar.Visible then
       OffsetRect(ARect, 0, C_TOOLBAR_HEIGHT*GetScreenScale);
     FListView.PaintTo(ABmp.Canvas, ARect);
@@ -1110,7 +1111,7 @@ begin
 
   ACanvas.Font.Assign(FFont);
   ACanvas.Fill.Color := GetColorOrDefault(FSlideMenu.Appearence.FontColor, C_DEFAULT_FONT_COLOR);
-  ARect.Left := ARect.Left + (GetImageRect.Right+10);
+  //ARect.Left := ARect.Left + (GetImageRect.Right+10);
   ACanvas.FillText(ARect, FText, False, 1, [], TTextAlign.Leading);
 end;
 

@@ -63,8 +63,10 @@ begin
   Service := IFMXScreenService(TPlatformServices.Current.GetPlatformService
     (IFMXScreenService));
   Result := Service.GetScreenScale;
+  {$IFDEF MSWINDOWS}
   if Result < 2 then
     Result := 2;
+  {$ENDIF}
   _ScreenScale := Result;
 
 end;
