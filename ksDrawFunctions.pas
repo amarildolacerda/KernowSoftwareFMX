@@ -49,8 +49,6 @@ implementation
 
 var
   _ScreenScale: single;
-  AAccessoryCheck: TBitmap;
-  AAccessoryMore: TBitmap;
 
 
 function GetScreenScale: single;
@@ -246,11 +244,6 @@ var
   ABmp: TBitmap;
   r: TRectF;
 begin
-  if AAccessoryCheck <> nil then
-  begin
-    ACanvas.DrawBitmap(AAccessoryCheck, RectF(0, 0, AAccessoryCheck.Width, AAccessoryCheck.Height), ARect, 1, False);
-    Exit;
-  end;
   ABmp := TBitmap.Create(Round(ARect.Width * GetScreenScale), Round(ARect.Height * GetScreenScale));
   try
     ABmp.Clear(claNull);
@@ -266,10 +259,7 @@ begin
 
     ABmp.Canvas.EndScene;
 
-    AAccessoryCheck := TBitmap.Create(ABmp.Width, ABmp.Height);
-    AAccessoryCheck.Canvas.BeginScene;
-    AAccessoryCheck.Canvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), RectF(0, 0, ABmp.Width, ABmp.Height), 1, False);
-    AAccessoryCheck.Canvas.EndScene;
+
 
     //AAccessoryCheck.Assign(ABmp);
     ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ARect, 1, False);
@@ -288,13 +278,6 @@ var
   APath: TPathData;
   APadding: single;
 begin
-
-  if AAccessoryMore <> nil then
-  begin
-    ACanvas.DrawBitmap(AAccessoryMore, RectF(0, 0, AAccessoryMore.Width, AAccessoryMore.Height), ARect, 1, False);
-    Exit;
-  end;
-
   ABmp := TBitmap.Create(Round(ARect.Width * GetScreenScale), Round(ARect.Height * GetScreenScale));
   try
     ABmp.Clear(claNull);
@@ -326,11 +309,7 @@ begin
 
     ABmp.Canvas.EndScene;
 
-    AAccessoryMore := TBitmap.Create(ABmp.Width, ABmp.Height);
-    AAccessoryMore.Canvas.BeginScene;
-    AAccessoryMore.Canvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), RectF(0, 0, ABmp.Width, ABmp.Height), 1, False);
-    AAccessoryMore.Canvas.EndScene;
-    //AAccessoryMore.Assign(ABmp);
+
 
     ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ARect, 1, False);
   finally
@@ -345,12 +324,7 @@ end;
 initialization
 
   _ScreenScale := 0;
-  AAccessoryMore := nil;
-  AAccessoryCheck := nil;
 
-finalization
 
-  if AAccessoryCheck <> nil then AAccessoryCheck.Free;
-  if AAccessoryMore <> nil then AAccessoryMore.Free;
 
 end.
