@@ -978,7 +978,7 @@ begin
   try
     if FSlideMenu.Toolbar.Visible then
     begin
-      FSlideMenu.Toolbar.DrawToCanvas(Canvas, RectF(0, 0, Width, C_TOOLBAR_HEIGHT));
+      FSlideMenu.Toolbar.DrawToCanvas(Canvas, RectF(0, 0, Width*GetScreenScale, C_TOOLBAR_HEIGHT*GetScreenScale));
     end;
   finally
     Canvas.EndScene;
