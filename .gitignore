@@ -156,3 +156,4 @@ Demos/AndroidManifest.template.xml
 *.deployproj
 Demos/ksComponents.deployproj
 Demos/ksComponents.dproj
+Demos/ksComponents.res
