@@ -105,7 +105,6 @@ type
     FSelectedFontColor: TAlphaColor;
     FTheme: TKsMenuTheme;
     FToolBarColor: TAlphaColor;
-    procedure Changed;
     procedure SetHeaderColor(const Value: TAlphaColor);
     procedure SetItemColor(const Value: TAlphaColor);
     procedure SetFontColor(const Value: TAlphaColor);
@@ -700,7 +699,7 @@ begin
     Exit;
   FAnimating := True;
   try
-    if FShowing = False then
+    if (FShowing = False) then
       FMenu.FToolBar.UpdateToolbar;
 
     FMenu.HitTest := False;
@@ -823,11 +822,6 @@ end;
 
 { TksSlideMenuAppearence }
 
-procedure TksSlideMenuAppearence.Changed;
-begin
-  FSlideMenu.UpdateMenu;
-end;
-
 constructor TksSlideMenuAppearence.Create(ASlideMenu: TksSlideMenu);
 begin
   FSlideMenu := ASlideMenu;
@@ -844,35 +838,31 @@ procedure TksSlideMenuAppearence.SetFontColor(const Value: TAlphaColor);
 begin
   FFontColor := Value;
   FTheme := mtCustom;
-  Changed;
+
 end;
 
 procedure TksSlideMenuAppearence.SetHeaderColor(const Value: TAlphaColor);
 begin
   FHeaderColor := Value;
   FTheme := mtCustom;
-  Changed;
 end;
 
 procedure TksSlideMenuAppearence.SetItemColor(const Value: TAlphaColor);
 begin
   FItemColor := Value;
   FTheme := mtCustom;
-  Changed;
 end;
 
 procedure TksSlideMenuAppearence.SetSelectedColor(const Value: TAlphaColor);
 begin
   FSelectedColor := Value;
   FTheme := mtCustom;
-  Changed;
 end;
 
 procedure TksSlideMenuAppearence.SetSelectedFontColor(const Value: TAlphaColor);
 begin
   FSelectedFontColor := Value;
   FTheme := mtCustom;
-  Changed;
 end;
 
 procedure TksSlideMenuAppearence.SetTheme(const Value: TKsMenuTheme);
@@ -896,14 +886,12 @@ begin
     FSelectedColor := claRed;
   end;
   FTheme := Value;
-  Changed;
 end;
 
 procedure TksSlideMenuAppearence.SetToolBarColor(const Value: TAlphaColor);
 begin
   FToolBarColor := Value;
   FTheme := mtCustom;
-  Changed;
 end;
 
 { TksSlideMenuContainer }
@@ -1048,6 +1036,11 @@ var
   ABmp: TBitmap;
   AXPos: integer;
 begin
+  if not Visible then
+  begin
+    FHeader.Height := 0;
+    Exit;
+  end;
   ABmp := TBitmap.Create(Round(C_MENU_WIDTH*GetScreenScale), Round(C_TOOLBAR_HEIGHT*GetScreenScale));
   try
     ABmp.BitmapScale := GetScreenScale;

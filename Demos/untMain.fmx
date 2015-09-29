@@ -1117,7 +1117,6 @@ object frmMain: TfrmMain
           SlideSpeed = 0.200000002980232200
           OnSelectMenuItemEvent = SlideMenu1SelectMenuItemEvent
           Toolbar.Text = 'ksComponents'
-          Toolbar.Font.Style = [fsItalic]
           ToggleButton = btnLeftMenu
           OnAfterSlideOut = SlideMenu1AfterSlideOut
           Left = 16
