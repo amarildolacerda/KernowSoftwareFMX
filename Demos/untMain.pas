@@ -56,7 +56,6 @@ type
     ksSegmentButtons1: TksSegmentButtons;
     Image2: TImage;
     tabEverything: TTabItem;
-    Timer1: TTimer;
     tabProgressBars: TTabItem;
     ToolBar9: TToolBar;
     Label9: TLabel;
@@ -99,7 +98,6 @@ type
     procedure lvSegmentButtonsSwitchClick(Sender: TObject;
       AItem: TKsListItemRow; ASwitch: TksListItemRowSwitch; ARowID: string);
     procedure btnRightMenuClick(Sender: TObject);
-    procedure MenuItem1Click(Sender: TObject);
   private
     procedure BuildTextItemsListView;
     procedure BuildProgressBarsListview;
@@ -329,7 +327,7 @@ end;
 procedure TfrmMain.DoShow;
 begin
   inherited;
-  Timer1.Enabled := True;
+  //Timer1.Enabled := True;
   Memo1.Visible := False;
   Memo2.Visible := False;
   Memo3.Visible := False;
@@ -412,14 +410,9 @@ begin
   Label4.Text := ('Switch clicked: row '+IntToStr(AItem.Index+1))+'   '+ACheckedStr;
 end;
 
-procedure TfrmMain.MenuItem1Click(Sender: TObject);
-begin
-  ShowMessage(inttostr(ksListView1.ItemIndex));
-end;
-
 procedure TfrmMain.SlideMenu1AfterSlideOut(Sender: TObject);
 begin
-  Timer1.Enabled := True;
+  //Timer1.Enabled := True;
 end;
 
 procedure TfrmMain.SlideMenu1SelectMenuItemEvent(Sender: TObject; AId: string);

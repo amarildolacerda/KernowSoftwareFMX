@@ -129,25 +129,29 @@ type
   TksSlideMenuToolbar = class(TPersistent)
   private
     FSlideMenu: TksSlideMenu;
-    FText: string;
+    FHeader: TImage;
     FBitmap: TBitmap;
+    FText: string;
+    FFont: TFont;
     FVisible: Boolean;
     FHeight: integer;
-    FFont: TFont;
-    function GetImageRect: TRectF;
     procedure SetFont(const Value: TFont);
     procedure SetBitmap(const Value: TBitmap);
+    function GetBitmap: TBitmap;
+    function GetFont: TFont;
+    function GetText: string;
+    procedure SetText(const Value: string);
 
   public
     constructor Create(AOwner: TComponent; ASlideMenu: TksSlideMenu); virtual;
     destructor Destroy; override;
-    //procedure DrawToCanvas(ACanvas: TCanvas; ARect: TRectF);
+    procedure UpdateToolbar;
     property Height: integer read FHeight default 44;
   published
-    property Bitmap: TBitmap read FBitmap write SetBitmap;
+    property Bitmap: TBitmap read GetBitmap write SetBitmap;
     property Visible: Boolean read FVisible write FVisible default True;
-    property Text: string read FText write FText;
-    property Font: TFont read FFont write SetFont;
+    property Text: string read GetText write SetText;
+    property Font: TFont read GetFont write SetFont;
   end;
 
 
@@ -156,21 +160,13 @@ type
     FSlideMenu: TksSlideMenu;
     FToolBar: TksSlideMenuToolbar;
     FListView: TksListView;
-    //FImage: TImage;
     procedure UpdateSelectedItem;
-    //function GetToolBarHeight: single;
     procedure CreateListView;
     function CalculateListViewHeight: single;
-    //procedure SetListViewHeight;
     procedure ItemClick(Sender: TObject; x, y: Single; AItem: TKsListItemRow; AId: string; ARowObj: TksListItemRowObj);
-  protected
- //   procedure Paint; override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    procedure AfterConstruction; override;
-    procedure SwitchToImage;
-    procedure SwitchToMenu;
     property ListView: TksListView read FListView;
   end;
 
@@ -180,8 +176,10 @@ type
     FAppearence: TksSlideMenuAppearence;
     FMenu: TksSlideMenuContainer;
     FItems: TksSlideMenuItems;
+    {$IFNDEF ANDROID}
     FShadowLeft: TImage;
     FShadowRight: TImage;
+    {$ENDIF}
     FBackground: TRectangle;
     FFormImage: TImage;
     FMenuImage: TImage;
@@ -194,36 +192,35 @@ type
     FOnSelectMenuItemEvent: TSelectMenuItemEvent;
     FAfterSelectMenuItemEvent: TSelectMenuItemEvent;
     FOnAfterSlideOut: TNotifyEvent;
-    //FToolBar: TksSlideMenuToolbar;
     {$IFDEF XE8_OR_NEWER}
     FImages: TCustomImageList;
     {$ENDIF}
     FHeaderHeight: integer;
     FItemHeight: integer;
-    //FTimerInit: TTimer;
     FToggleButton: TCustomButton;
+    FAnimating: Boolean;
     procedure SetTopPadding(const Value: integer);
     procedure DoBackgroundClick(Sender: TObject);
-    procedure ToggleOverlap(ACacheFormImage: Boolean);
-    procedure ToggleReveal(ACacheFormImage: Boolean);
-    procedure FadeBackground;
-    procedure UnfadeBackground;
+    //procedure FadeBackground;
+    //procedure UnfadeBackground;
     procedure GenerateFormImage(AXpos: single);
     procedure RemoveFormImage;
+    {$IFNDEF ANDROID}
     procedure GenerateShadows;
+    {$ENDIF}
     procedure HidePickers;
     procedure SetToggleButton(const Value: TCustomButton);
     procedure DoToggleButtonClick(Sender: TObject);
-    //procedure DoTimerInit(Sender: TObject);
-
+    
   private
     FItemIndex: integer;
     procedure MenuItemSelected(Sender: TObject; x, y: single; AItem: TKsListItemRow; AId: string; ARowObj: TksListItemRowObj);
     procedure SetItemIndex(const Value: integer);
     procedure SwitchMenuToImage;
     procedure SwitchImageToMenu;
-    //function GetToolbar: TksSlideMenuToolbar;
-    //procedure SetToolbar(const Value: TksSlideMenuToolbar);
+    function GetToolbar: TksSlideMenuToolbar;
+    function GetToolbarHeight: integer;
+    procedure SetToolbar(const Value: TksSlideMenuToolbar);
   protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
   public
@@ -235,7 +232,6 @@ type
     function AddMenuItem(AId, AText: string; AImage: TBitmap): TksSlideMenuItem; overload;
     procedure ToggleMenu;
     procedure UpdateMenu;
-    //procedure ShowForm(AForm: TForm);
     property Showing: Boolean read FShowing;
     property ItemIndex: integer read FItemIndex write SetItemIndex;
   published
@@ -252,7 +248,7 @@ type
     property SlideSpeed: Single read FSlideSpeed write FSlideSpeed;
     property OnSelectMenuItemEvent: TSelectMenuItemEvent read FOnSelectMenuItemEvent write FOnSelectMenuItemEvent;
     property AfterSelectItemEvent: TSelectMenuItemEvent read FAfterSelectMenuItemEvent write FAfterSelectMenuItemEvent;
-    //property Toolbar: TksSlideMenuToolbar read GetToolbar write SetToolbar;
+    property Toolbar: TksSlideMenuToolbar read GetToolbar write SetToolbar;
     property ToggleButton: TCustomButton read FToggleButton write SetToggleButton;
     property OnAfterSlideOut: TNotifyEvent read FOnAfterSlideOut write FOnAfterSlideOut;
 
@@ -330,14 +326,14 @@ begin
   inherited Create(AOwner);
   FFont := TFont.Create;
   FItems := TksSlideMenuItems.Create;
+  {$IFNDEF ANDROID}
   FShadowLeft := TImage.Create(Self);
   FShadowRight := TImage.Create(Self);
+  {$ENDIF}
   FAppearence := TksSlideMenuAppearence.Create(Self);
   FMenu := TksSlideMenuContainer.Create(Self);
-  //FToolbar := TksSlideMenuToolbar.Create(Self);
   FFormImage := TImage.Create(Self);
   FBackground := TRectangle.Create(Self);
-  //FMenu.CreateListView;
 
   FShowing := False;
   FTopPadding := 0;
@@ -349,22 +345,23 @@ begin
   FHeaderHeight := C_DEFAULT_HEADER_HEIGHT;
   FItemHeight := C_DEFAULT_ITEM_HEIGHT;
   FItemIndex := -1;
-  //F//TimerInit := TTimer.Create(nil);
-  //FTimerInit.OnTimer := DoTimerInit;
-  //FTimerInit.Interval := 250;
- // FTimerInit.Enabled := True;
+  {$IFNDEF ANDROID}
+  GenerateShadows;
+  {$ENDIF}
+  FAnimating := False;
 end;
 
 destructor TksSlideMenu.Destroy;
 begin
   FFont.Free;
   FAppearence.Free;
-  //FToolbar.Free;
   FItems.Free;
-  //FTimerInit.Free;
   if IsChild(FMenu) then FMenu.Free;
+
+  {$IFNDEF ANDROID}
   if IsChild(FShadowLeft) then FShadowLeft.Free;
   if IsChild(FShadowRight) then FShadowRight.Free;
+  {$ENDIF}
   if IsChild(FBackground) then FBackground.Free;
   if IsChild(FFormImage) then FFormImage.Free;
   inherited;
@@ -375,12 +372,6 @@ procedure TksSlideMenu.DoBackgroundClick(Sender: TObject);
 begin
   ToggleMenu;
 end;
-    {
-procedure TksSlideMenu.DoTimerInit(Sender: TObject);
-begin
-  //FTimerInit.Enabled := False;
-  //FMenu.CreateListView;
-end;  }
 
 procedure TksSlideMenu.DoToggleButtonClick(Sender: TObject);
 begin
@@ -393,7 +384,6 @@ var
   ABmp: TBitmap;
   AForm: TForm;
 begin
-  GenerateShadows;
   AForm := (Owner as TForm);
   FFormImage.Visible := false;
   FMenu.Visible := False;
@@ -426,14 +416,16 @@ begin
   FFormImage.Position.Y := 0;
   FFormImage.Position.X := AXpos;
 
+  {$IFNDEF ANDROID}
   FShadowLeft.Position.Y := 0;
   FShadowLeft.Position.X := 0-FShadowLeft.Width;
-
   FFormImage.AddObject(FShadowLeft);
+  {$ENDIF}
 
   AForm.AddObject(FFormImage);
   FFormImage.Visible := True;
   FMenu.Visible := True;
+  Application.ProcessMessages;
 end;
 
 procedure TksSlideMenu.RemoveFormImage;
@@ -445,6 +437,8 @@ begin
     AForm.RemoveObject(FFormImage);
 
 end;
+
+{$IFNDEF ANDROID}
 
 procedure TksSlideMenu.GenerateShadows;
 var
@@ -505,6 +499,20 @@ begin
   end;
 end;
 
+{$ENDIF}
+
+function TksSlideMenu.GetToolbar: TksSlideMenuToolbar;
+begin
+  Result := FMenu.FToolBar;
+end;
+
+function TksSlideMenu.GetToolbarHeight: integer;
+begin
+  Result := 0;
+  if Toolbar.Visible then
+    Result := C_TOOLBAR_HEIGHT;
+end;
+
 procedure TksSlideMenu.HidePickers;
 var
   PickerService: IFMXPickerService;
@@ -539,20 +547,20 @@ var
   ICount: integer;
   AItem: TksSlideMenuItem;
   ARow: TKsListItemRow;
-  //ALastIndex: integer;
   lv: TksListView;
   ASelectedColor: TAlphaColor;
   AFontColor: TAlphaColor;
 begin
   if FMenu.ListView = nil then
     Exit;
+  Application.ProcessMessages;
   lv := FMenu.FListView;
-  //ALastIndex := lv.item
+
   lv.Position.X := 0;
   lv.Position.Y := 0;
+  lv.Repaint;
 
-  //if ToolBar.Visible then
-    lv.Position.Y := C_TOOLBAR_HEIGHT;
+  lv.Position.Y := GetToolbarHeight;;
 
   lv.Width := C_MENU_WIDTH;
 
@@ -633,6 +641,11 @@ begin
   FToggleButton.OnClick := DoToggleButtonClick;
 end;
 
+procedure TksSlideMenu.SetToolbar(const Value: TksSlideMenuToolbar);
+begin
+  FMenu.FToolBar := Value;
+end;
+
 procedure TksSlideMenu.SetTopPadding(const Value: integer);
 begin
   FTopPadding := Value;
@@ -655,16 +668,12 @@ begin
     FMenu.PaintTo(ABmp.Canvas, RectF(0, 0, ABmp.Width, ABmp.Height));
     ABmp.Canvas.EndScene;
 
-    //ABmp.SaveToFile('C:\Users\Graham\Desktop\menu.png');
     ABmp.Canvas.BeginScene;
 
-    ABottom := C_TOOLBAR_HEIGHT + FMenu.CalculateListViewHeight;
-
+    ABottom := (GetToolbarHeight + FMenu.CalculateListViewHeight)*GetScreenScale;
     ABmp.Canvas.Fill.Color := FAppearence.ItemColor;
-    ABmp.Canvas.FillRect(RectF(0, ABottom, C_MENU_WIDTH*GetScreenScale, AForm.Height), 0, 0, AllCorners, 1, ABmp.Canvas.Fill);
-
+    ABmp.Canvas.FillRect(RectF(0, ABottom, C_MENU_WIDTH*GetScreenScale, ABmp.Height), 0, 0, AllCorners, 1, ABmp.Canvas.Fill);
     ABmp.Canvas.EndScene;
-
     FMenuImage.Bitmap := ABmp;
   finally
     ABmp.Free;
@@ -678,6 +687,7 @@ begin
   AForm := (Owner as TForm);
   AForm.InsertObject(AForm.ChildrenCount-1, FMenu);
   AForm.RemoveObject(FMenuImage);
+  FMenu.HitTest := True;
 end;
 
 procedure TksSlideMenu.ToggleMenu;
@@ -686,178 +696,73 @@ var
   ANewXPos: single;
   AForm: TForm;
 begin
-
-  AForm := (Owner as TForm);
-  {if FMenu = nil then
+  if FAnimating then
     Exit;
-  //
-  if FMenu.HitTest = False then
-    Exit;
-  }
-  //FMenu.CreateListView;
+  FAnimating := True;
+  try
+    if FShowing = False then
+      FMenu.FToolBar.UpdateToolbar;
 
-  //case FShowing  of
-  //  True: A
+    FMenu.HitTest := False;
 
-  HidePickers;
+    AForm := (Owner as TForm);
 
-  AStartXPos := 0;
-  if FShowing = False then
-  begin
-    AStartXPos := 0;
-    ANewXPos := C_MENU_WIDTH;
-  end
-  else
-  begin
-    AStartXPos := C_MENU_WIDTH;
-    ANewXPos := 0;
-  end;
+    HidePickers;
 
-  GenerateFormImage(AStartXPos);
-
-  FMenu.HitTest := False;
-  FMenu.Height := (Owner as TForm).ClientHeight;
-
-
-  if FMenu.FListView.Items.Count = 0 then
-    UpdateMenu;
-
-  // add the menu just behind the screen image...
-  AForm.InsertObject(AForm.ChildrenCount-1, FMenu);
-  SwitchMenuToImage;
-  AForm.RemoveObject(FMenu);
-  AForm.InsertObject(AForm.ChildrenCount-1, FMenuImage);
-
-
-  TAnimator.AnimateFloatWait(FFormImage, 'Position.X', ANewXPos, FSlideSpeed);
-  AForm.RemoveObject(FMenuImage);
- {
-  FMenu.HitTest := False;
-  FMenu.Height := (Owner as TForm).ClientHeight;
-
-  if FMenu.ListView.Items.Count = 0 then
-    UpdateMenu;
-  Application.ProcessMessages;
-
-  FMenu.SwitchToImage;
-
-  MenuAnimating := True;
-  case FMenuStyle of
-    msOverlap: ToggleOverlap(not FShowing);
-    msReveal: ToggleReveal(not FShowing);
-  end;
-  FShowing := not FShowing;
-
-  if FShowing then
-    FMenu.SwitchToMenu;
-  MenuAnimating := False;
-  FMenu.HitTest := True;
-  if FShowing = False then
-  begin
-    if Assigned(FOnAfterSlideOut) then
-      FOnAfterSlideOut(Self);
-  end;  }
-
-  FShowing := not FShowing;
-  if FShowing = False then
-  begin
-    AForm.RemoveObject(FMenu);
-
-    RemoveFormImage;
-  end
-  else
-    SwitchImageToMenu;
-end;
-
-procedure TksSlideMenu.ToggleOverlap(ACacheFormImage: Boolean);
-var
-  ANewX: Extended;
-begin
-  {if ACacheFormImage then
-    GenerateFormImage(Owner as TForm);
-
-  if FShowing then
-  begin
-    // hide the menu...
-    ANewX := 0-C_MENU_WIDTH;
-    if FMenuPosition = mpRight then
-      ANewX := TForm(Owner).Width;
-    FMenu.Width := C_MENU_WIDTH;
-
-    UnfadeBackground;
-    TAnimator.AnimateFloatWait(FMenu, 'Position.X', ANewX,  FSlideSpeed);
-
-    TForm(Owner).RemoveObject(FFormImage);
-    TForm(Owner).RemoveObject(FMenu);
-  end
-  else
-  begin
-    FMenu.Position.Y := FTopPadding;
-    FMenu.Position.X := 0-C_MENU_WIDTH;
-    ANewX := 0;
-    if FMenuPosition = mpRight then
+    if FShowing = False then
     begin
-      FMenu.Position.X := TForm(Owner).Width;//-C_MENU_WIDTH;
-
-      ANewX := TForm(Owner).Width-C_MENU_WIDTH;
+      AStartXPos := 0;
+      ANewXPos := C_MENU_WIDTH;
+    end
+    else
+    begin
+      AStartXPos := C_MENU_WIDTH;
+      ANewXPos := 0;
     end;
-    TForm(Owner).AddObject(FFormImage);
-    FadeBackground;
-    TForm(Owner).AddObject(FMenu);
-    TAnimator.AnimateFloatWait(FMenu, 'Position.X', ANewX,  FSlideSpeed);
 
-  end;
-  Application.ProcessMessages;}
-end;
+    GenerateFormImage(AStartXPos);
 
-procedure TksSlideMenu.ToggleReveal(ACacheFormImage: Boolean);
-var
-  ANewX: Extended;
-  AShadow: TImage;
-begin
- (* if ACacheFormImage then
-    GenerateFormImage(Owner as TForm);
-  Application.ProcessMessages;
+    FMenu.Height := (Owner as TForm).ClientHeight;
 
-  AShadow := nil;
-  case FMenuPosition of
-    mpLeft: AShadow := FShadowLeft;
-    mpRight: AShadow := FShadowRight;
-  end;
+    // add the menu just behind the screen image...
 
-  if FShowing then
-  begin
-    ANewX := 0;
-    TAnimator.AnimateFloatWait(FFormImage, 'Position.X', ANewX, FSlideSpeed);
-    TForm(Owner).RemoveObject(FFormImage);
-    TForm(Owner).RemoveObject(FMenu);
-    FFormImage.RemoveObject(FShadowLeft);
-    FFormImage.RemoveObject(FShadowRight);
-  end
-  else
-  begin
-    AShadow.Position.X := 0-16;
-    FMenu.Position.Y := FTopPadding;
     FMenu.Position.X := 0;
-    ANewX := C_MENU_WIDTH;
-    if FMenuPosition = mpRight then
+    AForm.InsertObject(0, FMenu);
+
+    if FMenu.FListView.Items.Count = 0 then
+      UpdateMenu;
+
+    SwitchMenuToImage;
+    AForm.RemoveObject(FMenu);
+    FMenu.Position.X := 0;
+    AForm.InsertObject(AForm.ChildrenCount-1, FMenuImage);
+
+    Application.ProcessMessages;
+
+    FFormImage.HitTest := False;
+    TAnimator.AnimateFloatWait(FFormImage, 'Position.X', ANewXPos, FSlideSpeed);
+    FFormImage.HitTest := True;
+
+    FShowing := not FShowing;
+
+    if FShowing = False then
     begin
-      FMenu.Position.X := TForm(Owner).Width-C_MENU_WIDTH;
-      AShadow.Position.X := TForm(Owner).Width;
+      AForm.RemoveObject(FMenu);
 
-      ANewX := 0-C_MENU_WIDTH;
-    end;
-    TForm(Owner).AddObject(FMenu);
-    TForm(Owner).AddObject(FFormImage);
-    {$IFNDEF ANDROID}
-    FFormImage.AddObject(AShadow);
-    {$ENDIF}
-
-    TAnimator.AnimateFloatWait(FFormImage, 'Position.X', ANewX,  FSlideSpeed);
-  end;      *)
+      RemoveFormImage;
+      if Assigned(FOnAfterSlideOut) then
+        FOnAfterSlideOut(Self);
+    end
+    else
+      SwitchImageToMenu;
+    AForm.RemoveObject(FMenuImage);
+    Application.ProcessMessages;
+  finally
+    FAnimating := False;
+  end;
 end;
 
-procedure TksSlideMenu.FadeBackground;
+{procedure TksSlideMenu.FadeBackground;
 begin
   FBackground.Fill.Color := claBlack;
   FBackground.Align := TAlignLayout.Contents;
@@ -872,7 +777,7 @@ procedure TksSlideMenu.UnfadeBackground;
 begin
   TAnimator.AnimateFloat(FBackground, 'Opacity', 0, FSlideSpeed);
   TForm(Owner).RemoveObject(FBackground);
-end;
+end; }
 
 { TksSlideMenuItem }
 
@@ -1015,25 +920,13 @@ begin
 end;
 
 constructor TksSlideMenuContainer.Create(AOwner: TComponent);
-var
-  AToolBar: TRectangle;
 begin
   inherited Create(AOwner);
   FSlideMenu := (AOwner as TksSlideMenu);
   FToolBar := TksSlideMenuToolbar.Create(Self, FSlideMenu);
-  //AddObject(FToolBar);
-  //FImage := TImage.Create(Self);
-  AToolBar := TRectangle.Create(Self);
-  AToolBar.Stroke.Kind := TBrushKind.None;
-  AToolbar.Fill.Color := FSlideMenu.Appearence.ToolBarColor;
-  AToolBar.Align := TAlignLayout.Top;
-  AddObject(AToolBar);
-
   CreateListView;
-  //FImage.HitTest := False;
   ClipChildren := True;
   HitTest := True;
-  //AddObject(FImage);
 end;
 
 procedure TksSlideMenuContainer.CreateListView;
@@ -1043,13 +936,9 @@ begin
   FListView.CanSwipeDelete := False;
   FListView.ShowSelection := False;
   FListView.OnItemClick := ItemClick;
-  //FListView.Height := 1;
   FListView.Align := TAlignLayout.Client;
-  //FListView.Transparent := True;
-  //Application.MainForm.AddObject(FListView);
-  //Application.ProcessMessages;
   AddObject(FListView);
-  //FListView.Transparent := False;
+
 end;
 
 destructor TksSlideMenuContainer.Destroy;
@@ -1057,129 +946,23 @@ begin
   {$IFDEF IOS}
   FToolBar.DisposeOf;
   if IsChild(FListView) then FListView.DisposeOf;
-  //if IsChild(FImage) then FImage.DisposeOf;
   {$ELSE}
   FListView.Free;
   if IsChild(FListView) then FListView.Free;
-  //if IsChild(FImage) then FImage.Free;
   {$ENDIF}
   inherited;
 end;
-        {
-function TksSlideMenuContainer.GetToolBarHeight: single;
-begin
-  Result := 0;
-  //if FSlideMenu.Toolbar.Visible then
-  Result := C_TOOLBAR_HEIGHT;
-end;      }
 
 procedure TksSlideMenuContainer.ItemClick(Sender: TObject; x, y: Single;
   AItem: TKsListItemRow; AId: string; ARowObj: TksListItemRowObj);
 begin
+  if HitTest = False then
+    Exit;
+  HitTest := False;
   UpdateSelectedItem;
   Sleep(200);
 
   FSlideMenu.MenuItemSelected(Self, x, y, AItem, AId, ARowObj);
-end;
-
-procedure TksSlideMenuContainer.AfterConstruction;
-begin
-  inherited;
-//  CreateListView;
-end;
-                  {
-procedure TksSlideMenuContainer.Paint;
-begin
-  inherited;
-  Canvas.Clear(FSlideMenu.Appearence.ItemColor);
-  Canvas.BeginScene;
-  try
-    if FSlideMenu.Toolbar.Visible then
-    begin
-      FSlideMenu.Toolbar.DrawToCanvas(Canvas, RectF(0, 0, C_MENU_WIDTH, C_TOOLBAR_HEIGHT));
-    end;
-  finally
-    Canvas.EndScene;
-  end;
-end;
-                   }
-
-  {
-procedure TksSlideMenuContainer.SetListViewHeight;
-var
-  AHeight: single;
-begin
-  AHeight := Height;
-
-  //if FSlideMenu.Toolbar.Visible then
-  begin
-    FListView.Position.Y := C_TOOLBAR_HEIGHT;
-    AHeight := AHeight - C_TOOLBAR_HEIGHT;
-  end;
-
-  FListView.Height := AHeight;
-end;    }
-
-procedure TksSlideMenuContainer.SwitchToImage;
-var
-  ABmp: TBitmap;
-  ARect: TRectF;
-  AListViewHeight: single;
-begin
- (* FListView.HitTest := False;
-  FImage.Position.X := 0;
-  FImage.Position.Y := 0;
-  SetListViewHeight;
-  FImage.Width := C_MENU_WIDTH;
-  FImage.Height := FListView.Height+GetToolBarHeight;
-  ABmp := TBitmap.Create(Round(FImage.Width*GetScreenScale), Round(FImage.Height*GetScreenScale));
-  try
-    ABmp.Canvas.BeginScene;
-    ABmp.BitmapScale := GetScreenScale;
-    FListView.Visible := True;
-    ARect := RectF(0, 0, FListView.Width * GetScreenScale, FListView.Height * GetScreenScale);
-
-    FSlideMenu.Toolbar.DrawToCanvas(ABmp.Canvas, RectF(0, 0, C_MENU_WIDTH*GetScreenScale, C_TOOLBAR_HEIGHT*GetScreenScale));
-
-    if FSlideMenu.Toolbar.Visible then
-      OffsetRect(ARect, 0, C_TOOLBAR_HEIGHT*GetScreenScale);
-    FListView.PaintTo(ABmp.Canvas, ARect);
-    FListView.Visible := False;
-    AListViewHeight := CalculateListViewHeight;
-    ABmp.Canvas.Fill.Color := FSlideMenu.Appearence.ItemColor;
-    //ABmp.Canvas.Fill.Color := claYellow;
-    ABmp.Canvas.FillRect(RectF(0, AListViewHeight, C_MENU_WIDTH, FListView.Height), 0, 0, AllCorners, 1, ABmp.Canvas.Fill);
-    ABmp.Canvas.EndScene;
-    FImage.Bitmap.Assign(ABmp);
-  finally
-    {$IFDEF IOS}
-    ABmp.DisposeOf;
-    {$ELSE}
-    ABmp.Free;
-    {$ENDIF}
-  end;
-  RemoveObject(FListView);
-  FListView.Visible := False;
-  AddObject(FImage);
-  FImage.Visible := True;
-  FImage.BringToFront;
-  Application.ProcessMessages;     *)
-end;
-
-procedure TksSlideMenuContainer.SwitchToMenu;
-var
-  AIndex: integer;
-begin
- { AIndex := FListView.ItemIndex;
-
-  SetListViewHeight;
-  if AIndex > -1 then
-    FListView.Items[AIndex].BackgroundColor := GetColorOrDefault(FSlideMenu.Appearence.SelectedItemColor, C_DEFAULT_SELECTED_COLOR);
-  AddObject(FListView);
-  FListView.Visible := True;
-  FImage.Visible := False;
-  Application.ProcessMessages;
-  FListView.HitTest := True;  }
 end;
 
 procedure TksSlideMenuContainer.UpdateSelectedItem;
@@ -1201,12 +984,19 @@ end;
 constructor TksSlideMenuToolbar.Create(AOwner: TComponent; ASlideMenu: TksSlideMenu);
 begin
   inherited Create;
+  FSlideMenu := ASlideMenu;
   FBitmap := TBitmap.Create;
   FFont := TFont.Create;
+
+  FHeader := TImage.Create(AOwner);
+  FHeader.Position.X := 0;
+  FHeader.Position.Y := 0;
+  FHeader.Width := C_MENU_WIDTH;
+  FHeader.Height := C_TOOLBAR_HEIGHT;
+  FHeader.Align := TAlignLayout.Top;
+  FHeader.HitTest := False;
   FVisible := True;
-  FSlideMenu := ASlideMenu;
-  FFont.Size := C_DEFAULT_TOOLBAR_FONT_SIZE;
-  FText := FSlideMenu.ClassName;
+  (AOwner as TFmxObject).AddObject(FHeader);
 end;
 
 destructor TksSlideMenuToolbar.Destroy;
@@ -1214,34 +1004,28 @@ begin
   {$IFDEF IOS}
   FBitmap.DisposeOf;
   FFont.DisposeOf;
+  FHeader.DisposeOf;
   {$ELSE}
   FBitmap.Free;
   FFont.Free;
+  FHeader.Free;
   {$ENDIF}
   inherited;
 end;
 
-{procedure TksSlideMenuToolbar.DrawToCanvas(ACanvas: TCanvas; ARect: TRectF);
+function TksSlideMenuToolbar.GetBitmap: TBitmap;
 begin
-  ACanvas.Fill.Color := GetColorOrDefault(FSlideMenu.Appearence.ToolBarColor, C_DEFAULT_TOOLBAR_COLOR);
-  ACanvas.FillRect(ARect, 0, 0, AllCorners, 1, ACanvas.Fill);
-  ACanvas.Stroke.Color := GetColorOrDefault(FSlideMenu.Appearence.ItemColor, C_DEFAULT_HEADER_COLOR);
-  ACanvas.DrawLine(PointF(0, ARect.Bottom), PointF(ARect.Right, ARect.Bottom), 1, ACanvas.Stroke);
-  if FBitmap.IsEmpty = False then
-    ACanvas.DrawBitmap(FBitmap, RectF(0, 0, FBitmap.Width, FBitmap.Height), GetImageRect, 1, True);
-
-  ACanvas.Font.Assign(FFont);
-  ACanvas.Fill.Color := GetColorOrDefault(FSlideMenu.Appearence.FontColor, C_DEFAULT_FONT_COLOR);
-  //ARect.Left := ARect.Left + (GetImageRect.Right+10);
-  ACanvas.FillText(ARect, FText, False, 1, [], TTextAlign.Leading);
+  Result := FBitmap;
 end;
-         }
-function TksSlideMenuToolbar.GetImageRect: TRectF;
+
+function TksSlideMenuToolbar.GetFont: TFont;
 begin
-  if FBitmap.IsEmpty then
-    Result := RectF(0, 0, 0, 0)
-  else
-    Result := RectF(10, 10, 40, 40);
+  Result := FFont;
+end;
+
+function TksSlideMenuToolbar.GetText: string;
+begin
+  Result := FText;
 end;
 
 procedure TksSlideMenuToolbar.SetBitmap(const Value: TBitmap);
@@ -1252,6 +1036,39 @@ end;
 procedure TksSlideMenuToolbar.SetFont(const Value: TFont);
 begin
   FFont.Assign(Value);
+end;
+
+procedure TksSlideMenuToolbar.SetText(const Value: string);
+begin
+  FText := Value;
+end;
+
+procedure TksSlideMenuToolbar.UpdateToolbar;
+var
+  ABmp: TBitmap;
+  AXPos: integer;
+begin
+  ABmp := TBitmap.Create(Round(C_MENU_WIDTH*GetScreenScale), Round(C_TOOLBAR_HEIGHT*GetScreenScale));
+  try
+    ABmp.BitmapScale := GetScreenScale;
+    AXPos := 10;
+    ABmp.Clear(FSlideMenu.Appearence.ToolBarColor);
+    ABmp.Canvas.BeginScene;
+    if FBitmap.IsEmpty = False then
+    begin
+      ABmp.Canvas.DrawBitmap(FBitmap, RectF(0, 0, FBitmap.Width, FBitmap.Height), RectF(10, 10, 40, 40), 1);
+      AXPos := 50;
+    end;
+    ABmp.Canvas.Fill.Color := FSlideMenu.Appearence.FFontColor;
+
+    ABmp.Canvas.Font.Assign(FFont);
+    ABmp.Canvas.FillText(RectF(AXPos, 0, C_MENU_WIDTH, C_TOOLBAR_HEIGHT), FText, False, 1, [], TTextAlign.Leading);
+    ABmp.Canvas.EndScene;
+
+    FHeader.Bitmap := ABmp;
+  finally
+    ABmp.Free;
+  end;
 end;
 
 end.

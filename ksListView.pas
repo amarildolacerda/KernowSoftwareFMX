@@ -578,7 +578,7 @@ type
     FMouseDownPos: TPointF;
     FCurrentMousepos: TPointF;
     FItemHeight: integer;
-    FClickTimer: TTimer;
+    //FClickTimer: TTimer;
     FLastWidth: integer;
     FOnLongClick: TksListViewRowClickEvent;
     FClickedRowObj: TksListItemRowObj;
@@ -2382,7 +2382,7 @@ begin
   FItemHeight := 44;
   FHeaderHeight := 44;
 
-  FClickTimer := TTimer.Create(Self);
+  //FClickTimer := TTimer.Create(Self);
   FLastWidth := 0;
   FSelectOnRightClick := False;
   FLastScrollPos := 0;
@@ -2405,7 +2405,7 @@ destructor TksListView.Destroy;
 begin
   {$IFDEF IOS}
   FAppearence.DisposeOf;
-  FClickTimer.DisposeOf;
+  //FClickTimer.DisposeOf;
   FScrollTimer.DisposeOf;
   FItems.DisposeOf;
   FCombo.DisposeOf;
@@ -2414,7 +2414,7 @@ begin
     FLoadingBitmap.DisposeOf;
   {$ELSE}
   FAppearence.Free;
-  FClickTimer.Free;
+  ///FClickTimer.Free;
   FScrollTimer.Free;
   FItems.Free;
   FCombo.Free;
@@ -2892,10 +2892,10 @@ begin
     Exit;
   if Items.Count = 0 then
     Exit;
-  //if FIsShowing = False then
-  //  Exit;
+  if FIsShowing = False then
+    Exit;
   CachePages;
-  //Invalidate;
+  Invalidate;
 end;
 
 function TksListView.GetRowFromYPos(y: single): TKsListItemRow;
