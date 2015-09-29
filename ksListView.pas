@@ -2892,8 +2892,8 @@ begin
     Exit;
   if Items.Count = 0 then
     Exit;
-  if FIsShowing = False then
-    Exit;
+  //if FIsShowing = False then
+  //  Exit;
   CachePages;
   //Invalidate;
 end;
