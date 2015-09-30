@@ -26,6 +26,7 @@ unit ksListView;
 
 interface
 
+
 {$IFDEF VER290}
   {$DEFINE XE8_OR_NEWER}
 {$ENDIF}
