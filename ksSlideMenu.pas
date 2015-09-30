@@ -422,6 +422,11 @@ begin
   FShadowLeft.Position.Y := 0;
   FShadowLeft.Position.X := 0-FShadowLeft.Width;
   FFormImage.AddObject(FShadowLeft);
+
+  FShadowRight.Position.Y := 0;
+  FShadowRight.Position.X := FFormImage.Width;
+  FFormImage.AddObject(FShadowRight);
+
   {$ENDIF}
 
   AForm.AddObject(FFormImage);
@@ -667,6 +672,10 @@ begin
     FMenuImage := TImage.Create(AForm);
     FMenuImage.Width := C_MENU_WIDTH;
     FMenuImage.Height := AForm.ClientHeight;
+    case FMenuPosition of
+      mpLeft: FMenuImage.Position.X := 0;
+      mpRight: FMenuImage.Position.X := AForm.Width - C_MENU_WIDTH;
+    end;
     ABmp.Canvas.BeginScene;
     ABmp.BitmapScale := GetScreenScale;
     FMenu.PaintTo(ABmp.Canvas, RectF(0, 0, ABmp.Width, ABmp.Height));
@@ -716,11 +725,16 @@ begin
     if FShowing = False then
     begin
       AStartXPos := 0;
-      ANewXPos := C_MENU_WIDTH;
+      case FMenuPosition of
+        mpLeft:  ANewXPos := C_MENU_WIDTH;
+        mpRight: ANewXPos := 0-C_MENU_WIDTH;
+      end;
+
+
     end
     else
     begin
-      AStartXPos := C_MENU_WIDTH;
+      AStartXPos := FFormImage.Position.X;
       ANewXPos := 0;
     end;
 
@@ -730,7 +744,10 @@ begin
 
     // add the menu just behind the screen image...
 
-    FMenu.Position.X := 0;
+    case FMenuPosition of
+      mpLeft : FMenu.Position.X := 0;
+      mpRight: FMenu.Position.X := AForm.Width - C_MENU_WIDTH;
+    end;
     AForm.InsertObject(0, FMenu);
 
     if FMenu.FListView.Items.Count = 0 then
@@ -738,7 +755,7 @@ begin
 
     SwitchMenuToImage;
     AForm.RemoveObject(FMenu);
-    FMenu.Position.X := 0;
+    //FMenu.Position.X := 0;
     AForm.InsertObject(AForm.ChildrenCount-1, FMenuImage);
 
     Application.ProcessMessages;
