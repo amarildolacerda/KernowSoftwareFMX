@@ -35,6 +35,8 @@ interface
   {$DEFINE XE10_OR_NEWER}
 {$ENDIF}
 
+{.$DEFINE ADD_SAMPLE_MENU_ITEMS}
+
 
 uses System.UITypes, FMX.Controls, FMX.Layouts, FMX.Objects, System.Classes,
   FMX.Types, Generics.Collections, FMX.Graphics, System.UIConsts, FMX.Effects,
@@ -296,6 +298,7 @@ function TksSlideMenu.AddMenuItem(AId, AText: string; AImage: TBitmap): TksSlide
 begin
   Result := FItems.AddMenuItem(AId, AText, AImage);
   Result.Font.Assign(FFont);
+  UpdateMenu;
 end;
 
 function TksSlideMenu.AddMenuItem(AId, AText: string; const AImageIndex: integer = -1): TksSlideMenuItem;
@@ -585,6 +588,7 @@ begin
   try
     lv.Items.Clear;
 
+    {$IFDEF ADD_SAMPLE_MENU_ITEMS}
     if FItems.Count = 0 then
     begin
       // add some sample items...
@@ -601,6 +605,7 @@ begin
       AddMenuItem('', 'Menu Item 9');
       AddMenuItem('', 'Menu Item 10');
     end;
+    {$ENDIF}
 
     for ICount := 0 to FItems.Count-1 do
     begin

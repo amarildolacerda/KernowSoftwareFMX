@@ -405,8 +405,7 @@ type
     procedure SetSearchText(const Value: string);
     procedure SetBackgroundColor(const Value: TAlphaColor);
     property ListView: TksListView read GetListView;
-    procedure DoOnListChanged(Sender: TObject; const Item: TksListItemRowObj;
-      Action: TCollectionNotification);
+    procedure DoOnListChanged(Sender: TObject; const Item: TksListItemRowObj; Action: TCollectionNotification);
     function ScreenWidth: single;
     procedure ProcessClick;
     procedure Changed;
@@ -414,6 +413,7 @@ type
     function TextWidth(AText: string): single;
     function TextHeight(AText: string): single;
   protected
+    procedure DoResize; override;
   public
     constructor Create(const AOwner: TListItem); override;
     destructor Destroy; override;
@@ -508,6 +508,7 @@ type
   public
     constructor Create(AListView: TksListView; AItems: TksListViewItems) ; virtual;
 
+    function AddRow(AText: string; const AAccessoryType: TksAccessoryType = None): TKsListItemRow; overload;
     function AddRow(AText, ASubTitle, ADetail: string;
                     AAccessory: TksAccessoryType;
                     const AImageIndex: integer = -1;
@@ -610,6 +611,7 @@ type
     FOnDeleteItem: TksDeleteItemEvent;
     FLastIndex: integer;
     FWidth: single;
+    FOnScrollLastItem: TNotifyEvent;
     function _Items: TksListViewItems;
 
     procedure DoScrollTimer(Sender: TObject);
@@ -642,6 +644,7 @@ type
     function GetRowFromYPos(y: single): TKsListItemRow;
     procedure SetKsItemHeight(const Value: integer);
     procedure SetKsHeaderHeight(const Value: integer);
+    function GetMaxScrollPos: single;
     { Protected declarations }
   public
     constructor Create(AOwner: TComponent); override;
@@ -657,6 +660,7 @@ type
     procedure ShowPopupMenu(APopup: TPopupMenu; x, y: single);
     procedure SelectFirstItem;
     procedure Paint; override;
+    property MaxScrollPos: single read GetMaxScrollPos;
     { Public declarations }
   published
     property Appearence: TksListViewAppearence read FAppearence write FAppearence;
@@ -780,6 +784,7 @@ type
     property OnButtonClicked: TksListViewClickButtonEvent read FOnButtonClicked write FOnButtonClicked;
     property OnSegmentButtonClicked: TksListViewClickSegmentButtonEvent read FOnSegmentButtonClicked write FOnSegmentButtonClicked;
     property OnScrollFinish: TksListViewFinishScrollingEvent read FOnFinishScrolling write FOnFinishScrolling;
+    property OnScrollLastItem: TNotifyEvent read FOnScrollLastItem write FOnScrollLastItem;
   end;
 
 procedure Register;
@@ -1789,7 +1794,6 @@ begin
   Result := FAccessory.AccessoryType;
 end;
 
-
 function TKsListItemRow.GetListView: TksListView;
 begin
   Result := (Owner.Parent as TksListView);
@@ -1853,6 +1857,13 @@ procedure TKsListItemRow.DoOnListChanged(Sender: TObject;
   const Item: TksListItemRowObj; Action: TCollectionNotification);
 begin
   FCached := False;
+end;
+
+procedure TksListItemRow.DoResize;
+begin
+  inherited;
+  FCached := False;
+  (Owner as TListViewItem).Height := Round(Height);
 end;
 
 // ------------------------------------------------------------------------------
@@ -2116,7 +2127,6 @@ begin
   FTextColor := AColor;
   FFont.Style := AStyle;
 end;
-
 
 
 procedure TKsListItemRow.SetImageIndex(const Value: integer);
@@ -2474,6 +2484,11 @@ begin
     Result.CacheRow;
 end;
 
+function TKsListItemRows.AddRow(AText: string; const AAccessoryType: TksAccessoryType = None): TKsListItemRow;
+begin
+  Result := AddRow(AText, '', '', AAccessoryType);
+end;
+
 function TKsListItemRows.AddRow(AText, ASubTitle, ADetail: string; AAccessory: TksAccessoryType;
   const AImageIndex: integer = -1; const AFontSize: integer = 14;
   AFontColor: TAlphaColor = C_DEFAULT_TEXT_COLOR): TKsListItemRow;
@@ -2780,6 +2795,11 @@ begin
       begin
         FOnFinishScrolling(Self, AVisibleItems.IndexStart, AVisibleItems.Count);
       end;
+      if ScrollViewPos = GetMaxScrollPos then
+      begin
+        if Assigned(FOnScrollLastItem) then
+          FOnScrollLastItem(Self);
+      end;
     end;
   end;
   FLastScrollPos := Trunc(ScrollViewPos);
@@ -2896,6 +2916,16 @@ begin
     Exit;
   CachePages;
   Invalidate;
+end;
+
+function TksListView.GetMaxScrollPos: single;
+var
+  ICount: integer;
+begin
+  Result := 0;
+  for ICount := 0 to Items.Count-1 do
+    Result := Result + Items[ICount].Height;
+  Result := Result - Height;
 end;
 
 function TksListView.GetRowFromYPos(y: single): TKsListItemRow;
