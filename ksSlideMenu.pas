@@ -725,6 +725,7 @@ begin
     if FShowing = False then
     begin
       AStartXPos := 0;
+      ANewXPos := 0;
       case FMenuPosition of
         mpLeft:  ANewXPos := C_MENU_WIDTH;
         mpRight: ANewXPos := 0-C_MENU_WIDTH;
@@ -769,10 +770,7 @@ begin
     if FShowing = False then
     begin
       AForm.RemoveObject(FMenu);
-
       RemoveFormImage;
-      if Assigned(FOnAfterSlideOut) then
-        FOnAfterSlideOut(Self);
     end
     else
       SwitchImageToMenu;
@@ -780,6 +778,11 @@ begin
     Application.ProcessMessages;
   finally
     FAnimating := False;
+  end;
+  if FShowing = False then
+  begin
+    if Assigned(FOnAfterSlideOut) then
+      FOnAfterSlideOut(Self);
   end;
 end;
 
