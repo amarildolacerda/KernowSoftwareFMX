@@ -3306,9 +3306,9 @@ begin
         ASwipeDirection := TksItemSwipeDirection.sdLeftToRight;
         if (x < (FMouseDownPos.X - C_SWIPE_DISTANCE)) then ASwipeDirection := TksItemSwipeDirection.sdRightToLeft;
         if (x > (FMouseDownPos.X + C_SWIPE_DISTANCE)) then ASwipeDirection := TksItemSwipeDirection.sdLeftToRight;
-        if Assigned(FOnItemSwipe) then
         FActionButtons.Clear;
         FActionButtons.FRow := AMouseDownRow;
+        if Assigned(FOnItemSwipe) then
           FOnItemSwipe(Self, AMouseDownRow, ASwipeDirection, FActionButtons);
         ShowRowOptionButtons(AMouseDownRow, ASwipeDirection, FActionButtons);
         ItemIndex := -1;
