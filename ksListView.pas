@@ -461,7 +461,7 @@ type
     function ScreenWidth: single;
     procedure ProcessClick;
     procedure Changed;
-    procedure ReleaseAllDownButtons;
+    //procedure ReleaseAllDownButtons;
     function TextWidth(AText: string): single;
     function TextHeight(AText: string; AWordWrap: Boolean; const AWidth: single = 0): single;
   protected
@@ -678,7 +678,7 @@ type
     procedure DoScrollTimer(Sender: TObject);
     procedure SetCheckMarks(const Value: TksListViewCheckMarks);
     function RowObjectAtPoint(ARow: TKsListItemRow; x, y: single): TksListItemRowObj;
-    procedure ReleaseAllDownButtons;
+    //procedure ReleaseAllDownButtons;
     procedure SetCheckMarkStyle(const Value: TksListViewCheckStyle);
     procedure SetItemImageSize(const Value: integer);
     procedure SetShowIndicatorColors(const Value: Boolean);
@@ -1699,7 +1699,7 @@ begin
   end;
 end;
 
-procedure TKsListItemRow.ReleaseAllDownButtons;
+{procedure TKsListItemRow.ReleaseAllDownButtons;
 var
   ICount: integer;
   AButton: TksListItemRowButton;
@@ -1716,7 +1716,7 @@ begin
       end;
     end;
   end;
-end;
+end;}
 
 procedure TksListItemRow.ReleaseRow;
 begin
@@ -3062,7 +3062,7 @@ begin
 end;
 
 
-procedure TksListView.ReleaseAllDownButtons;
+{procedure TksListView.ReleaseAllDownButtons;
 var
   ICount: integer;
   ARow: TKsListItemRow;
@@ -3072,7 +3072,7 @@ begin
     ARow := Items[ICount];
     ARow.ReleaseAllDownButtons;
   end;
-end;
+end;}
 
 procedure TksListView.Resize;
 begin
@@ -3219,30 +3219,38 @@ begin
   if (y < 0) or (ARow = nil) then
     Exit;
 
-  FActionButtons.Clear;
-  FLastIndex := ItemIndex;
+  FMouseDownPos := PointF(x-ItemSpaces.Left, y);
+  FMouseDownTime := Now;
+
+
 
   if ARow.CanSelect = False then
     ItemIndex := -1;
-  inherited;
 
   ARowRect := GetItemRect(ARow.Index);
   FClickedRowObj := RowObjectAtPoint(ARow, x, y - ARowRect.Top);
+  if FClickedRowObj <> nil then
+  begin
+    FClickedRowObj.MouseDown;
+    if FClickedRowObj.ConsumesRowClick then
+    begin
+      Invalidate;
+      Exit;
+    end;
+  end;
 
-  if (Button = TMouseButton.mbRight) then
+  FActionButtons.Clear;
+  FLastIndex := ItemIndex;
+
+    if ARow.CanSelect = False then
+    ItemIndex := -1;
+
+  inherited;
+
+  if (Button = TMouseButton.mbRight) and (SelectOnRightClick) then
   begin
     ItemIndex := ARow.Index;
   end;
-
-  if FClickedRowObj <> nil then
-  begin
-    if FClickedRowObj.ConsumesRowClick then
-      ItemIndex := -1;
-    FClickedRowObj.MouseDown;
-  end;
-
-  FMouseDownPos := PointF(x-ItemSpaces.Left, y);
-  FMouseDownTime := Now;
 
   if ARow.CanSelect = False then
   begin
@@ -3315,6 +3323,17 @@ begin
       end;
     end;
 
+    if FClickedRowObj <> nil then
+    begin
+      FClickedRowObj.MouseUp;
+      AObjectConsumesClick := (FClickedRowObj.ConsumesRowClick);
+      // ItemIndex only needs to be set to -1 if the RowObj consumes
+      // the row click otherwise it doesn't highlight if you click
+      // on some text.
+      if (AObjectConsumesClick) then
+        ItemIndex := -1;
+      Invalidate;
+    end;
 
     if PtInRect(AMouseDownRect, PointF(x, y)) then
     begin
@@ -3327,13 +3346,8 @@ begin
       ARowRect := GetItemRect(ARow.Index);
 
 
-      FClickedRowObj := RowObjectAtPoint(ARow, x, y - ARowRect.Top);
-      if FClickedRowObj <> nil then
-      begin
-        ItemIndex := -1;
-        FClickedRowObj.MouseUp;
-        AObjectConsumesClick := (FClickedRowObj.ConsumesRowClick);
-      end;
+      //FClickedRowObj := RowObjectAtPoint(ARow, x, y - ARowRect.Top);
+
       AId := ARow.ID;
 
       if (AMouseDownTime >= 500) and (Assigned(FOnLongClick)) then
@@ -3361,6 +3375,8 @@ begin
 
         if FClickedRowObj <> nil then
         begin
+          ARow.CacheRow;
+          Invalidate;
           FClickedRowObj.Click(X - FClickedRowObj.Rect.Left, Y - FClickedRowObj.Rect.Top);
           if (FClickedRowObj is TksListItemRowSwitch) then
           begin
@@ -3378,17 +3394,12 @@ begin
             if Assigned(FOnSegmentButtonClicked) then
               FOnSegmentButtonClicked(Self, ARow, (FClickedRowObj as TksListItemRowSegmentButtons), AId);
           end;
-          if FClickedRowObj <> nil then
-            FClickedRowObj.MouseUp;
-          ARow.CacheRow;
-          Invalidate;
         end;
 
 
-        Application.ProcessMessages;
+        //Application.ProcessMessages;
         if (FKeepSelection = False) and (ItemIndex > -1) and (FScrolling = False) then
         begin
-          Sleep(100);
           ItemIndex := -1;
           Application.ProcessMessages;
         end;
@@ -3399,7 +3410,7 @@ begin
       // mouse up was after scrolling...
     end;
   finally
-    ReleaseAllDownButtons;
+    //ReleaseAllDownButtons;
     FMouseDownPos := PointF(-1, -1);
   end;
 end;
