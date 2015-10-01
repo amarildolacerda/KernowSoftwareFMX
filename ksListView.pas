@@ -664,7 +664,7 @@ type
     FCanSwipeDelete: Boolean;
     FActionButtons: TksListItemRowActionButtons;
     FOnItemActionButtonClick: TksItemActionButtonClickEvent;
-
+    FSearchBoxHeight: single;
     function _Items: TksListViewItems;
 
     procedure DoScrollTimer(Sender: TObject);
@@ -684,6 +684,7 @@ type
     procedure DoRenderRow(ARow: TKsListItemRow);
     procedure CachePages;
     function LoadingBitmap: TBitmap;
+    procedure CalculateSearchBoxHeight;
     { Private declarations }
   protected
     procedure SetColorStyle(AName: string; AColor: TAlphaColor);
@@ -2439,6 +2440,22 @@ begin
   end;
 end;
 
+procedure TksListView.CalculateSearchBoxHeight;
+var
+  ASearch: TSearchBox;
+begin
+  ASearch := TSearchBox.Create(nil);
+  try
+    FSearchBoxHeight := ASearch.Height;
+  finally
+    {$IFDEF IOS}
+    ASearch.DisposeOf;
+    {$ELSE}
+    ASearch.Free;
+    {$ENDIF}
+  end;
+end;
+
 procedure TksListView.ClearItems;
 begin
   TListView(Self).Items.Clear;
@@ -2454,7 +2471,6 @@ end;
 constructor TksListView.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
-
   TListView(Self).OnDeleteItem := DoOnDeleteItem;
 
   FItems := TKsListItemRows.Create(Self, inherited Items);
@@ -2488,6 +2504,7 @@ begin
   ItemSpaces.Left := 0;
   FScrollDirection := sdDown;
   FCanSwipeDelete := False;
+  CalculateSearchBoxHeight;
 end;
 
 destructor TksListView.Destroy;
@@ -2892,6 +2909,7 @@ end;
 procedure TksListView.DoScrollTimer(Sender: TObject);
 var
   AVisibleItems: TksVisibleItems;
+  ASearchHeight: single;
 begin
   if FScrolling = False then
   begin
@@ -2923,7 +2941,10 @@ begin
       begin
         FOnFinishScrolling(Self, AVisibleItems.IndexStart, AVisibleItems.Count);
       end;
-      if ScrollViewPos = GetMaxScrollPos then
+      ASearchHeight := 0;
+      if SearchVisible then
+        ASearchHeight := FSearchBoxHeight;
+      if ScrollViewPos-ASearchHeight = GetMaxScrollPos then
       begin
         if Assigned(FOnScrollLastItem) then
           FOnScrollLastItem(Self);
@@ -3158,14 +3179,17 @@ begin
 
   ARowRect := GetItemRect(ARow.Index);
   FClickedRowObj := RowObjectAtPoint(ARow, x, y - ARowRect.Top);
+
+  if (Button = TMouseButton.mbRight) then
+  begin
+    ItemIndex := ARow.Index;
+  end;
+
   if FClickedRowObj <> nil then
   begin
     ItemIndex := -1;
     FClickedRowObj.MouseDown;
   end;
-
-  if (Button = TMouseButton.mbRight) then
-    ItemIndex := ARow.Index;
 
   FMouseDownPos := PointF(x-ItemSpaces.Left, y);
   FMouseDownTime := Now;
