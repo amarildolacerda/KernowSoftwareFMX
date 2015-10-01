@@ -41,7 +41,7 @@ uses
   FMX.ListView.Types, FMX.Graphics, Generics.Collections, System.UITypes,
   {$IFDEF XE8_OR_NEWER} FMX.ImgList, {$ENDIF}
   System.UIConsts, FMX.StdCtrls, FMX.Styles.Objects, System.Generics.Collections,
-  FMX.ListBox, FMX.DateTimeCtrls, FMX.Menus
+  FMX.ListBox, FMX.DateTimeCtrls, FMX.Menus, FMX.Objects
   {$IFDEF XE10_OR_NEWER}, FMX.ListView.Appearances {$ENDIF}
 
   ;
@@ -54,6 +54,7 @@ const
   {$ELSE}
   C_SEGMENT_BUTTON_HEIGHT = 30;
   {$ENDIF}
+  C_SWIPE_DISTANCE = 50;
 
   C_DEFAULT_TEXT_COLOR = claBlack;
   C_DEFAULT_HEADER_TEXT_COLOR = claBlack;
@@ -78,6 +79,16 @@ const
   C_PLATFORM_ACCESSORY_COLOR = claSilver;
 
 type
+  TksListView = class;
+  TKsListItemRow = class;
+  TKsListItemRows = class;
+  TksListItemRowObj = class;
+  TksListItemRowSwitch = class;
+  TksListItemRowButton = class;
+  TksListItemRowSegmentButtons = class;
+  TksListItemRowActionButton = class;
+  TksListItemRowActionButtons = class;
+
   TksListViewCheckMarks = (ksCmNone, ksCmSingleSelect, ksCmMultiSelect);
   TksListViewCheckStyle = (ksCmsDefault, ksCmsRed, ksCmsGreen, ksCmsBlue);
   TksListViewShape = (ksRectangle, ksRoundRect, ksEllipse);
@@ -89,16 +100,8 @@ type
   TksButtonState = (Pressed, Unpressed);
   TksListItemRowSelector = (NoSelector, DateSelector, ItemPicker);
   TksScrollDirection = (sdUp, sdDown);
+  TksItemSwipeDirection = (sdLeftToRight, sdRightToLeft);
 
-
-
-  TksListView = class;
-  TKsListItemRow = class;
-  TKsListItemRows = class;
-  TksListItemRowObj = class;
-  TksListItemRowSwitch = class;
-  TksListItemRowButton = class;
-  TksListItemRowSegmentButtons = class;
   {$IFDEF XE10_OR_NEWER}
   TksListViewItems = TAppearanceListViewItems;
   {$ELSE}
@@ -112,6 +115,8 @@ type
   TksListViewSelectDateEvent = procedure(Sender: TObject; AItem: TksListItemRow; ASelectedDate: TDateTime; var AAllow: Boolean) of object;
   TksListViewSelectPickerItem = procedure(Sender: TObject; AItem: TksListItemRow; ASelected: string; var AAllow: Boolean) of object;
   TksDeleteItemEvent = procedure(Sender: TObject; AIndex: Integer) of object;
+  TksItemSwipeEvent = procedure(Sender: TObject; ARow: TksListItemRow; ASwipeDirection: TksItemSwipeDirection; AButtons: TksListItemRowActionButtons) of object;
+  TksItemActionButtonClickEvent = procedure(Sender: TObject; ARow: TksListItemRow; AButton: TksListItemRowActionButton) of object;
   // ------------------------------------------------------------------------------
 
   TksVisibleItems = record
@@ -135,6 +140,7 @@ type
     FGuid: string;
     FWidth: single;
     FHeight: single;
+    FConumesRowClick: Boolean;
     procedure SetRect(const Value: TRectF);
     procedure SetID(const Value: string);
     procedure Changed;
@@ -147,6 +153,7 @@ type
     procedure SetOffsetX(const Value: single);
     procedure SetOffsetY(const Value: single);
   protected
+    function GetConsumesRowClick: Boolean; virtual;
     procedure CalculateRect(ARowBmp: TBitmap); virtual;
     procedure DoChanged(Sender: TObject);
   public
@@ -166,6 +173,7 @@ type
     property Height: single read FHeight write SetHeight;
     property OffsetY: single read GetOffsetY write SetOffsetY;
     property OffsetX: single read GetOffsetX write SetOffsetX;
+    property ConsumesRowClick: Boolean read FConumesRowClick default False;
   end;
 
 
@@ -285,6 +293,8 @@ type
   private
     FIsChecked: Boolean;
     procedure SetIsChecked(const Value: Boolean);
+  protected
+    function GetConsumesRowClick: Boolean; override;
   public
     function Render(ACanvas: TCanvas): Boolean; override;
     procedure Toggle;
@@ -303,6 +313,8 @@ type
     procedure SetTintColor(const Value: TAlphaColor);
     procedure SetText(const Value: string);
     procedure SetStyleLookup(const Value: string);
+  protected
+    function GetConsumesRowClick: Boolean; override;
   public
     constructor Create(ARow: TKsListItemRow); override;
     function Render(ACanvas: TCanvas): Boolean; override;
@@ -321,6 +333,8 @@ type
     FTintColor: TAlphaColor;
     procedure SetItemIndex(const Value: integer);
     procedure SetTintColor(const Value: TAlphaColor);
+  protected
+    function GetConsumesRowClick: Boolean; override;
   public
     constructor Create(ARow: TKsListItemRow); override;
     destructor Destroy; override;
@@ -361,6 +375,35 @@ type
 
   TksListItemObjects = class(TObjectList<TksListItemRowObj>);
 
+  TKsListItemRowActionButton = class
+  private
+    FOwner: TksListItemRowActionButtons;
+    FBackground: TRectangle;
+    FLabel: TLabel;
+    FRow: TksListItemRow;
+    function GetText: string;
+    procedure SetText(const Value: string);
+    function GetColor: TAlphaColor;
+    procedure SetColor(const Value: TAlphaColor);
+    procedure DoClick(Sender: TObject);
+  public
+    constructor Create(AOwner: TksListItemRowActionButtons);
+    destructor Destroy; override;
+    procedure AddToObject(AObject: TFmxObject);
+    property Color: TAlphaColor read GetColor write SetColor;
+    property Text: string read GetText write SetText;
+  end;
+
+  TksListItemRowActionButtons = class(TObjectList<TksListItemRowActionButton>)
+  private
+    FListView: TksListView;
+    FRow: TksListItemRow;
+  public
+    constructor Create(AOwner: TksListView);
+    procedure AddButton(AText: string; AColor: TAlphaColor);
+  end;
+
+
   TksListItemRow = class(TListItemImage)
   private
     FTitle: TksListItemRowText;
@@ -384,6 +427,7 @@ type
     FSelectionValue: Variant;
     FPickerItems: TStrings;
     FRowHeight: integer;
+    FLastHeight: single;
     FBackgroundColor: TAlphaColor;
     function RowHeight(const AScale: Boolean = True): single;
     function RowWidth(const AScale: Boolean = True): single;
@@ -450,7 +494,10 @@ type
     Trailing): TksListItemRowSwitch;
     function AddSwitchRight(AMargin: integer; AIsChecked: Boolean): TksListItemRowSwitch;
     // buttons...
-    function AddButton(AWidth: integer; AText: string; const ATintColor: TAlphaColor = claNull): TksListItemRowButton; overload;
+    function AddButton(AWidth: integer; AText: string;
+                       const ATintColor: TAlphaColor = claNull;
+                       const AVertAlign: TListItemAlign = TListItemAlign.Center;
+                       const AYPos: integer = 0): TksListItemRowButton; overload;
     function AddButton(AStyle: TksImageButtonStyle; const ATintColor: TAlphaColor = claNull): TksListItemRowButton; overload;
     function AddSegmentButtons(AWidth: integer;
                                ACaptions: array of string;
@@ -589,7 +636,7 @@ type
     FOnButtonClicked: TksListViewClickButtonEvent;
     FOnSegmentButtonClicked: TksListViewClickSegmentButtonEvent;
     FScrollTimer: TTimer;
-    FLastScrollPos: integer;
+    FLastScrollPos: Extended;
     FScrolling: Boolean;
     FOnFinishScrolling: TksListViewFinishScrollingEvent;
     FCheckMarks: TksListViewCheckMarks;
@@ -613,6 +660,11 @@ type
     FLastIndex: integer;
     FWidth: single;
     FOnScrollLastItem: TNotifyEvent;
+    FOnItemSwipe: TksItemSwipeEvent;
+    FCanSwipeDelete: Boolean;
+    FActionButtons: TksListItemRowActionButtons;
+    FOnItemActionButtonClick: TksItemActionButtonClickEvent;
+
     function _Items: TksListViewItems;
 
     procedure DoScrollTimer(Sender: TObject);
@@ -639,6 +691,9 @@ type
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; x, y: single); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Single); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; x, y: single); override;
+    procedure ShowRowOptionButtons(ARow: TKsListItemRow;
+                                   ASwipeDirection: TksItemSwipeDirection;
+                                   AButtons: TksListItemRowActionButtons);
     {$IFNDEF XE10_OR_NEWER}
     procedure DoItemChange(const AItem: TListViewItem); override;
     {$ENDIF}
@@ -646,6 +701,7 @@ type
     procedure SetKsItemHeight(const Value: integer);
     procedure SetKsHeaderHeight(const Value: integer);
     function GetMaxScrollPos: single;
+    procedure DoActionButtonClicked(AButton: TksListItemRowActionButton);
     { Protected declarations }
   public
     constructor Create(AOwner: TComponent); override;
@@ -752,7 +808,7 @@ type
     property OnDblClick;
 
     { ListView selection events }
-    property CanSwipeDelete;
+    property CanSwipeDelete: Boolean read FCanSwipeDelete write FCanSwipeDelete default False;
 
     property OnChange;
     property OnChangeRepainted;
@@ -786,13 +842,15 @@ type
     property OnSegmentButtonClicked: TksListViewClickSegmentButtonEvent read FOnSegmentButtonClicked write FOnSegmentButtonClicked;
     property OnScrollFinish: TksListViewFinishScrollingEvent read FOnFinishScrolling write FOnFinishScrolling;
     property OnScrollLastItem: TNotifyEvent read FOnScrollLastItem write FOnScrollLastItem;
+    property OnItemSwipe: TksItemSwipeEvent read FOnItemSwipe write FOnItemSwipe;
+    property OnItemActionButtonClick: TksItemActionButtonClickEvent read FOnItemActionButtonClick write FOnItemActionButtonClick;
   end;
 
 procedure Register;
 
 implementation
 
-uses SysUtils, FMX.Platform, FMX.SearchBox, FMX.Objects, ksDrawFunctions,
+uses SysUtils, FMX.Platform, FMX.SearchBox, ksDrawFunctions, FMX.Ani,
   System.StrUtils, DateUtils, FMX.Forms, Math, ksSlideMenu;
 
 var
@@ -905,11 +963,17 @@ begin
   FTagBoolean := False;
   CreateGUID(AGuid);
   FGuid := GUIDToString(AGuid);
+  FConumesRowClick := GetConsumesRowClick;
 end;
 
 procedure TksListItemRowObj.DoChanged(Sender: TObject);
 begin
   Changed;
+end;
+
+function TksListItemRowObj.GetConsumesRowClick: Boolean;
+begin
+  Result := False;
 end;
 
 function TksListItemRowObj.GetOffsetX: single;
@@ -1632,6 +1696,14 @@ var
   ANextItem: TKsListItemRow;
   ANextItemIsHeader: Boolean;
 begin
+  if FLastHeight = 0 then
+    FLastHeight := Height;
+  if Height <> FLastHeight then
+  begin
+    FCached := False;
+    CacheRow;
+    FLastHeight := Height;
+  end;
   ANextItemIsHeader := False;
   if Index < ListView.Items.Count-1 then
   begin
@@ -1734,6 +1806,7 @@ begin
   FDetail.TextAlignment := TTextAlign.Trailing;
   FRowHeight := lv.ItemHeight;
   FBackgroundColor := claNull;
+  FLastHeight := 0;
 end;
 
 destructor TKsListItemRow.Destroy;
@@ -1773,7 +1846,7 @@ var
   lv: TksListView;
 begin
   lv := TksListView(Owner.Parent);
-  Result := lv.ItemHeight;
+  Result := Height;// lv.ItemHeight;
   if Purpose = TListItemPurpose.Header then
     Result := lv.HeaderHeight;
   if AScale then
@@ -2001,11 +2074,14 @@ end;
 
 function TKsListItemRow.AddButton(AWidth: integer;
                                   AText: string;
-                                  const ATintColor: TAlphaColor = claNull): TksListItemRowButton;
+                                  const ATintColor: TAlphaColor = claNull;
+                                  const AVertAlign: TListItemAlign = TListItemAlign.Center;
+                                  const AYPos: integer = 0): TksListItemRowButton;
 begin
   Result := TksListItemRowButton.Create(Self);
   Result.Align := TListItemAlign.Trailing;
-  Result.VertAlign := TListItemAlign.Center;
+  Result.VertAlign := AVertAlign;
+  Result.PlaceOffset := PointF(0, AYPos);
   Result.Width := AWidth;
   Result.Height := 32;
   Result.StyleLookup := 'listitembutton';
@@ -2016,7 +2092,6 @@ begin
   Result.Text := AText;
   ShowAccessory := False;
   FList.Add(Result);
-  CanSelect := False;
   Changed;
 end;
 
@@ -2385,7 +2460,7 @@ begin
   FItems := TKsListItemRows.Create(Self, inherited Items);
   FCombo := TComboBox.Create(nil);
   FCombo.OnClosePopup := ComboClosePopup;
-
+  FActionButtons := TksListItemRowActionButtons.Create(Self);
   FDateSelector := TDateEdit.Create(nil);
   FDateSelector.OnClosePicker := ComboClosePopup;
 
@@ -2412,6 +2487,7 @@ begin
   ItemSpaces.Right := 0;
   ItemSpaces.Left := 0;
   FScrollDirection := sdDown;
+  FCanSwipeDelete := False;
 end;
 
 destructor TksListView.Destroy;
@@ -2425,6 +2501,7 @@ begin
   FDateSelector.DisposeOf;
   if FLoadingBitmap <> nil then
     FLoadingBitmap.DisposeOf;
+  FActionButtons.DisposeOf;
   {$ELSE}
   FAppearence.Free;
   ///FClickTimer.Free;
@@ -2434,6 +2511,7 @@ begin
   FDateSelector.Free;
   if FLoadingBitmap <> nil then
     FLoadingBitmap.Free;
+  FActionButtons.Free;
   {$ENDIF}
   inherited;
 end;
@@ -2688,6 +2766,43 @@ begin
   APopup.Popup(Round(APoint.X), Round(APoint.Y));
 end;
 
+procedure TksListView.ShowRowOptionButtons(ARow: TKsListItemRow;
+  ASwipeDirection: TksItemSwipeDirection; AButtons: TksListItemRowActionButtons);
+var
+  ARect: TRectF;
+  i: integer;
+  AButton: TksListItemRowActionButton;
+  ICount: integer;
+begin
+  ARect := GetItemRect(ARow.Index);
+
+  for i := 0 to AButtons.Count-1 do
+  begin
+    AButton := AButtons[i];
+    AButton.FBackground.Height := ARect.Height;
+    AButton.FBackground.Position.X := ARect.Right;
+    AButton.FBackground.Position.Y := ARect.Top;
+    AButton.FBackground.Width := 0;
+    AddObject(AButton.FBackground);
+  end;
+
+  for ICount := 0 to 60 do
+  begin
+    for i := 1 to AButtons.Count do
+    begin
+      AButton := AButtons[i-1];
+      AButton.FBackground.Position.X := ARect.Right-(ICount*i);
+      AButton.FBackground.Width := ICount;
+
+      if ICount mod 10 = 0 then
+      begin
+        Sleep(1);
+        Application.ProcessMessages;
+      end;
+    end;
+  end;
+end;
+
 function TksListView._Items: TksListViewItems;
 begin
   Result := inherited Items;
@@ -2741,6 +2856,16 @@ end;
 
 {$IFNDEF XE10_OR_NEWER}
 
+procedure TksListView.DoActionButtonClicked(
+  AButton: TksListItemRowActionButton);
+begin
+  if Assigned(FOnItemActionButtonClick) then
+  begin
+    FOnItemActionButtonClick(Self, AButton.FRow, AButton);
+    FActionButtons.Clear;
+  end;
+end;
+
 procedure TksListView.DoItemChange(const AItem: TListViewItem);
 var
   ARow: TKsListItemRow;
@@ -2777,7 +2902,7 @@ begin
 
       FScrolling := True;
       FScrollTimer.Interval := 100;
-      FLastScrollPos := Trunc(ScrollViewPos);
+      FLastScrollPos := ScrollViewPos;
       if ScrollViewPos > FLastScrollPos then
         FScrollDirection := sdDown
       else
@@ -2788,7 +2913,7 @@ begin
   else
   begin
 
-    if FLastScrollPos = Trunc(ScrollViewPos) then
+    if FLastScrollPos = ScrollViewPos then
     begin
       FScrolling := False;
       FScrollTimer.Interval := 500;
@@ -2805,7 +2930,7 @@ begin
       end;
     end;
   end;
-  FLastScrollPos := Trunc(ScrollViewPos);
+  FLastScrollPos := ScrollViewPos;
 end;
 
 procedure TksListView.DoSelectDate(Sender: TObject);
@@ -3024,6 +3149,7 @@ begin
   if (y < 0) or (ARow = nil) then
     Exit;
 
+  FActionButtons.Clear;
   FLastIndex := ItemIndex;
 
   if ARow.CanSelect = False then
@@ -3033,7 +3159,10 @@ begin
   ARowRect := GetItemRect(ARow.Index);
   FClickedRowObj := RowObjectAtPoint(ARow, x, y - ARowRect.Top);
   if FClickedRowObj <> nil then
+  begin
+    ItemIndex := -1;
     FClickedRowObj.MouseDown;
+  end;
 
   if (Button = TMouseButton.mbRight) then
     ItemIndex := ARow.Index;
@@ -3063,109 +3192,147 @@ procedure TksListView.MouseUp(Button: TMouseButton; Shift: TShiftState; x,
 var
   AId: string;
   ARow: TKsListItemRow;
+  AMouseDownRow: TKsListItemRow;
   AMouseDownRect: TRectF;
   ARowRect: TRectF;
+  AMouseDownTime: integer;
+  ASwipeDirection: TksItemSwipeDirection;
+  AObjectConsumesClick: Boolean;
 begin
-  if y < 0 then
-    Exit;
-  inherited;
-
-  AMouseDownRect := RectF(FMouseDownPos.X-8, FMouseDownPos.Y-8, FMouseDownPos.X+8, FMouseDownPos.Y+8);
-  x := x - ItemSpaces.Left;
-  if PtInRect(AMouseDownRect, PointF(x, y)) then
-  begin
-    // process a mouse click...
-    ARow := GetRowFromYPos(y);
-    if ARow = nil then
+  try
+    if y < 0 then
       Exit;
-      {if ARow.CanSelect = False then
+    inherited;
+    AObjectConsumesClick := False;
+
+    AMouseDownTime := MilliSecondsBetween(FMouseDownTime, Now);
+    AMouseDownRect := RectF(FMouseDownPos.X-8, FMouseDownPos.Y-8, FMouseDownPos.X+8, FMouseDownPos.Y+8);
+    x := x - ItemSpaces.Left;
+
+    AMouseDownRow := GetRowFromYPos(FMouseDownPos.Y);
+    ARow := GetRowFromYPos(y);
+
+    if (ARow = AMouseDownRow) and (AMouseDownTime <= 500) then
+    begin
+      if (x < (FMouseDownPos.X-C_SWIPE_DISTANCE)) or (x > (FMouseDownPos.X+C_SWIPE_DISTANCE)) then
       begin
-        ItemIndex := FLastIndex;
-        Exit;
-      end;  }
-
-    ARowRect := GetItemRect(ARow.Index);
-
-    FClickedRowObj := RowObjectAtPoint(ARow, x, y - ARowRect.Top);
-    if FClickedRowObj <> nil then
-      FClickedRowObj.MouseUp;
-    AId := ARow.ID;
-
-    if (MilliSecondsBetween(FMouseDownTime, Now) >= 500) and (Assigned(FOnLongClick)) then
-    begin
-      // long tap...
-      FOnLongClick(Self, x, y, ARow, AId, FClickedRowObj);
-    end
-
-    else
-    begin
-      if ARow.CanSelect = False then
+        ASwipeDirection := TksItemSwipeDirection.sdLeftToRight;
+        if (x < (FMouseDownPos.X - C_SWIPE_DISTANCE)) then ASwipeDirection := TksItemSwipeDirection.sdRightToLeft;
+        if (x > (FMouseDownPos.X + C_SWIPE_DISTANCE)) then ASwipeDirection := TksItemSwipeDirection.sdLeftToRight;
+        if Assigned(FOnItemSwipe) then
+        FActionButtons.Clear;
+        FActionButtons.FRow := ARow;
+          FOnItemSwipe(Self, ARow, ASwipeDirection, FActionButtons);
+        ShowRowOptionButtons(ARow, ASwipeDirection, FActionButtons);
         ItemIndex := -1;
-      Application.ProcessMessages;
-      // remove row selection?
-      ARow.ProcessClick;
-      if ARow.CanSelect then
-      begin
-        // left click...
-        if (Assigned(FOnItemClick)) and (Button = TMouseButton.mbLeft) then
-          FOnItemClick(Self, x, y, ARow, AId, FClickedRowObj);
-        // right click...
-        if (Assigned(FOnItemRightClick)) and (Button = TMouseButton.mbRight) then
-          FOnItemRightClick(Self, x, y, ARow, AId, FClickedRowObj);
       end;
+    end;
 
+
+    if PtInRect(AMouseDownRect, PointF(x, y)) then
+    begin
+      // process a mouse click...
+      //AMouseDownRow := GetRowFromYPos(FMouseDownPos.Y);
+      ARow := GetRowFromYPos(y);
+      if ARow = nil then
+        Exit;
+
+      ARowRect := GetItemRect(ARow.Index);
+
+
+      FClickedRowObj := RowObjectAtPoint(ARow, x, y - ARowRect.Top);
       if FClickedRowObj <> nil then
       begin
-        FClickedRowObj.Click(X - FClickedRowObj.Rect.Left, Y - FClickedRowObj.Rect.Top);
-        if (FClickedRowObj is TksListItemRowSwitch) then
-        begin
-          (FClickedRowObj as TksListItemRowSwitch).Toggle;
-          if Assigned(FOnSwitchClicked) then
-            FOnSwitchClicked(Self, ARow, (FClickedRowObj as TksListItemRowSwitch), AId);
-        end;
-        if (FClickedRowObj is TksListItemRowButton) then
-        begin
-          if Assigned(FOnButtonClicked) then
-            FOnButtonClicked(Self, ARow, (FClickedRowObj as TksListItemRowButton), AId);
-        end;
-        if (FClickedRowObj is TksListItemRowSegmentButtons) then
-        begin
-          if Assigned(FOnSegmentButtonClicked) then
-            FOnSegmentButtonClicked(Self, ARow, (FClickedRowObj as TksListItemRowSegmentButtons), AId);
-        end;
-        if FClickedRowObj <> nil then
-          FClickedRowObj.MouseUp;
-        ARow.CacheRow;
-        Invalidate;
-      end;
-
-
-      Application.ProcessMessages;
-      if (FKeepSelection = False) and (ItemIndex > -1) and (FScrolling = False) then
-      begin
-        Sleep(100);
         ItemIndex := -1;
-        Application.ProcessMessages;
+        FClickedRowObj.MouseUp;
+        AObjectConsumesClick := (FClickedRowObj.ConsumesRowClick);
       end;
+      AId := ARow.ID;
+
+      if (AMouseDownTime >= 500) and (Assigned(FOnLongClick)) then
+      begin
+        // long tap...
+        FOnLongClick(Self, x, y, ARow, AId, FClickedRowObj);
+      end
+
+      else
+      begin
+        if ARow.CanSelect = False then
+          ItemIndex := -1;
+        Application.ProcessMessages;
+        // remove row selection?
+        ARow.ProcessClick;
+        if (ARow.CanSelect) and (AObjectConsumesClick = False) then
+        begin
+          // left click...
+          if (Assigned(FOnItemClick)) and (Button = TMouseButton.mbLeft) then
+            FOnItemClick(Self, x, y, ARow, AId, FClickedRowObj);
+          // right click...
+          if (Assigned(FOnItemRightClick)) and (Button = TMouseButton.mbRight) then
+            FOnItemRightClick(Self, x, y, ARow, AId, FClickedRowObj);
+        end;
+
+        if FClickedRowObj <> nil then
+        begin
+          FClickedRowObj.Click(X - FClickedRowObj.Rect.Left, Y - FClickedRowObj.Rect.Top);
+          if (FClickedRowObj is TksListItemRowSwitch) then
+          begin
+            (FClickedRowObj as TksListItemRowSwitch).Toggle;
+            if Assigned(FOnSwitchClicked) then
+              FOnSwitchClicked(Self, ARow, (FClickedRowObj as TksListItemRowSwitch), AId);
+          end;
+          if (FClickedRowObj is TksListItemRowButton) then
+          begin
+            if Assigned(FOnButtonClicked) then
+              FOnButtonClicked(Self, ARow, (FClickedRowObj as TksListItemRowButton), AId);
+          end;
+          if (FClickedRowObj is TksListItemRowSegmentButtons) then
+          begin
+            if Assigned(FOnSegmentButtonClicked) then
+              FOnSegmentButtonClicked(Self, ARow, (FClickedRowObj as TksListItemRowSegmentButtons), AId);
+          end;
+          if FClickedRowObj <> nil then
+            FClickedRowObj.MouseUp;
+          ARow.CacheRow;
+          Invalidate;
+        end;
 
 
+        Application.ProcessMessages;
+        if (FKeepSelection = False) and (ItemIndex > -1) and (FScrolling = False) then
+        begin
+          Sleep(100);
+          ItemIndex := -1;
+          Application.ProcessMessages;
+        end;
+      end;
+    end
+    else
+    begin
+      // mouse up was after scrolling...
     end;
+  finally
     ReleaseAllDownButtons;
-  end
-  else
-  begin
-    // mouse up was after scrolling...
   end;
 end;
 
 procedure TksListView.Paint;
 begin
+  if ScrollViewPos <> FLastScrollPos then
+    FActionButtons.Clear;
+
   FIsShowing := True;
   inherited;
+
 end;
 
 { TksListItemRowSwitch }
 
+
+function TksListItemRowSwitch.GetConsumesRowClick: Boolean;
+begin
+  Result := True;
+end;
 
 function TksListItemRowSwitch.Render(ACanvas: TCanvas): Boolean;
 begin
@@ -3317,6 +3484,11 @@ begin
   inherited;
 end;
 
+function TksListItemRowSegmentButtons.GetConsumesRowClick: Boolean;
+begin
+  Result := True;
+end;
+
 function TksListItemRowSegmentButtons.Render(ACanvas: TCanvas): Boolean;
 var
   ABtnWidth: integer;
@@ -3370,6 +3542,11 @@ begin
   inherited;
   FTintColor := claNull;
   FState := Unpressed;
+end;
+
+function TksListItemRowButton.GetConsumesRowClick: Boolean;
+begin
+  Result := True;
 end;
 
 procedure TksListItemRowButton.MouseDown;
@@ -3656,6 +3833,88 @@ begin
     FProgressPercent := Value;
     Changed;
   end;
+end;
+
+{ TksListItemRowActionButton }
+
+procedure TksListItemRowActionButton.AddToObject(AObject: TFmxObject);
+begin
+  AObject.AddObject(FBackground);
+end;
+
+constructor TksListItemRowActionButton.Create(AOwner: TksListItemRowActionButtons);
+begin
+  FOwner := AOwner;
+  FBackground := TRectangle.Create(nil);
+  FBackground.Fill.Color := claRed;
+  FBackground.Stroke.Kind := TBrushKind.None;
+  FBackground.HitTest := True;
+  FBackground.OnClick := DoClick;
+  FLabel := TLabel.Create(FBackground);
+  FLabel.Align := TAlignLayout.Client;
+  FLabel.StyledSettings := FLabel.StyledSettings - [TStyledSetting.FontColor];
+  FLabel.FontColor := claWhite;
+  FLabel.Text := Text;
+  FLabel.TextAlign := TTextAlign.Center;
+  FBackground.AddObject(FLabel);
+end;
+
+destructor TksListItemRowActionButton.Destroy;
+begin
+  {$IFDEF IOS}
+
+  FLabel.DisposeOf;
+  FBackground.DisposeOf;
+  {$ELSE}
+  FLabel.Free;
+  FBackground.Free;
+  {$ENDIF}
+  inherited;
+end;
+
+procedure TKsListItemRowActionButton.DoClick(Sender: TObject);
+begin
+  FOwner.FListView.DoActionButtonClicked(Self);
+end;
+
+function TksListItemRowActionButton.GetColor: TAlphaColor;
+begin
+  Result := FBackground.Fill.Color;
+end;
+
+function TksListItemRowActionButton.GetText: string;
+begin
+  Result := FLabel.Text;
+end;
+
+procedure TksListItemRowActionButton.SetColor(const Value: TAlphaColor);
+begin
+  FBackground.Fill.Color := Value;
+end;
+
+procedure TksListItemRowActionButton.SetText(const Value: string);
+begin
+  FLabel.Text := Value;
+end;
+
+{ TksListItemRowOptionButtons }
+
+procedure TksListItemRowActionButtons.AddButton(AText: string;
+  AColor: TAlphaColor);
+var
+  AButton: TksListItemRowActionButton;
+begin
+  AButton := TksListItemRowActionButton.Create(Self);
+  AButton.Text := AText;
+  AButton.Color := AColor;
+  AButton.FRow := FRow;
+  Add(AButton);
+end;
+
+constructor TksListItemRowActionButtons.Create(AOwner: TksListView);
+begin
+  inherited Create(True);
+  FListView := AOwner;
 end;
 
 initialization
