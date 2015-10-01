@@ -54,7 +54,7 @@ const
   {$ELSE}
   C_SEGMENT_BUTTON_HEIGHT = 30;
   {$ENDIF}
-  C_SWIPE_DISTANCE = 50;
+  C_SWIPE_DISTANCE = 30;
 
   C_DEFAULT_TEXT_COLOR = claBlack;
   C_DEFAULT_HEADER_TEXT_COLOR = claBlack;
@@ -184,15 +184,19 @@ type
     FFont: TFont;
     FAlignment: TTextAlign;
     FTextColor: TAlphaColor;
+    FBackground: TAlphaColor;
     FText: string;
     FWordWrap: Boolean;
     FFullWidth: Boolean;
+    FTextLayout: TTextAlign;
     procedure SetFont(const Value: TFont);
     procedure SetAlignment(const Value: TTextAlign);
     procedure SetTextColor(const Value: TAlphaColor);
     procedure SetText(const Value: string);
     procedure SetWordWrap(const Value: Boolean);
     function CalculateTextHeight: single;
+    procedure SetTextLayout(const Value: TTextAlign);
+    procedure SetBackground(const Value: TAlphaColor);
   protected
     procedure CalculateRect(ARowBmp: TBitmap); override;
   public
@@ -202,6 +206,8 @@ type
     function Render(ACanvas: TCanvas): Boolean; override;
     property Font: TFont read FFont write SetFont;
     property TextAlignment: TTextAlign read FAlignment write SetAlignment;
+    property TextLayout: TTextAlign read FTextLayout write SetTextLayout;
+    property Background: TAlphaColor read FBackground write SetBackground default claNull;
     property TextColor: TAlphaColor read FTextColor write SetTextColor;
     property Text: string read FText write SetText;
     property WordWrap: Boolean read FWordWrap write SetWordWrap default False;
@@ -429,6 +435,7 @@ type
     FRowHeight: integer;
     FLastHeight: single;
     FBackgroundColor: TAlphaColor;
+    FUpdating: Boolean;
     function RowHeight(const AScale: Boolean = True): single;
     function RowWidth(const AScale: Boolean = True): single;
     function GetListView: TksListView;
@@ -507,10 +514,11 @@ type
                                AAlign: TListItemAlign;
                                const AItemIndex: integer = 0): TksListItemRowSegmentButtons; overload;
     // text functions...
-    function TextOut(AText: string; x: single; const AVertAlign: TTextAlign = TTextAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
-    function TextOut(AText: string; x, AWidth: single; const AVertAlign: TTextAlign = TTextAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
-    function TextOut(AText: string; x, y, AWidth: single; const AVertAlign: TTextAlign = TTextAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
-    function TextOutRight(AText: string; y, AWidth: single; AXOffset: single; const AVertAlign: TTextAlign = TTextAlign.Center): TksListItemRowText; overload;
+    function TextOut(AText: string; x: single; const AVertAlign: TListItemAlign = TListItemAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
+    function TextOut(AText: string; x, AWidth: single; const AVertAlign: TListItemAlign = TListItemAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
+    function TextOut(AText: string; x, y, AWidth: single; const AVertAlign: TListItemAlign = TListItemAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
+    function TextBox(AText: string; ARect: TRectF; ATextAlign: TTextAlign; ATextLayout: TTextAlign; const ABackground: TAlphaColor = claNull): TksListItemRowText; overload;
+    function TextOutRight(AText: string; y, AWidth: single; AXOffset: single; const AVertAlign: TListItemAlign = TListItemAlign.Center): TksListItemRowText; overload;
     // font functions...
     procedure SetFontProperties(AName: string; ASize: integer; AColor: TAlphaColor; AStyle: TFontStyles);
     // properties...
@@ -809,7 +817,7 @@ type
     property OnDblClick;
 
     { ListView selection events }
-    property CanSwipeDelete: Boolean read FCanSwipeDelete write FCanSwipeDelete default False;
+    //property CanSwipeDelete: Boolean read FCanSwipeDelete write FCanSwipeDelete default False;
 
     property OnChange;
     property OnChangeRepainted;
@@ -1210,14 +1218,20 @@ begin
   ATextLayout.Font := FFont;
   ATextLayout.Color := FTextColor;
   ATextLayout.HorizontalAlign := FAlignment;
+  ATextLayout.VerticalAlign := FTextLayout;
 
   ATextLayout.EndUpdate;
 
   ATextLayout.Trimming := TTextTrimming.Character;
   ATextLayout.TopLeft := Rect.TopLeft;
   ATextLayout.MaxSize := PointF(Rect.Width, Rect.Height);
-  ATextLayout.RenderLayout(ACanvas);
 
+  if FBackground <> claNull then
+  begin
+    ACanvas.Fill.Color := FBackground;
+    ACanvas.FillRect(Rect, 0, 0, AllCorners, 1);
+  end;
+  ATextLayout.RenderLayout(ACanvas);
   Result := True;
 end;
 
@@ -1227,6 +1241,15 @@ begin
   begin
   FAlignment := Value;
   Changed;
+  end;
+end;
+
+procedure TksListItemRowText.SetBackground(const Value: TAlphaColor);
+begin
+  if FBackground <> Value then
+  begin
+    FBackground := Value;
+    Changed;
   end;
 end;
 
@@ -1250,6 +1273,15 @@ begin
   if FTextColor <> Value then
   begin
     FTextColor := Value;
+    Changed;
+  end;
+end;
+
+procedure TksListItemRowText.SetTextLayout(const Value: TTextAlign);
+begin
+  if FTextLayout <> Value then
+  begin
+    FTextLayout := Value;
     Changed;
   end;
 end;
@@ -1501,7 +1533,7 @@ begin
 
   FCached := False;
 
-  if OwnsBitmap = False then
+  if (OwnsBitmap = False) then
   begin
     Bitmap := TBitmap.Create(1,1);
     Bitmap.BitmapScale := GetScreenScale;
@@ -1652,6 +1684,8 @@ end;
 
 procedure TKsListItemRow.Changed;
 begin
+  if FUpdating then
+    Exit;
   FCached := False;
   if not ListView.IsUpdating then
   begin
@@ -1712,7 +1746,10 @@ begin
     ANextItemIsHeader := ANextItem.Purpose = TListItemPurpose.Header;
   end;
 
-  if OwnsBitmap = False then
+  if Index < C_PAGE_SIZE then
+    CacheRow;
+
+  if (OwnsBitmap = False)  then
   begin
     Bitmap := ListView.LoadingBitmap;
     ListView.FScrolling := True;
@@ -1808,6 +1845,7 @@ begin
   FRowHeight := lv.ItemHeight;
   FBackgroundColor := claNull;
   FLastHeight := 0;
+  FUpdating := False;
 end;
 
 destructor TKsListItemRow.Destroy;
@@ -2259,6 +2297,7 @@ begin
   FTitle.TextColor := AColor;
   FSubTitle.TextColor:= AColor;
   FDetail.TextColor := AColor;
+  Changed;
 end;
 
 procedure TKsListItemRow.SetSearchIndex(const Value: string);
@@ -2286,7 +2325,7 @@ end;
 // text drawing functions...
 
 function TKsListItemRow.TextOut(AText: string; x: single;
-  const AVertAlign: TTextAlign = TTextAlign.Center;
+  const AVertAlign: TListItemAlign = TListItemAlign.Center;
   const AWordWrap: Boolean = False): TksListItemRowText;
 var
   AWidth: single;
@@ -2296,7 +2335,7 @@ begin
 end;
 
 function TKsListItemRow.TextOut(AText: string; x, AWidth: single;
-  const AVertAlign: TTextAlign = TTextAlign.Center;
+  const AVertAlign: TListItemAlign = TListItemAlign.Center;
   const AWordWrap: Boolean = False): TksListItemRowText;
 begin
   Result := TextOut(AText, x, 0, AWidth, AVertAlign, AWordWrap);
@@ -2304,7 +2343,7 @@ end;
 
 
 function TKsListItemRow.TextOut(AText: string; x, y, AWidth: single;
-  const AVertAlign: TTextAlign = TTextAlign.Center;
+  const AVertAlign: TListItemAlign = TListItemAlign.Center;
   const AWordWrap: Boolean = False): TksListItemRowText;
 var
   AHeight: single;
@@ -2323,9 +2362,9 @@ begin
   Result.Height := AHeight;
 
   case AVertAlign of
-    TTextAlign.Leading: Result.VertAlign := TListItemAlign.Leading;
-    TTextAlign.Center: Result.VertAlign := TListItemAlign.Center;
-    TTextAlign.Trailing: Result.VertAlign := TListItemAlign.Trailing;
+    TListItemAlign.Leading: Result.VertAlign := TListItemAlign.Leading;
+    TListItemAlign.Center: Result.VertAlign := TListItemAlign.Center;
+    TListItemAlign.Trailing: Result.VertAlign := TListItemAlign.Trailing;
   end;
   Result.TextAlignment := TTextAlign.Leading;
   Result.TextColor := FTextColor;
@@ -2334,11 +2373,11 @@ begin
   if SearchIndex = '' then
     SearchIndex := AText;
   FList.Add(Result);
+  Changed;
 end;
 
 function TKsListItemRow.TextOutRight(AText: string; y, AWidth: single;
-  AXOffset: single; const AVertAlign: TTextAlign = TTextAlign.Center)
-  : TksListItemRowText;
+  AXOffset: single; const AVertAlign: TListItemAlign = TListItemAlign.Center): TksListItemRowText;
 begin
   Result := TextOut(AText, AXOffset, y, AWidth, AVertAlign);
   Result.Align := TListItemAlign.Trailing;
@@ -2347,6 +2386,25 @@ end;
 
 
 // ------------------------------------------------------------------------------
+
+function TksListItemRow.TextBox(AText: string;
+                                ARect: TRectF;
+                                ATextAlign: TTextAlign;
+                                ATextLayout: TTextAlign;
+                                const ABackground: TAlphaColor = claNull): TksListItemRowText;
+begin
+  FUpdating := True;
+  try
+    Result := TextOut(AText, ARect.Left, ARect.Top, ARect.Width, TListItemAlign.Leading, True);
+    Result.Background := ABackground;
+    Result.Height := ARect.Height;
+    Result.TextAlignment := ATextAlign;
+    Result.TextLayout := ATextLayout;
+  finally
+    FUpdating := False;
+  end;
+  Changed;
+end;
 
 { TksListViewAppearence }
 
@@ -2503,8 +2561,10 @@ begin
   ItemSpaces.Right := 0;
   ItemSpaces.Left := 0;
   FScrollDirection := sdDown;
+  CanSwipeDelete := False;
   FCanSwipeDelete := False;
   CalculateSearchBoxHeight;
+  FMouseDownPos := PointF(-1, -1);
 end;
 
 destructor TksListView.Destroy;
@@ -2792,31 +2852,20 @@ var
   ICount: integer;
 begin
   ARect := GetItemRect(ARow.Index);
-
   for i := 0 to AButtons.Count-1 do
   begin
     AButton := AButtons[i];
     AButton.FBackground.Height := ARect.Height;
     AButton.FBackground.Position.X := ARect.Right;
     AButton.FBackground.Position.Y := ARect.Top;
-    AButton.FBackground.Width := 0;
+    AButton.FBackground.Width := 60;
     AddObject(AButton.FBackground);
   end;
 
-  for ICount := 0 to 60 do
+  for ICount := 1 to AButtons.Count do
   begin
-    for i := 1 to AButtons.Count do
-    begin
-      AButton := AButtons[i-1];
-      AButton.FBackground.Position.X := ARect.Right-(ICount*i);
-      AButton.FBackground.Width := ICount;
-
-      if ICount mod 10 = 0 then
-      begin
-        Sleep(1);
-        Application.ProcessMessages;
-      end;
-    end;
+    AButton := AButtons[ICount-1];
+    TAnimator.AnimateFloat(AButton.FBackground, 'Position.X', (ARect.Right-(60*ICount)), 0.2);
   end;
 end;
 
@@ -2858,11 +2907,6 @@ begin
     SetColorStyle('frame', FAppearence.SeparatorColor);
   SetColorStyle('alternatingitembackground', FAppearence.AlternatingItemBackground);
   inherited;
-
-  //if FResources = nil then FResources := GetStyleResources;
-
-
-
 end;
 
 procedure TksListView.BeginUpdate;
@@ -2871,17 +2915,17 @@ begin
   Inc(FUpdateCount);
 end;
 
-{$IFNDEF XE10_OR_NEWER}
-
 procedure TksListView.DoActionButtonClicked(
   AButton: TksListItemRowActionButton);
 begin
   if Assigned(FOnItemActionButtonClick) then
   begin
     FOnItemActionButtonClick(Self, AButton.FRow, AButton);
-    FActionButtons.Clear;
   end;
+  FActionButtons.Clear;
 end;
+
+{$IFNDEF XE10_OR_NEWER}
 
 procedure TksListView.DoItemChange(const AItem: TListViewItem);
 var
@@ -3187,7 +3231,8 @@ begin
 
   if FClickedRowObj <> nil then
   begin
-    ItemIndex := -1;
+    if FClickedRowObj.ConsumesRowClick then
+      ItemIndex := -1;
     FClickedRowObj.MouseDown;
   end;
 
@@ -3208,6 +3253,19 @@ begin
     Exit;
   inherited;
   FCurrentMousepos := PointF(x-ItemSpaces.Left, y);
+  if (FMouseDownPos = PointF(-1, -1)) then
+  begin
+    if (ssLeft in Shift) then
+    begin
+      FMouseDownPos := FCurrentMousepos;
+      FMouseDownTime := Now;
+    end;
+  end;
+  if (ssLeft in Shift) = False  then
+  begin
+      FMouseDownPos := PointF(-1, -1);
+      FMouseDownTime := 0;
+  end;
 end;
 
 
@@ -3236,7 +3294,7 @@ begin
     AMouseDownRow := GetRowFromYPos(FMouseDownPos.Y);
     ARow := GetRowFromYPos(y);
 
-    if (ARow = AMouseDownRow) and (AMouseDownTime <= 500) then
+    if (ARow = AMouseDownRow) and  (AMouseDownTime <= 1000) then
     begin
       if (x < (FMouseDownPos.X-C_SWIPE_DISTANCE)) or (x > (FMouseDownPos.X+C_SWIPE_DISTANCE)) then
       begin
@@ -3245,9 +3303,9 @@ begin
         if (x > (FMouseDownPos.X + C_SWIPE_DISTANCE)) then ASwipeDirection := TksItemSwipeDirection.sdLeftToRight;
         if Assigned(FOnItemSwipe) then
         FActionButtons.Clear;
-        FActionButtons.FRow := ARow;
-          FOnItemSwipe(Self, ARow, ASwipeDirection, FActionButtons);
-        ShowRowOptionButtons(ARow, ASwipeDirection, FActionButtons);
+        FActionButtons.FRow := AMouseDownRow;
+          FOnItemSwipe(Self, AMouseDownRow, ASwipeDirection, FActionButtons);
+        ShowRowOptionButtons(AMouseDownRow, ASwipeDirection, FActionButtons);
         ItemIndex := -1;
       end;
     end;
@@ -3337,6 +3395,7 @@ begin
     end;
   finally
     ReleaseAllDownButtons;
+    FMouseDownPos := PointF(-1, -1);
   end;
 end;
 
@@ -3876,8 +3935,9 @@ begin
   FBackground.OnClick := DoClick;
   FLabel := TLabel.Create(FBackground);
   FLabel.Align := TAlignLayout.Client;
-  FLabel.StyledSettings := FLabel.StyledSettings - [TStyledSetting.FontColor];
+  FLabel.StyledSettings := [];
   FLabel.FontColor := claWhite;
+  FLabel.Font.Size := 13;
   FLabel.Text := Text;
   FLabel.TextAlign := TTextAlign.Center;
   FBackground.AddObject(FLabel);

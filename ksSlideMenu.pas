@@ -56,6 +56,7 @@ const
   C_DEFAULT_SLIDE_SPEED = 0.2;
 
   C_DEFAULT_SELECTED_COLOR = claWhite;
+  C_DEFAULT_SELECTED_FONT_COLOR = claWhite;
   C_DEFAULT_FONT_COLOR = claBlack;
   C_DEFAULT_BACKGROUND_COLOR = claWhite;
   C_DEFAULT_HEADER_COLOR = claGainsboro;
@@ -582,10 +583,6 @@ begin
   lv.Appearence.SeparatorColor := GetColorOrDefault(FAppearence.HeaderColor, C_DEFAULT_HEADER_COLOR);
   lv.Appearence.SelectedColor := ASelectedColor;
 
-
-
-
-
   lv.HeaderHeight := FHeaderHeight;
   lv.ItemHeight := FItemHeight;
   lv.ItemImageSize := 24;
@@ -714,8 +711,10 @@ begin
   FAnimating := True;
   try
     if (FShowing = False) then
+    begin
       FMenu.FToolBar.UpdateToolbar;
-
+      FMenu.UpdateSelectedItem;
+    end;
     FMenu.HitTest := False;
 
     AForm := (Owner as TForm);
@@ -981,13 +980,25 @@ end;
 procedure TksSlideMenuContainer.UpdateSelectedItem;
 var
   ICount: integer;
+  lv: TksListView;
 begin
-  for ICount := 0 to FListView.Items.Count-1 do
+  lv := FListView;
+  if lv.ItemIndex = -1 then
   begin
-    if FListView.ItemIndex = ICount then
-      FListView.Items[ICount].BackgroundColor := GetColorOrDefault(FSlideMenu.Appearence.SelectedItemColor, C_DEFAULT_SELECTED_COLOR)
+    lv.SelectFirstItem;
+  end;
+  for ICount := 0 to lv.Items.Count-1 do
+  begin
+    if lv.ItemIndex = ICount then
+    begin
+      lv.Items[ICount].BackgroundColor := GetColorOrDefault(FSlideMenu.Appearence.SelectedItemColor, C_DEFAULT_SELECTED_COLOR);
+      lv.Items[ICount].SetRowTextColor(GetColorOrDefault(FSlideMenu.Appearence.SelectedFontColor, C_DEFAULT_SELECTED_FONT_COLOR));
+    end
     else
-      FListView.Items[ICount].BackgroundColor := FSlideMenu.Appearence.ItemColor;
+    begin
+      lv.Items[ICount].BackgroundColor := FSlideMenu.Appearence.ItemColor;
+      lv.Items[ICount].SetRowTextColor(GetColorOrDefault(FSlideMenu.Appearence.FontColor, C_DEFAULT_FONT_COLOR));
+    end;
   end;
   Application.ProcessMessages;
 end;

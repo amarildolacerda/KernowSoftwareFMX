@@ -1112,6 +1112,8 @@ object frmMain: TfrmMain
         SearchVisible = True
         KeepSelection = True
         object SlideMenu1: TksSlideMenu
+          Appearence.SelectedFontColor = claNull
+          Appearence.Theme = mtCustom
           Font.Size = 14.000000000000000000
           ItemHeight = 44
           SlideSpeed = 0.200000002980232200
