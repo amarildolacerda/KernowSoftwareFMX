@@ -1122,7 +1122,7 @@ object frmMain: TfrmMain
           ToggleButton = btnLeftMenu
           OnAfterSlideOut = SlideMenu1AfterSlideOut
           Left = 16
-          Top = 168
+          Top = 160
         end
       end
     end
@@ -7136,7 +7136,7 @@ object frmMain: TfrmMain
     Position.X = 16.000000000000000000
     Position.Y = 64.000000000000000000
     Size.Width = 249.000000000000000000
-    Size.Height = 105.000000000000000000
+    Size.Height = 89.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 7
     object imgHome: TImage

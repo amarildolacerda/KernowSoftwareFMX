@@ -463,7 +463,7 @@ type
     procedure Changed;
     procedure ReleaseAllDownButtons;
     function TextWidth(AText: string): single;
-    function TextHeight(AText: string): single;
+    function TextHeight(AText: string; AWordWrap: Boolean; const AWidth: single = 0): single;
   protected
     procedure DoResize; override;
   public
@@ -1665,20 +1665,25 @@ begin
   Result := ATextLayout.Width;
 end;
 
-function TksListItemRow.TextHeight(AText: string): single;
+function TksListItemRow.TextHeight(AText: string; AWordWrap: Boolean; const AWidth: single = 0): single;
 var
   APoint: TPointF;
 begin
   ATextLayout.BeginUpdate;
   // Setting the layout MaxSize
   APoint.X := MaxSingle;
+  if AWidth > 0 then
+    APoint.X := AWidth;
   APoint.Y := 100;
+
   ATextLayout.MaxSize := aPoint;
   ATextLayout.Text := AText;
-  ATextLayout.WordWrap := False;
+  ATextLayout.WordWrap := AWordWrap;
   ATextLayout.Font := FFont;
   ATextLayout.HorizontalAlign := TTextAlign.Leading;
+  ATextLayout.VerticalAlign := TTextAlign.Leading;
   ATextLayout.EndUpdate;
+ // ATextLayout.RenderLayout(nil);
   Result := ATextLayout.Height;
 end;
 
@@ -2351,10 +2356,10 @@ var
 begin
   Result := TksListItemRowText.Create(Self);
   Result.Font.Assign(FFont);
-  AHeight := TextHeight(AText);
+  AHeight := TextHeight(AText, AWordWrap, AWidth);
   Result.FPlaceOffset := PointF(x, y);
-  if AWordWrap then
-    AHeight := RowHeight(False);
+  //if AWordWrap then
+  //  AHeight := RowHeight(False);
   if AWidth = 0 then
     AWidth := TextWidth(AText);
 
@@ -3294,7 +3299,7 @@ begin
     AMouseDownRow := GetRowFromYPos(FMouseDownPos.Y);
     ARow := GetRowFromYPos(y);
 
-    if (ARow = AMouseDownRow) and  (AMouseDownTime <= 1000) then
+    if (ARow = AMouseDownRow) and  (AMouseDownTime <= 1000) and (AMouseDownRow <> nil) then
     begin
       if (x < (FMouseDownPos.X-C_SWIPE_DISTANCE)) or (x > (FMouseDownPos.X+C_SWIPE_DISTANCE)) then
       begin
