@@ -29,6 +29,7 @@ interface
 uses Classes, FMX.Graphics, FMX.Types, Types, System.UIConsts, System.UITypes,
   FMX.ListView.Types, FMX.Platform;
 
+
 type
   TksButtonStyle = (ksButtonDefault, ksButtonSegmentLeft, ksButtonSegmentMiddle, ksButtonSegmentRight);
 
@@ -36,7 +37,7 @@ type
 
   function IsBlankBitmap(ABmp: TBitmap): Boolean;
 
-  procedure DrawSwitch(ACanvas: TCanvas; ARect: TRectF; AChecked: Boolean);
+  procedure DrawSwitch(ACanvas: TCanvas; ARect: TRectF; AChecked, AEnabled: Boolean; ASelectedColor: TAlphaColor);
   procedure DrawButton(ACanvas: TCanvas; ARect: TRectF; AText: string; ASelected: Boolean; AColor: TAlphaColor; AStyle: TksButtonStyle);
 
   procedure DrawAccessory(ACanvas: TCanvas; ARect: TRectF; AColor: TAlphaColor; AAccessory: TAccessoryType);
@@ -46,6 +47,8 @@ type
 
 
 implementation
+
+uses SysUtils;
 
 var
   _ScreenScale: single;
@@ -80,17 +83,13 @@ begin
     ABlank.Clear(claNull);
     Result := ABmp.EqualsBitmap(ABlank);
   finally
-    {$IFDEF IOS}
-    ABlank.DisposeOf;
-    {$ELSE}
-    ABlank.Free;
-    {$ENDIF}
+    FreeAndNil(ABlank);
   end;
 end;
 
 
 
-procedure DrawSwitch(ACanvas: TCanvas; ARect: TRectF; AChecked: Boolean);
+procedure DrawSwitch(ACanvas: TCanvas; ARect: TRectF; AChecked, AEnabled: Boolean; ASelectedColor: TAlphaColor);
 var
   ABmp: TBitmap;
   r: TRectF;
@@ -110,7 +109,11 @@ begin
     ABmp.Canvas.Stroke.Color := claSilver;
     ABmp.Canvas.Fill.Color := claWhite;
     if AChecked then
-      Abmp.Canvas.Fill.Color := claYellowgreen;
+      Abmp.Canvas.Fill.Color := ASelectedColor;
+
+    if AEnabled = False then
+      ABmp.Canvas.Fill.Color := claGainsboro;
+
 
     ABmp.Canvas.FillEllipse(r, 1, ABmp.Canvas.Fill);
     ABmp.Canvas.DrawEllipse(r, 1, ABmp.Canvas.Stroke);
@@ -136,7 +139,10 @@ begin
     ABmp.Canvas.StrokeThickness := 2;
 
     ABmp.Canvas.Fill.Color := claWhite;
-
+    if AEnabled = False then
+    begin
+      ABmp.Canvas.Fill.Color := $FFEEEEEE;
+    end;
     if AChecked then
     begin
       InflateRect(ASwitchRect, -2, -2);
@@ -151,11 +157,7 @@ begin
     ABmp.Canvas.EndScene;
     ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ARect, 1, False);
   finally
-    {$IFDEF IOS}
-    ABmp.DisposeOf;
-    {$ELSE}
-    ABmp.Free;
-    {$ENDIF};
+    FreeAndNil(ABmp);
   end;
 end;
 
@@ -223,11 +225,7 @@ begin
 
     ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ARect, 1, False);
   finally
-    {$IFDEF IOS}
-    ABmp.DisposeOf;
-    {$ELSE}
-    ABmp.Free;
-    {$ENDIF}
+    FreeAndNil(ABmp);
   end;
 end;
 
@@ -261,16 +259,9 @@ begin
 
     ABmp.Canvas.EndScene;
 
-
-
-    //AAccessoryCheck.Assign(ABmp);
     ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ARect, 1, False);
   finally
-    {$IFDEF IOS}
-    ABmp.DisposeOf;
-    {$ELSE}
-    ABmp.Free;
-    {$ENDIF}
+    FreeAndNil(ABmp);
   end;
 end;
 
@@ -302,11 +293,7 @@ begin
 
       ABmp.Canvas.DrawPath(APath, 1);
     finally
-      {$IFDEF IOS}
-      APath.DisposeOf;
-      {$ELSE}
-      APath.Free;
-      {$ENDIF}
+      FreeAndNil(APath);
     end;
 
     ABmp.Canvas.EndScene;
@@ -315,11 +302,7 @@ begin
 
     ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ARect, 1, False);
   finally
-    {$IFDEF IOS}
-    ABmp.DisposeOf;
-    {$ELSE}
-    ABmp.Free;
-    {$ENDIF}
+    FreeAndNil(ABmp);
   end;
 end;
 

@@ -409,11 +409,7 @@ begin
     FFormImage.Height := Round(AForm.Height);
     FFormImage.Bitmap.Assign(ABmp);
   finally
-    {$IFDEF IOS}
-    ABmp.DisposeOf;
-    {$ELSE}
-    ABmp.Free;
-    {$ENDIF}
+    FreeAndNil(ABmp);
   end;
 
   FFormImage.Position.Y := 0;
@@ -473,11 +469,7 @@ begin
     FShadowLeft.Height := Round(AForm.Height);
     FShadowLeft.Bitmap.Assign(ABmp);
   finally
-    {$IFDEF IOS}
-    ABmp.DisposeOf;
-    {$ELSE}
-    ABmp.Free;
-    {$ENDIF}
+    FreeAndNil(ABmp);
   end;
 
   ABmp := TBitmap.Create;
@@ -499,11 +491,7 @@ begin
     FShadowRight.Height := Round(AForm.Height);
     FShadowRight.Bitmap.Assign(ABmp);
   finally
-    {$IFDEF IOS}
-    ABmp.DisposeOf;
-    {$ELSE}
-    ABmp.Free;
-    {$ENDIF}
+    FreeAndNil(ABmp);
   end;
 end;
 
@@ -816,13 +804,8 @@ end;
 
 destructor TksSlideMenuItem.Destroy;
 begin
-  {$IFDEF IOS}
-  FImage.DisposeOf;
-  FFont.DisposeOf;
-  {$ELSE}
-  FImage.Free;
-  FFont.Free;
-  {$ENDIF}
+  FreeAndNil(FImage);
+  FreeAndNil(FFont);
   inherited;
 end;
 
@@ -956,11 +939,10 @@ end;
 
 destructor TksSlideMenuContainer.Destroy;
 begin
-  {$IFDEF IOS}
-  FToolBar.DisposeOf;
+  FreeAndNil(FToolBar);
+  {$IFDEF NEXTGEN}
   if IsChild(FListView) then FListView.DisposeOf;
   {$ELSE}
-  FToolbar.Free;
   if IsChild(FListView) then FListView.Free;
   {$ENDIF}
   inherited;
@@ -1025,13 +1007,11 @@ end;
 
 destructor TksSlideMenuToolbar.Destroy;
 begin
-  {$IFDEF IOS}
-  FBitmap.DisposeOf;
-  FFont.DisposeOf;
+  FreeAndNil(FBitmap);
+  FreeAndNil(FFont);
+  {$IFDEF NEXTGEN}
   FHeader.DisposeOf;
   {$ELSE}
-  FBitmap.Free;
-  FFont.Free;
   FHeader.Free;
   {$ENDIF}
   inherited;

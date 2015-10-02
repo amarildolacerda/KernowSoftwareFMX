@@ -50,8 +50,10 @@ const
   C_LONG_TAP_DURATION     = 5;  // 500 ms
   C_BUTTON_HEIGHT = 29;
   {$IFDEF ANDROID}
+  C_DEFAULT_ACTIVE_SWITCH_COLOR = claDodgerBlue;
   C_SEGMENT_BUTTON_HEIGHT = 30;
   {$ELSE}
+  C_DEFAULT_ACTIVE_SWITCH_COLOR = claLime;
   C_SEGMENT_BUTTON_HEIGHT = 30;
   {$ENDIF}
   C_SWIPE_DISTANCE = 60;
@@ -141,6 +143,7 @@ type
     FWidth: single;
     FHeight: single;
     FConumesRowClick: Boolean;
+    FEnabled: Boolean;
     procedure SetRect(const Value: TRectF);
     procedure SetID(const Value: string);
     procedure Changed;
@@ -152,6 +155,7 @@ type
     function GetOffsetY: single;
     procedure SetOffsetX(const Value: single);
     procedure SetOffsetY(const Value: single);
+    procedure SetEnabled(const Value: Boolean);
   protected
     function GetConsumesRowClick: Boolean; virtual;
     procedure CalculateRect(ARowBmp: TBitmap); virtual;
@@ -162,7 +166,8 @@ type
     function Render(ACanvas: TCanvas): Boolean; virtual;
     procedure MouseDown; virtual;
     procedure MouseUp; virtual;
-    procedure Click(x, y: single); virtual;
+    procedure ProcessClick(x, y: single);
+    procedure DoClick(x, y: single); virtual;
     property Rect: TRectF read FRect write SetRect;
     property ID: string read FId write SetID;
     property Align: TListItemAlign read FAlign write SetAlign default TListItemAlign.Leading;
@@ -174,6 +179,7 @@ type
     property OffsetY: single read GetOffsetY write SetOffsetY;
     property OffsetX: single read GetOffsetX write SetOffsetX;
     property ConsumesRowClick: Boolean read FConumesRowClick default False;
+    property Enabled: Boolean read FEnabled write SetEnabled default True;
   end;
 
 
@@ -282,11 +288,8 @@ type
 
   TKsListItemRowAccessory = class(TksListItemRowObj)
   private
-    //FResources: TListItemStyleResources;
     FAccessoryType: TAccessoryType;
-    //FImage: TStyleObject;
     procedure SetAccessoryType(const Value: TAccessoryType);
-    //procedure CalculateImageSize;
   protected
     procedure CalculateRect(ARowBmp: TBitmap); override;
   public
@@ -298,13 +301,17 @@ type
   TksListItemRowSwitch = class(TksListItemRowObj)
   private
     FIsChecked: Boolean;
+    FActiveColor: TAlphaColor;
     procedure SetIsChecked(const Value: Boolean);
+    procedure SetActiveColor(const Value: TAlphaColor);
   protected
     function GetConsumesRowClick: Boolean; override;
   public
+    constructor Create(ARow: TKsListItemRow); override;
     function Render(ACanvas: TCanvas): Boolean; override;
-    procedure Toggle;
+    procedure DoClick(x, y: single); override;
     property IsChecked: Boolean read FIsChecked write SetIsChecked;
+    property ActiveColor: TAlphaColor read FActiveColor write SetActiveColor default C_DEFAULT_ACTIVE_SWITCH_COLOR;
 
   end;
 
@@ -344,7 +351,7 @@ type
   public
     constructor Create(ARow: TKsListItemRow); override;
     destructor Destroy; override;
-    procedure Click(x, y: single); override;
+    procedure DoClick(x, y: single); override;
     function Render(ACanvas: TCanvas): Boolean; override;
     property ItemIndex: integer read FItemIndex write SetItemIndex;
     property Captions: TStrings read FCaptions;
@@ -673,7 +680,6 @@ type
     FActionButtons: TksListItemRowActionButtons;
     FOnItemActionButtonClick: TksItemActionButtonClickEvent;
     FSearchBoxHeight: single;
-    //FScrollLockPosition: single;
     FDisableMouseMove: Boolean;
     function _Items: TksListViewItems;
 
@@ -695,8 +701,7 @@ type
     procedure CachePages;
     function LoadingBitmap: TBitmap;
     procedure CalculateSearchBoxHeight;
-    //procedure LockScrolling(AScrollPos: single);
-    //procedure UnlockScrolling;
+    procedure DeselectRow;
     { Private declarations }
   protected
     procedure SetColorStyle(AName: string; AColor: TAlphaColor);
@@ -821,8 +826,6 @@ type
     property OnDblClick;
 
     { ListView selection events }
-    //property CanSwipeDelete: Boolean read FCanSwipeDelete write FCanSwipeDelete default False;
-
     property OnChange;
     property OnChangeRepainted;
     {$IFDEF XE8_OR_NEWER}
@@ -960,9 +963,10 @@ begin
   FRow.Cached := False;
 end;
 
-procedure TksListItemRowObj.Click(x, y: single);
+procedure TksListItemRowObj.ProcessClick(x, y: single);
 begin
-  // overridden in descendant classes.
+  if FEnabled then
+    DoClick(x, y);
 end;
 
 constructor TksListItemRowObj.Create(ARow: TKsListItemRow);
@@ -977,6 +981,7 @@ begin
   CreateGUID(AGuid);
   FGuid := GUIDToString(AGuid);
   FConumesRowClick := GetConsumesRowClick;
+  FEnabled := True;
 end;
 
 procedure TksListItemRowObj.DoChanged(Sender: TObject);
@@ -1009,6 +1014,11 @@ begin
   // overridden in descendant classes
 end;
 
+procedure TksListItemRowObj.DoClick(x, y: single);
+begin
+  // overridden in descendant classes
+end;
+
 function TksListItemRowObj.Render(ACanvas: TCanvas): Boolean;
 begin
   Result := True;
@@ -1021,6 +1031,15 @@ begin
     FAlign := Value;
     Changed;
   end;
+end;
+
+procedure TksListItemRowObj.SetEnabled(const Value: Boolean);
+begin
+ if FEnabled <> Value then
+ begin
+   FEnabled := Value;
+   Changed;
+ end;
 end;
 
 procedure TksListItemRowObj.SetHeight(const Value: single);
@@ -1133,11 +1152,7 @@ begin
       end;
       ARowBmp.Canvas.Font.Assign(ASaveFont);
     finally
-      {$IFDEF IOS}
-      ASaveFont.DisposeOf;
-      {$ELSE}
-      ASaveFont.Free;
-      {$ENDIF}
+      FreeAndNil(ASaveFont);
     end;
   end;
   inherited;
@@ -1189,11 +1204,7 @@ end;
 
 destructor TksListItemRowText.Destroy;
 begin
-  {$IFDEF IOS}
-  FFont.DisposeOf;
-  {$ELSE}
-  FFont.Free;
-  {$ENDIF}
+  FreeAndNil(FFont);
   inherited;
 end;
 
@@ -1329,13 +1340,8 @@ end;
 
 destructor TksListItemRowImage.Destroy;
 begin
-  {$IFDEF IOS}
-  FBitmap.DisposeOf;
-  FBorder.DisposeOf;
-  {$ELSE}
-  FBitmap.Free;
-  FBorder.Free;
-  {$ENDIF}
+  FreeAndNil(FBitmap);
+  FreeAndNil(FBorder);
   inherited;
 end;
 
@@ -1375,14 +1381,10 @@ begin
 
       ACanvas.DrawBitmap(ABmp, RectF(0, 0, Rect.Width*4, Rect.Height*4), Rect, 1);
     finally
-      {$IFDEF IOS}
-      ABmp.DisposeOf;
-      {$ELSE}
-      ABmp.Free;
-      {$ENDIF}
+      FreeAndNil(ABmp);
     end;
   finally
-    {$IFDEF IOS}
+    {$IFDEF NEXTGEN}
     ARectangle.DisposeOf;
     {$ELSE}
     ARectangle.Free;
@@ -1435,13 +1437,8 @@ end;
 
 destructor TksListItemRowShape.Destroy;
 begin
-  {$IFDEF IOS}
-  FFill.DisposeOf;
-  FStroke.DisposeOf;
-  {$ELSE}
-  FFill.Free;
-  FStroke.Free;
-  {$ENDIF}
+  FreeAndNil(FFill);
+  FreeAndNil(FStroke);
   inherited;
 end;
 
@@ -1490,11 +1487,7 @@ begin
     end;
     ACanvas.DrawBitmap(ABitmap, ARect, Rect, 1);
   finally
-    {$IFDEF IOS}
-    ABitmap.DisposeOf;
-    {$ELSE}
-    ABitmap.Free;
-    {$ENDIF}
+    FreeAndNil(ABitmap);
   end;
 end;
 
@@ -1859,25 +1852,14 @@ end;
 
 destructor TKsListItemRow.Destroy;
 begin
-  {$IFDEF IOS}
-  FList.DisposeOf;
-  FFont.DisposeOf;
-  FAccessory.DisposeOf;
-  FImage.DisposeOf;
-  FTitle.DisposeOf;
-  FSubTitle.DisposeOf;
-  FDetail.DisposeOf;
-  FPickerItems.DisposeOf;
-  {$ELSE}
-  FList.Free;
-  FFont.Free;
-  FAccessory.Free;
-  FImage.Free;
-  FTitle.Free;
-  FSubTitle.Free;
-  FDetail.Free;
-  FPickerItems.Free;
-  {$ENDIF}
+  FreeAndNil(FList);
+  FreeAndNil(FFont);
+  FreeAndNil(FAccessory);
+  FreeAndNil(FImage);
+  FreeAndNil(FTitle);
+  FreeAndNil(FSubTitle);
+  FreeAndNil(FDetail);
+  FreeAndNil(FPickerItems);
   inherited;
 end;
 
@@ -2515,7 +2497,7 @@ begin
   try
     FSearchBoxHeight := ASearch.Height;
   finally
-    {$IFDEF IOS}
+    {$IFDEF NEXTGEN}
     ASearch.DisposeOf;
     {$ELSE}
     ASearch.Free;
@@ -2578,27 +2560,28 @@ begin
   FDisableMouseMove := False;
 end;
 
+procedure TksListView.DeselectRow;
+begin
+  ItemIndex := -1;
+  Invalidate;
+end;
+
 destructor TksListView.Destroy;
 begin
-  {$IFDEF IOS}
-  FAppearence.DisposeOf;
-  //FClickTimer.DisposeOf;
+  FreeAndNil(FAppearence);
+  FreeAndNil(FItems);
+  if FLoadingBitmap <> nil then
+    FreeAndNil(FLoadingBitmap);
+  FreeAndNil(FActionButtons);
+
+  {$IFDEF NEXTGEN}
   FScrollTimer.DisposeOf;
-  FItems.DisposeOf;
   FCombo.DisposeOf;
   FDateSelector.DisposeOf;
-  if FLoadingBitmap <> nil then
-    FLoadingBitmap.DisposeOf;
-  FActionButtons.DisposeOf;
   {$ELSE}
-  FAppearence.Free;
-  ///FClickTimer.Free;
   FScrollTimer.Free;
-  FItems.Free;
   FCombo.Free;
   FDateSelector.Free;
-  if FLoadingBitmap <> nil then
-    FLoadingBitmap.Free;
   FActionButtons.Free;
   {$ENDIF}
   inherited;
@@ -2631,11 +2614,7 @@ begin
       AStrings.Add(AItems[ICount]);
     Result := AddRowItemSelector(AText, ASelected, AStrings);
   finally
-    {$IFDEF IOS}
-    AStrings.DisposeOf;
-    {$ELSE}
-    AStrings.Free;
-    {$ENDIF}
+    FreeAndNil(AStrings);
   end;
 end;
 
@@ -2979,7 +2958,7 @@ begin
     if Trunc(ScrollViewPos) <> FLastScrollPos then
     begin
       if (FKeepSelection = False) and (ItemIndex > -1) then
-        ItemIndex := -1;
+        DeselectRow;
 
       FScrolling := True;
       FScrollTimer.Interval := 100;
@@ -3116,8 +3095,6 @@ end;
 
 procedure TksListView.EndUpdate;
 begin
-  //Width := 0;
-  //Application.ProcessMessages;
   inherited EndUpdate;
   Dec(FUpdateCount);
   if FUpdateCount > 0 then
@@ -3171,23 +3148,11 @@ var
   ICount: integer;
   r: TRectF;
   cr: TRectF;
-  ASearchHeight: integer;
-  ASearchBox: TSearchBox;
 begin
   cr := RectF(0, 0, Width, Height);;
   if SearchVisible then
   begin
-    ASearchBox := TSearchBox.Create(nil);
-    try
-      ASearchHeight := Round(ASearchBox.Height);
-    finally
-      {$IFDEF IOS}
-      ASearchBox.DisposeOf;
-      {$ELSE}
-      ASearchBox.Free;
-      {$ENDIF}
-    end;
-    cr.Top := ASearchHeight;
+    cr.Top := FSearchBoxHeight;
   end;
   Result.IndexStart := -1;
   Result.IndexEnd := -1;
@@ -3247,7 +3212,7 @@ begin
 
 
   if ARow.CanSelect = False then
-    ItemIndex := -1;
+    DeselectRow;
 
   ARowRect := GetItemRect(ARow.Index);
   FClickedRowObj := RowObjectAtPoint(ARow, x, y - ARowRect.Top);
@@ -3264,8 +3229,8 @@ begin
   FActionButtons.Clear;
   FLastIndex := ItemIndex;
 
-    if ARow.CanSelect = False then
-    ItemIndex := -1;
+  if ARow.CanSelect = False then
+    DeselectRow;
 
   inherited;
 
@@ -3277,7 +3242,8 @@ begin
   if ARow.CanSelect = False then
   begin
     ItemIndex := FLastIndex;
-    Application.ProcessMessages;
+    Invalidate;
+    //Application.ProcessMessages;
     Exit;
   end;
 end;
@@ -3313,8 +3279,7 @@ begin
         FActionButtons.FRow := AMouseDownRow;
         if Assigned(FOnItemSwipe) then
           FOnItemSwipe(Self, AMouseDownRow, ASwipeDirection, FActionButtons);
-        ItemIndex := -1;
-        Invalidate;
+        DeselectRow;
         ShowRowOptionButtons(AMouseDownRow, ASwipeDirection, FActionButtons);
         Exit;
       end;
@@ -3364,25 +3329,6 @@ begin
     AMouseDownRect := RectF(FMouseDownPos.X-8, FMouseDownPos.Y-8, FMouseDownPos.X+8, FMouseDownPos.Y+8);
     x := x - ItemSpaces.Left;
 
-    //AMouseDownRow := GetRowFromYPos(FMouseDownPos.Y);
-    //ARow := GetRowFromYPos(y);
-
-    {if (ARow = AMouseDownRow) and  (AMouseDownTime <= 1000) and (AMouseDownRow <> nil) then
-    begin
-      if (x < (FMouseDownPos.X-C_SWIPE_DISTANCE)) or (x > (FMouseDownPos.X+C_SWIPE_DISTANCE)) then
-      begin
-        ASwipeDirection := TksItemSwipeDirection.sdLeftToRight;
-        if (x < (FMouseDownPos.X - C_SWIPE_DISTANCE)) then ASwipeDirection := TksItemSwipeDirection.sdRightToLeft;
-        if (x > (FMouseDownPos.X + C_SWIPE_DISTANCE)) then ASwipeDirection := TksItemSwipeDirection.sdLeftToRight;
-        FActionButtons.Clear;
-        FActionButtons.FRow := AMouseDownRow;
-        if Assigned(FOnItemSwipe) then
-          FOnItemSwipe(Self, AMouseDownRow, ASwipeDirection, FActionButtons);
-        ShowRowOptionButtons(AMouseDownRow, ASwipeDirection, FActionButtons);
-        ItemIndex := -1;
-      end;
-    end; }
-
     if FClickedRowObj <> nil then
     begin
       FClickedRowObj.MouseUp;
@@ -3391,22 +3337,20 @@ begin
       // the row click otherwise it doesn't highlight if you click
       // on some text.
       if (AObjectConsumesClick) then
-        ItemIndex := -1;
-      Invalidate;
+        DeselectRow
+      else
+        Invalidate;
     end;
 
     if PtInRect(AMouseDownRect, PointF(x, y)) then
     begin
       // process a mouse click...
-      //AMouseDownRow := GetRowFromYPos(FMouseDownPos.Y);
       ARow := GetRowFromYPos(y);
       if ARow = nil then
         Exit;
 
       ARowRect := GetItemRect(ARow.Index);
 
-
-      //FClickedRowObj := RowObjectAtPoint(ARow, x, y - ARowRect.Top);
 
       AId := ARow.ID;
 
@@ -3419,8 +3363,9 @@ begin
       else
       begin
         if ARow.CanSelect = False then
-          ItemIndex := -1;
-        Application.ProcessMessages;
+          DeselectRow
+        else
+          Invalidate;
         // remove row selection?
         ARow.ProcessClick;
         if (ARow.CanSelect) and (AObjectConsumesClick = False) then
@@ -3437,10 +3382,10 @@ begin
         begin
           ARow.CacheRow;
           Invalidate;
-          FClickedRowObj.Click(X - FClickedRowObj.Rect.Left, Y - FClickedRowObj.Rect.Top);
+          FClickedRowObj.ProcessClick(X - FClickedRowObj.Rect.Left, Y - FClickedRowObj.Rect.Top);
           if (FClickedRowObj is TksListItemRowSwitch) then
           begin
-            (FClickedRowObj as TksListItemRowSwitch).Toggle;
+
             if Assigned(FOnSwitchClicked) then
               FOnSwitchClicked(Self, ARow, (FClickedRowObj as TksListItemRowSwitch), AId);
           end;
@@ -3460,8 +3405,7 @@ begin
         //Application.ProcessMessages;
         if (FKeepSelection = False) and (ItemIndex > -1) and (FScrolling = False) then
         begin
-          ItemIndex := -1;
-          Application.ProcessMessages;
+          DeselectRow;
         end;
       end;
     end
@@ -3470,6 +3414,8 @@ begin
       // mouse up was after scrolling...
     end;
   finally
+    if (FKeepSelection = False) and (ItemIndex > -1) then
+      DeselectRow;
     ReleaseAllDownButtons;
     FDisableMouseMove := False;
     FMouseDownPos := PointF(-1, -1);
@@ -3489,6 +3435,18 @@ end;
 { TksListItemRowSwitch }
 
 
+constructor TksListItemRowSwitch.Create(ARow: TKsListItemRow);
+begin
+  inherited Create(ARow);
+  FActiveColor := C_DEFAULT_ACTIVE_SWITCH_COLOR;
+end;
+
+procedure TksListItemRowSwitch.DoClick(x, y: single);
+begin
+  inherited;
+  IsChecked := not IsChecked;
+end;
+
 function TksListItemRowSwitch.GetConsumesRowClick: Boolean;
 begin
   Result := True;
@@ -3497,7 +3455,16 @@ end;
 function TksListItemRowSwitch.Render(ACanvas: TCanvas): Boolean;
 begin
   Result := inherited Render(ACanvas);
-  DrawSwitch(ACanvas, Rect, FIsChecked);
+  DrawSwitch(ACanvas, Rect, FIsChecked, FEnabled, FActiveColor);
+end;
+
+procedure TksListItemRowSwitch.SetActiveColor(const Value: TAlphaColor);
+begin
+  if FActiveColor <> Value then
+  begin
+    FActiveColor := Value;
+    Changed;
+  end;
 end;
 
 procedure TksListItemRowSwitch.SetIsChecked(const Value: Boolean);
@@ -3507,11 +3474,6 @@ begin
     FIsChecked := Value;
     Changed;
   end;
-end;
-
-procedure TksListItemRowSwitch.Toggle;
-begin
-  IsChecked := not IsChecked;
 end;
 
 { TKsListItemRowAccessory }
@@ -3577,11 +3539,7 @@ begin
         APath.LineTo(PointF(ABmp.Width * 0.70, ABmp.Height * 0.25));
         ABmp.Canvas.DrawPath(APath, 1);
       finally
-        {$IFDEF IOS}
-        APath.DisposeOf;
-        {$ELSE}
-        APath.Free;
-        {$ENDIF}
+        FreeAndNil(APath);
       end;
 
       ABmp.Canvas.EndScene;
@@ -3592,11 +3550,7 @@ begin
                          1);
 
     finally
-      {$IFDEF IOS}
-      ABmp.DisposeOf;
-      {$ELSE}
-      ABmp.Free;
-      {$ENDIF}
+      FreeAndNil(ABmp);
     end;
   end
   else
@@ -3618,7 +3572,7 @@ end;
 { TksListItemRowSegmentButtons }
 
 
-procedure TksListItemRowSegmentButtons.Click(x, y: single);
+procedure TksListItemRowSegmentButtons.DoClick(x, y: single);
 var
   ABtnWidth: single;
 begin
@@ -3636,11 +3590,7 @@ end;
 
 destructor TksListItemRowSegmentButtons.Destroy;
 begin
-  {$IFDEF IOS}
-  FCaptions.DisposeOf;
-  {$ELSE}
-  FCaptions.Free;
-  {$ENDIF}
+  FreeAndNil(FCaptions);
   inherited;
 end;
 
@@ -3711,6 +3661,8 @@ end;
 
 procedure TksListItemRowButton.MouseDown;
 begin
+  if FEnabled = False then
+    Exit;
   inherited;
   if FState <> Pressed then
   begin
@@ -3941,11 +3893,7 @@ begin
     ARect := RectF(0, 0, ABmp.Width, ABmp.Height);
     ACanvas.DrawBitmap(ABmp, ARect, Rect, 1, False);
   finally
-    {$IFDEF IOS}
-    ABmp.DisposeOf;
-    {$ELSE}
-    ABmp.Free;
-    {$ENDIF}
+    FreeAndNil(ABmp);
   end;
 end;
 
@@ -4022,8 +3970,7 @@ end;
 
 destructor TksListItemRowActionButton.Destroy;
 begin
-  {$IFDEF IOS}
-
+  {$IFDEF NEXTGEN}
   FLabel.DisposeOf;
   FBackground.DisposeOf;
   {$ELSE}
@@ -4087,11 +4034,7 @@ initialization
 
 finalization
 
-  {$IFDEF IOS}
-  ATextLayout.DisposeOf;
-  {$ELSE}
-  ATextLayout.Free;
-  {$ENDIF}
+  FreeAndNil(ATextLayout);
 
 
 end.
