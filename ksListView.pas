@@ -53,7 +53,7 @@ const
   C_DEFAULT_ACTIVE_SWITCH_COLOR = claDodgerBlue;
   C_SEGMENT_BUTTON_HEIGHT = 30;
   {$ELSE}
-  C_DEFAULT_ACTIVE_SWITCH_COLOR = claLime;
+  C_DEFAULT_ACTIVE_SWITCH_COLOR = claLimegreen;
   C_SEGMENT_BUTTON_HEIGHT = 30;
   {$ENDIF}
   C_SWIPE_DISTANCE = 60;
@@ -2494,7 +2494,6 @@ var
   ICount: integer;
   AFilteredIndex: integer;
 begin
-  //Application.ProcessMessages;
   if _Items.Count = 0 then
     Exit;
   AFilteredIndex := 0;
@@ -3256,7 +3255,8 @@ begin
     if FClickedRowObj.ConsumesRowClick then
     begin
       Invalidate;
-      Exit;
+      // need to still continue and call "inherited" so that
+      // scrolling still works if started on a control
     end;
   end;
 
@@ -3277,7 +3277,7 @@ begin
   begin
     ItemIndex := FLastIndex;
     Invalidate;
-    Application.ProcessMessages;
+   // Application.ProcessMessages;
     //Exit;
   end;
 end;
