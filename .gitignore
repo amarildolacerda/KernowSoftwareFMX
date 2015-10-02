@@ -162,3 +162,4 @@ Demos/ksComponents.res
 Demos/ksComponents.deployproj
 KernowSoftwareFMX.dproj
 Demos/ksComponents.dproj
+*.rc

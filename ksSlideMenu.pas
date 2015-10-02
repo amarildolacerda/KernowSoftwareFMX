@@ -959,7 +959,7 @@ begin
   FToolBar.DisposeOf;
   if IsChild(FListView) then FListView.DisposeOf;
   {$ELSE}
-  FListView.Free;
+  FToolbar.Free;
   if IsChild(FListView) then FListView.Free;
   {$ENDIF}
   inherited;
@@ -1011,7 +1011,6 @@ begin
   FSlideMenu := ASlideMenu;
   FBitmap := TBitmap.Create;
   FFont := TFont.Create;
-
   FHeader := TImage.Create(AOwner);
   FHeader.Position.X := 0;
   FHeader.Position.Y := 0;

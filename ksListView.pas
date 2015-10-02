@@ -54,7 +54,7 @@ const
   {$ELSE}
   C_SEGMENT_BUTTON_HEIGHT = 30;
   {$ENDIF}
-  C_SWIPE_DISTANCE = 30;
+  C_SWIPE_DISTANCE = 60;
 
   C_DEFAULT_TEXT_COLOR = claBlack;
   C_DEFAULT_HEADER_TEXT_COLOR = claBlack;
@@ -461,7 +461,7 @@ type
     function ScreenWidth: single;
     procedure ProcessClick;
     procedure Changed;
-    //procedure ReleaseAllDownButtons;
+    procedure ReleaseAllDownButtons;
     function TextWidth(AText: string): single;
     function TextHeight(AText: string; AWordWrap: Boolean; const AWidth: single = 0): single;
   protected
@@ -673,12 +673,14 @@ type
     FActionButtons: TksListItemRowActionButtons;
     FOnItemActionButtonClick: TksItemActionButtonClickEvent;
     FSearchBoxHeight: single;
+    //FScrollLockPosition: single;
+    FDisableMouseMove: Boolean;
     function _Items: TksListViewItems;
 
     procedure DoScrollTimer(Sender: TObject);
     procedure SetCheckMarks(const Value: TksListViewCheckMarks);
     function RowObjectAtPoint(ARow: TKsListItemRow; x, y: single): TksListItemRowObj;
-    //procedure ReleaseAllDownButtons;
+    procedure ReleaseAllDownButtons;
     procedure SetCheckMarkStyle(const Value: TksListViewCheckStyle);
     procedure SetItemImageSize(const Value: integer);
     procedure SetShowIndicatorColors(const Value: Boolean);
@@ -693,6 +695,8 @@ type
     procedure CachePages;
     function LoadingBitmap: TBitmap;
     procedure CalculateSearchBoxHeight;
+    //procedure LockScrolling(AScrollPos: single);
+    //procedure UnlockScrolling;
     { Private declarations }
   protected
     procedure SetColorStyle(AName: string; AColor: TAlphaColor);
@@ -1699,7 +1703,7 @@ begin
   end;
 end;
 
-{procedure TKsListItemRow.ReleaseAllDownButtons;
+procedure TKsListItemRow.ReleaseAllDownButtons;
 var
   ICount: integer;
   AButton: TksListItemRowButton;
@@ -1716,7 +1720,7 @@ begin
       end;
     end;
   end;
-end;}
+end;
 
 procedure TksListItemRow.ReleaseRow;
 begin
@@ -2570,6 +2574,8 @@ begin
   FCanSwipeDelete := False;
   CalculateSearchBoxHeight;
   FMouseDownPos := PointF(-1, -1);
+  //FScrollLockPosition := -1;
+  FDisableMouseMove := False;
 end;
 
 destructor TksListView.Destroy;
@@ -2870,10 +2876,18 @@ begin
   for ICount := 1 to AButtons.Count do
   begin
     AButton := AButtons[ICount-1];
-    TAnimator.AnimateFloat(AButton.FBackground, 'Position.X', (ARect.Right-(60*ICount)), 0.2);
+   // if ICount < AButtons.Count then
+      TAnimator.AnimateFloat(AButton.FBackground, 'Position.X', (ARect.Right-(60*ICount)), 0.2)
+    //else
+    //  TAnimator.AnimateFloatWait(AButton.FBackground, 'Position.X', (ARect.Right-(60*ICount)), 0.2)
   end;
 end;
-
+                      {
+procedure TksListView.UnlockScrolling;
+begin
+  FScrollLockPosition := -1;
+end;
+                       }
 function TksListView._Items: TksListViewItems;
 begin
   Result := inherited Items;
@@ -3062,7 +3076,7 @@ begin
 end;
 
 
-{procedure TksListView.ReleaseAllDownButtons;
+procedure TksListView.ReleaseAllDownButtons;
 var
   ICount: integer;
   ARow: TKsListItemRow;
@@ -3072,7 +3086,7 @@ begin
     ARow := Items[ICount];
     ARow.ReleaseAllDownButtons;
   end;
-end;}
+end;
 
 procedure TksListView.Resize;
 begin
@@ -3208,6 +3222,12 @@ begin
   end;
   Result := FLoadingBitmap;
 end;
+                      {
+procedure TksListView.LockScrolling(AScrollPos: single);
+begin
+  FScrollLockPosition := AScrollPos;
+  ScrollViewPos := AScrollPos;
+end;                   }
 
 procedure TksListView.MouseDown(Button: TMouseButton; Shift: TShiftState;
   x, y: single);
@@ -3215,6 +3235,8 @@ var
   ARow: TKsListItemRow;
   ARowRect: TRectF;
 begin
+  FActionButtons.Clear;
+  //UnlockScrolling;
   ARow := GetRowFromYPos(y);
   if (y < 0) or (ARow = nil) then
     Exit;
@@ -3261,10 +3283,46 @@ begin
 end;
 
 procedure TksListView.MouseMove(Shift: TShiftState; X, Y: Single);
+var
+  ASwipeDirection: TksItemSwipeDirection;
+  ARow: TKsListItemRow;
+  AMouseDownTime: integer;
+  AMouseDownRow: TKsListItemRow;
+
 begin
+  if FDisableMouseMove then
+    Exit;
   if y < 0 then
     Exit;
   inherited;
+  ARow := GetRowFromYPos(Y);
+  AMouseDownRow := GetRowFromYPos(FMouseDownPos.Y);
+  AMouseDownTime := MilliSecondsBetween(FMouseDownTime, Now);
+  if (ssLeft in Shift) then
+  begin
+    if ((AMouseDownTime > 0) and (AMouseDownTime < 1000)) and (AMouseDownRow <> nil) and (AMouseDownRow = ARow) then
+    begin
+      if (x < (FMouseDownPos.X-C_SWIPE_DISTANCE)) or (x > (FMouseDownPos.X+C_SWIPE_DISTANCE)) then
+      begin
+        ReleaseAllDownButtons;
+        FDisableMouseMove := True; //LockScrolling(ScrollViewPos);
+        ASwipeDirection := TksItemSwipeDirection.sdLeftToRight;
+        if (x < (FMouseDownPos.X - C_SWIPE_DISTANCE)) then ASwipeDirection := TksItemSwipeDirection.sdRightToLeft;
+        if (x > (FMouseDownPos.X + C_SWIPE_DISTANCE)) then ASwipeDirection := TksItemSwipeDirection.sdLeftToRight;
+        FActionButtons.Clear;
+        FActionButtons.FRow := AMouseDownRow;
+        if Assigned(FOnItemSwipe) then
+          FOnItemSwipe(Self, AMouseDownRow, ASwipeDirection, FActionButtons);
+        ItemIndex := -1;
+        Invalidate;
+        ShowRowOptionButtons(AMouseDownRow, ASwipeDirection, FActionButtons);
+        Exit;
+      end;
+    end;
+  end;
+
+
+
   FCurrentMousepos := PointF(x-ItemSpaces.Left, y);
   if (FMouseDownPos = PointF(-1, -1)) then
   begin
@@ -3287,16 +3345,18 @@ procedure TksListView.MouseUp(Button: TMouseButton; Shift: TShiftState; x,
 var
   AId: string;
   ARow: TKsListItemRow;
-  AMouseDownRow: TKsListItemRow;
+ // AMouseDownRow: TKsListItemRow;
   AMouseDownRect: TRectF;
   ARowRect: TRectF;
   AMouseDownTime: integer;
-  ASwipeDirection: TksItemSwipeDirection;
   AObjectConsumesClick: Boolean;
 begin
   try
     if y < 0 then
       Exit;
+    if FActionButtons.Count > 0 then
+      Exit;
+
     inherited;
     AObjectConsumesClick := False;
 
@@ -3304,10 +3364,10 @@ begin
     AMouseDownRect := RectF(FMouseDownPos.X-8, FMouseDownPos.Y-8, FMouseDownPos.X+8, FMouseDownPos.Y+8);
     x := x - ItemSpaces.Left;
 
-    AMouseDownRow := GetRowFromYPos(FMouseDownPos.Y);
-    ARow := GetRowFromYPos(y);
+    //AMouseDownRow := GetRowFromYPos(FMouseDownPos.Y);
+    //ARow := GetRowFromYPos(y);
 
-    if (ARow = AMouseDownRow) and  (AMouseDownTime <= 1000) and (AMouseDownRow <> nil) then
+    {if (ARow = AMouseDownRow) and  (AMouseDownTime <= 1000) and (AMouseDownRow <> nil) then
     begin
       if (x < (FMouseDownPos.X-C_SWIPE_DISTANCE)) or (x > (FMouseDownPos.X+C_SWIPE_DISTANCE)) then
       begin
@@ -3321,7 +3381,7 @@ begin
         ShowRowOptionButtons(AMouseDownRow, ASwipeDirection, FActionButtons);
         ItemIndex := -1;
       end;
-    end;
+    end; }
 
     if FClickedRowObj <> nil then
     begin
@@ -3410,7 +3470,8 @@ begin
       // mouse up was after scrolling...
     end;
   finally
-    //ReleaseAllDownButtons;
+    ReleaseAllDownButtons;
+    FDisableMouseMove := False;
     FMouseDownPos := PointF(-1, -1);
   end;
 end;
