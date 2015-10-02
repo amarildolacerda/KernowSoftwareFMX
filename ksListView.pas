@@ -684,6 +684,7 @@ type
     FSearchBoxHeight: single;
     FDisableMouseMove: Boolean;
     FPageCaching: TksPageCaching;
+    FFullWidthSeparator: Boolean;
     function _Items: TksListViewItems;
 
     procedure DoScrollTimer(Sender: TObject);
@@ -772,6 +773,7 @@ type
     property DragMode default TDragMode.dmManual;
     property EnableDragHighlight default True;
     property Enabled default True;
+    property FullWidthSeparator: Boolean read FFullWidthSeparator write FFullWidthSeparator default False;
     property Locked default False;
     property Height;
     property HitTest default True;
@@ -970,7 +972,11 @@ end;
 procedure TksListItemRowObj.ProcessClick(x, y: single);
 begin
   if FEnabled then
+  begin
     DoClick(x, y);
+    Changed;
+    FRow.CacheRow;
+  end;
 end;
 
 constructor TksListItemRowObj.Create(ARow: TKsListItemRow);
@@ -1736,6 +1742,7 @@ var
   ARect: TRectF;
   ANextItem: TKsListItemRow;
   ANextItemIsHeader: Boolean;
+  ASeparatorOffset: integer;
 begin
   if FLastHeight = 0 then
     FLastHeight := Height;
@@ -1763,7 +1770,7 @@ begin
   if (OwnsBitmap = False)  then
   begin
     //ListView.CachePages;
-    if ListView.FPageCaching.Enabled then
+    if (ListView.FPageCaching.Enabled) and (Purpose = TListItemPurpose.None) then
       Bitmap := ListView.LoadingBitmap
     else
       CacheRow;
@@ -1806,7 +1813,10 @@ begin
     Canvas.Fill.Color := ListView.Appearence.SeparatorColor;
     if Canvas.Fill.Color = claNull then
       Canvas.Fill.Color := C_DEFAULT_SEPARATOR_COLOR;
-    Canvas.FillRect(RectF(40, ARect.Bottom-1, ARect.Right, ARect.Bottom), 0, 0, AllCorners, 1, Canvas.Fill);
+    ASeparatorOffset := 0;
+    if ListView.FFullWidthSeparator = False then
+      ASeparatorOffset := 40;
+      Canvas.FillRect(RectF(ASeparatorOffset, ARect.Bottom-1, ARect.Right, ARect.Bottom), 0, 0, AllCorners, 1, Canvas.Fill);
   end;
 end;
 
@@ -2573,6 +2583,7 @@ begin
   FMouseDownPos := PointF(-1, -1);
   //FScrollLockPosition := -1;
   FDisableMouseMove := False;
+  FFullWidthSeparator := False;
 end;
 
 procedure TksListView.DeselectRow;
@@ -3266,8 +3277,8 @@ begin
   begin
     ItemIndex := FLastIndex;
     Invalidate;
-    //Application.ProcessMessages;
-    Exit;
+    Application.ProcessMessages;
+    //Exit;
   end;
 end;
 
@@ -3425,7 +3436,7 @@ begin
               FOnSegmentButtonClicked(Self, ARow, (FClickedRowObj as TksListItemRowSegmentButtons), AId);
           end;
         end;
-
+        Invalidate;
 
         //Application.ProcessMessages;
         if (FKeepSelection = False) and (ItemIndex > -1) and (FScrolling = False) then

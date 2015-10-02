@@ -933,6 +933,7 @@ begin
   FListView.ShowSelection := False;
   FListView.OnItemClick := ItemClick;
   FListView.Align := TAlignLayout.Client;
+  FListView.FullWidthSeparator := True;
   AddObject(FListView);
 
 end;

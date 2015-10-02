@@ -131,7 +131,7 @@ begin
     Exit;
   ksListview1.BeginUpdate;
   try
-    for ICount := 1 to 50 do
+    for ICount := 1 to 100 do
     begin
       ARow := ksListview1.Items.AddRow('Line '+InttoStr(ICount),      // main title
                                  'a sub title for '+IntToStr(ICount), // subtitle
@@ -167,7 +167,7 @@ begin
     Exit;
   lvSmoothScrolling.BeginUpdate;
   try
-    for ICount := 1 to 30 do
+    for ICount := 1 to 50 do
     begin
       ARow := lvSmoothScrolling.Items.AddRow('Line '+InttoStr(ICount),  // main title
                                              'sub title',               // subtitle
@@ -263,19 +263,19 @@ begin
   begin
     try
       // row 1
-      ARow := AddRow('Progress 1', 'green/round corner', '', More);
+      ARow := AddRow('Progress bar 1', ''{'green/round corner'}, '', More);
       ARow.DrawProgressBar(0, 0, 120, 18, 25, claGreenyellow, 9);
 
       // row 2
-      ARow := AddRow('Progress 2', 'red/round corner', '', More);
+      ARow := AddRow('Progress bar 2', {'red/round corner'}'', '', More);
       ARow.DrawProgressBar(0, 0, 120, 18, 50, claIndianred, 9);
 
       // row 3
-      ARow := AddRow('Progress 3', 'blue/square corner', '', More);
+      ARow := AddRow('Progress bar 3', ''{'blue/square corner'}, '', More);
       ARow.DrawProgressBar(0, 0, 120, 18, 75, claSkyblue, 0);
 
       // row 4
-      ARow := AddRow('Progress 4', 'orange/square corner', '', More);
+      ARow := AddRow('Progress bar 4', ''{'orange/square corner'}, '', More);
       ARow.DrawProgressBar(0, 0, 120, 18, 90, claOrange, 0);
     finally
       lvProgressBars.EndUpdate;
