@@ -163,3 +163,4 @@ Demos/ksComponents.deployproj
 KernowSoftwareFMX.dproj
 Demos/ksComponents.dproj
 *.rc
+*.res

@@ -712,6 +712,7 @@ begin
   try
     if (FShowing = False) then
     begin
+      FMenu.ListView.ItemIndex := FItemIndex;
       FMenu.FToolBar.UpdateToolbar;
       FMenu.UpdateSelectedItem;
     end;
