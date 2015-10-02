@@ -66,15 +66,7 @@ const
   C_SUBTITLE = 'SUBTITLE';
   C_DETAIL   = 'DETAIL';
 
-  {$IFDEF ANDROID}
-  C_PAGE_SIZE = 50;
-  {$ENDIF}
-  {$IFDEF IOS}
-  C_PAGE_SIZE = 50;
-  {$ENDIF}
-  {$IFDEF MSWINDOWS}
-  C_PAGE_SIZE = 500;
-  {$ENDIF}
+  C_DEFAULT_PAGE_SIZE = 100;
 
   C_LEFT_MARGIN = 10;
   C_DEFAULT_SEPARATOR_COLOR = $FFE0E0E0;
@@ -628,6 +620,16 @@ type
     property AlternatingItemBackground: TAlphaColor read FAlternatingItemBackground write SetAlternatingItemBackground default claGainsboro;
   end;
 
+  TksPageCaching = class(TPersistent)
+  private
+    FEnabled: Boolean;
+    FPageSize: integer;
+  published
+    constructor Create;
+    property Enabled: Boolean read FEnabled write FEnabled default True;
+    property PageSize: integer read FPageSize write FPageSize default C_DEFAULT_PAGE_SIZE;
+  end;
+
   // ------------------------------------------------------------------------------
 
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or pidiOSDevice or pidAndroid)]
@@ -681,6 +683,7 @@ type
     FOnItemActionButtonClick: TksItemActionButtonClickEvent;
     FSearchBoxHeight: single;
     FDisableMouseMove: Boolean;
+    FPageCaching: TksPageCaching;
     function _Items: TksListViewItems;
 
     procedure DoScrollTimer(Sender: TObject);
@@ -812,6 +815,7 @@ type
     property OnMouseEnter;
     property OnMouseLeave;
 
+    property PageCaching: TksPageCaching read FPageCaching write FPageCaching;
     property OnPainting;
     property OnPaint;
     property OnResize;
@@ -1735,12 +1739,17 @@ var
 begin
   if FLastHeight = 0 then
     FLastHeight := Height;
-  if Height <> FLastHeight then
+
+  if ListView.FUpdateCount > 0 then
+    Exit;
+
+  {if Height <> FLastHeight then
   begin
     FCached := False;
     CacheRow;
     FLastHeight := Height;
-  end;
+  end; }
+
   ANextItemIsHeader := False;
   if Index < ListView.Items.Count-1 then
   begin
@@ -1748,13 +1757,17 @@ begin
     ANextItemIsHeader := ANextItem.Purpose = TListItemPurpose.Header;
   end;
 
-  if Index < C_PAGE_SIZE then
-    CacheRow;
+  //if Index < C_PAGE_SIZE then
+  //  CacheRow;
 
   if (OwnsBitmap = False)  then
   begin
-    Bitmap := ListView.LoadingBitmap;
-    ListView.FScrolling := True;
+    //ListView.CachePages;
+    if ListView.FPageCaching.Enabled then
+      Bitmap := ListView.LoadingBitmap
+    else
+      CacheRow;
+    //ListView.FScrolling := True;
   end;
 
   {$IFDEF VER290}
@@ -1787,12 +1800,13 @@ begin
 
   ListView.DoRenderRow(Self);
   inherited;
+
   if (Purpose = TListItemPurpose.None) and (ANextItemIsHeader = False) then
   begin
     Canvas.Fill.Color := ListView.Appearence.SeparatorColor;
     if Canvas.Fill.Color = claNull then
       Canvas.Fill.Color := C_DEFAULT_SEPARATOR_COLOR;
-    Canvas.FillRect(RectF(0, ARect.Bottom-1, ARect.Right, ARect.Bottom), 0, 0, AllCorners, 1, Canvas.Fill);
+    Canvas.FillRect(RectF(40, ARect.Bottom-1, ARect.Right, ARect.Bottom), 0, 0, AllCorners, 1, Canvas.Fill);
   end;
 end;
 
@@ -2470,7 +2484,7 @@ var
   ICount: integer;
   AFilteredIndex: integer;
 begin
-  Application.ProcessMessages;
+  //Application.ProcessMessages;
   if _Items.Count = 0 then
     Exit;
   AFilteredIndex := 0;
@@ -2482,7 +2496,7 @@ begin
 
   for ICount := 0 to _Items.Count-1 do
   begin
-    if (ICount >= AFilteredIndex - C_PAGE_SIZE) and (ICount <= AFilteredIndex + C_PAGE_SIZE) then
+    if (ICount >= (AFilteredIndex - FPageCaching.FPageSize)) and (ICount <= (AFilteredIndex + FPageCaching.FPageSize)) then
       Items[_Items[ICount].Index].CacheRow
     else
       Items[_Items[ICount].Index].ReleaseRow;
@@ -2528,6 +2542,7 @@ begin
   FActionButtons := TksListItemRowActionButtons.Create(Self);
   FDateSelector := TDateEdit.Create(nil);
   FDateSelector.OnClosePicker := ComboClosePopup;
+  FPageCaching := TksPageCaching.Create;
 
   FScreenScale := GetScreenScale;
   FAppearence := TksListViewAppearence.Create(Self);
@@ -2573,6 +2588,7 @@ begin
   if FLoadingBitmap <> nil then
     FreeAndNil(FLoadingBitmap);
   FreeAndNil(FActionButtons);
+  FreeAndNil(FPageCaching);
 
   {$IFDEF NEXTGEN}
   FScrollTimer.DisposeOf;
@@ -2955,13 +2971,14 @@ var
 begin
   if FScrolling = False then
   begin
-    if Trunc(ScrollViewPos) <> FLastScrollPos then
+    if ScrollViewPos <> FLastScrollPos then
     begin
       if (FKeepSelection = False) and (ItemIndex > -1) then
         DeselectRow;
 
       FScrolling := True;
-      FScrollTimer.Interval := 100;
+      FScrollTimer.Interval := 50;
+      //FScrollTimer.Enabled := True;
       FLastScrollPos := ScrollViewPos;
       if ScrollViewPos > FLastScrollPos then
         FScrollDirection := sdDown
@@ -2975,8 +2992,6 @@ begin
 
     if FLastScrollPos = ScrollViewPos then
     begin
-      FScrolling := False;
-      FScrollTimer.Interval := 500;
       CachePages;
 
       if Assigned(FOnFinishScrolling) then
@@ -2991,6 +3006,8 @@ begin
         if Assigned(FOnScrollLastItem) then
           FOnScrollLastItem(Self);
       end;
+      FScrolling := False;
+      FScrollTimer.Interval := 500;
     end;
   end;
   FLastScrollPos := ScrollViewPos;
@@ -3048,7 +3065,7 @@ begin
     if ARow <> nil then
     begin
       ARow.Cached := False;
-      ARow.CacheRow;
+      //ARow.CacheRow;
     end;
   end;
   EndUpdate;
@@ -3181,8 +3198,14 @@ begin
     FLoadingBitmap.Height := Round(FItemHeight * GetScreenScale);
     FLoadingBitmap.Clear(claNull);
     FLoadingBitmap.Canvas.BeginScene;
-    FLoadingBitmap.Canvas.Fill.Color := claDimgray;
-    FLoadingBitmap.Canvas.FillText(RectF(8, 0, 200, FItemHeight), 'PLEASE WAIT...', False, 1, [], TTextAlign.Leading);
+    FLoadingBitmap.Canvas.StrokeThickness := 4;
+    FLoadingBitmap.Canvas.Stroke.Color := $FFDDDDDD;
+    FLoadingBitmap.Canvas.DrawRect(RectF(16, 16, 46, 46), 0, 0, AllCorners, 1, FLoadingBitmap.Canvas.Stroke);
+    FLoadingBitmap.Canvas.DrawLine(PointF(60, 20), PointF(150, 20), 1);
+    FLoadingBitmap.Canvas.DrawLine(PointF(60, 40), PointF(120, 40), 1);
+    //FLoadingBitmap.Canvas.Fill.Color := claWhite;
+    //FLoadingBitmap.Canvas.FillRect(RectF(16, 16, 46, 46), 0, 0, AllCorners, 1, FLoadingBitmap.Canvas.Fill);
+    //FLoadingBitmap.Canvas.FillText(RectF(8, 0, 200, FItemHeight), 'PLEASE WAIT...', False, 1, [], TTextAlign.Leading);
     FLoadingBitmap.Canvas.EndScene;
   end;
   Result := FLoadingBitmap;
@@ -3262,6 +3285,8 @@ begin
     Exit;
   inherited;
   ARow := GetRowFromYPos(Y);
+
+
   AMouseDownRow := GetRowFromYPos(FMouseDownPos.Y);
   AMouseDownTime := MilliSecondsBetween(FMouseDownTime, Now);
   if (ssLeft in Shift) then
@@ -3424,12 +3449,14 @@ end;
 
 procedure TksListView.Paint;
 begin
-  if ScrollViewPos <> FLastScrollPos then
+  if (ScrollViewPos <> FLastScrollPos) and (FActionButtons.Count > 0) then
     FActionButtons.Clear;
-
-  FIsShowing := True;
+  if FIsShowing = False then
+  begin
+    CachePages;
+    FIsShowing := True;
+  end;
   inherited;
-
 end;
 
 { TksListItemRowSwitch }
@@ -4023,6 +4050,15 @@ constructor TksListItemRowActionButtons.Create(AOwner: TksListView);
 begin
   inherited Create(True);
   FListView := AOwner;
+end;
+
+{ TksPageCaching }
+
+constructor TksPageCaching.Create;
+begin
+  inherited Create;
+  FEnabled := True;
+  FPageSize := C_DEFAULT_PAGE_SIZE;
 end;
 
 initialization
