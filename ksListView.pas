@@ -4103,7 +4103,7 @@ procedure TksListItemRowActionButtons.AddDeleteButton;
 var
  AButton: TksListItemRowActionButton;
 begin
-  AButton := InsertButton(0, FListView.DeleteButtonText, claRed);
+  AButton := InsertButton(0, FListView.DeleteButton.Text, claRed);
   AButton.FButtonType := btDelete;
 end;
 
