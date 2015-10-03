@@ -36,6 +36,7 @@ type
   function GetScreenScale: single;
 
   function IsBlankBitmap(ABmp: TBitmap): Boolean;
+  function GetColorOrDefault(AColor, ADefaultIfNull: TAlphaColor): TAlphaColor;
 
   procedure DrawSwitch(ACanvas: TCanvas; ARect: TRectF; AChecked, AEnabled: Boolean; ASelectedColor: TAlphaColor);
   procedure DrawButton(ACanvas: TCanvas; ARect: TRectF; AText: string; ASelected: Boolean; AColor: TAlphaColor; AStyle: TksButtonStyle);
@@ -52,6 +53,14 @@ uses SysUtils;
 
 var
   _ScreenScale: single;
+
+function GetColorOrDefault(AColor, ADefaultIfNull: TAlphaColor): TAlphaColor;
+begin
+  Result := AColor;
+  if Result = claNull then
+    Result := ADefaultIfNull;
+end;
+
 
 
 function GetScreenScale: single;

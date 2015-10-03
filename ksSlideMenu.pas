@@ -260,7 +260,7 @@ type
 
 implementation
 
-uses FMX.Platform, SysUtils, FMX.Ani, FMX.Pickers, Math;
+uses FMX.Platform, SysUtils, FMX.Ani, FMX.Pickers, Math, ksDrawFunctions;
 
 
 procedure Register;
@@ -275,13 +275,6 @@ begin
    Service := IFMXScreenService(
       TPlatformServices.Current.GetPlatformService(IFMXScreenService));
    Result := Service .GetScreenScale;
-end;
-
-function GetColorOrDefault(AColor, ADefaultIfNull: TAlphaColor): TAlphaColor;
-begin
-  Result := AColor;
-  if Result = claNull then
-    Result := ADefaultIfNull;
 end;
 
 { TSlideMenu }
