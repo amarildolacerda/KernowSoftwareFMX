@@ -1,5 +1,4 @@
-﻿
-{*******************************************************************************
+﻿{*******************************************************************************
 *                                                                              *
 *  TksListView - High-Performance Mobile ListView Component                    *
 *                                                                              *
@@ -42,7 +41,7 @@ uses
   FMX.ListView.Types, FMX.Graphics, Generics.Collections, System.UITypes,
   {$IFDEF XE8_OR_NEWER} FMX.ImgList, {$ENDIF}
   System.UIConsts, FMX.StdCtrls, FMX.Styles.Objects, System.Generics.Collections,
-  FMX.ListBox, FMX.DateTimeCtrls, FMX.Menus, FMX.Objects
+  FMX.ListBox, FMX.DateTimeCtrls, FMX.Menus, FMX.Objects, FMX.SearchBox
   {$IFDEF XE10_OR_NEWER}, FMX.ListView.Appearances {$ENDIF}
 
   ;
@@ -117,6 +116,7 @@ type
   TksDeleteItemEvent = procedure(Sender: TObject; AIndex: Integer) of object;
   TksItemSwipeEvent = procedure(Sender: TObject; ARow: TksListItemRow; ASwipeDirection: TksItemSwipeDirection; AButtons: TksListItemRowActionButtons) of object;
   TksItemActionButtonClickEvent = procedure(Sender: TObject; ARow: TksListItemRow; AButton: TksListItemRowActionButton) of object;
+  TksSearchFilterChange = procedure(Sender: TObject; ASearchText: string) of object;
   // ------------------------------------------------------------------------------
 
   TksVisibleItems = record
@@ -395,6 +395,7 @@ type
     FLabel: TLabel;
     FRow: TksListItemRow;
     FButtonType: TksActionButtonType;
+    FVisible: Boolean;
     function GetText: string;
     procedure SetText(const Value: string);
     function GetColor: TAlphaColor;
@@ -402,6 +403,7 @@ type
     procedure DoClick(Sender: TObject);
     function GetTextColor: TAlphaColor;
     procedure SetTextColor(const Value: TAlphaColor);
+    procedure SetVisible(const Value: Boolean);
   public
     constructor Create(AOwner: TksListItemRowActionButtons; AID: string);
     destructor Destroy; override;
@@ -411,6 +413,7 @@ type
     property TextColor: TAlphaColor read GetTextColor write SetTextColor default C_DEFAULT_ACTION_BUTTON_TEXT_COLOR;
     property ID: string read FID;
     property ButtonType: TksActionButtonType read FButtonType;
+    property Visible: Boolean read FVisible write SetVisible default True;
   end;
 
   TksListItemRowActionButtons = class(TObjectList<TksListItemRowActionButton>)
@@ -420,9 +423,11 @@ type
 
     function InsertButton(AIndex: integer; AText: string; AColor, ATextColor: TAlphaColor; const AButtonID: string = ''): TksListItemRowActionButton;
     procedure AddDeleteButton;
+    function GetVisible: Boolean;
   public
     constructor Create(AOwner: TksListView);
     function AddButton(AText: string; AColor, ATextColor: TAlphaColor; const AButtonID: string = ''): TksListItemRowActionButton;
+    property Visible: Boolean read GetVisible;
 
   end;
 
@@ -718,6 +723,8 @@ type
     FDeleteButton: TksDeleteButton;
     //FShowSelection: Boolean;
     FDeselectTimer: TTimer;
+    FSearchEdit: TSearchBox;
+    FOnSearchFilterChanged: TksSearchFilterChange;
     function _Items: TksListViewItems;
 
     procedure DoScrollTimer(Sender: TObject);
@@ -739,6 +746,7 @@ type
     function LoadingBitmap: TBitmap;
     procedure CalculateSearchBoxHeight;
     procedure DeselectRow(const ADelay: integer = 0);
+    procedure DoSearchFilterChanged(Sender: TObject; var Key: Word; var KeyChar: Char; Shift: TShiftState);
     //procedure SetShowSelection(const Value: Boolean);
     procedure DoDeselectTimer(Sender: TObject);
     { Private declarations }
@@ -751,6 +759,7 @@ type
     procedure ShowRowActionButtons(ARow: TKsListItemRow;
                                    ASwipeDirection: TksItemSwipeDirection;
                                    AButtons: TksListItemRowActionButtons);
+    procedure HideRowActionButtons;
     {$IFNDEF XE10_OR_NEWER}
     procedure DoItemChange(const AItem: TListViewItem); override;
     {$ENDIF}
@@ -809,7 +818,7 @@ type
     property DragMode default TDragMode.dmManual;
     property EnableDragHighlight default True;
     property Enabled default True;
-    property FullWidthSeparator: Boolean read FFullWidthSeparator write FFullWidthSeparator default False;
+    property FullWidthSeparator: Boolean read FFullWidthSeparator write FFullWidthSeparator default True;
     property Locked default False;
     property Height;
     property HitTest default True;
@@ -830,6 +839,7 @@ type
     property Width;
     property OnSelectDate: TksListViewSelectDateEvent read FOnSelectDate write FOnSelectDate;
     property OnSelectPickerItem: TksListViewSelectPickerItem read FOnSelectPickerItem write FOnSelectPickerItem;
+    property OnSearchFilterChanged: TksSearchFilterChange read FOnSearchFilterChanged write FOnSearchFilterChanged;
     { events }
     property OnApplyStyleLookup;
     { Drag and Drop events }
@@ -908,7 +918,7 @@ procedure Register;
 
 implementation
 
-uses SysUtils, FMX.Platform, FMX.SearchBox, ksDrawFunctions, FMX.Ani,
+uses SysUtils, FMX.Platform, ksDrawFunctions, FMX.Ani,
   System.StrUtils, DateUtils, FMX.Forms, Math, ksSlideMenu;
 
 var
@@ -1800,17 +1810,13 @@ begin
     ANextItemIsHeader := ANextItem.Purpose = TListItemPurpose.Header;
   end;
 
-  //if Index < C_PAGE_SIZE then
-  //  CacheRow;
-
   if (OwnsBitmap = False)  then
   begin
-    //ListView.CachePages;
     if (ListView.FPageCaching.Enabled) and (Purpose = TListItemPurpose.None) then
       Bitmap := ListView.LoadingBitmap
     else
       CacheRow;
-    //ListView.FScrolling := True;
+    ListView.FScrolling := True;
   end;
 
   {$IFDEF VER290}
@@ -1909,6 +1915,7 @@ begin
   FBackgroundColor := claNull;
   FLastHeight := 0;
   FUpdating := False;
+
 end;
 
 destructor TKsListItemRow.Destroy;
@@ -2615,14 +2622,11 @@ begin
   ItemSpaces.Left := 0;
   FScrollDirection := sdDown;
   CanSwipeDelete := False;
-  //FShowSelection := True;
-  //inherited ShowSelection := False;
 
   CalculateSearchBoxHeight;
   FMouseDownPos := PointF(-1, -1);
-  //FScrollLockPosition := -1;
   FDisableMouseMove := False;
-  FFullWidthSeparator := False;
+  FFullWidthSeparator := True;
 end;
 
 procedure TksListView.DeselectRow(const ADelay: integer = 0);
@@ -2639,7 +2643,7 @@ begin
   end;
 
   ItemIndex := -1;
-  Invalidate;
+  Repaint;
 end;
 
 destructor TksListView.Destroy;
@@ -2950,7 +2954,6 @@ begin
     AButton.FBackground.Width := C_DEFAULT_ACTION_BUTTON_WIDTH;
     AddObject(AButton.FBackground);
   end;
-
   for ICount := 1 to AButtons.Count do
   begin
     AButton := AButtons[ICount-1];
@@ -2959,6 +2962,14 @@ begin
       sdLeftToRight: TAnimator.AnimateFloat(AButton.FBackground, 'Position.X', (AStartX+(C_DEFAULT_ACTION_BUTTON_WIDTH*ICount)), 0.2);
     end;
   end;
+end;
+
+procedure TksListView.HideRowActionButtons;
+var
+  ICount: integer;
+begin
+  for ICount := 0 to FActionButtons.Count-1 do
+    FActionButtons[ICount].Visible := False;
 end;
                       {
 procedure TksListView.UnlockScrolling;
@@ -3020,7 +3031,8 @@ begin
   end;
   if AButton.ButtonType = btDelete then
     Items.Delete(AButton.FRow.Index);
-  FActionButtons.Clear;
+  HideRowActionButtons;
+  //FActionButtons.Clear;
 end;
 
 procedure TksListView.DoDeselectTimer(Sender: TObject);
@@ -3067,7 +3079,7 @@ begin
         DeselectRow;
 
       FScrolling := True;
-      FScrollTimer.Interval := 50;
+      FScrollTimer.Interval := 200;
       //FScrollTimer.Enabled := True;
       FLastScrollPos := ScrollViewPos;
       if ScrollViewPos > FLastScrollPos then
@@ -3101,6 +3113,12 @@ begin
     end;
   end;
   FLastScrollPos := ScrollViewPos;
+end;
+
+procedure TksListView.DoSearchFilterChanged(Sender: TObject; var Key: Word; var KeyChar: Char; Shift: TShiftState);
+begin
+  if Assigned(FOnSearchFilterChanged) then
+    FOnSearchFilterChanged(Self, FSearchEdit.Text);
 end;
 
 procedure TksListView.DoSelectDate(Sender: TObject);
@@ -3308,7 +3326,7 @@ var
 begin
   inherited;
 
-  FActionButtons.Clear;
+  HideRowActionButtons;
   ARow := GetRowFromYPos(y);
   if (y < 0) or (ARow = nil) then
     Exit;
@@ -3321,7 +3339,6 @@ begin
 
   ARowRect := GetItemRect(ARow.Index);
 
-  FActionButtons.Clear;
   FLastIndex := ItemIndex;
   Repaint;
   FClickedRowObj := RowObjectAtPoint(ARow, x, y - ARowRect.Top);
@@ -3374,32 +3391,33 @@ begin
 
   AMouseDownRow := GetRowFromYPos(FMouseDownPos.Y);
   AMouseDownTime := MilliSecondsBetween(FMouseDownTime, Now);
-  if (ssLeft in Shift) and (ARow.Purpose = TListItemPurpose.None) then
+  if ARow <> nil then
   begin
-    if ((AMouseDownTime > 0) and (AMouseDownTime < 1000)) and (AMouseDownRow <> nil) and (AMouseDownRow = ARow) then
+    if (ssLeft in Shift) and (ARow.Purpose = TListItemPurpose.None) then
     begin
-      if (x < (FMouseDownPos.X-C_SWIPE_DISTANCE)) or (x > (FMouseDownPos.X+C_SWIPE_DISTANCE)) then
+      if ((AMouseDownTime > 0) and (AMouseDownTime < 1000)) and (AMouseDownRow <> nil) and (AMouseDownRow = ARow) then
       begin
-        ReleaseAllDownButtons;
-        FDisableMouseMove := True; //LockScrolling(ScrollViewPos);
-        ASwipeDirection := TksItemSwipeDirection.sdLeftToRight;
-        if (x < (FMouseDownPos.X - C_SWIPE_DISTANCE)) then ASwipeDirection := TksItemSwipeDirection.sdRightToLeft;
-        if (x > (FMouseDownPos.X + C_SWIPE_DISTANCE)) then ASwipeDirection := TksItemSwipeDirection.sdLeftToRight;
-        FActionButtons.Clear;
-        FActionButtons.FRow := AMouseDownRow;
+        if (x < (FMouseDownPos.X-C_SWIPE_DISTANCE)) or (x > (FMouseDownPos.X+C_SWIPE_DISTANCE)) then
+        begin
+          ReleaseAllDownButtons;
+          FDisableMouseMove := True; //LockScrolling(ScrollViewPos);
+          ASwipeDirection := TksItemSwipeDirection.sdLeftToRight;
+          if (x < (FMouseDownPos.X - C_SWIPE_DISTANCE)) then ASwipeDirection := TksItemSwipeDirection.sdRightToLeft;
+          if (x > (FMouseDownPos.X + C_SWIPE_DISTANCE)) then ASwipeDirection := TksItemSwipeDirection.sdLeftToRight;
+          FActionButtons.Clear;
+          FActionButtons.FRow := AMouseDownRow;
 
-        if Assigned(FOnItemSwipe) then
-          FOnItemSwipe(Self, AMouseDownRow, ASwipeDirection, FActionButtons);
-        if (FDeleteButton.Enabled) and (ASwipeDirection = sdRightToLeft) then
-          FActionButtons.AddDeleteButton;
-        DeselectRow;
-        ShowRowActionButtons(AMouseDownRow, ASwipeDirection, FActionButtons);
-        Exit;
+          if Assigned(FOnItemSwipe) then
+            FOnItemSwipe(Self, AMouseDownRow, ASwipeDirection, FActionButtons);
+          if (FDeleteButton.Enabled) and (ASwipeDirection = sdRightToLeft) then
+            FActionButtons.AddDeleteButton;
+          DeselectRow;
+          ShowRowActionButtons(AMouseDownRow, ASwipeDirection, FActionButtons);
+          Exit;
+        end;
       end;
     end;
   end;
-
-
 
   FCurrentMousepos := PointF(x-ItemSpaces.Left, y);
   if (FMouseDownPos = PointF(-1, -1)) then
@@ -3518,7 +3536,7 @@ begin
       // mouse up was after scrolling...
     end;
   finally
-    if (FKeepSelection = False) and (ItemIndex > -1) then
+    if ((FKeepSelection = False) and (ItemIndex > -1)) or (FActionButtons.Visible) then
     begin
       case FScrolling of
         True: DeselectRow(0);
@@ -3532,9 +3550,24 @@ begin
 end;
 
 procedure TksListView.Paint;
+var
+  ICount: integer;
 begin
+  if FSearchEdit = nil then
+  begin
+    for ICount := 0 to Children.Count-1 do
+    begin
+      if Children[ICount] is TSearchBox then
+      begin
+        FSearchEdit := (Children[ICount] as TSearchBox);
+        FSearchEdit.OnKeyUp := DoSearchFilterChanged;
+      end;
+    end;
+  end;
+
+
   if (ScrollViewPos <> FLastScrollPos) and (FActionButtons.Count > 0) then
-    FActionButtons.Clear;
+    HideRowActionButtons;
   if FIsShowing = False then
   begin
     CachePages;
@@ -4078,6 +4111,7 @@ begin
   FLabel.TextAlign := TTextAlign.Center;
   FBackground.AddObject(FLabel);
   FId := AID;
+  FVisible := True;
   FButtonType := btCustom;
 end;
 
@@ -4128,6 +4162,12 @@ begin
   FLabel.FontColor := Value;
 end;
 
+procedure TKsListItemRowActionButton.SetVisible(const Value: Boolean);
+begin
+  FVisible := Value;
+  FBackground.Visible := Value;
+end;
+
 { TksListItemRowOptionButtons }
 
 function TksListItemRowActionButtons.AddButton(AText: string;
@@ -4148,6 +4188,13 @@ constructor TksListItemRowActionButtons.Create(AOwner: TksListView);
 begin
   inherited Create(True);
   FListView := AOwner;
+end;
+
+function TksListItemRowActionButtons.GetVisible: Boolean;
+begin
+  Result := False;
+  if Count > 0 then
+    Result := Items[0].Visible;
 end;
 
 function TksListItemRowActionButtons.InsertButton(AIndex: integer;
