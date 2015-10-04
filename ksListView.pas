@@ -2939,6 +2939,7 @@ var
   ICount: integer;
   AStartX: single;
 begin
+  ScrollTo(ARow.Index);
   ARect := GetItemRect(ARow.Index);
 
   if ASwipeDirection = sdRightToLeft then
@@ -2954,7 +2955,7 @@ begin
   for i := 0 to AButtons.Count-1 do
   begin
     AButton := AButtons[i];
-    if ARect.Top < FSearchBoxHeight then
+    if (ARect.Top < FSearchBoxHeight) and (SearchVisible) then
       ARect.Top := FSearchBoxHeight;
     AButton.FBackground.Height := ARect.Height;
 
