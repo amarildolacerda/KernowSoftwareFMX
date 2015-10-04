@@ -141,7 +141,7 @@ type
     FWidth: single;
     FHeight: single;
     FConumesRowClick: Boolean;
-    FEnabled: Boolean;
+    FHitTest: Boolean;
     procedure SetRect(const Value: TRectF);
     procedure SetID(const Value: string);
     procedure Changed;
@@ -153,7 +153,6 @@ type
     function GetOffsetY: single;
     procedure SetOffsetX(const Value: single);
     procedure SetOffsetY(const Value: single);
-    procedure SetEnabled(const Value: Boolean);
   protected
     function GetConsumesRowClick: Boolean; virtual;
     procedure CalculateRect(ARowBmp: TBitmap); virtual;
@@ -177,7 +176,7 @@ type
     property OffsetY: single read GetOffsetY write SetOffsetY;
     property OffsetX: single read GetOffsetX write SetOffsetX;
     property ConsumesRowClick: Boolean read FConumesRowClick default False;
-    property Enabled: Boolean read FEnabled write SetEnabled default True;
+    property HitTest: Boolean read FHitTest write FHitTest;
   end;
 
 
@@ -1017,7 +1016,7 @@ end;
 
 procedure TksListItemRowObj.ProcessClick(x, y: single);
 begin
-  if FEnabled then
+  if (FHitTest) then
   begin
     DoClick(x, y);
     Changed;
@@ -1037,7 +1036,7 @@ begin
   CreateGUID(AGuid);
   FGuid := GUIDToString(AGuid);
   FConumesRowClick := GetConsumesRowClick;
-  FEnabled := True;
+  FHitTest := False;
 end;
 
 procedure TksListItemRowObj.DoChanged(Sender: TObject);
@@ -1087,15 +1086,6 @@ begin
     FAlign := Value;
     Changed;
   end;
-end;
-
-procedure TksListItemRowObj.SetEnabled(const Value: Boolean);
-begin
- if FEnabled <> Value then
- begin
-   FEnabled := Value;
-   Changed;
- end;
 end;
 
 procedure TksListItemRowObj.SetHeight(const Value: single);
@@ -3583,6 +3573,7 @@ constructor TksListItemRowSwitch.Create(ARow: TKsListItemRow);
 begin
   inherited Create(ARow);
   FActiveColor := C_DEFAULT_ACTIVE_SWITCH_COLOR;
+  HitTest := True;
 end;
 
 procedure TksListItemRowSwitch.DoClick(x, y: single);
@@ -3599,7 +3590,7 @@ end;
 function TksListItemRowSwitch.Render(ACanvas: TCanvas): Boolean;
 begin
   Result := inherited Render(ACanvas);
-  DrawSwitch(ACanvas, Rect, FIsChecked, FEnabled, FActiveColor);
+  DrawSwitch(ACanvas, Rect, FIsChecked, True, FActiveColor);
 end;
 
 procedure TksListItemRowSwitch.SetActiveColor(const Value: TAlphaColor);
@@ -3730,6 +3721,7 @@ begin
   inherited;
   FCaptions := TStringList.Create;
   FItemIndex := -1;
+  HitTest := True;
 end;
 
 destructor TksListItemRowSegmentButtons.Destroy;
@@ -3796,6 +3788,7 @@ begin
   inherited;
   FTintColor := claNull;
   FState := Unpressed;
+  HitTest := True;
 end;
 
 function TksListItemRowButton.GetConsumesRowClick: Boolean;
@@ -3805,7 +3798,7 @@ end;
 
 procedure TksListItemRowButton.MouseDown;
 begin
-  if FEnabled = False then
+  if FHitTest = False then
     Exit;
   inherited;
   if FState <> Pressed then
