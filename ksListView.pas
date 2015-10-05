@@ -132,6 +132,16 @@ type
     IndexEnd: integer;
   end;
 
+  TksMouseEvent = record
+    EventType: TksMouseEventType;
+    X, Y: single;
+    ID: string;
+    Row: TksListItemRow;
+    RowObj: TksListItemRowObj;
+  end;
+
+  TksMouseEventList = TList<TksMouseEvent>;
+
   TksListItemRowObj = class(TPersistent)
   strict private
     FRect: TRectF;
@@ -752,8 +762,9 @@ type
 
     FShowSelection: Boolean;
     //FDelaySelection: Boolean;
-
-
+    FMouseEvents: TksMouseEventList;
+    FMouseEventTimer: IFMXTimerService;
+    FProcessingMouseEvents: Boolean;
     function _Items: TksListViewItems;
 
     procedure DoScrollTimer(Sender: TObject);
@@ -779,6 +790,7 @@ type
     procedure SetShowSelection(const Value: Boolean);
     //procedure DoDeselectTimer(Sender: TObject);
     procedure QueueMouseEvent(AType: TksMouseEventType; X, Y: single; AId: string; ARow: TKsListItemRow; AObj: TksListItemRowObj);
+    procedure ProcessMouseEvents;
     { Private declarations }
   protected
     procedure SetColorStyle(AName: string; AColor: TAlphaColor);
@@ -2610,7 +2622,7 @@ begin
   inherited Create(AOwner);
 
   TListView(Self).OnDeleteItem := DoOnDeleteItem;
-
+  FMouseEvents := TksMouseEventList.Create;
   FItems := TKsListItemRows.Create(Self, inherited Items);
   FCombo := TComboBox.Create(nil);
   FCombo.OnClosePopup := ComboClosePopup;
@@ -2621,6 +2633,8 @@ begin
   FDeleteButton := TksDeleteButton.Create;
   FScreenScale := GetScreenScale;
   FAppearence := TksListViewAppearence.Create(Self);
+  TPlatformServices.Current.SupportsPlatformService(IFMXTimerService, FMouseEventTimer);
+  FMouseEventTimer.CreateTimer(250, ProcessMouseEvents);
   FItemHeight := 44;
   FHeaderHeight := 44;
   FLastWidth := 0;
@@ -2646,6 +2660,7 @@ begin
   FMouseDownPos := PointF(-1, -1);
   //FDisableMouseMove := False;
   FFullWidthSeparator := True;
+  FProcessingMouseEvents := False;
 end;
 
 procedure TksListView.DeselectRow(const ADelay: integer = 0);
@@ -2681,7 +2696,7 @@ begin
   FreeAndNil(FActionButtons);
   FreeAndNil(FPageCaching);
   FreeAndNil(FDeleteButton);
-
+  FreeAndNil(FMouseEvents);
   {$IFDEF NEXTGEN}
   FScrollTimer.DisposeOf;
   //FDeselectTimer.DisposeOf;
@@ -3479,7 +3494,6 @@ begin
             FActionButtons.AddDeleteButton;
           DeselectRow;
 
-          Application.MainForm.Caption := inttostr(FActionButtons.Count);
           FActionButtons.InitializeActionButtons(AMouseDownRow, ASwipeDirection);
           Exit;
         end;
@@ -3655,12 +3669,44 @@ begin
   end;
 end;
 
+procedure TksListView.ProcessMouseEvents;
+var
+  AEvent: TksMouseEvent;
+begin
+  if FProcessingMouseEvents then
+    Exit;
+  FProcessingMouseEvents := True;
+  try
+    while FMouseEvents.Count > 0 do
+    begin
+      AEvent := FMouseEvents[0];
+      case AEvent.EventType of
+        ksMouseItemClick      : if Assigned(FOnItemClick) then FOnItemClick(Self, AEvent.x, AEvent.y, AEvent.Row, AEvent.ID, AEvent.RowObj);
+        ksMouseItemRightClick : if Assigned(FOnItemRightClick) then FOnItemRightClick(Self, AEvent.x, AEvent.y, AEvent.Row, AEvent.ID, AEvent.RowObj);
+        ksMouseLongPress      : if Assigned(FOnLongClick) then FOnLongClick(Self, AEvent.x, AEvent.y, AEvent.Row, AEvent.ID, AEvent.RowObj);
+      end;
+      FMouseEvents.Delete(0);
+    end;
+  finally
+    FProcessingMouseEvents := False;
+  end;
+end;
+
 procedure TksListView.QueueMouseEvent(AType: TksMouseEventType; X, Y: single;
   AId: string; ARow: TKsListItemRow; AObj: TksListItemRowObj);
 var
-  ATask: ITask;
+  AEvent: TksMouseEvent;
+  //ATask: ITask;
 begin
-  ATask := TTask.Run(
+  AEvent.EventType := AType;
+  AEvent.X := X;
+  AEvent.Y := Y;
+  AEvent.ID := AId;
+  AEvent.Row := ARow;
+  AEvent.RowObj := AObj;
+  FMouseEvents.Add(AEvent);
+
+  {ATask := TTask.Run(
   procedure
   begin
     TThread.Queue(Nil,
@@ -3674,7 +3720,7 @@ begin
       end
     );
   end);
-  TTask.WaitForAny(ATask);
+  TTask.WaitForAny(ATask);}
 end;
 
 { TksListItemRowSwitch }
