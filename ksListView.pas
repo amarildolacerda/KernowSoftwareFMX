@@ -2649,10 +2649,12 @@ begin
 end;
 
 procedure TksListView.DeselectRow(const ADelay: integer = 0);
+var
+  ATask: ITask;
 begin
   if ItemIndex = -1 then
     Exit;
-  TTask.Run(
+  ATask := TTask.Run(
   procedure
   begin
     TThread.Queue(Nil,
@@ -2667,6 +2669,7 @@ begin
     );
   end
 );
+  TTask.WaitForAll([ATask]);
 end;
 
 destructor TksListView.Destroy;
@@ -3428,20 +3431,6 @@ begin
     ItemIndex := FLastIndex;
     Invalidate;
   end;
-
-  {TTask.Run(
-    procedure
-    begin
-      Sleep(100);
-      TThread.Queue(Nil,
-        procedure
-        begin
-          //FDelaySelection := False;
-          Invalidate;
-        end
-      );
-    end
-  );     }
 end;
 
 procedure TksListView.MouseMove(Shift: TShiftState; X, Y: Single);
@@ -3668,22 +3657,24 @@ end;
 
 procedure TksListView.QueueMouseEvent(AType: TksMouseEventType; X, Y: single;
   AId: string; ARow: TKsListItemRow; AObj: TksListItemRowObj);
+var
+  ATask: ITask;
 begin
-    TTask.Run(
-    procedure
-    begin
-      TThread.Queue(Nil,
-        procedure
-        begin
-          case AType of
-            ksMouseItemClick      : if Assigned(FOnItemClick) then FOnItemClick(Self, x, y, ARow, AId, AObj);
-            ksMouseItemRightClick : if Assigned(FOnItemRightClick) then FOnItemRightClick(Self, x, y, ARow, AId, AObj);
-            ksMouseLongPress      : if Assigned(FOnLongClick) then FOnLongClick(Self, x, y, ARow, AId, AObj);
-          end;
-        end
-      );
-    end
-  );
+  ATask := TTask.Run(
+  procedure
+  begin
+    TThread.Queue(Nil,
+      procedure
+      begin
+        case AType of
+          ksMouseItemClick      : if Assigned(FOnItemClick) then FOnItemClick(Self, x, y, ARow, AId, AObj);
+          ksMouseItemRightClick : if Assigned(FOnItemRightClick) then FOnItemRightClick(Self, x, y, ARow, AId, AObj);
+          ksMouseLongPress      : if Assigned(FOnLongClick) then FOnLongClick(Self, x, y, ARow, AId, AObj);
+        end;
+      end
+    );
+  end);
+  TTask.WaitForAny(ATask);
 end;
 
 { TksListItemRowSwitch }
