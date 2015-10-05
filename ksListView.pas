@@ -4395,7 +4395,8 @@ var
   ABtn: TksListItemRowActionButton;
   ATask: ITask;
 begin
-  if FState <> ksActionBtnVisible then
+
+  if (FState <> ksActionBtnVisible) or (Count = 0) then
     Exit;
   FState := ksActopmBtnAnimOut;
   for ICount := 0 to Count-1 do
@@ -4436,7 +4437,7 @@ var
   ICount: integer;
   ABtn: TksListItemRowActionButton;
 begin
-  if FState <> ksActionBtnHidden then
+  if (FState <> ksActionBtnHidden) or (Count = 0) then
     Exit;
   FState := ksActionBtnAnimIn;
   for ICount := 0 to Count-1 do
