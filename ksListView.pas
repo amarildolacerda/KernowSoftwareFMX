@@ -3360,10 +3360,12 @@ var
 
 begin
   inherited;
-  //FDelaySelection := True;
 
   if FActionButtons.Visible then
+  begin
+    ItemIndex := -1;
     FActionButtons.Hide;
+  end;
 
   ARow := GetRowFromYPos(y);
   if (y < 0) or (ARow = nil) then
