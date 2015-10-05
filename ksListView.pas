@@ -77,6 +77,8 @@ const
   C_DEFAULT_SEPARATOR_COLOR = $FFE0E0E0;
   C_PLATFORM_ACCESSORY_COLOR = claSilver;
 
+  C_ACTION_BTN_ANIMATION_SPEED = 0.2;
+
 type
   TksListView = class;
   TKsListItemRow = class;
@@ -100,6 +102,7 @@ type
   TksListItemRowSelector = (NoSelector, DateSelector, ItemPicker);
   TksScrollDirection = (sdUp, sdDown);
   TksItemSwipeDirection = (sdLeftToRight, sdRightToLeft);
+  TksActionButtonState = (ksActionBtnVisible, ksActionBtnHidden, ksActionBtnAnimIn, ksActopmBtnAnimOut);
 
   TksMouseEventType = (ksMouseItemClick, ksMouseItemRightClick, ksMouseDown, ksMouseMove, ksMouseUp, ksMouseLongPress);
 
@@ -397,7 +400,11 @@ type
     FRow: TksListItemRow;
     FButtonType: TksActionButtonType;
     FVisible: Boolean;
+    FWidth: integer;
+    FOffscreenXPos: single;
+    FOnScreenXPos: single;
     function GetText: string;
+    //function GetVisibleXPos: integer;
     procedure SetText(const Value: string);
     function GetColor: TAlphaColor;
     procedure SetColor(const Value: TAlphaColor);
@@ -418,24 +425,30 @@ type
     property ID: string read FID;
     property ButtonType: TksActionButtonType read FButtonType;
     property Visible: Boolean read FVisible write SetVisible default True;
+    property Width: integer read FWidth write FWidth default C_DEFAULT_ACTION_BUTTON_WIDTH;
   end;
 
   TksListItemRowActionButtons = class(TObjectList<TksListItemRowActionButton>)
   private
     FListView: TksListView;
     FRow: TksListItemRow;
-    FVisible: Boolean;
+    //FVisible: Boolean;
     FSwipeDirection: TksItemSwipeDirection;
+    FState: TksActionButtonState;
+    function GetVisibleXPos(ABtn: TksListItemRowActionButton; ARowRect: TRectF; ASwipeDirection: TksItemSwipeDirection): single;
     function InsertButton(AIndex: integer; AText: string; AColor, ATextColor: TAlphaColor; const AButtonID: string = ''): TksListItemRowActionButton;
     procedure AddDeleteButton;
-    function GetVisible: Boolean;
-    procedure SetVisible(const Value: Boolean);
+    
+    function GetIsAnimating: Boolean;
   public
     constructor Create(AOwner: TksListView);
     function AddButton(AText: string; AColor, ATextColor: TAlphaColor; const AButtonID: string = ''): TksListItemRowActionButton;
-    procedure ShowActionButtons(ARow: TKsListItemRow; ASwipeDirection: TksItemSwipeDirection);
+    procedure InitializeActionButtons(ARow: TKsListItemRow; ASwipeDirection: TksItemSwipeDirection);
+    procedure Show;
     procedure Hide;
-    property Visible: Boolean read GetVisible write SetVisible;
+    property State: TksActionButtonState read FState;
+    property IsAnimating: Boolean read GetIsAnimating;
+    //property Visible: Boolean read GetVisible write SetVisible;
 
 
   end;
@@ -1848,7 +1861,7 @@ begin
       Canvas.Fill.Color := FBackgroundColor;
 
     begin
-      if (Index = ListView.ItemIndex) and (ListView.FActionButtons.Visible = False) and  (ListView.FShowSelection) and (CanSelect) then
+      if (Index = ListView.ItemIndex) and (ListView.FActionButtons.FState = ksActionBtnHidden) and  (ListView.FShowSelection) and (CanSelect) then
         Canvas.Fill.Color := GetColorOrDefault(ListView.Appearence.SelectedColor, C_DEFAULT_SELECTED_COLOR);
 
     end;
@@ -3357,15 +3370,19 @@ procedure TksListView.MouseDown(Button: TMouseButton; Shift: TShiftState;
 var
   ARow: TKsListItemRow;
   ARowRect: TRectF;
-
 begin
-  inherited;
+  if FActionButtons.State = ksActionBtnAnimIn then
+    Exit;
 
-  if FActionButtons.Visible then
+  if FActionButtons.State = ksActionBtnVisible then
   begin
     ItemIndex := -1;
     FActionButtons.Hide;
+    Invalidate;
+    Exit;
   end;
+
+  inherited;
 
   ARow := GetRowFromYPos(y);
   if (y < 0) or (ARow = nil) then
@@ -3434,7 +3451,10 @@ var
   AMouseDownTime: integer;
   AMouseDownRow: TKsListItemRow;
 begin
-  if FActionButtons.Visible then
+  if FActionButtons.State = ksActionBtnAnimIn then
+    Exit;
+
+  if FActionButtons.State <> ksActionBtnHidden then
     Exit; // prevent scrolling when action buttons are visible.
 
   inherited;
@@ -3470,7 +3490,8 @@ begin
             FActionButtons.AddDeleteButton;
           DeselectRow;
 
-          FActionButtons.ShowActionButtons(AMouseDownRow, ASwipeDirection);
+          Application.MainForm.Caption := inttostr(FActionButtons.Count);
+          FActionButtons.InitializeActionButtons(AMouseDownRow, ASwipeDirection);
           Exit;
         end;
       end;
@@ -3510,14 +3531,15 @@ var
   AMouseDownTime: integer;
   AObjectConsumesClick: Boolean;
 begin
-  if FActionButtons.Visible then
-    Exit; // prevent scrolling when action buttons are visible.
+  if FActionButtons.State in [ksActionBtnVisible, ksActionBtnAnimIn] then
+    Exit;
+
+  //if FActionButtons.State <> ksActionBtnHidden then
+  //  Exit; // prevent scrolling when action buttons are visible.
 
   inherited;
   try
     if y < 0 then
-      Exit;
-    if FActionButtons.Visible then
       Exit;
 
     AObjectConsumesClick := False;
@@ -3603,9 +3625,9 @@ begin
       // mouse up was after scrolling...
     end;
   finally
-    if ((FKeepSelection = False) and (ItemIndex > -1)) or (FActionButtons.Visible) then
+    if (FKeepSelection = False) and (ItemIndex > -1) then
     begin
-      case ((FScrolling) or (FActionButtons.Visible)) of
+      case FScrolling of
         True: DeselectRow(0);
         False: DeselectRow(200);
       end;
@@ -3634,7 +3656,7 @@ begin
   end;
 
 
-  if (ScrollViewPos <> FLastScrollPos) and (FActionButtons.Visible) then
+  if (ScrollViewPos <> FLastScrollPos) and (FActionButtons.State <> ksActionBtnHidden) then
     FActionButtons.Hide;
 
   if FIsShowing = False then
@@ -4197,6 +4219,7 @@ begin
   FLabel.Align := TAlignLayout.Client;
   FLabel.StyledSettings := [];
   FLabel.FontColor := C_DEFAULT_ACTION_BUTTON_TEXT_COLOR;
+  FWidth := C_DEFAULT_ACTION_BUTTON_WIDTH;
   FLabel.Font.Size := 13;
   FLabel.Text := Text;
   FLabel.TextSettings.HorzAlign := TTextAlign.Center;
@@ -4270,48 +4293,43 @@ begin
   Result := InsertButton(Count, AText, AColor, ATextColor, AButtonID);
 end;
 
-procedure TksListItemRowActionButtons.ShowActionButtons(ARow: TKsListItemRow; ASwipeDirection: TksItemSwipeDirection);
+procedure TksListItemRowActionButtons.InitializeActionButtons(ARow: TKsListItemRow; ASwipeDirection: TksItemSwipeDirection);
 var
   ARect: TRectF;
-  i: integer;
   ABtn: TksListItemRowActionButton;
   ICount: integer;
-  AStartX: single;
 begin
-  FVisible := True;
   FSwipeDirection := ASwipeDirection;
   ARect := FListView.GetItemRect(ARow.Index);
 
-  if ASwipeDirection = sdRightToLeft then
+  for ICount := 0 to Count-1 do
   begin
-    AStartX := ARect.Right;
-
-  end
-  else
-  begin
-    AStartX := ARect.Left - C_DEFAULT_ACTION_BUTTON_WIDTH;
+    if ASwipeDirection = sdRightToLeft then
+    begin
+      Items[ICount].FOffscreenXPos := ARect.Right;
+    end
+    else
+    begin
+      Items[ICount].FOffscreenXPos := ARect.Left - Items[ICount].Width;
+    end;
+    Items[ICount].FOnScreenXPos := GetVisibleXPos(Items[ICount], ARect, ASwipeDirection);
+    //Items[Icount].Text := floattostr(Items[ICount].FOnScreenXPos);
   end;
 
-  for i := 0 to Count-1 do
+  for ICount := 0 to Count-1 do
   begin
-    ABtn := Items[i];
+    ABtn := Items[ICount];
     if (ARect.Top < FListView.FSearchBoxHeight) and (FListView.SearchVisible) then
       ARect.Top := FListView.FSearchBoxHeight;
     ABtn.FBackground.Height := ARect.Height;
-
-    ABtn.FBackground.Position.X := AStartX;
+    ABtn.FLabel.Text := ABtn.Text;
+    ABtn.FBackground.Position.X := Items[ICount].FOffscreenXPos;
     ABtn.FBackground.Position.Y := ARect.Top;
-    ABtn.FBackground.Width := C_DEFAULT_ACTION_BUTTON_WIDTH;
+    ABtn.FBackground.Width := ABtn.Width;// C_DEFAULT_ACTION_BUTTON_WIDTH;
     FListView.AddObject(ABtn.FBackground);
   end;
-  for ICount := 1 to Count do
-  begin
-    ABtn := Items[ICount-1];
-    case ASwipeDirection of
-      sdRightToLeft: TAnimator.AnimateFloat(ABtn.FBackground, 'Position.X', (AStartX-(C_DEFAULT_ACTION_BUTTON_WIDTH*ICount)), 0.2);
-      sdLeftToRight: TAnimator.AnimateFloat(ABtn.FBackground, 'Position.X', (AStartX+(C_DEFAULT_ACTION_BUTTON_WIDTH*ICount)), 0.2);
-    end;
-  end;
+
+  Show;
 end;
 
 procedure TksListItemRowActionButtons.AddDeleteButton;
@@ -4333,22 +4351,71 @@ constructor TksListItemRowActionButtons.Create(AOwner: TksListView);
 begin
   inherited Create(True);
   FListView := AOwner;
-  FVisible := False;
+  
+  FState := ksActionBtnHidden;
 end;
 
-function TksListItemRowActionButtons.GetVisible: Boolean;
+function TksListItemRowActionButtons.GetIsAnimating: Boolean;
 begin
-  {Result := False;
-  if Count > 0 then
-    Result := Items[0].Visible; }
-  Result := FVisible;
+  Result := FState in [ksActionBtnAnimIn, ksActopmBtnAnimOut];
+end;
+
+function TksListItemRowActionButtons.GetVisibleXPos(
+  ABtn: TksListItemRowActionButton; ARowRect: TRectF; 
+  ASwipeDirection: TksItemSwipeDirection): single;
+var
+  ICount: integer;
+begin
+  if ASwipeDirection = sdLeftToRight then
+  begin
+    Result := 0;
+    for ICount := 0 to Count-1 do
+    begin
+      if Items[ICount] = ABtn then
+        Exit
+      else
+        Result := Result + Items[ICount].Width;
+    end;
+  end
+  else
+  begin
+    Result := ARowRect.Right;
+    for ICount := 0 to Count-1 do
+    begin
+      Result := Result - Items[ICount].Width;
+      if Items[ICount] = ABtn then
+        Exit   
+    end;
+  end;
 end;
 
 procedure TksListItemRowActionButtons.Hide;
+var
+  ICount: integer;
+  ABtn: TksListItemRowActionButton;
+  ATask: ITask;
 begin
-  if not FVisible then
+  if FState <> ksActionBtnVisible then
     Exit;
-  Visible := False;
+  FState := ksActopmBtnAnimOut;
+  for ICount := 0 to Count-1 do
+  begin
+    ABtn := Items[ICount];
+    TAnimator.AnimateFloat(ABtn.FBackground, 'Position.X', ABtn.FOffscreenXPos, C_ACTION_BTN_ANIMATION_SPEED)
+  end;
+
+  while Items[0].FBackground.Position.X <> Items[0].FOnScreenXPos do
+    Application.ProcessMessages;
+
+  //FState := ksActionBtnHidden;
+
+  ATask := TTask.Create (procedure ()
+   begin
+     sleep (Round(C_ACTION_BTN_ANIMATION_SPEED*1000));
+     FState := ksActionBtnHidden;
+   end);
+   aTask.Start;
+  
 end;
 
 function TksListItemRowActionButtons.InsertButton(AIndex: integer;
@@ -4363,14 +4430,29 @@ begin
   Insert(AIndex, Result);
 end;
 
-procedure TksListItemRowActionButtons.SetVisible(const Value: Boolean);
+procedure TksListItemRowActionButtons.Show;
 var
+  ATask: ITask;
   ICount: integer;
+  ABtn: TksListItemRowActionButton;
 begin
+  if FState <> ksActionBtnHidden then
+    Exit;
+  FState := ksActionBtnAnimIn;
   for ICount := 0 to Count-1 do
-    Items[ICount].Visible := False;
-  FVisible := False;
+  begin
+    ABtn := Items[ICount];
+    TAnimator.AnimateFloat(ABtn.FBackground, 'Position.X', (ABtn.FOnScreenXPos), C_ACTION_BTN_ANIMATION_SPEED); 
+  end;
+
+ ATask := TTask.Create (procedure ()
+   begin
+     sleep (Round(C_ACTION_BTN_ANIMATION_SPEED*1000)); // 3 seconds
+     FState := ksActionBtnVisible;
+   end);
+ aTask.Start;
 end;
+
 
 { TksPageCaching }
 
