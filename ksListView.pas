@@ -101,6 +101,10 @@ type
   TksScrollDirection = (sdUp, sdDown);
   TksItemSwipeDirection = (sdLeftToRight, sdRightToLeft);
 
+  TksMouseEventType = (ksMouseItemClick, ksMouseItemRightClick, ksMouseDown, ksMouseMove, ksMouseUp, ksMouseLongPress);
+
+
+
   {$IFDEF XE10_OR_NEWER}
   TksListViewItems = TAppearanceListViewItems;
   {$ELSE}
@@ -124,8 +128,6 @@ type
     IndexStart: integer;
     IndexEnd: integer;
   end;
-
-
 
   TksListItemRowObj = class(TPersistent)
   strict private
@@ -460,6 +462,7 @@ type
     FLastHeight: single;
     FBackgroundColor: TAlphaColor;
     FUpdating: Boolean;
+
     function RowHeight(const AScale: Boolean = True): single;
     function RowWidth(const AScale: Boolean = True): single;
     function GetListView: TksListView;
@@ -685,7 +688,6 @@ type
     FMouseDownPos: TPointF;
     FCurrentMousepos: TPointF;
     FItemHeight: integer;
-    //FClickTimer: TTimer;
     FLastWidth: integer;
     FOnLongClick: TksListViewRowClickEvent;
     FClickedRowObj: TksListItemRowObj;
@@ -726,12 +728,14 @@ type
     FPageCaching: TksPageCaching;
     FFullWidthSeparator: Boolean;
     FDeleteButton: TksDeleteButton;
-    FDeselectTimer: TTimer;
+    //FDeselectTimer: TTimer;
     FSearchEdit: TSearchBox;
     FOnSearchFilterChanged: TksSearchFilterChange;
-    FDelaySelection: Boolean;
+
     FShowSelection: Boolean;
-    FDelaySelect: TTimer;
+    FDelaySelection: Boolean;
+
+
     function _Items: TksListViewItems;
 
     procedure DoScrollTimer(Sender: TObject);
@@ -755,8 +759,8 @@ type
     procedure DeselectRow(const ADelay: integer = 0);
     procedure DoSearchFilterChanged(Sender: TObject; var Key: Word; var KeyChar: Char; Shift: TShiftState);
     procedure SetShowSelection(const Value: Boolean);
-    procedure DoDeselectTimer(Sender: TObject);
-    procedure DoDelaySelect(Sender: TObject);
+    //procedure DoDeselectTimer(Sender: TObject);
+    procedure QueueMouseEvent(AType: TksMouseEventType; X, Y: single; AId: string; ARow: TKsListItemRow; AObj: TksListItemRowObj);
     { Private declarations }
   protected
     procedure SetColorStyle(AName: string; AColor: TAlphaColor);
@@ -926,7 +930,7 @@ procedure Register;
 
 implementation
 
-uses SysUtils, FMX.Platform, ksDrawFunctions, FMX.Ani,
+uses SysUtils, FMX.Platform, ksDrawFunctions, FMX.Ani, System.Threading,
   System.StrUtils, DateUtils, FMX.Forms, Math, ksSlideMenu;
 
 var
@@ -1795,13 +1799,6 @@ begin
   if ListView.FUpdateCount > 0 then
     Exit;
 
-  {if Height <> FLastHeight then
-  begin
-    FCached := False;
-    CacheRow;
-    FLastHeight := Height;
-  end; }
-
   ANextItemIsHeader := False;
   if Index < ListView.Items.Count-1 then
   begin
@@ -2602,12 +2599,8 @@ begin
   FDeleteButton := TksDeleteButton.Create;
   FScreenScale := GetScreenScale;
   FAppearence := TksListViewAppearence.Create(Self);
-  FDeselectTimer := TTimer.Create(nil);
-  FDelaySelect := TTimer.Create(nil);
   FItemHeight := 44;
   FHeaderHeight := 44;
-
-  //FClickTimer := TTimer.Create(Self);
   FLastWidth := 0;
   FSelectOnRightClick := False;
   FLastScrollPos := 0;
@@ -2631,24 +2624,24 @@ begin
   FMouseDownPos := PointF(-1, -1);
   FDisableMouseMove := False;
   FFullWidthSeparator := True;
-  FDelaySelection := False;
 end;
 
 procedure TksListView.DeselectRow(const ADelay: integer = 0);
 begin
-  if ADelay > 0 then
-  begin
-    //Invalidate;
-    //Sleep(ADelay);
-    //ShowMessage(inttostr(ItemIndex));
-    FDeselectTimer.Interval := ADelay;
-    FDeselectTimer.OnTimer := DoDeselectTimer;
-    FDeselectTimer.Enabled := True;
-    Exit;
-  end;
-
-  ItemIndex := -1;
-  Repaint;
+    TTask.Run(
+    procedure
+    begin
+      TThread.Queue(Nil,
+        procedure
+        begin
+          if ADelay > 0 then
+            Sleep(ADelay);
+          ItemIndex := -1;
+          Invalidate;
+        end
+      );
+    end
+  );
 end;
 
 destructor TksListView.Destroy;
@@ -2663,14 +2656,14 @@ begin
 
   {$IFDEF NEXTGEN}
   FScrollTimer.DisposeOf;
-  FDeselectTimer.DisposeOf;
-  FDelaySelect.DisposeOf;
+  //FDeselectTimer.DisposeOf;
+  //FDelaySelect.DisposeOf;
   FCombo.DisposeOf;
   FDateSelector.DisposeOf;
   {$ELSE}
   FScrollTimer.Free;
-  FDeselectTimer.Free;
-  FDelaySelect.Free;
+  //FDeselectTimer.Free;
+  //FDelaySelect.Free;
   FCombo.Free;
   FDateSelector.Free;
   FActionButtons.Free;
@@ -3057,19 +3050,19 @@ begin
   HideRowActionButtons;
   //FActionButtons.Clear;
 end;
-
+      {
 procedure TksListView.DoDelaySelect(Sender: TObject);
 begin
   FDelaySelect.Enabled := False;
   FDelaySelection := False;
   Repaint;
 end;
-
-procedure TksListView.DoDeselectTimer(Sender: TObject);
+        }
+{procedure TksListView.DoDeselectTimer(Sender: TObject);
 begin
   FDeselectTimer.Enabled := False;
   DeselectRow(0);
-end;
+end; }
 
 {$IFNDEF XE10_OR_NEWER}
 
@@ -3370,7 +3363,6 @@ begin
   ARowRect := GetItemRect(ARow.Index);
 
   FLastIndex := ItemIndex;
-  //Invalidate;
   FClickedRowObj := RowObjectAtPoint(ARow, x, y - ARowRect.Top);
   if FClickedRowObj <> nil then
   begin
@@ -3384,7 +3376,6 @@ begin
     if FClickedRowObj.ConsumesRowClick then
     begin
       DeselectRow;
-      //Repaint;
       Invalidate;
     end;
     FClickedRowObj.MouseDown;
@@ -3403,9 +3394,20 @@ begin
     ItemIndex := FLastIndex;
     Invalidate;
   end;
-  FDelaySelect.Interval := 200;
-  FDelaySelect.OnTimer := DoDelaySelect;
-  FDelaySelect.Enabled := True;
+
+  TTask.Run(
+    procedure
+    begin
+      TThread.Queue(Nil,
+        procedure
+        begin
+          Sleep(200);
+          FDelaySelection := False;
+          Invalidate;
+        end
+      );
+    end
+  );
 end;
 
 procedure TksListView.MouseMove(Shift: TShiftState; X, Y: Single);
@@ -3501,7 +3503,6 @@ begin
 
     if FClickedRowObj <> nil then
     begin
-      //lickedRowObj.MouseUp;
       AObjectConsumesClick := (FClickedRowObj.ConsumesRowClick);
       if (AObjectConsumesClick) then
         DeselectRow
@@ -3534,16 +3535,17 @@ begin
         else
           Invalidate;
         // remove row selection?
-        //Application.ProcessMessages;
+        Application.ProcessMessages;
         ARow.ProcessClick;
         if (ARow.CanSelect) and (AObjectConsumesClick = False) then
         begin
           // left click...
-          if (Assigned(FOnItemClick)) and (Button = TMouseButton.mbLeft) then
-            FOnItemClick(Self, x, y, ARow, AId, FClickedRowObj);
+          if (Button = TMouseButton.mbLeft) then
+            QueueMouseEvent(ksMouseItemClick, X, Y, AId, ARow, FClickedRowObj);
           // right click...
           if (Assigned(FOnItemRightClick)) and (Button = TMouseButton.mbRight) then
-            FOnItemRightClick(Self, x, y, ARow, AId, FClickedRowObj);
+            QueueMouseEvent(ksMouseItemRightClick, X, Y, AId, ARow, FClickedRowObj);
+
         end;
 
         if FClickedRowObj <> nil then
@@ -3578,7 +3580,7 @@ begin
   finally
     if ((FKeepSelection = False) and (ItemIndex > -1)) or (FActionButtons.Visible) then
     begin
-      case FScrolling of
+      case ((FScrolling) or (FActionButtons.Visible)) of
         True: DeselectRow(0);
         False: DeselectRow(200);
       end;
@@ -3614,6 +3616,26 @@ begin
     FIsShowing := True;
   end;
   inherited;
+end;
+
+procedure TksListView.QueueMouseEvent(AType: TksMouseEventType; X, Y: single;
+  AId: string; ARow: TKsListItemRow; AObj: TksListItemRowObj);
+begin
+    TTask.Run(
+    procedure
+    begin
+      TThread.Queue(Nil,
+        procedure
+        begin
+          case AType of
+            ksMouseItemClick      : if Assigned(FOnItemClick) then FOnItemClick(Self, x, y, ARow, AId, AObj);
+            ksMouseItemRightClick : if Assigned(FOnItemRightClick) then FOnItemRightClick(Self, x, y, ARow, AId, AObj);
+            ksMouseLongPress      : if Assigned(FOnLongClick) then FOnLongClick(Self, x, y, ARow, AId, AObj);
+          end;
+        end
+      );
+    end
+  );
 end;
 
 { TksListItemRowSwitch }
