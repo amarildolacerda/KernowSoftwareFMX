@@ -258,6 +258,9 @@ type
 
   procedure Register;
 
+var
+  SlideMenuAnimating: Boolean;
+
 implementation
 
 uses FMX.Platform, SysUtils, FMX.Ani, FMX.Pickers, Math, ksDrawFunctions;
@@ -382,6 +385,7 @@ var
 begin
   AForm := (Owner as TForm);
   FFormImage.Visible := false;
+
   FMenu.Visible := False;
   ABmp := TBitmap.Create;
   try
@@ -396,6 +400,8 @@ begin
     ABmp.Canvas.Stroke.Color := claBlack;
     ABmp.Canvas.StrokeThickness := 1;
     ABmp.Canvas.DrawLine(PointF(0, 0), PointF(0, ABmp.Height), 1);
+    {ABmp.Canvas.Fill.Color := claFuchsia;
+    ABmp.Canvas.FillEllipse(RectF(0, 0, 100, 100), 1);}
     ABmp.Canvas.EndScene;
 
     FFormImage.Width := Round(AForm.Width);
@@ -647,7 +653,7 @@ begin
   AForm := (Owner as TForm);
   ABmp := TBitmap.Create(Round(C_MENU_WIDTH * GetScreenScale), Round(AForm.ClientHeight * GetScreenScale));
   try
-    FMenuImage := TImage.Create(AForm);
+     FMenuImage := TImage.Create(AForm);
     FMenuImage.Width := C_MENU_WIDTH;
     FMenuImage.Height := AForm.ClientHeight;
     case FMenuPosition of
@@ -667,7 +673,11 @@ begin
     ABmp.Canvas.EndScene;
     FMenuImage.Bitmap := ABmp;
   finally
+    {$IFDEF NEXTGEN}
+    ABmp.DisposeOf;
+    {$ELSE}
     ABmp.Free;
+    {$ENDIF}
   end;
 end;
 
@@ -686,6 +696,9 @@ var
   AStartXPos: single;
   ANewXPos: single;
   AForm: TForm;
+  {$IFNDEF XE10_OR_NEWER}
+  ICount: integer;
+  {$ENDIF}
 begin
   if FAnimating then
     Exit;
@@ -735,18 +748,43 @@ begin
     if FMenu.FListView.Items.Count = 0 then
       UpdateMenu;
 
+
     SwitchMenuToImage;
     AForm.RemoveObject(FMenu);
-    //FMenu.Position.X := 0;
     AForm.InsertObject(AForm.ChildrenCount-1, FMenuImage);
 
-    Application.ProcessMessages;
 
     FFormImage.HitTest := False;
+
+    //
+    SlideMenuAnimating := True;
+    {$IFDEF XE10_OR_NEWER}
     TAnimator.AnimateFloatWait(FFormImage, 'Position.X', ANewXPos, FSlideSpeed);
+    {$ELSE}
+    if ANewXPos < FFormImage.Position.X then
+    begin
+      for ICount := Round(FFormImage.Position.X) downto Round(ANewXPos) do
+      begin
+        FFormImage.Position.X := ICount;
+        if ICount mod 10 = 0 then
+          Application.ProcessMessages;
+      end;
+    end
+    else
+    begin
+      for ICount := Round(FFormImage.Position.X) to Round(ANewXPos) do
+      begin
+        FFormImage.Position.X := ICount;
+        if ICount mod 10 = 0 then
+          Application.ProcessMessages;
+      end;
+    end;
+    {$ENDIF}
+    SlideMenuAnimating := False;
     FFormImage.HitTest := True;
 
     FShowing := not FShowing;
+
 
     if FShowing = False then
     begin
@@ -755,8 +793,10 @@ begin
     end
     else
       SwitchImageToMenu;
+
     AForm.RemoveObject(FMenuImage);
     Application.ProcessMessages;
+
   finally
     FAnimating := False;
   end;
@@ -1070,9 +1110,17 @@ begin
 
     FHeader.Bitmap := ABmp;
   finally
+    {$IFDEF NEXTGEN}
+    ABmp.DisposeOf;
+    {$ELSE}
     ABmp.Free;
+    {$ENDIF}
   end;
 end;
+
+initialization
+
+  SlideMenuAnimating := False;
 
 end.
 

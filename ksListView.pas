@@ -440,22 +440,27 @@ type
 
   TksListItemRowActionButtons = class(TObjectList<TksListItemRowActionButton>)
   private
+    FTimerService: IFMXTimerService;
     FListView: TksListView;
     FRow: TksListItemRow;
     //FVisible: Boolean;
     FSwipeDirection: TksItemSwipeDirection;
     FState: TksActionButtonState;
+    FShowTimer: TFmxHandle;
+    FHideTimer: TFmxHandle;
     function GetVisibleXPos(ABtn: TksListItemRowActionButton; ARowRect: TRectF; ASwipeDirection: TksItemSwipeDirection): single;
     function InsertButton(AIndex: integer; AText: string; AColor, ATextColor: TAlphaColor; const AButtonID: string = ''): TksListItemRowActionButton;
     procedure AddDeleteButton;
-    
+
     function GetIsAnimating: Boolean;
+    procedure DoAfterShow;
+    procedure DoAfterHide;
   public
     constructor Create(AOwner: TksListView);
     function AddButton(AText: string; AColor, ATextColor: TAlphaColor; const AButtonID: string = ''): TksListItemRowActionButton;
     procedure InitializeActionButtons(ARow: TKsListItemRow; ASwipeDirection: TksItemSwipeDirection);
     procedure Show;
-    procedure Hide;
+    procedure Hide(AAnimate: Boolean);
     property State: TksActionButtonState read FState;
     property IsAnimating: Boolean read GetIsAnimating;
     //property Visible: Boolean read GetVisible write SetVisible;
@@ -763,7 +768,9 @@ type
     FShowSelection: Boolean;
     //FDelaySelection: Boolean;
     FMouseEvents: TksMouseEventList;
-    FMouseEventTimer: IFMXTimerService;
+    FTimerService: IFMXTimerService;
+    FDeselectTimer: TFmxHandle;
+    FMouseEventsTimer: TFmxHandle;
     FProcessingMouseEvents: Boolean;
     function _Items: TksListViewItems;
 
@@ -791,6 +798,7 @@ type
     //procedure DoDeselectTimer(Sender: TObject);
     procedure QueueMouseEvent(AType: TksMouseEventType; X, Y: single; AId: string; ARow: TKsListItemRow; AObj: TksListItemRowObj);
     procedure ProcessMouseEvents;
+    procedure DoDeselectRow;
     { Private declarations }
   protected
     procedure SetColorStyle(AName: string; AColor: TAlphaColor);
@@ -960,7 +968,7 @@ procedure Register;
 
 implementation
 
-uses SysUtils, FMX.Platform, ksDrawFunctions, FMX.Ani, System.Threading,
+uses SysUtils, FMX.Platform, ksDrawFunctions, FMX.Ani,
   System.StrUtils, DateUtils, FMX.Forms, Math, ksSlideMenu;
 
 var
@@ -2620,6 +2628,7 @@ end;
 constructor TksListView.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
+  TPlatformServices.Current.SupportsPlatformService(IFMXTimerService, FTimerService);
 
   TListView(Self).OnDeleteItem := DoOnDeleteItem;
   FMouseEvents := TksMouseEventList.Create;
@@ -2633,8 +2642,8 @@ begin
   FDeleteButton := TksDeleteButton.Create;
   FScreenScale := GetScreenScale;
   FAppearence := TksListViewAppearence.Create(Self);
-  TPlatformServices.Current.SupportsPlatformService(IFMXTimerService, FMouseEventTimer);
-  FMouseEventTimer.CreateTimer(250, ProcessMouseEvents);
+  FMouseEventsTimer := FTimerService.CreateTimer(250, ProcessMouseEvents);
+
   FItemHeight := 44;
   FHeaderHeight := 44;
   FLastWidth := 0;
@@ -2663,8 +2672,25 @@ begin
   FProcessingMouseEvents := False;
 end;
 
+procedure TksListView.DoDeselectRow;
+begin
+  FLastIndex := -1;
+  ItemIndex := -1;
+  Invalidate;
+  FTimerService.DestroyTimer(FDeselectTimer);
+end;
+
 procedure TksListView.DeselectRow(const ADelay: integer = 0);
-var
+begin
+  if ADelay > 0 then
+  begin
+    FTimerService.DestroyTimer(FDeselectTimer);
+    FDeselectTimer := FTimerService.CreateTimer(ADelay, DoDeselectRow)
+  end
+  else
+    DoDeselectRow;
+end;
+{var
   ATask: ITask;
 begin
   if ItemIndex = -1 then
@@ -2685,7 +2711,7 @@ begin
   end
 );
   TTask.WaitForAll([ATask]);
-end;
+end; }
 
 destructor TksListView.Destroy;
 begin
@@ -2697,16 +2723,15 @@ begin
   FreeAndNil(FPageCaching);
   FreeAndNil(FDeleteButton);
   FreeAndNil(FMouseEvents);
+  // destroy FMX timers...
+  FTimerService.DestroyTimer(FMouseEventsTimer);
+
   {$IFDEF NEXTGEN}
   FScrollTimer.DisposeOf;
-  //FDeselectTimer.DisposeOf;
-  //FDelaySelect.DisposeOf;
   FCombo.DisposeOf;
   FDateSelector.DisposeOf;
   {$ELSE}
   FScrollTimer.Free;
-  //FDeselectTimer.Free;
-  //FDelaySelect.Free;
   FCombo.Free;
   FDateSelector.Free;
   FActionButtons.Free;
@@ -3089,7 +3114,7 @@ begin
     end;
   end;
 
-  FActionButtons.Hide;
+  FActionButtons.Hide(True);
   //HideRowActionButtons;
   //FActionButtons.Clear;
 end;
@@ -3261,9 +3286,9 @@ end;
 procedure TksListView.Resize;
 begin
   inherited;
+  FActionButtons.Hide(False);
   FWidth := Width;
   RedrawAllRows;
-
 end;
 
 function TksListView.RowObjectAtPoint(ARow: TKsListItemRow; x, y: single): TksListItemRowObj;
@@ -3395,7 +3420,7 @@ begin
   if FActionButtons.State = ksActionBtnVisible then
   begin
     ItemIndex := -1;
-    FActionButtons.Hide;
+    FActionButtons.Hide(True);
     Invalidate;
     Exit;
   end;
@@ -3645,7 +3670,11 @@ procedure TksListView.Paint;
 var
   ICount: integer;
 begin
+  if SlideMenuAnimating then
+    Exit;
+
   inherited;
+
   if FSearchEdit = nil then
   begin
     for ICount := 0 to Children.Count-1 do
@@ -3660,7 +3689,7 @@ begin
 
 
   if (ScrollViewPos <> FLastScrollPos) and (FActionButtons.State <> ksActionBtnHidden) then
-    FActionButtons.Hide;
+    FActionButtons.Hide(True);
 
   if FIsShowing = False then
   begin
@@ -4343,7 +4372,7 @@ begin
   begin
     if ASwipeDirection = sdRightToLeft then
     begin
-      Items[ICount].FOffscreenXPos := ARect.Right;
+      Items[ICount].FOffscreenXPos := ARect.Right+DefaultScrollBarWidth;
     end
     else
     begin
@@ -4388,8 +4417,20 @@ constructor TksListItemRowActionButtons.Create(AOwner: TksListView);
 begin
   inherited Create(True);
   FListView := AOwner;
-  
+  FTimerService := FListView.FTimerService;
   FState := ksActionBtnHidden;
+end;
+
+procedure TksListItemRowActionButtons.DoAfterHide;
+begin
+  FTimerService.DestroyTimer(FHideTimer);
+  FState := ksActionBtnHidden;
+end;
+
+procedure TksListItemRowActionButtons.DoAfterShow;
+begin
+  FTimerService.DestroyTimer(FShowTimer);
+  FState := ksActionBtnVisible;
 end;
 
 function TksListItemRowActionButtons.GetIsAnimating: Boolean;
@@ -4426,12 +4467,18 @@ begin
   end;
 end;
 
-procedure TksListItemRowActionButtons.Hide;
+procedure TksListItemRowActionButtons.Hide(AAnimate: Boolean);
 var
   ICount: integer;
   ABtn: TksListItemRowActionButton;
-  ATask: ITask;
+  //ATask: ITask;
 begin
+  if AAnimate = False then
+  begin
+    for ICount := 0 to Count-1 do
+      Items[ICount].Visible := False;
+    Exit;
+  end;
 
   if (FState <> ksActionBtnVisible) or (Count = 0) then
     Exit;
@@ -4443,17 +4490,22 @@ begin
   end;
 
   while Items[0].FBackground.Position.X <> Items[0].FOnScreenXPos do
+  begin
     Application.ProcessMessages;
+    Sleep(0);
+  end;
 
-  //FState := ksActionBtnHidden;
+  FTimerService.DestroyTimer(FHideTimer);
+  FHideTimer := FTimerService.CreateTimer(Round(C_ACTION_BTN_ANIMATION_SPEED*1000), DoAfterHide);
 
-  ATask := TTask.Create (procedure ()
+  //AHideTimer :=
+
+  {ATask := TTask.Create (procedure ()
    begin
      sleep (Round(C_ACTION_BTN_ANIMATION_SPEED*1000));
      FState := ksActionBtnHidden;
    end);
-   aTask.Start;
-  
+   aTask.Start;  }
 end;
 
 function TksListItemRowActionButtons.InsertButton(AIndex: integer;
@@ -4470,7 +4522,7 @@ end;
 
 procedure TksListItemRowActionButtons.Show;
 var
-  ATask: ITask;
+  //ATask: ITask;
   ICount: integer;
   ABtn: TksListItemRowActionButton;
 begin
@@ -4480,15 +4532,19 @@ begin
   for ICount := 0 to Count-1 do
   begin
     ABtn := Items[ICount];
-    TAnimator.AnimateFloat(ABtn.FBackground, 'Position.X', (ABtn.FOnScreenXPos), C_ACTION_BTN_ANIMATION_SPEED); 
+    ABtn.Visible := True;
+    TAnimator.AnimateFloat(ABtn.FBackground, 'Position.X', (ABtn.FOnScreenXPos), C_ACTION_BTN_ANIMATION_SPEED);
   end;
 
- ATask := TTask.Create (procedure ()
+  FTimerService.DestroyTimer(FShowTimer);
+  FShowTimer := FTimerService.CreateTimer(Round(C_ACTION_BTN_ANIMATION_SPEED*1000), DoAfterShow);
+
+ {ATask := TTask.Create (procedure ()
    begin
      sleep (Round(C_ACTION_BTN_ANIMATION_SPEED*1000)); // 3 seconds
      FState := ksActionBtnVisible;
    end);
- aTask.Start;
+ aTask.Start;  }
 end;
 
 
