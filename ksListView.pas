@@ -770,7 +770,9 @@ type
     FMouseEvents: TksMouseEventList;
     FTimerService: IFMXTimerService;
     FDeselectTimer: TFmxHandle;
+    {$IFDEF XE10_OR_NEWER}
     FMouseEventsTimer: TFmxHandle;
+    {$ENDIF}
     FProcessingMouseEvents: Boolean;
     function _Items: TksListViewItems;
 
@@ -2642,8 +2644,9 @@ begin
   FDeleteButton := TksDeleteButton.Create;
   FScreenScale := GetScreenScale;
   FAppearence := TksListViewAppearence.Create(Self);
+  {$IFDEF XE10_OR_NEWER}
   FMouseEventsTimer := FTimerService.CreateTimer(250, ProcessMouseEvents);
-
+  {$ENDIF}
   FItemHeight := 44;
   FHeaderHeight := 44;
   FLastWidth := 0;
@@ -2724,7 +2727,10 @@ begin
   FreeAndNil(FDeleteButton);
   FreeAndNil(FMouseEvents);
   // destroy FMX timers...
+
+  {$IFDEF XE10_OR_NEWER}
   FTimerService.DestroyTimer(FMouseEventsTimer);
+  {$ENDIF}
 
   {$IFDEF NEXTGEN}
   FScrollTimer.DisposeOf;
@@ -3734,6 +3740,9 @@ begin
   AEvent.Row := ARow;
   AEvent.RowObj := AObj;
   FMouseEvents.Add(AEvent);
+  {$IFNDEF XE10_OR_NEWER}
+  ProcessMouseEvents;
+  {$ENDIF}
 
   {ATask := TTask.Run(
   procedure

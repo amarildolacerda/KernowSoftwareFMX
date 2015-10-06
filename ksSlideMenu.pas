@@ -696,9 +696,6 @@ var
   AStartXPos: single;
   ANewXPos: single;
   AForm: TForm;
-  {$IFNDEF XE10_OR_NEWER}
-  ICount: integer;
-  {$ENDIF}
 begin
   if FAnimating then
     Exit;
@@ -758,28 +755,8 @@ begin
 
     //
     SlideMenuAnimating := True;
-    {$IFDEF XE10_OR_NEWER}
     TAnimator.AnimateFloatWait(FFormImage, 'Position.X', ANewXPos, FSlideSpeed);
-    {$ELSE}
-    if ANewXPos < FFormImage.Position.X then
-    begin
-      for ICount := Round(FFormImage.Position.X) downto Round(ANewXPos) do
-      begin
-        FFormImage.Position.X := ICount;
-        if ICount mod 10 = 0 then
-          Application.ProcessMessages;
-      end;
-    end
-    else
-    begin
-      for ICount := Round(FFormImage.Position.X) to Round(ANewXPos) do
-      begin
-        FFormImage.Position.X := ICount;
-        if ICount mod 10 = 0 then
-          Application.ProcessMessages;
-      end;
-    end;
-    {$ENDIF}
+
     SlideMenuAnimating := False;
     FFormImage.HitTest := True;
 
