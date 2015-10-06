@@ -2631,7 +2631,7 @@ constructor TksListView.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
   TPlatformServices.Current.SupportsPlatformService(IFMXTimerService, FTimerService);
-
+  FMouseEventsTimer := 0;
   TListView(Self).OnDeleteItem := DoOnDeleteItem;
   FMouseEvents := TksMouseEventList.Create;
   FItems := TKsListItemRows.Create(Self, inherited Items);
@@ -2644,9 +2644,6 @@ begin
   FDeleteButton := TksDeleteButton.Create;
   FScreenScale := GetScreenScale;
   FAppearence := TksListViewAppearence.Create(Self);
-  {$IFDEF XE10_OR_NEWER}
-  FMouseEventsTimer := FTimerService.CreateTimer(250, ProcessMouseEvents);
-  {$ENDIF}
   FItemHeight := 44;
   FHeaderHeight := 44;
   FLastWidth := 0;
@@ -3733,6 +3730,11 @@ var
   AEvent: TksMouseEvent;
   //ATask: ITask;
 begin
+  {$IFDEF XE10_OR_NEWER}
+  if FMouseEventsTimer = 0 then
+  FMouseEventsTimer := FTimerService.CreateTimer(250, ProcessMouseEvents);
+  {$ENDIF}
+
   AEvent.EventType := AType;
   AEvent.X := X;
   AEvent.Y := Y;
