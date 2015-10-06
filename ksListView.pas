@@ -36,6 +36,8 @@ interface
   {$DEFINE XE10_OR_NEWER}
 {$ENDIF}
 
+{.$DEFINE USE_TMS_HTML_ENGINE}
+
 uses
   Classes, FMX.Types, FMX.Controls, FMX.ListView, Types, FMX.TextLayout,
   FMX.ListView.Types, FMX.Graphics, Generics.Collections, System.UITypes,
@@ -43,6 +45,7 @@ uses
   System.UIConsts, FMX.StdCtrls, FMX.Styles.Objects, System.Generics.Collections,
   FMX.ListBox, FMX.DateTimeCtrls, FMX.Menus, FMX.Objects, FMX.SearchBox
   {$IFDEF XE10_OR_NEWER}, FMX.ListView.Appearances {$ENDIF}
+  {$IFDEF USE_TMS_HTML_ENGINE} , FMX.TMSHTMLEngine {$ENDIF}
 
   ;
 
@@ -756,7 +759,7 @@ type
     FOnItemSwipe: TksItemSwipeEvent;
     FActionButtons: TksListItemRowActionButtons;
     FOnItemActionButtonClick: TksItemActionButtonClickEvent;
-    FSearchBoxHeight: single;
+    //FSearchBoxHeight: single;
     //FDisableMouseMove: Boolean;
     FPageCaching: TksPageCaching;
     FFullWidthSeparator: Boolean;
@@ -793,7 +796,7 @@ type
     procedure DoRenderRow(ARow: TKsListItemRow);
     procedure CachePages;
     function LoadingBitmap: TBitmap;
-    procedure CalculateSearchBoxHeight;
+    //procedure CalculateSearchBoxHeight;
     procedure DeselectRow(const ADelay: integer = 0);
     procedure DoSearchFilterChanged(Sender: TObject; var Key: Word; var KeyChar: Char; Shift: TShiftState);
     procedure SetShowSelection(const Value: Boolean);
@@ -977,7 +980,7 @@ var
   DefaultScrollBarWidth: integer = 7;
 
   ATextLayout: TTextLayout;
-
+  ASearchBoxHeight: single;
 
 procedure Register;
 begin
@@ -1259,7 +1262,7 @@ begin
   begin
     if FRow.Image.Bitmap.IsEmpty = False then
       Rect.Offset(FRow.Image.Width+8, 0);
-    if FRow.ListView.ShowIndicatorColors then
+    if (FRow.ListView.ShowIndicatorColors) and (FRow.Purpose = TListItemPurpose.None) then
       Rect.Offset(16, 0);
   end;
 end;
@@ -2598,7 +2601,7 @@ begin
       Items[_Items[ICount].Index].ReleaseRow;
   end;
 end;
-
+ (*
 procedure TksListView.CalculateSearchBoxHeight;
 var
   ASearch: TSearchBox;
@@ -2613,7 +2616,7 @@ begin
     ASearch.Free;
     {$ENDIF}
   end;
-end;
+end;    *)
 
 procedure TksListView.ClearItems;
 begin
@@ -2635,11 +2638,8 @@ begin
   TListView(Self).OnDeleteItem := DoOnDeleteItem;
   FMouseEvents := TksMouseEventList.Create;
   FItems := TKsListItemRows.Create(Self, inherited Items);
-  FCombo := TComboBox.Create(nil);
-  FCombo.OnClosePopup := ComboClosePopup;
+  FCombo := nil;
   FActionButtons := TksListItemRowActionButtons.Create(Self);
-  FDateSelector := TDateEdit.Create(nil);
-  FDateSelector.OnClosePicker := ComboClosePopup;
   FPageCaching := TksPageCaching.Create;
   FDeleteButton := TksDeleteButton.Create;
   FScreenScale := GetScreenScale;
@@ -2665,11 +2665,12 @@ begin
   CanSwipeDelete := False;
   inherited ShowSelection := False;
   FShowSelection := True;
-  CalculateSearchBoxHeight;
   FMouseDownPos := PointF(-1, -1);
   //FDisableMouseMove := False;
   FFullWidthSeparator := True;
   FProcessingMouseEvents := False;
+  FCombo := nil;
+  FDateSelector := nil;
 end;
 
 procedure TksListView.DoDeselectRow;
@@ -2731,13 +2732,12 @@ begin
 
   {$IFDEF NEXTGEN}
   FScrollTimer.DisposeOf;
-  FCombo.DisposeOf;
-  FDateSelector.DisposeOf;
+  if FCombo <> nil then FCombo.DisposeOf;
+  if FDateSelector <> nil then FDateSelector.DisposeOf;
   {$ELSE}
   FScrollTimer.Free;
-  FCombo.Free;
-  FDateSelector.Free;
-  FActionButtons.Free;
+  if FCombo <> nil then FCombo.Free;
+  if FDateSelector <> nil then FDateSelector.Free;
   {$ENDIF}
   inherited;
 end;
@@ -2856,6 +2856,11 @@ end;
 
 procedure TksListView.SelectDate(ARow: TKsListItemRow; ASelected: TDateTime; AOnSelectDate: TNotifyEvent);
 begin
+  if FDateSelector = nil then
+  begin
+    FDateSelector := TDateEdit.Create(nil);
+    FDateSelector.OnClosePicker := ComboClosePopup;
+  end;
   FDateSelector.OnChange := nil;
   FDateSelector.TagObject := ARow;
   FDateSelector.Width := 0;
@@ -2889,6 +2894,11 @@ end;
 
 procedure TksListView.SelectItem(ARow: TKsListItemRow; AItems: TStrings; ASelected: string; AOnSelectItem: TNotifyEvent);
 begin
+  if FCombo = nil then
+  begin
+    FCombo := TComboBox.Create(nil);
+    FCombo.OnClosePopup := ComboClosePopup;
+  end;
   FCombo.OnChange := nil;
   FCombo.TagObject := ARow;
   FCombo.Items.Assign(AItems);
@@ -3196,7 +3206,7 @@ begin
       end;
       ASearchHeight := 0;
       if SearchVisible then
-        ASearchHeight := FSearchBoxHeight;
+        ASearchHeight := ASearchBoxHeight;
       if ScrollViewPos-ASearchHeight = GetMaxScrollPos then
       begin
         if Assigned(FOnScrollLastItem) then
@@ -3371,7 +3381,7 @@ begin
   cr := RectF(0, 0, Width, Height);;
   if SearchVisible then
   begin
-    cr.Top := FSearchBoxHeight;
+    cr.Top := ASearchBoxHeight;
   end;
   Result.IndexStart := -1;
   Result.IndexEnd := -1;
@@ -3678,17 +3688,8 @@ begin
 
   inherited;
 
-  if FSearchEdit = nil then
-  begin
-    for ICount := 0 to Children.Count-1 do
-    begin
-      if Children[ICount] is TSearchBox then
-      begin
-        FSearchEdit := (Children[ICount] as TSearchBox);
-        FSearchEdit.OnKeyUp := DoSearchFilterChanged;
-      end;
-    end;
-  end;
+  if (csDesigning in ComponentState) then
+    Exit;
 
 
   if (ScrollViewPos <> FLastScrollPos) and (FActionButtons.State <> ksActionBtnHidden) then
@@ -4396,8 +4397,8 @@ begin
   for ICount := 0 to Count-1 do
   begin
     ABtn := Items[ICount];
-    if (ARect.Top < FListView.FSearchBoxHeight) and (FListView.SearchVisible) then
-      ARect.Top := FListView.FSearchBoxHeight;
+    if (ARect.Top < ASearchBoxHeight) and (FListView.SearchVisible) then
+      ARect.Top := ASearchBoxHeight;
     ABtn.FBackground.Height := ARect.Height;
     ABtn.FLabel.Text := ABtn.Text;
     ABtn.FBackground.Position.X := Items[ICount].FOffscreenXPos;
@@ -4586,9 +4587,24 @@ begin
   inherited;
 end;
 
+var
+  ASearchBox: TSearchBox;
 initialization
 
   ATextLayout := TTextLayoutManager.DefaultTextLayout.Create;
+
+  ASearchBox := TSearchBox.Create(nil);
+  try
+    ASearchBoxHeight := ASearchBox.Height;
+  finally
+    {$IFDEF NEXTGEN}
+    ASearchBox.DisposeOf;
+    {$ELSE}
+    ASearchBox.Free;
+    {$ENDIF}
+  end;
+
+
   {$IFDEF MSWINDOWS}
   DefaultScrollBarWidth := 16;
   {$ENDIF}
