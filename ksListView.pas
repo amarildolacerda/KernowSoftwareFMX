@@ -1312,7 +1312,7 @@ begin
   FreeAndNil(FFont);
   inherited;
 end;
-               {
+                                      {
 procedure TksListItemRowText.RecalculateSize(AWidth, AHeight: single);
 begin
   if AHeight = 0 then
@@ -1690,7 +1690,7 @@ begin
     end;
 
     {$IFDEF XE8_OR_NEWER}
-    if FImageIndex > -1 then
+    if (FImageIndex > -1) and (lv.Images <> nil) then
     begin
       ASize.cx := 32;
       ASize.cy := 32;
@@ -2478,8 +2478,8 @@ begin
   if AWidth = 0 then
     AWidth := TextWidth(AText, Font);
 
-  Width := AWidth;
-  Height := AHeight;
+  Result.Width := AWidth;
+  Result.Height := AHeight;
 
 
 
@@ -3333,11 +3333,11 @@ end;
 procedure TksListView.Resize;
 begin
   inherited;
-  if (csDesigning in ComponentState) or (FIsShowing = False) then
-    Exit;
+  //if (csDesigning in ComponentState) then
+  //  Exit;
   if FActionButtons <> nil then
     FActionButtons.Hide(False);
-  FWidth := Width;
+  //FWidth := Width;
   RedrawAllRows;
 end;
 
