@@ -219,6 +219,7 @@ type
     procedure SetTextLayout(const Value: TTextAlign);
     procedure SetBackground(const Value: TAlphaColor);
   protected
+    //procedure RecalculateSize(AWidth, AHeight: single);
     procedure CalculateRect(ARowBmp: TBitmap); override;
   public
     constructor Create(ARow: TKsListItemRow); override;
@@ -525,8 +526,8 @@ type
     procedure ProcessClick;
     procedure Changed;
     procedure ReleaseAllDownButtons;
-    function TextWidth(AText: string): single;
-    function TextHeight(AText: string; AWordWrap: Boolean; const AWidth: single = 0): single;
+    //function TextWidth(AText: string; AFont: TFont): single;
+    //function TextHeight(AText: string; AFont: TFont; AWordWrap: Boolean; const AWidth: single = 0): single;
   protected
     procedure DoResize; override;
   public
@@ -804,6 +805,7 @@ type
     procedure QueueMouseEvent(AType: TksMouseEventType; X, Y: single; AId: string; ARow: TKsListItemRow; AObj: TksListItemRowObj);
     procedure ProcessMouseEvents;
     procedure DoDeselectRow;
+    procedure SetupSearchBoxEvent;
     { Private declarations }
   protected
     procedure SetColorStyle(AName: string; AColor: TAlphaColor);
@@ -1271,7 +1273,7 @@ function TksListItemRowText.CalculateTextHeight: single;
 var
   APoint: TPointF;
 begin
-  ATextLayout.BeginUpdate;
+  //ATextLayout.BeginUpdate;
 
   // Setting the layout MaxSize
   APoint.X := FWidth;
@@ -1282,15 +1284,16 @@ begin
     if FId = C_DETAIL then APoint.X := FRow.ListView.Width / 2;
   end;
 
-  APoint.Y := 1000;
-  ATextLayout.MaxSize := aPoint;
+  APoint.Y := 0;
+  {ATextLayout.MaxSize := aPoint;
 
   ATextLayout.Text := FText;
   ATextLayout.WordWrap := FWordWrap;
   ATextLayout.Font := FFont;
   ATextLayout.HorizontalAlign := FAlignment;
-  ATextLayout.EndUpdate;
-  Result := ATextLayout.Height;
+  //ATextLayout.EndUpdate;
+  Result := ATextLayout.Height; }
+  Result := TextHeight(FText, FFont, FWordWrap, APoint.X);
 
 end;
 
@@ -1309,6 +1312,18 @@ begin
   FreeAndNil(FFont);
   inherited;
 end;
+               {
+procedure TksListItemRowText.RecalculateSize(AWidth, AHeight: single);
+begin
+  if AHeight = 0 then
+    AHeight := TextHeight(AText, AWordWrap, AWidth);
+
+  if AWidth = 0 then
+    AWidth := FRow.TextWidth(AText);
+
+  Width := AWidth;
+  Height := AHeight;
+end;         }
 
 function TksListItemRowText.Render(ACanvas: TCanvas): Boolean;
 var
@@ -1746,7 +1761,7 @@ begin
     EndUpdate;
   end;
 end;
-
+              {
 function TksListItemRow.TextWidth(AText: string): single;
 var
   APoint: TPointF;
@@ -1762,9 +1777,8 @@ begin
   ATextLayout.HorizontalAlign := TTextAlign.Leading;
   ATextLayout.EndUpdate;
   Result := ATextLayout.Width;
-end;
-
-function TksListItemRow.TextHeight(AText: string; AWordWrap: Boolean; const AWidth: single = 0): single;
+end;   }
+      {                  function TksListItemRow.TextHeight(AText: string; AFont: TFont; AWordWrap: Boolean; const AWidth: single = 0): single;
 var
   APoint: TPointF;
 begin
@@ -1785,6 +1799,7 @@ begin
  // ATextLayout.RenderLayout(nil);
   Result := ATextLayout.Height;
 end;
+   }
 
 procedure TKsListItemRow.Changed;
 begin
@@ -2435,7 +2450,7 @@ function TKsListItemRow.TextOut(AText: string; x: single;
 var
   AWidth: single;
 begin
-  AWidth := TextWidth(AText);
+  AWidth := TextWidth(AText, FFont);
   Result := TextOut(AText, x,  AWidth, AVertAlign, AWordWrap);
 end;
 
@@ -2452,25 +2467,23 @@ function TKsListItemRow.TextOut(AText: string; x, y, AWidth: single;
   const AWordWrap: Boolean = False): TksListItemRowText;
 var
   AHeight: single;
-
 begin
   Result := TksListItemRowText.Create(Self);
-  FFont.Assign(ListView.Canvas.Font);
-  Result.Font.Assign(FFont);
-  AHeight := TextHeight(AText, AWordWrap, AWidth);
+
+  Result.Font.Assign(Font);
   Result.FPlaceOffset := PointF(x, y);
 
+  AHeight := TextHeight(AText, Font, AWordWrap, AWidth);
+
   if AWidth = 0 then
-    AWidth := TextWidth(AText);
+    AWidth := TextWidth(AText, Font);
 
-  Result.Width := AWidth;
-  Result.Height := AHeight;
+  Width := AWidth;
+  Height := AHeight;
 
-  case AVertAlign of
-    TListItemAlign.Leading: Result.VertAlign := TListItemAlign.Leading;
-    TListItemAlign.Center: Result.VertAlign := TListItemAlign.Center;
-    TListItemAlign.Trailing: Result.VertAlign := TListItemAlign.Trailing;
-  end;
+
+
+  Result.VertAlign := AVertAlign;
   Result.TextAlignment := TTextAlign.Leading;
   Result.TextColor := FTextColor;
   Result.Text := AText;
@@ -2634,7 +2647,9 @@ constructor TksListView.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
   TPlatformServices.Current.SupportsPlatformService(IFMXTimerService, FTimerService);
+  {$IFDEF XE10_OR_NEWER}
   FMouseEventsTimer := 0;
+  {$ENDIF}
   TListView(Self).OnDeleteItem := DoOnDeleteItem;
   FMouseEvents := TksMouseEventList.Create;
   FItems := TKsListItemRows.Create(Self, inherited Items);
@@ -2778,6 +2793,9 @@ begin
   Result := AddRow('', '', '', None);
   Result.Owner.Purpose := TListItemPurpose.Header;
   Result.CanSelect := False;
+
+  //Result.Font.Assign();
+
   Result.Height := FListView.HeaderHeight;
   Result.Owner.Height := FListView.HeaderHeight;
   Result.Title.Text := AText;
@@ -2993,6 +3011,23 @@ procedure TksListView.SetShowSelection(const Value: Boolean);
 begin
   FShowSelection := Value;
   Invalidate;
+end;
+
+procedure TksListView.SetupSearchBoxEvent;
+var
+  ICount: integer;
+begin
+  if FSearchEdit = nil then
+  begin
+    for ICount := 0 to Children.Count-1 do
+    begin
+      if Children[ICount] is TSearchBox then
+      begin
+        FSearchEdit := (Children[ICount] as TSearchBox);
+        FSearchEdit.OnKeyUp := DoSearchFilterChanged;
+      end;
+    end;
+  end;
 end;
 
 procedure TksListView.ShowPopupMenu(APopup: TPopupMenu; x, y: single);
@@ -3277,7 +3312,6 @@ begin
     if ARow <> nil then
     begin
       ARow.Cached := False;
-      //ARow.CacheRow;
     end;
   end;
   EndUpdate;
@@ -3299,7 +3333,10 @@ end;
 procedure TksListView.Resize;
 begin
   inherited;
-  FActionButtons.Hide(False);
+  if (csDesigning in ComponentState) or (FIsShowing = False) then
+    Exit;
+  if FActionButtons <> nil then
+    FActionButtons.Hide(False);
   FWidth := Width;
   RedrawAllRows;
 end;
@@ -3680,8 +3717,6 @@ begin
 end;
 
 procedure TksListView.Paint;
-var
-  ICount: integer;
 begin
   if SlideMenuAnimating then
     Exit;
@@ -3698,7 +3733,9 @@ begin
   if FIsShowing = False then
   begin
     CachePages;
+    SetupSearchBoxEvent;
     FIsShowing := True;
+
   end;
 end;
 

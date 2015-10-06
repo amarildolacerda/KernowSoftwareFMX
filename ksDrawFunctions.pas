@@ -45,14 +45,17 @@ type
   procedure DrawCheckMarkAccessory(ACanvas: TCanvas; ARect: TRectF; AColor: TAlphaColor);
   procedure DrawMoreAccessory(ACanvas: TCanvas; ARect: TRectF; AColor: TAlphaColor);
 
+  function TextWidth(AText: string; AFont: TFont): single;
+  function TextHeight(AText: string; AFont: TFont; AWordWrap: Boolean; const AWidth: single = 0): single;
 
 
 implementation
 
-uses SysUtils;
+uses SysUtils, FMX.TextLayout, Math;
 
 var
   _ScreenScale: single;
+  ATextLayout: TTextLayout;
 
 function GetColorOrDefault(AColor, ADefaultIfNull: TAlphaColor): TAlphaColor;
 begin
@@ -60,8 +63,6 @@ begin
   if Result = claNull then
     Result := ADefaultIfNull;
 end;
-
-
 
 function GetScreenScale: single;
 var
@@ -81,6 +82,45 @@ begin
   {$ENDIF}
   _ScreenScale := Result;
 
+end;
+
+function TextWidth(AText: string; AFont: TFont): single;
+var
+  APoint: TPointF;
+begin
+  ATextLayout.BeginUpdate;
+  // Setting the layout MaxSize
+  APoint.X := MaxSingle;
+  APoint.Y := 100;
+  ATextLayout.MaxSize := aPoint;
+  ATextLayout.Text := AText;
+  ATextLayout.WordWrap := False;
+  ATextLayout.Font.Assign(AFont);
+  ATextLayout.HorizontalAlign := TTextAlign.Leading;
+  ATextLayout.EndUpdate;
+  Result := ATextLayout.Width;
+end;
+
+function TextHeight(AText: string; AFont: TFont; AWordWrap: Boolean; const AWidth: single = 0): single;
+var
+  APoint: TPointF;
+begin
+  ATextLayout.BeginUpdate;
+  // Setting the layout MaxSize
+  APoint.X := MaxSingle;
+  if AWidth > 0 then
+    APoint.X := AWidth;
+  APoint.Y := 100;
+
+  ATextLayout.MaxSize := aPoint;
+  ATextLayout.Text := AText;
+  ATextLayout.WordWrap := AWordWrap;
+  ATextLayout.Font.Assign(AFont);
+  ATextLayout.HorizontalAlign := TTextAlign.Leading;
+  ATextLayout.VerticalAlign := TTextAlign.Leading;
+  ATextLayout.EndUpdate;
+ // ATextLayout.RenderLayout(nil);
+  Result := ATextLayout.Height;
 end;
 
 function IsBlankBitmap(ABmp: TBitmap): Boolean;
@@ -318,7 +358,10 @@ end;
 initialization
 
   _ScreenScale := 0;
+  ATextLayout := TTextLayoutManager.DefaultTextLayout.Create;
 
+finalization
 
+  FreeAndNil(ATextLayout);
 
 end.

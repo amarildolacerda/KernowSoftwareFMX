@@ -944,6 +944,7 @@ begin
   FListView.OnItemClick := ItemClick;
   FListView.Align := TAlignLayout.Client;
   FListView.FullWidthSeparator := True;
+  FListView.DeleteButton.Enabled := False;
   AddObject(FListView);
 
 end;
