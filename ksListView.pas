@@ -2452,11 +2452,11 @@ var
 
 begin
   Result := TksListItemRowText.Create(Self);
+  FFont.Assign(ListView.Canvas.Font);
   Result.Font.Assign(FFont);
   AHeight := TextHeight(AText, AWordWrap, AWidth);
   Result.FPlaceOffset := PointF(x, y);
-  //if AWordWrap then
-  //  AHeight := RowHeight(False);
+
   if AWidth = 0 then
     AWidth := TextWidth(AText);
 
