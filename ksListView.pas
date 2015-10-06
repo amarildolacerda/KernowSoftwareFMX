@@ -3333,11 +3333,11 @@ end;
 procedure TksListView.Resize;
 begin
   inherited;
-  //if (csDesigning in ComponentState) then
-  //  Exit;
+  if (csDesigning in ComponentState) then
+    Exit;
   if FActionButtons <> nil then
     FActionButtons.Hide(False);
-  //FWidth := Width;
+  FWidth := Width;
   RedrawAllRows;
 end;
 
