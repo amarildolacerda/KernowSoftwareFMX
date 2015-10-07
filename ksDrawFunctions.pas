@@ -29,6 +29,7 @@ interface
 uses Classes, FMX.Graphics, FMX.Types, Types, System.UIConsts, System.UITypes,
   FMX.ListView.Types, FMX.Platform;
 
+{.$DEFINE USE_TMS_HTML_ENGINE}
 
 type
   TksButtonStyle = (ksButtonDefault, ksButtonSegmentLeft, ksButtonSegmentMiddle, ksButtonSegmentRight);
@@ -48,14 +49,45 @@ type
   function TextWidth(AText: string; AFont: TFont): single;
   function TextHeight(AText: string; AFont: TFont; AWordWrap: Boolean; const AWidth: single = 0): single;
 
+  procedure RenderText(ACanvas: TCanvas;
+                       x, y,
+                       AWidth, AHeight: single;
+                       AText: string;
+                       AFont: TFont;
+                       ATextColor: TAlphaColor;
+                       AWordWrap: Boolean;
+                       AHorzAlign: TTextAlign;
+                       AVertAlign: TTextAlign;
+                       ATrimming: TTextTrimming);
+
+
+  procedure RenderHhmlText(ACanvas: TCanvas;
+                           x, y,
+                           AWidth, AHeight: single;
+                           AText: string;
+                           AFont: TFont;
+                           ATextColor: TAlphaColor;
+                           AWordWrap: Boolean;
+                           AHorzAlign: TTextAlign;
+                           AVertAlign: TTextAlign;
+                           ATrimming: TTextTrimming);
 
 implementation
 
-uses SysUtils, FMX.TextLayout, Math;
+uses SysUtils, FMX.TextLayout, Math {$IFDEF USE_TMS_HTML_ENGINE} , FMX.TMSHTMLEngine {$ENDIF};
 
 var
   _ScreenScale: single;
   ATextLayout: TTextLayout;
+
+procedure FreeObject(AObject: TObject);
+begin
+  {$IFDEF NEXTGEN}
+  AObject.DisposeOf;
+  {$ELSE}
+  AObject.Free;
+  {$ENDIF}
+end;
 
 function GetColorOrDefault(AColor, ADefaultIfNull: TAlphaColor): TAlphaColor;
 begin
@@ -77,8 +109,8 @@ begin
     (IFMXScreenService));
   Result := Service.GetScreenScale;
   {$IFDEF MSWINDOWS}
-  if Result < 2 then
-    Result := 2;
+  //if Result < 2 then
+  //  Result := 2;
   {$ENDIF}
   _ScreenScale := Result;
 
@@ -119,8 +151,66 @@ begin
   ATextLayout.HorizontalAlign := TTextAlign.Leading;
   ATextLayout.VerticalAlign := TTextAlign.Leading;
   ATextLayout.EndUpdate;
- // ATextLayout.RenderLayout(nil);
   Result := ATextLayout.Height;
+end;
+
+procedure RenderText(ACanvas: TCanvas;
+                     x, y,
+                     AWidth, AHeight: single;
+                     AText: string;
+                     AFont: TFont;
+                     ATextColor: TAlphaColor;
+                     AWordWrap: Boolean;
+                     AHorzAlign: TTextAlign;
+                     AVertAlign: TTextAlign;
+                     ATrimming: TTextTrimming);
+begin
+  ATextLayout.BeginUpdate;
+  ATextLayout.Text := AText;
+  ATextLayout.WordWrap := AWordWrap;
+  ATextLayout.Font.Assign(AFont);
+  ATextLayout.Color := ATextColor;
+  ATextLayout.HorizontalAlign := AHorzAlign;
+  ATextLayout.VerticalAlign := AVertAlign;
+  ATextLayout.Trimming := ATrimming;
+  ATextLayout.TopLeft := PointF(x, y);
+  ATextLayout.MaxSize := PointF(AWidth, AHeight);
+  ATextLayout.EndUpdate;
+  ATextLayout.RenderLayout(ACanvas);
+end;
+
+procedure RenderHhmlText(ACanvas: TCanvas;
+                           x, y,
+                           AWidth, AHeight: single;
+                           AText: string;
+                           AFont: TFont;
+                           ATextColor: TAlphaColor;
+                           AWordWrap: Boolean;
+                           AHorzAlign: TTextAlign;
+                           AVertAlign: TTextAlign;
+                           ATrimming: TTextTrimming);
+{$IFDEF USE_TMS_HTML_ENGINE}
+var
+  AnchorVal,
+  StripVal,
+  FocusAnchor: string;
+  XSize,
+  YSize: single;
+  HyperLinks,
+  MouseLink: Integer;
+  HoverRect:TRectF;
+  {$ENDIF}
+begin
+  {$IFDEF USE_TMS_HTML_ENGINE}
+  ACanvas.Fill.Color := claBlack;
+  HTMLDrawEx(ACanvas, AText, RectF(x,y , x+AWidth, y+AHeight), 0,0, 0, 0, 0, False,
+             False, True, False, False, False, AWordWrap, 1, claNull,
+             claNull, claNull, claNull, AnchorVal, StripVal, FocusAnchor, XSize, YSize, HyperLinks, MouseLink,
+             HoverRect, 1, nil, 1);
+  {$ELSE}
+  AFont.Size := 10;
+  RenderText(ACanvas, x, y, AWidth, AHeight, 'Requires TMS FMX', AFont, ATextColor, AWordWrap, AHorzAlign, AVertAlign, ATrimming);
+  {$ENDIF}
 end;
 
 function IsBlankBitmap(ABmp: TBitmap): Boolean;
@@ -132,7 +222,7 @@ begin
     ABlank.Clear(claNull);
     Result := ABmp.EqualsBitmap(ABlank);
   finally
-    FreeAndNil(ABlank);
+    FreeObject(ABlank);
   end;
 end;
 
@@ -206,7 +296,7 @@ begin
     ABmp.Canvas.EndScene;
     ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ARect, 1, False);
   finally
-    FreeAndNil(ABmp);
+    FreeObject(ABmp);
   end;
 end;
 
@@ -274,7 +364,7 @@ begin
 
     ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ARect, 1, False);
   finally
-    FreeAndNil(ABmp);
+    FreeObject(ABmp);
   end;
 end;
 
@@ -310,7 +400,7 @@ begin
 
     ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ARect, 1, False);
   finally
-    FreeAndNil(ABmp);
+    FreeObject(ABmp);
   end;
 end;
 
@@ -342,7 +432,7 @@ begin
 
       ABmp.Canvas.DrawPath(APath, 1);
     finally
-      FreeAndNil(APath);
+      FreeObject(APath);
     end;
 
     ABmp.Canvas.EndScene;
@@ -351,7 +441,7 @@ begin
 
     ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ARect, 1, False);
   finally
-    FreeAndNil(ABmp);
+    FreeObject(ABmp);
   end;
 end;
 
@@ -362,6 +452,7 @@ initialization
 
 finalization
 
-  FreeAndNil(ATextLayout);
+  FreeObject(ATextLayout);
 
 end.
+

@@ -36,7 +36,8 @@ interface
   {$DEFINE XE10_OR_NEWER}
 {$ENDIF}
 
-{.$DEFINE USE_TMS_HTML_ENGINE}
+{$DEFINE USE_TMS_HTML_ENGINE}
+
 
 uses
   Classes, FMX.Types, FMX.Controls, FMX.ListView, Types, FMX.TextLayout,
@@ -45,8 +46,6 @@ uses
   System.UIConsts, FMX.StdCtrls, FMX.Styles.Objects, System.Generics.Collections,
   FMX.ListBox, FMX.DateTimeCtrls, FMX.Menus, FMX.Objects, FMX.SearchBox
   {$IFDEF XE10_OR_NEWER}, FMX.ListView.Appearances {$ENDIF}
-  {$IFDEF USE_TMS_HTML_ENGINE} , FMX.TMSHTMLEngine {$ENDIF}
-
   ;
 
 const
@@ -210,6 +209,7 @@ type
     FWordWrap: Boolean;
     FFullWidth: Boolean;
     FTextLayout: TTextAlign;
+    FIsHtmlText: Boolean;
     procedure SetFont(const Value: TFont);
     procedure SetAlignment(const Value: TTextAlign);
     procedure SetTextColor(const Value: TAlphaColor);
@@ -218,6 +218,7 @@ type
     function CalculateTextHeight: single;
     procedure SetTextLayout(const Value: TTextAlign);
     procedure SetBackground(const Value: TAlphaColor);
+    procedure SetIsHtmlText(const Value: Boolean);
   protected
     //procedure RecalculateSize(AWidth, AHeight: single);
     procedure CalculateRect(ARowBmp: TBitmap); override;
@@ -232,6 +233,7 @@ type
     property Background: TAlphaColor read FBackground write SetBackground default claNull;
     property TextColor: TAlphaColor read FTextColor write SetTextColor;
     property Text: string read FText write SetText;
+    property IsHtmlText: Boolean read FIsHtmlText write SetIsHtmlText;
     property WordWrap: Boolean read FWordWrap write SetWordWrap default False;
   end;
 
@@ -499,7 +501,6 @@ type
     FLastHeight: single;
     FBackgroundColor: TAlphaColor;
     FUpdating: Boolean;
-
     function RowHeight(const AScale: Boolean = True): single;
     function RowWidth(const AScale: Boolean = True): single;
     function GetListView: TksListView;
@@ -520,12 +521,14 @@ type
     function GetSearchText: string;
     procedure SetSearchText(const Value: string);
     procedure SetBackgroundColor(const Value: TAlphaColor);
+    procedure SetPickerItems(const Value: TStrings);
     property ListView: TksListView read GetListView;
     procedure DoOnListChanged(Sender: TObject; const Item: TksListItemRowObj; Action: TCollectionNotification);
     function ScreenWidth: single;
     procedure ProcessClick;
     procedure Changed;
     procedure ReleaseAllDownButtons;
+    procedure PickerItemsChanged(Sender: TObject);
     //function TextWidth(AText: string; AFont: TFont): single;
     //function TextHeight(AText: string; AFont: TFont; AWordWrap: Boolean; const AWidth: single = 0): single;
   protected
@@ -582,6 +585,7 @@ type
     function TextOut(AText: string; x, AWidth: single; const AVertAlign: TListItemAlign = TListItemAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
     function TextOut(AText: string; x, y, AWidth: single; const AVertAlign: TListItemAlign = TListItemAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
     function TextBox(AText: string; ARect: TRectF; ATextAlign: TTextAlign; ATextLayout: TTextAlign; const ABackground: TAlphaColor = claNull): TksListItemRowText; overload;
+    function TextBoxHtml(AText: string; ARect: TRectF): TksListItemRowText;
     function TextOutRight(AText: string; y, AWidth: single; AXOffset: single; const AVertAlign: TListItemAlign = TListItemAlign.Center): TksListItemRowText; overload;
     // font functions...
     procedure SetFontProperties(AName: string; ASize: integer; AColor: TAlphaColor; AStyle: TFontStyles);
@@ -609,6 +613,7 @@ type
     property Selector: TksListItemRowSelector read FSelector write FSelector;
     property SearchText: string read GetSearchText write SetSearchText;
     property BackgroundColor: TAlphaColor read FBackgroundColor write SetBackgroundColor default claNull;
+    property PickerItems: TStrings read FPickerItems write SetPickerItems;
   end;
 
 
@@ -1004,6 +1009,15 @@ begin
   Result := StringReplace(Result, '}', '', [rfReplaceAll]);
 end;
 
+procedure FreeObject(AObject: TObject);
+begin
+  {$IFDEF NEXTGEN}
+  AObject.DisposeOf;
+  {$ELSE}
+  AObject.Free;
+  {$ENDIF}
+end;
+
 // ------------------------------------------------------------------------------
 
 { TksListItemRowObj }
@@ -1256,7 +1270,7 @@ begin
       end;
       ARowBmp.Canvas.Font.Assign(ASaveFont);
     finally
-      FreeAndNil(ASaveFont);
+      FreeObject(ASaveFont);
     end;
   end;
   inherited;
@@ -1309,61 +1323,47 @@ end;
 
 destructor TksListItemRowText.Destroy;
 begin
-  FreeAndNil(FFont);
+  FreeObject(FFont);
   inherited;
 end;
-                                      {
-procedure TksListItemRowText.RecalculateSize(AWidth, AHeight: single);
-begin
-  if AHeight = 0 then
-    AHeight := TextHeight(AText, AWordWrap, AWidth);
-
-  if AWidth = 0 then
-    AWidth := FRow.TextWidth(AText);
-
-  Width := AWidth;
-  Height := AHeight;
-end;         }
 
 function TksListItemRowText.Render(ACanvas: TCanvas): Boolean;
-var
-  APoint: TPointF;
 begin
   inherited Render(ACanvas);
-  ATextLayout.BeginUpdate;
-
-
-  // Setting the layout MaxSize
-  APoint.X := FWidth;
-  if FWidth = 0 then
-  begin
-    if FId = C_TITLE then APoint.X := FRow.ListView.Width / 2;
-    if FId = C_SUBTITLE then APoint.X := FRow.ListView.Width / 2;
-    if FId = C_DETAIL then APoint.X := FRow.ListView.Width / 2;
-  end;
-
-  APoint.Y := 1000;
-  ATextLayout.MaxSize := aPoint;
-
-  ATextLayout.Text := FText;
-  ATextLayout.WordWrap := FWordWrap;
-  ATextLayout.Font := FFont;
-  ATextLayout.Color := FTextColor;
-  ATextLayout.HorizontalAlign := FAlignment;
-  ATextLayout.VerticalAlign := FTextLayout;
-
-  ATextLayout.EndUpdate;
-
-  ATextLayout.Trimming := TTextTrimming.Character;
-  ATextLayout.TopLeft := Rect.TopLeft;
-  ATextLayout.MaxSize := PointF(Rect.Width, Rect.Height);
-
   if FBackground <> claNull then
   begin
     ACanvas.Fill.Color := FBackground;
     ACanvas.FillRect(Rect, 0, 0, AllCorners, 1);
   end;
-  ATextLayout.RenderLayout(ACanvas);
+  if FIsHtmlText then
+  begin
+    RenderHhmlText(ACanvas,
+                   Rect.Left,
+                   Rect.Top,
+                   Rect.Width,
+                   Rect.Height,
+                   FText,
+                   FFont,
+                   FTextColor,
+                   FWordWrap,
+                   FAlignment,
+                   FTextLayout,
+                   TTextTrimming.Character);
+    Result := True;
+    Exit;
+  end;
+  RenderText(ACanvas,
+             Rect.Left,
+             Rect.Top,
+             Rect.Width,
+             Rect.Height,
+             FText,
+             FFont,
+             FTextColor,
+             FWordWrap,
+             FAlignment,
+             FTextLayout,
+             TTextTrimming.Character);
   Result := True;
 end;
 
@@ -1389,6 +1389,15 @@ procedure TksListItemRowText.SetFont(const Value: TFont);
 begin
   FFont.Assign(Value);
   Changed;
+end;
+
+procedure TksListItemRowText.SetIsHtmlText(const Value: Boolean);
+begin
+  if FIsHtmlText <> Value then
+  begin
+    FIsHtmlText := Value;
+    Changed;
+  end;
 end;
 
 procedure TksListItemRowText.SetText(const Value: string);
@@ -1457,8 +1466,8 @@ end;
 
 destructor TksListItemRowImage.Destroy;
 begin
-  FreeAndNil(FBitmap);
-  FreeAndNil(FBorder);
+  FreeObject(FBitmap);
+  FreeObject(FBorder);
   inherited;
 end;
 
@@ -1467,7 +1476,13 @@ var
   ABmp: TBitmap;
   ARectangle: TRectangle;
 begin
-  Result := inherited Render(ACanvas);
+  try
+    Result := inherited Render(ACanvas);
+  except
+    Result := False;
+    Exit; // bug existed pre-seattle where AV's could occur in the TListItemImage.Render
+  end;
+
   ARectangle := TRectangle.Create(FRow.ListView.Parent);
   try
     ARectangle.Width := FBitmap.Width;
@@ -1498,14 +1513,10 @@ begin
 
       ACanvas.DrawBitmap(ABmp, RectF(0, 0, Rect.Width*4, Rect.Height*4), Rect, 1);
     finally
-      FreeAndNil(ABmp);
+      FreeObject(ABmp);
     end;
   finally
-    {$IFDEF NEXTGEN}
-    ARectangle.DisposeOf;
-    {$ELSE}
-    ARectangle.Free;
-    {$ENDIF}
+    FreeObject(ARectangle);
   end;
 end;
 
@@ -1554,8 +1565,8 @@ end;
 
 destructor TksListItemRowShape.Destroy;
 begin
-  FreeAndNil(FFill);
-  FreeAndNil(FStroke);
+  FreeObject(FFill);
+  FreeObject(FStroke);
   inherited;
 end;
 
@@ -1604,7 +1615,7 @@ begin
     end;
     ACanvas.DrawBitmap(ABitmap, ARect, Rect, 1);
   finally
-    FreeAndNil(ABitmap);
+    FreeObject(ABitmap);
   end;
 end;
 
@@ -1642,6 +1653,8 @@ var
   {$ENDIF}
   ABmpWidth: single;
 begin
+  if ListView.FUpdateCount > 0 then
+    Exit;
   if FCached then
     Exit;
 
@@ -1936,6 +1949,7 @@ begin
   FSubTitle := TksListItemRowText.Create(Self);
   FDetail := TksListItemRowText.Create(Self);
   FPickerItems := TStringList.Create;
+  (FPickerItems as TStringList).OnChange := PickerItemsChanged;
   {$IFDEF MSWINDOWS}
   ScalingMode := TImageScalingMode.Original;
   {$ENDIF}
@@ -1981,14 +1995,14 @@ end;
 
 destructor TKsListItemRow.Destroy;
 begin
-  FreeAndNil(FList);
-  FreeAndNil(FFont);
-  FreeAndNil(FAccessory);
-  FreeAndNil(FImage);
-  FreeAndNil(FTitle);
-  FreeAndNil(FSubTitle);
-  FreeAndNil(FDetail);
-  FreeAndNil(FPickerItems);
+  FreeObject(FList);
+  FreeObject(FFont);
+  FreeObject(FAccessory);
+  FreeObject(FImage);
+  FreeObject(FTitle);
+  FreeObject(FSubTitle);
+  FreeObject(FDetail);
+  FreeObject(FPickerItems);
   inherited;
 end;
 
@@ -2055,6 +2069,13 @@ end;
 function TksListItemRow.GetSearchText: string;
 begin
   Result := (Owner as TListViewItem).Text;
+end;
+
+procedure TksListItemRow.PickerItemsChanged(Sender: TObject);
+begin
+  FSelector := TksListItemRowSelector.NoSelector;
+  if FPickerItems.Count > 0 then
+    FSelector := TksListItemRowSelector.ItemPicker;
 end;
 
 procedure TKsListItemRow.ProcessClick;
@@ -2384,6 +2405,12 @@ begin
   end;
 end;
 
+procedure TksListItemRow.SetPickerItems(const Value: TStrings);
+begin
+  if Value <> nil then
+    FPickerItems.Assign(Value);
+end;
+
 procedure TKsListItemRow.SetPurpose(const Value: TListItemPurpose);
 begin
   (Owner as TListItem).Purpose := Value;
@@ -2524,6 +2551,19 @@ begin
   Changed;
 end;
 
+function TksListItemRow.TextBoxHtml(AText: string; ARect: TRectF): TksListItemRowText;
+begin
+  FUpdating := True;
+  try
+    Result := TextOut(AText, ARect.Left, ARect.Top, ARect.Width, TListItemAlign.Leading, True);
+    Result.IsHtmlText := True;
+    Result.Height := ARect.Height;
+  finally
+    FUpdating := False;
+  end;
+  Changed;
+end;
+
 { TksListViewAppearence }
 
 constructor TksListViewAppearence.Create(AListView: TksListView);
@@ -2614,22 +2654,6 @@ begin
       Items[_Items[ICount].Index].ReleaseRow;
   end;
 end;
- (*
-procedure TksListView.CalculateSearchBoxHeight;
-var
-  ASearch: TSearchBox;
-begin
-  ASearch := TSearchBox.Create(nil);
-  try
-    FSearchBoxHeight := ASearch.Height;
-  finally
-    {$IFDEF NEXTGEN}
-    ASearch.DisposeOf;
-    {$ELSE}
-    ASearch.Free;
-    {$ENDIF}
-  end;
-end;    *)
 
 procedure TksListView.ClearItems;
 begin
@@ -2731,29 +2755,23 @@ end; }
 
 destructor TksListView.Destroy;
 begin
-  FreeAndNil(FAppearence);
-  FreeAndNil(FItems);
+  FreeObject(FAppearence);
+  FreeObject(FItems);
   if FLoadingBitmap <> nil then
-    FreeAndNil(FLoadingBitmap);
-  FreeAndNil(FActionButtons);
-  FreeAndNil(FPageCaching);
-  FreeAndNil(FDeleteButton);
-  FreeAndNil(FMouseEvents);
+    FreeObject(FLoadingBitmap);
+  FreeObject(FActionButtons);
+  FreeObject(FPageCaching);
+  FreeObject(FDeleteButton);
+  FreeObject(FMouseEvents);
   // destroy FMX timers...
 
   {$IFDEF XE10_OR_NEWER}
   FTimerService.DestroyTimer(FMouseEventsTimer);
   {$ENDIF}
 
-  {$IFDEF NEXTGEN}
-  FScrollTimer.DisposeOf;
-  if FCombo <> nil then FCombo.DisposeOf;
-  if FDateSelector <> nil then FDateSelector.DisposeOf;
-  {$ELSE}
-  FScrollTimer.Free;
-  if FCombo <> nil then FCombo.Free;
-  if FDateSelector <> nil then FDateSelector.Free;
-  {$ENDIF}
+  FreeObject(FScrollTimer);
+  if FCombo <> nil then FreeObject(FCombo);
+  if FDateSelector <> nil then FreeObject(FDateSelector);
   inherited;
 end;
 
@@ -2784,7 +2802,7 @@ begin
       AStrings.Add(AItems[ICount]);
     Result := AddRowItemSelector(AText, ASelected, AStrings);
   finally
-    FreeAndNil(AStrings);
+    FreeObject(AStrings);
   end;
 end;
 
@@ -3909,7 +3927,7 @@ begin
         APath.LineTo(PointF(ABmp.Width * 0.70, ABmp.Height * 0.25));
         ABmp.Canvas.DrawPath(APath, 1);
       finally
-        FreeAndNil(APath);
+        FreeObject(APath);
       end;
 
       ABmp.Canvas.EndScene;
@@ -3920,7 +3938,7 @@ begin
                          1);
 
     finally
-      FreeAndNil(ABmp);
+      FreeObject(ABmp);
     end;
   end
   else
@@ -3961,7 +3979,7 @@ end;
 
 destructor TksListItemRowSegmentButtons.Destroy;
 begin
-  FreeAndNil(FCaptions);
+  FreeObject(FCaptions);
   inherited;
 end;
 
@@ -4265,7 +4283,7 @@ begin
     ARect := RectF(0, 0, ABmp.Width, ABmp.Height);
     ACanvas.DrawBitmap(ABmp, ARect, Rect, 1, False);
   finally
-    FreeAndNil(ABmp);
+    FreeObject(ABmp);
   end;
 end;
 
@@ -4347,13 +4365,8 @@ end;
 
 destructor TksListItemRowActionButton.Destroy;
 begin
-  {$IFDEF NEXTGEN}
-  FLabel.DisposeOf;
-  FBackground.DisposeOf;
-  {$ELSE}
-  FLabel.Free;
-  FBackground.Free;
-  {$ENDIF}
+  FreeObject(FLabel);
+  FreeObject(FBackground);
   inherited;
 end;
 
@@ -4620,7 +4633,7 @@ end;
 
 destructor TksDeleteButton.Destroy;
 begin
-  FreeAndNil(FTextSettings);
+  FreeObject(FTextSettings);
   inherited;
 end;
 
@@ -4634,11 +4647,7 @@ initialization
   try
     ASearchBoxHeight := ASearchBox.Height;
   finally
-    {$IFDEF NEXTGEN}
-    ASearchBox.DisposeOf;
-    {$ELSE}
-    ASearchBox.Free;
-    {$ENDIF}
+    FreeObject(ASearchBox);
   end;
 
 
@@ -4648,7 +4657,7 @@ initialization
 
 finalization
 
-  FreeAndNil(ATextLayout);
+  FreeObject(ATextLayout);
 
 
 end.

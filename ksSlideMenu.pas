@@ -270,7 +270,7 @@ procedure Register;
 begin
   RegisterComponents('Kernow Software FMX', [TksSlideMenu]);
 end;
-
+  {
 function GetScreenScale: Single;
 var
    Service : IFMXScreenService;
@@ -278,7 +278,18 @@ begin
    Service := IFMXScreenService(
       TPlatformServices.Current.GetPlatformService(IFMXScreenService));
    Result := Service .GetScreenScale;
+end;  }
+
+procedure FreeObject(AObject: TObject);
+begin
+  {$IFDEF NEXTGEN}
+  AObject.DisposeOf;
+  {$ELSE}
+  AObject.Free;
+  {$ENDIF}
 end;
+
+
 
 { TSlideMenu }
 
@@ -325,10 +336,6 @@ begin
   inherited Create(AOwner);
   FFont := TFont.Create;
   FItems := TksSlideMenuItems.Create;
-  {$IFNDEF ANDROID}
-  FShadowLeft := TImage.Create(Self);
-  FShadowRight := TImage.Create(Self);
-  {$ENDIF}
   FAppearence := TksSlideMenuAppearence.Create(Self);
   FMenu := TksSlideMenuContainer.Create(Self);
   FFormImage := TImage.Create(Self);
@@ -344,25 +351,29 @@ begin
   FHeaderHeight := C_DEFAULT_HEADER_HEIGHT;
   FItemHeight := C_DEFAULT_ITEM_HEIGHT;
   FItemIndex := -1;
+
   {$IFNDEF ANDROID}
+  FShadowLeft := TImage.Create(Self);
+  FShadowRight := TImage.Create(Self);
   GenerateShadows;
+
   {$ENDIF}
   FAnimating := False;
 end;
 
 destructor TksSlideMenu.Destroy;
 begin
-  FFont.Free;
-  FAppearence.Free;
-  FItems.Free;
-  if IsChild(FMenu) then FMenu.Free;
-
+  FreeObject(FFont);
+  FreeObject(FAppearence);
+  FreeObject(FItems);
+  FreeObject(FBackGround);
+  //if not IsChild(FFormImage) then FreeObject(FFormImage);
+  //if not IsChild(FMenu) then FreeObject(FMenu);
+  //if not IsChild(FBackGround) then FreeObject(FBackGround);
   {$IFNDEF ANDROID}
-  if IsChild(FShadowLeft) then FShadowLeft.Free;
-  if IsChild(FShadowRight) then FShadowRight.Free;
+  //FreeObject(FShadowLeft);
+  //FreeObject(FShadowRight);
   {$ENDIF}
-  if IsChild(FBackground) then FBackground.Free;
-  if IsChild(FFormImage) then FFormImage.Free;
   inherited;
 end;
 
@@ -408,7 +419,7 @@ begin
     FFormImage.Height := Round(AForm.Height);
     FFormImage.Bitmap.Assign(ABmp);
   finally
-    FreeAndNil(ABmp);
+    FreeObject(ABmp);
   end;
 
   FFormImage.Position.Y := 0;
@@ -468,7 +479,7 @@ begin
     FShadowLeft.Height := Round(AForm.Height);
     FShadowLeft.Bitmap.Assign(ABmp);
   finally
-    FreeAndNil(ABmp);
+    FreeObject(ABmp);
   end;
 
   ABmp := TBitmap.Create;
@@ -490,7 +501,7 @@ begin
     FShadowRight.Height := Round(AForm.Height);
     FShadowRight.Bitmap.Assign(ABmp);
   finally
-    FreeAndNil(ABmp);
+    FreeObject(ABmp);
   end;
 end;
 
@@ -673,11 +684,7 @@ begin
     ABmp.Canvas.EndScene;
     FMenuImage.Bitmap := ABmp;
   finally
-    {$IFDEF NEXTGEN}
-    ABmp.DisposeOf;
-    {$ELSE}
-    ABmp.Free;
-    {$ENDIF}
+    FreeObject(ABmp);
   end;
 end;
 
@@ -814,8 +821,8 @@ end;
 
 destructor TksSlideMenuItem.Destroy;
 begin
-  FreeAndNil(FImage);
-  FreeAndNil(FFont);
+  FreeObject(FImage);
+  FreeObject(FFont);
   inherited;
 end;
 
@@ -951,12 +958,8 @@ end;
 
 destructor TksSlideMenuContainer.Destroy;
 begin
-  FreeAndNil(FToolBar);
-  {$IFDEF NEXTGEN}
-  if IsChild(FListView) then FListView.DisposeOf;
-  {$ELSE}
-  if IsChild(FListView) then FListView.Free;
-  {$ENDIF}
+  FreeObject(FToolBar);
+  FreeObject(FListView);
   inherited;
 end;
 
@@ -1019,13 +1022,9 @@ end;
 
 destructor TksSlideMenuToolbar.Destroy;
 begin
-  FreeAndNil(FBitmap);
-  FreeAndNil(FFont);
-  {$IFDEF NEXTGEN}
-  FHeader.DisposeOf;
-  {$ELSE}
-  FHeader.Free;
-  {$ENDIF}
+  FreeObject(FBitmap);
+  FreeObject(FFont);
+  FreeObject(FHeader);
   inherited;
 end;
 
@@ -1088,11 +1087,7 @@ begin
 
     FHeader.Bitmap := ABmp;
   finally
-    {$IFDEF NEXTGEN}
-    ABmp.DisposeOf;
-    {$ELSE}
-    ABmp.Free;
-    {$ENDIF}
+    FreeObject(ABmp);
   end;
 end;
 
