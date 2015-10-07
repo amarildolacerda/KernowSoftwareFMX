@@ -100,7 +100,7 @@ type
 
   TksSlideMenuAppearence = class(TPersistent)
   private
-    FSlideMenu: TksSlideMenu;
+    [weak]FSlideMenu: TksSlideMenu;
     FHeaderColor: TAlphaColor;
     FItemColor: TAlphaColor;
     FFontColor: TAlphaColor;
@@ -130,7 +130,7 @@ type
 
   TksSlideMenuToolbar = class(TPersistent)
   private
-    FSlideMenu: TksSlideMenu;
+    [weak]FSlideMenu: TksSlideMenu;
     FHeader: TImage;
     FBitmap: TBitmap;
     FText: string;
@@ -159,7 +159,7 @@ type
 
   TksSlideMenuContainer = class(TLayout)
   private
-    FSlideMenu: TksSlideMenu;
+    [weak]FSlideMenu: TksSlideMenu;
     FToolBar: TksSlideMenuToolbar;
     FListView: TksListView;
     procedure UpdateSelectedItem;
@@ -270,26 +270,6 @@ procedure Register;
 begin
   RegisterComponents('Kernow Software FMX', [TksSlideMenu]);
 end;
-  {
-function GetScreenScale: Single;
-var
-   Service : IFMXScreenService;
-begin
-   Service := IFMXScreenService(
-      TPlatformServices.Current.GetPlatformService(IFMXScreenService));
-   Result := Service .GetScreenScale;
-end;  }
-
-procedure FreeObject(AObject: TObject);
-begin
-  {$IFDEF NEXTGEN}
-  AObject.DisposeOf;
-  {$ELSE}
-  AObject.Free;
-  {$ENDIF}
-end;
-
-
 
 { TSlideMenu }
 
@@ -363,16 +343,29 @@ end;
 
 destructor TksSlideMenu.Destroy;
 begin
-  FreeObject(FFont);
-  FreeObject(FAppearence);
-  FreeObject(FItems);
-  FreeObject(FBackGround);
-  //if not IsChild(FFormImage) then FreeObject(FFormImage);
-  //if not IsChild(FMenu) then FreeObject(FMenu);
-  //if not IsChild(FBackGround) then FreeObject(FBackGround);
+  FreeAndNil(FFont);
+  FreeAndNil(FAppearence);
+  FreeAndNil(FItems);
+  {$IFDEF NEXTGEN}
+  if not IsChild(FFormImage) then FFormImage.DisposeOf;
+  if not IsChild(FMenu) then FMenu.DisposeOf;
+  if not IsChild(FBackGround) then FBackground.DisposeOf;
+
+  {$ELSE}
+  if not IsChild(FFormImage) then FFormImage.Free;
+  if not IsChild(FMenu) then FMenu.Free;
+  if not IsChild(FBackGround) then FBackground.Free;
+
+  {$ENDIF}
+
   {$IFNDEF ANDROID}
-  //FreeObject(FShadowLeft);
-  //FreeObject(FShadowRight);
+    {$IFDEF NEXTGEN}
+    FShadowLeft.DisposeOf;
+    FShadowRight.DisposeOf;
+    {$ELSE}
+    FShadowLeft.Free;
+    FShadowRight.Free;
+    {$ENDIF}
   {$ENDIF}
   inherited;
 end;
@@ -419,7 +412,7 @@ begin
     FFormImage.Height := Round(AForm.Height);
     FFormImage.Bitmap.Assign(ABmp);
   finally
-    FreeObject(ABmp);
+    FreeAndNil(ABmp);
   end;
 
   FFormImage.Position.Y := 0;
@@ -479,7 +472,7 @@ begin
     FShadowLeft.Height := Round(AForm.Height);
     FShadowLeft.Bitmap.Assign(ABmp);
   finally
-    FreeObject(ABmp);
+    FreeAndNil(ABmp);
   end;
 
   ABmp := TBitmap.Create;
@@ -501,7 +494,7 @@ begin
     FShadowRight.Height := Round(AForm.Height);
     FShadowRight.Bitmap.Assign(ABmp);
   finally
-    FreeObject(ABmp);
+    FreeAndNil(ABmp);
   end;
 end;
 
@@ -515,6 +508,8 @@ end;
 function TksSlideMenu.GetToolbarHeight: integer;
 begin
   Result := 0;
+  if True then
+
   if Toolbar.Visible then
     Result := C_TOOLBAR_HEIGHT;
 end;
@@ -684,7 +679,7 @@ begin
     ABmp.Canvas.EndScene;
     FMenuImage.Bitmap := ABmp;
   finally
-    FreeObject(ABmp);
+    FreeAndNil(ABmp);
   end;
 end;
 
@@ -821,8 +816,8 @@ end;
 
 destructor TksSlideMenuItem.Destroy;
 begin
-  FreeObject(FImage);
-  FreeObject(FFont);
+  FreeAndNil(FImage);
+  FreeAndNil(FFont);
   inherited;
 end;
 
@@ -944,6 +939,8 @@ end;
 
 procedure TksSlideMenuContainer.CreateListView;
 begin
+  if FListView <> nil then
+    Exit;
   FListView := TksListView.Create(Self);
   FListView.KeepSelection := True;
   FListView.CanSwipeDelete := False;
@@ -953,13 +950,17 @@ begin
   FListView.FullWidthSeparator := True;
   FListView.DeleteButton.Enabled := False;
   AddObject(FListView);
-
 end;
 
 destructor TksSlideMenuContainer.Destroy;
 begin
-  FreeObject(FToolBar);
-  FreeObject(FListView);
+  {$IFDEF NEXTGEN}
+  FListView.DisposeOf;
+  FToolBar.DisposeOf;
+  {$ELSE}
+  FListView.Free;
+  FToolBar.Free;
+  {$ENDIF}
   inherited;
 end;
 
@@ -1022,9 +1023,9 @@ end;
 
 destructor TksSlideMenuToolbar.Destroy;
 begin
-  FreeObject(FBitmap);
-  FreeObject(FFont);
-  FreeObject(FHeader);
+  FreeAndNil(FBitmap);
+  FreeAndNil(FFont);
+  FreeAndNil(FHeader);
   inherited;
 end;
 
@@ -1087,7 +1088,7 @@ begin
 
     FHeader.Bitmap := ABmp;
   finally
-    FreeObject(ABmp);
+    FreeAndNil(ABmp);
   end;
 end;
 

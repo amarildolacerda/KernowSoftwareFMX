@@ -36,9 +36,6 @@ interface
   {$DEFINE XE10_OR_NEWER}
 {$ENDIF}
 
-{$DEFINE USE_TMS_HTML_ENGINE}
-
-
 uses
   Classes, FMX.Types, FMX.Controls, FMX.ListView, Types, FMX.TextLayout,
   FMX.ListView.Types, FMX.Graphics, Generics.Collections, System.UITypes,
@@ -150,7 +147,7 @@ type
   private
     FId: string;
     FPlaceOffset: TPointF;
-    FRow: TKsListItemRow;
+    [weak]FRow: TKsListItemRow;
     FAlign: TListItemAlign;
     FVertAlignment: TListItemAlign;
     FTagBoolean: Boolean;
@@ -410,7 +407,7 @@ type
   TKsListItemRowActionButton = class
   private
     FId: string;
-    FOwner: TksListItemRowActionButtons;
+    [weak]FOwner: TksListItemRowActionButtons;
     FBackground: TRectangle;
     FLabel: TLabel;
     FRow: TksListItemRow;
@@ -446,9 +443,9 @@ type
 
   TksListItemRowActionButtons = class(TObjectList<TksListItemRowActionButton>)
   private
-    FTimerService: IFMXTimerService;
-    FListView: TksListView;
-    FRow: TksListItemRow;
+    [weak]FTimerService: IFMXTimerService;
+    [weak]FListView: TksListView;
+    [weak]FRow: TksListItemRow;
     //FVisible: Boolean;
     FSwipeDirection: TksItemSwipeDirection;
     FState: TksActionButtonState;
@@ -619,11 +616,11 @@ type
 
   TKsListItemRows = class
   private
-    FListView: TksListView;
+    [weak]FListView: TksListView;
     {$IFDEF XE10_OR_NEWER}
-    FListViewItems: TAppearanceListViewItems;
+    [weak]FListViewItems: TAppearanceListViewItems;
     {$ELSE}
-    FListViewItems: TListViewItems;
+    [weak]FListViewItems: TListViewItems;
     {$ENDIF}
     function GetCheckedCount: integer;
     function GetCount: integer;
@@ -666,7 +663,7 @@ type
 
   TksListViewAppearence = class(TPersistent)
   private
-    FListView: TksListView;
+    [weak]FListView: TksListView;
     FBackground: TAlphaColor;
     FItemBackground: TAlphaColor;
     FAlternatingItemBackground: TAlphaColor;
@@ -1009,15 +1006,6 @@ begin
   Result := StringReplace(Result, '}', '', [rfReplaceAll]);
 end;
 
-procedure FreeObject(AObject: TObject);
-begin
-  {$IFDEF NEXTGEN}
-  AObject.DisposeOf;
-  {$ELSE}
-  AObject.Free;
-  {$ENDIF}
-end;
-
 // ------------------------------------------------------------------------------
 
 { TksListItemRowObj }
@@ -1270,7 +1258,7 @@ begin
       end;
       ARowBmp.Canvas.Font.Assign(ASaveFont);
     finally
-      FreeObject(ASaveFont);
+      FreeAndNil(ASaveFont);
     end;
   end;
   inherited;
@@ -1323,7 +1311,7 @@ end;
 
 destructor TksListItemRowText.Destroy;
 begin
-  FreeObject(FFont);
+  FreeAndNil(FFont);
   inherited;
 end;
 
@@ -1466,8 +1454,8 @@ end;
 
 destructor TksListItemRowImage.Destroy;
 begin
-  FreeObject(FBitmap);
-  FreeObject(FBorder);
+  FreeAndNil(FBitmap);
+  FreeAndNil(FBorder);
   inherited;
 end;
 
@@ -1513,10 +1501,10 @@ begin
 
       ACanvas.DrawBitmap(ABmp, RectF(0, 0, Rect.Width*4, Rect.Height*4), Rect, 1);
     finally
-      FreeObject(ABmp);
+      FreeAndNil(ABmp);
     end;
   finally
-    FreeObject(ARectangle);
+    ARectangle.DisposeOf;
   end;
 end;
 
@@ -1565,8 +1553,8 @@ end;
 
 destructor TksListItemRowShape.Destroy;
 begin
-  FreeObject(FFill);
-  FreeObject(FStroke);
+  FreeAndNil(FFill);
+  FreeAndNil(FStroke);
   inherited;
 end;
 
@@ -1615,7 +1603,7 @@ begin
     end;
     ACanvas.DrawBitmap(ABitmap, ARect, Rect, 1);
   finally
-    FreeObject(ABitmap);
+    FreeAndNil(ABitmap);
   end;
 end;
 
@@ -1849,7 +1837,7 @@ procedure TksListItemRow.ReleaseRow;
 begin
   if OwnsBitmap then
   begin
-    Bitmap := ListView.LoadingBitmap;
+    //Bitmap := ListView.LoadingBitmap;
     OwnsBitmap := False;
     FCached := False;
   end;
@@ -1995,14 +1983,15 @@ end;
 
 destructor TKsListItemRow.Destroy;
 begin
-  FreeObject(FList);
-  FreeObject(FFont);
-  FreeObject(FAccessory);
-  FreeObject(FImage);
-  FreeObject(FTitle);
-  FreeObject(FSubTitle);
-  FreeObject(FDetail);
-  FreeObject(FPickerItems);
+  FList.Clear;
+  FreeAndNil(FList);
+  FreeAndNil(FFont);
+  FreeAndNil(FAccessory);
+  FreeAndNil(FImage);
+  FreeAndNil(FTitle);
+  FreeAndNil(FSubTitle);
+  FreeAndNil(FDetail);
+  FreeAndNil(FPickerItems);
   inherited;
 end;
 
@@ -2755,23 +2744,28 @@ end; }
 
 destructor TksListView.Destroy;
 begin
-  FreeObject(FAppearence);
-  FreeObject(FItems);
+  FreeAndNil(FAppearence);
+  FreeAndNil(FItems);
   if FLoadingBitmap <> nil then
-    FreeObject(FLoadingBitmap);
-  FreeObject(FActionButtons);
-  FreeObject(FPageCaching);
-  FreeObject(FDeleteButton);
-  FreeObject(FMouseEvents);
+    FreeAndNil(FLoadingBitmap);
+  FreeAndNil(FActionButtons);
+  FreeAndNil(FPageCaching);
+  FreeAndNil(FDeleteButton);
+  FreeAndNil(FMouseEvents);
   // destroy FMX timers...
 
   {$IFDEF XE10_OR_NEWER}
   FTimerService.DestroyTimer(FMouseEventsTimer);
   {$ENDIF}
 
-  FreeObject(FScrollTimer);
-  if FCombo <> nil then FreeObject(FCombo);
-  if FDateSelector <> nil then FreeObject(FDateSelector);
+  FreeAndNil(FScrollTimer);
+  {$IFDEF NEXTGEN}
+  if FCombo <> nil then FCombo.DisposeOf;
+  if FDateSelector <> nil then FDateSelector.DisposeOf;
+  {$ELSE}
+  if FCombo <> nil then FCombo.Free;
+  if FDateSelector <> nil then FDateSelector.Free;
+  {$ENDIF}
   inherited;
 end;
 
@@ -2802,7 +2796,7 @@ begin
       AStrings.Add(AItems[ICount]);
     Result := AddRowItemSelector(AText, ASelected, AStrings);
   finally
-    FreeObject(AStrings);
+    FreeAndNil(AStrings);
   end;
 end;
 
@@ -3927,7 +3921,7 @@ begin
         APath.LineTo(PointF(ABmp.Width * 0.70, ABmp.Height * 0.25));
         ABmp.Canvas.DrawPath(APath, 1);
       finally
-        FreeObject(APath);
+        FreeAndNil(APath);
       end;
 
       ABmp.Canvas.EndScene;
@@ -3938,7 +3932,7 @@ begin
                          1);
 
     finally
-      FreeObject(ABmp);
+      FreeAndNil(ABmp);
     end;
   end
   else
@@ -3979,7 +3973,7 @@ end;
 
 destructor TksListItemRowSegmentButtons.Destroy;
 begin
-  FreeObject(FCaptions);
+  FreeAndNil(FCaptions);
   inherited;
 end;
 
@@ -4283,7 +4277,7 @@ begin
     ARect := RectF(0, 0, ABmp.Width, ABmp.Height);
     ACanvas.DrawBitmap(ABmp, ARect, Rect, 1, False);
   finally
-    FreeObject(ABmp);
+    FreeAndNil(ABmp);
   end;
 end;
 
@@ -4365,8 +4359,13 @@ end;
 
 destructor TksListItemRowActionButton.Destroy;
 begin
-  FreeObject(FLabel);
-  FreeObject(FBackground);
+  {$IFDEF NEXTGEN}
+  FLabel.DisposeOf;
+  FBackground.DisposeOf;
+  {$ELSE}
+  FLabel.Free;
+  FBackground.Free;
+  {$ENDIF}
   inherited;
 end;
 
@@ -4633,7 +4632,7 @@ end;
 
 destructor TksDeleteButton.Destroy;
 begin
-  FreeObject(FTextSettings);
+  FreeAndNil(FTextSettings);
   inherited;
 end;
 
@@ -4647,7 +4646,11 @@ initialization
   try
     ASearchBoxHeight := ASearchBox.Height;
   finally
-    FreeObject(ASearchBox);
+    {$IFDEF NEXTGEN}
+    ASearchBox.DisposeOf;
+    {$ELSE}
+    ASearchBox.Free;
+    {$ENDIF}
   end;
 
 
@@ -4657,7 +4660,7 @@ initialization
 
 finalization
 
-  FreeObject(ATextLayout);
+  FreeAndNil(ATextLayout);
 
 
 end.

@@ -80,15 +80,6 @@ var
   _ScreenScale: single;
   ATextLayout: TTextLayout;
 
-procedure FreeObject(AObject: TObject);
-begin
-  {$IFDEF NEXTGEN}
-  AObject.DisposeOf;
-  {$ELSE}
-  AObject.Free;
-  {$ENDIF}
-end;
-
 function GetColorOrDefault(AColor, ADefaultIfNull: TAlphaColor): TAlphaColor;
 begin
   Result := AColor;
@@ -222,7 +213,7 @@ begin
     ABlank.Clear(claNull);
     Result := ABmp.EqualsBitmap(ABlank);
   finally
-    FreeObject(ABlank);
+    FreeAndNil(ABlank);
   end;
 end;
 
@@ -296,7 +287,7 @@ begin
     ABmp.Canvas.EndScene;
     ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ARect, 1, False);
   finally
-    FreeObject(ABmp);
+    FreeAndNil(ABmp);
   end;
 end;
 
@@ -364,7 +355,7 @@ begin
 
     ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ARect, 1, False);
   finally
-    FreeObject(ABmp);
+    FreeAndNil(ABmp);
   end;
 end;
 
@@ -400,7 +391,7 @@ begin
 
     ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ARect, 1, False);
   finally
-    FreeObject(ABmp);
+    FreeAndNil(ABmp);
   end;
 end;
 
@@ -432,7 +423,7 @@ begin
 
       ABmp.Canvas.DrawPath(APath, 1);
     finally
-      FreeObject(APath);
+      FreeAndNil(APath);
     end;
 
     ABmp.Canvas.EndScene;
@@ -441,7 +432,7 @@ begin
 
     ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ARect, 1, False);
   finally
-    FreeObject(ABmp);
+    FreeAndNil(ABmp);
   end;
 end;
 
@@ -452,7 +443,7 @@ initialization
 
 finalization
 
-  FreeObject(ATextLayout);
+  FreeAndNil(ATextLayout);
 
 end.
 
