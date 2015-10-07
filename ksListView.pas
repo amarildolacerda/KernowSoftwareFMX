@@ -39,7 +39,7 @@ interface
 uses
   Classes, FMX.Types, FMX.Controls, FMX.ListView, Types, FMX.TextLayout,
   FMX.ListView.Types, FMX.Graphics, Generics.Collections, System.UITypes,
-  {$IFDEF XE8_OR_NEWER} FMX.ImgList, {$ENDIF}
+  {$IFDEF XE8_OR_NEWER} FMX.ImgList, {$ENDIF} System.Rtti,
   System.UIConsts, FMX.StdCtrls, FMX.Styles.Objects, System.Generics.Collections,
   FMX.ListBox, FMX.DateTimeCtrls, FMX.Menus, FMX.Objects, FMX.SearchBox
   {$IFDEF XE10_OR_NEWER}, FMX.ListView.Appearances {$ENDIF}
@@ -519,6 +519,9 @@ type
     procedure SetSearchText(const Value: string);
     procedure SetBackgroundColor(const Value: TAlphaColor);
     procedure SetPickerItems(const Value: TStrings);
+    function GetData(const AIndex: string): TValue;
+    function GetHasData(const AIndex: string): Boolean;
+    procedure SetData(const AIndex: string; const Value: TValue);
     property ListView: TksListView read GetListView;
     procedure DoOnListChanged(Sender: TObject; const Item: TksListItemRowObj; Action: TCollectionNotification);
     function ScreenWidth: single;
@@ -611,6 +614,8 @@ type
     property SearchText: string read GetSearchText write SetSearchText;
     property BackgroundColor: TAlphaColor read FBackgroundColor write SetBackgroundColor default claNull;
     property PickerItems: TStrings read FPickerItems write SetPickerItems;
+    property Data[const AIndex: string]: TValue read GetData write SetData;
+    property HasData[const AIndex: string]: Boolean read GetHasData;
   end;
 
 
@@ -2030,6 +2035,16 @@ begin
   Result := FAccessory.AccessoryType;
 end;
 
+function TksListItemRow.GetData(const AIndex: string): TValue;
+begin
+  Result := (Owner as TListViewItem).Data[AIndex];
+end;
+
+function TksListItemRow.GetHasData(const AIndex: string): Boolean;
+begin
+  Result := (Owner as TListViewItem).HasData[AIndex];
+end;
+
 function TKsListItemRow.GetListView: TksListView;
 begin
   Result := (Owner.Parent as TksListView);
@@ -2363,6 +2378,11 @@ begin
     FChecked := Value;
     Changed;
   end;
+end;
+
+procedure TksListItemRow.SetData(const AIndex: string; const Value: TValue);
+begin
+  (Owner as TListViewItem).Data[AIndex] := Value;
 end;
 
 procedure TKsListItemRow.SetFontProperties(AName: string; ASize: integer;
