@@ -49,6 +49,9 @@ type
   function TextWidth(AText: string; AFont: TFont): single;
   function TextHeight(AText: string; AFont: TFont; AWordWrap: Boolean; const AWidth: single = 0): single;
 
+  function TextSizeHtml(AText: string; const AWidth: single = 0): TPointF;
+
+
   procedure RenderText(ACanvas: TCanvas;
                        x, y,
                        AWidth, AHeight: single;
@@ -99,30 +102,67 @@ begin
   Service := IFMXScreenService(TPlatformServices.Current.GetPlatformService
     (IFMXScreenService));
   Result := Service.GetScreenScale;
-  {$IFDEF MSWINDOWS}
-  //if Result < 2 then
-  //  Result := 2;
-  {$ENDIF}
   _ScreenScale := Result;
 
+end;
+
+function TextSizeHtml(AText: string; const AWidth: single = 0): TPointF;
+{$IFDEF USE_TMS_HTML_ENGINE}
+var
+  AnchorVal,
+  StripVal,
+  FocusAnchor: string;
+  XSize,
+  YSize: single;
+  HyperLinks,
+  MouseLink: Integer;
+  HoverRect:TRectF;
+  ABmp: TBitmap;
+  {$ENDIF}
+begin
+  Result := PointF(0, 0);
+  {$IFDEF USE_TMS_HTML_ENGINE}
+
+  XSize := AWidth;
+
+  if XSize <= 0 then
+    XSize := MaxSingle;
+
+  ABmp := TBitmap.Create(10, 10);
+  try
+    ABmp.BitmapScale := GetScreenScale;
+    {$IFDEF USE_TMS_HTML_ENGINE}
+    HTMLDrawEx(ABmp.Canvas, AText, RectF(0, 0, XSize, MaxSingle), 0,0, 0, 0, 0, False,
+               False, False, False, False, False, False, 1, claNull,
+               claNull, claNull, claNull, AnchorVal, StripVal, FocusAnchor, XSize, YSize, HyperLinks, MouseLink,
+               HoverRect, 1, nil, 1);
+    Result := PointF(XSize, YSize);
+    {$ELSE}
+    Result := PointF(0, 0);
+    {$ENDIF}
+  finally
+    FreeAndNil(ABmp);
+  end;
+  {$ENDIF}
 end;
 
 function TextWidth(AText: string; AFont: TFont): single;
 var
   APoint: TPointF;
 begin
-  ATextLayout.BeginUpdate;
-  // Setting the layout MaxSize
-  APoint.X := MaxSingle;
-  APoint.Y := 100;
-  ATextLayout.MaxSize := aPoint;
-  ATextLayout.Text := AText;
-  ATextLayout.WordWrap := False;
-  ATextLayout.Font.Assign(AFont);
-  ATextLayout.HorizontalAlign := TTextAlign.Leading;
-  ATextLayout.EndUpdate;
-  Result := ATextLayout.Width;
+    ATextLayout.BeginUpdate;
+    // Setting the layout MaxSize
+    APoint.X := MaxSingle;
+    APoint.Y := 100;
+    ATextLayout.MaxSize := aPoint;
+    ATextLayout.Text := AText;
+    ATextLayout.WordWrap := False;
+    ATextLayout.Font.Assign(AFont);
+    ATextLayout.HorizontalAlign := TTextAlign.Leading;
+    ATextLayout.EndUpdate;
+    Result := ATextLayout.Width;
 end;
+
 
 function TextHeight(AText: string; AFont: TFont; AWordWrap: Boolean; const AWidth: single = 0): single;
 var

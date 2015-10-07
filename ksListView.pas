@@ -532,8 +532,6 @@ type
     procedure Changed;
     procedure ReleaseAllDownButtons;
     procedure PickerItemsChanged(Sender: TObject);
-    //function TextWidth(AText: string; AFont: TFont): single;
-    //function TextHeight(AText: string; AFont: TFont; AWordWrap: Boolean; const AWidth: single = 0): single;
   protected
     procedure DoResize; override;
   public
@@ -590,6 +588,9 @@ type
     function TextBox(AText: string; ARect: TRectF; ATextAlign: TTextAlign; ATextLayout: TTextAlign; const ABackground: TAlphaColor = claNull): TksListItemRowText; overload;
     function TextBoxHtml(AText: string; ARect: TRectF): TksListItemRowText;
     function TextOutRight(AText: string; y, AWidth: single; AXOffset: single; const AVertAlign: TListItemAlign = TListItemAlign.Center): TksListItemRowText; overload;
+
+    function TextWidth(AText: string; AIsHtml: Boolean): single;
+    function TextHeight(AText: string; AWordWrap, AIsHtml: Boolean; const AMaxWidth: single): single;
     // font functions...
     procedure SetFontProperties(AName: string; ASize: integer; AColor: TAlphaColor; AStyle: TFontStyles);
     // properties...
@@ -2508,7 +2509,7 @@ function TKsListItemRow.TextOut(AText: string; x: single;
 var
   AWidth: single;
 begin
-  AWidth := TextWidth(AText, FFont);
+  AWidth := TextWidth(AText, False);
   Result := TextOut(AText, x,  AWidth, AVertAlign, AWordWrap);
 end;
 
@@ -2531,10 +2532,10 @@ begin
   Result.Font.Assign(Font);
   Result.FPlaceOffset := PointF(x, y);
 
-  AHeight := TextHeight(AText, Font, AWordWrap, AWidth);
+  AHeight := ksDrawFunctions.TextHeight(AText, FFont, AWordWrap, AWidth);
 
   if AWidth = 0 then
-    AWidth := TextWidth(AText, Font);
+    AWidth := ksDrawFunctions.TextWidth(AText, Font);
 
   Result.Width := AWidth;
   Result.Height := AHeight;
@@ -2560,6 +2561,14 @@ begin
   Result.TextAlignment := TTextAlign.Trailing;
 end;
 
+
+function TksListItemRow.TextWidth(AText: string; AIsHtml: Boolean): single;
+begin
+  if AIsHtml then
+    Result := ksDrawFunctions.TextSizeHtml(AText, 0).X
+  else
+    Result := ksDrawFunctions.TextWidth(AText, FFont);
+end;
 
 // ------------------------------------------------------------------------------
 
@@ -2593,6 +2602,14 @@ begin
     FUpdating := False;
   end;
   Changed;
+end;
+
+function TksListItemRow.TextHeight(AText: string; AWordWrap, AIsHtml: Boolean; const AMaxWidth: single): single;
+begin
+  if AIsHtml then
+    Result := ksDrawFunctions.TextSizeHtml(AText, AMaxWidth).Y
+  else
+    Result := ksDrawFunctions.TextHeight(AText, FFont, AWordWrap, AMaxWidth);
 end;
 
 { TksListViewAppearence }

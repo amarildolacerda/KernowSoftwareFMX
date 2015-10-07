@@ -346,27 +346,6 @@ begin
   FreeAndNil(FFont);
   FreeAndNil(FAppearence);
   FreeAndNil(FItems);
-  {$IFDEF NEXTGEN}
-  if not IsChild(FFormImage) then FFormImage.DisposeOf;
-  if not IsChild(FMenu) then FMenu.DisposeOf;
-  if not IsChild(FBackGround) then FBackground.DisposeOf;
-
-  {$ELSE}
-  if not IsChild(FFormImage) then FFormImage.Free;
-  if not IsChild(FMenu) then FMenu.Free;
-  if not IsChild(FBackGround) then FBackground.Free;
-
-  {$ENDIF}
-
-  {$IFNDEF ANDROID}
-    {$IFDEF NEXTGEN}
-    FShadowLeft.DisposeOf;
-    FShadowRight.DisposeOf;
-    {$ELSE}
-    FShadowLeft.Free;
-    FShadowRight.Free;
-    {$ENDIF}
-  {$ENDIF}
   inherited;
 end;
 
