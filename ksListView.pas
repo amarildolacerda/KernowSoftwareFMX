@@ -123,6 +123,8 @@ type
   TksItemSwipeEvent = procedure(Sender: TObject; ARow: TksListItemRow; ASwipeDirection: TksItemSwipeDirection; AButtons: TksListItemRowActionButtons) of object;
   TksItemActionButtonClickEvent = procedure(Sender: TObject; ARow: TksListItemRow; AButton: TksListItemRowActionButton) of object;
   TksSearchFilterChange = procedure(Sender: TObject; ASearchText: string) of object;
+  TksRowCacheEvent = procedure(Sender: TObject; ACanvas: TCanvas; ARow: TksListItemRow; ARect: TRectF) of object;
+
   // ------------------------------------------------------------------------------
 
   TksVisibleItems = record
@@ -498,6 +500,7 @@ type
     FLastHeight: single;
     FBackgroundColor: TAlphaColor;
     FUpdating: Boolean;
+
     function RowHeight(const AScale: Boolean = True): single;
     function RowWidth(const AScale: Boolean = True): single;
     function GetListView: TksListView;
@@ -785,6 +788,8 @@ type
     FMouseEventsTimer: TFmxHandle;
     {$ENDIF}
     FProcessingMouseEvents: Boolean;
+    FBeforeRowCache: TksRowCacheEvent;
+    FAfterRowCache: TksRowCacheEvent;
     function _Items: TksListViewItems;
 
     procedure DoScrollTimer(Sender: TObject);
@@ -901,6 +906,9 @@ type
     property TabStop;
     property Visible default True;
     property Width;
+    property AfterRowCache: TksRowCacheEvent read FAfterRowCache write FAfterRowCache;
+    property BeforeRowCache: TksRowCacheEvent read FBeforeRowCache write FBeforeRowCache;
+
     property OnSelectDate: TksListViewSelectDateEvent read FOnSelectDate write FOnSelectDate;
     property OnSelectPickerItem: TksListViewSelectPickerItem read FOnSelectPickerItem write FOnSelectPickerItem;
     property OnSearchFilterChanged: TksSearchFilterChange read FOnSearchFilterChanged write FOnSearchFilterChanged;
@@ -1645,11 +1653,14 @@ var
   ASize: TSize;
   {$ENDIF}
   ABmpWidth: single;
+  ABeforeCache: TksRowCacheEvent;
+  AAfterCache: TksRowCacheEvent;
 begin
   if ListView.FUpdateCount > 0 then
     Exit;
   if FCached then
     Exit;
+
 
   FCached := False;
 
@@ -1661,6 +1672,10 @@ begin
   end;
 
   lv := (ListView as TksListView);
+
+  ABeforeCache := lv.BeforeRowCache;
+  AAfterCache := lv.AfterRowCache;
+
   AMargins := lv.ItemSpaces;
   BeginUpdate;
   try
@@ -1688,6 +1703,9 @@ begin
     {$ENDIF}
     Bitmap.Clear(claNull);
     Bitmap.Canvas.BeginScene;
+
+    if Assigned(ABeforeCache) then
+      ABeforeCache(lv, Bitmap.Canvas, Self, RectF(0, 0, Bitmap.Width, Bitmap.Height));
 
     if (FIndicatorColor <> claNull) and (lv.ShowIndicatorColors) then
     begin
@@ -1761,6 +1779,10 @@ begin
         Exit;
       end;
     end;
+
+    if Assigned(AAfterCache) then
+      AAfterCache(lv, Bitmap.Canvas, Self, RectF(0, 0, Bitmap.Width, Bitmap.Height));
+
     Bitmap.Canvas.EndScene;
     FCached := True;
   finally
