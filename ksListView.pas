@@ -4964,7 +4964,7 @@ begin
   begin
     for ICount := Low(FRows) to High(FRows) do
     begin
-      Result.cy := Result.cy + Frows[0, ICount].Height;
+      Result.cy := Result.cy + Frows[ICount, 0].Height;
     end;
   end;
   if (FColCount > 0) and (FColCount > 0) then
@@ -5097,115 +5097,14 @@ begin
       if ACell = nil then
       begin
         ACell := TksListItemRowTableCell.Create(Self);
-        ACell.Width := FDefaultColWidth;
-        ACell.Height := FDefaultRowHeight;
+        ACell.Width := (FDefaultColWidth * GetScreenScale);
+        ACell.Height := (FDefaultRowHeight * GetScreenScale);
         FRows[y, x] := ACell;
       end;
     end;
   end;
 end;
 
-{ TksListItemRowTableRows }
- {
-function TksListItemRowTableRows.AddRow: TksListItemRowTableRow;
-begin
-  Result := TksListItemRowTableRow.Create;
-  Add(Result);
-end;
-       }
-{ TksListItemRowTableRow }
-  {
-constructor TksListItemRowTableRow.Create;
-begin
-  inherited Create(True);
-  FHeight := 20;
-end;
-
-procedure TksListItemRowTableRow.SetHeight(const Value: integer);
-begin
-  FHeight := Value;
-end;
-       }
-{ TksListItemRowTableRow }
-                                                {
-procedure TksListItemRowTableRow.AddCell;
-var
-  ACell: TksListItemRowTableCell;
-begin
-  ACell := TksListItemRowTableCell.Create;
-  Add(ACell);
-end;
-
-constructor TksListItemRowTableRow.Create;
-begin
-  inherited Create(True);
-  FHeight := 20;
-end;
-
-procedure TksListItemRowTableRow.DrawToCanvas(x, y: single; ACanvas: TCanvas);
-var
-  ICount: integer;
-  AXpos: single;
-begin
-  AXpos := x;
-  for ICount := 0 to Count-1 do
-  begin
-    Items[ICount].DrawToCanvas(AXPos, y, ACanvas);
-    AXpos := AXpos + Items[ICount].Width;
-  end;
-end;
-
-procedure TksListItemRowTableRow.SetColCount(AColCount: integer);
-begin
-  while Count > AColCount do
-    Delete(Count-1);
-  while Count < AColCount do
-    AddCell;
-end;
-
-procedure TksListItemRowTableRow.SetColWidths(AWidth: single);
-var
-  ICount: integer;
-begin
-  for ICount := 0 to Count-1 do
-    Items[ICount].Width := AWidth;
-
-end;
-
-procedure TksListItemRowTableRow.SetHeight(const Value: integer);
-begin
-
-end;               }
-
-{ TksListItemRowTableRows }
-       {
-function TksListItemRowTableRows.AddRow: TksListItemRowTableRow;
-begin
-  Result := TksListItemRowTableRow.Create;
-  Add(Result);
-end;
-
-procedure TksListItemRowTableRows.DrawToCanvas(x, y: single; ACanvas: TCanvas);
-var
-  ICount: integer;
-  AYpos: single;
-begin
-  AYpos := y;
-  for ICount := 0 to Count-1 do
-  begin
-    Items[ICount].DrawToCanvas(x, AYPos, ACanvas);
-    AYPos := AYpos + Items[ICount].Height;
-  end;
-end;
-
-procedure TksListItemRowTableRows.SetColCount(AColCount: integer);
-var
-  ICount: integer;
-begin
-  for ICount := 0 to Count-1 do
-    Items[ICount].SetColCount(AColCount);
-end;
-                 }
 { TksListItemRowTableShadow }
 
 constructor TksListItemTableShadow.Create;
