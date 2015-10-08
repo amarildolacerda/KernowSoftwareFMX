@@ -88,6 +88,7 @@ type
   TksListItemRowSegmentButtons = class;
   TksListItemRowActionButton = class;
   TksListItemRowActionButtons = class;
+  TksListItemRowTable = class;
 
   TksListViewCheckMarks = (ksCmNone, ksCmSingleSelect, ksCmMultiSelect);
   TksListViewCheckStyle = (ksCmsDefault, ksCmsRed, ksCmsGreen, ksCmsBlue);
@@ -267,27 +268,50 @@ type
     property Thickness: single read FThickness write SetThickness;
   end;
 
+  TksListItemTableShadow = class(TPersistent)
+  private
+    FColor: TAlphaColor;
+    FOffset: integer ;
+    FVisible: Boolean;
+  private
+    constructor Create; virtual;
+    procedure SetVisible(const Value: Boolean);
+    property Color: TAlphaColor read FColor write FColor default claSilver;
+    property Offset: integer read FOffset write FOffset default 3;
+    property Visible: Boolean read FVisible write SetVisible default True;
+  end;
+
   TksListItemRowTableCell = class(TPersistent)
   private
+    [weak]FTable: TksListItemRowTable;
     FTextSettings: TTextSettings;
-    FBackground: TAlphaColor;
+    FFill: TksListItemBrush;
+    FStroke: TksListItemStroke;
     FText: string;
     FWidth: single;
     FHeight: single;
     FPadding: TBounds;
+    FVisible: Boolean;
+    FSides: TSides;
     procedure SetText(const Value: string);
     procedure SetTextSettings(const Value: TTextSettings);
-    procedure SetBackground(const Value: TAlphaColor);
+    procedure SetVisible(const Value: Boolean);
+    procedure Changed;
+    function GetShadow: TksListItemTableShadow;
   public
-    constructor Create; virtual;
+    constructor Create(ATable: TksListItemRowTable); virtual;
     destructor Destroy; override;
-    procedure DrawToCanvas(x, y: single; ACanvas: TCanvas; ASides: TSides);
-    property Background: TAlphaColor read FBackground write SetBackground;
+    procedure DrawToCanvas(x, y: single; ACanvas: TCanvas; ACol, ARow: integer; AShadow: TksListItemTableShadow);
+    property Fill: TksListItemBrush read FFill;
+    property Stroke: TksListItemStroke read FStroke;
     property TextSettings: TTextSettings read FTextSettings write SetTextSettings;
     property Text: string read FText write SetText;
     property Width: single read FWidth write FWidth;
     property Height: single read FHeight write FHeight;
     property Padding: TBounds read FPadding write FPadding;
+    property Shadow: TksListItemTableShadow read GetShadow;
+    property Sides: TSides read FSides write FSides;
+    property Visible: Boolean read FVisible write SetVisible default True;
   end;
 
   TksListItemRowTableRow = array of TksListItemRowTableCell;
@@ -301,7 +325,9 @@ type
     FColCount: integer;
     FDefaultRowHeight: single;
     FDefaultColWidth: single;
+    FShadow: TksListItemTableShadow;
     procedure SetColCount(const Value: integer);
+    procedure SetRowCount(const Value: integer);
     procedure SetBackgroundColor(const Value: TAlphaColor);
     procedure SetBorderColor(const Value: TAlphaColor);
     procedure SetDefaultColWidth(const Value: single);
@@ -311,19 +337,24 @@ type
     function GetColWidths(ACol: integer): single;
     procedure SetColWidths(ACol: integer; const Value: single);
     function GetCells(ACol, ARow: integer): TksListItemRowTableCell;
+    function GetTableSize: TSizeF;
   protected
 
   public
     constructor Create(ARow: TKsListItemRow); override;
     destructor Destroy; override;
+    procedure Clear;
     function Render(ACanvas: TCanvas): Boolean; override;
     property Background: TAlphaColor read FBackground write SetBackgroundColor default claWhite;
     property BorderColor: TAlphaColor read FBorderColor write SetBorderColor default claBlack;
     property Cells[ACol, ARow: integer]: TksListItemRowTableCell read GetCells;
     property ColCount: integer read FColCount write SetColCount;
+    property RowCount: integer read FRowCount write SetRowCount;
     property DefaultRowHeight: single read FDefaultRowHeight write SetDefaultRowHeight;
     property DefaultColWidth: single read FDefaultColWidth write SetDefaultColWidth;
     property ColWidths[ACol: integer]: single read GetColWidths write SetColWidths;
+    property Shadow: TksListItemTableShadow read FShadow;
+    property TableSize: TSizeF read GetTableSize;
   end;
 
   TksListItemRowImage = class(TksListItemRowObj)
@@ -831,17 +862,12 @@ type
     FOnItemSwipe: TksItemSwipeEvent;
     FActionButtons: TksListItemRowActionButtons;
     FOnItemActionButtonClick: TksItemActionButtonClickEvent;
-    //FSearchBoxHeight: single;
-    //FDisableMouseMove: Boolean;
     FPageCaching: TksPageCaching;
     FFullWidthSeparator: Boolean;
     FDeleteButton: TksDeleteButton;
-    //FDeselectTimer: TTimer;
     FSearchEdit: TSearchBox;
     FOnSearchFilterChanged: TksSearchFilterChange;
-
     FShowSelection: Boolean;
-    //FDelaySelection: Boolean;
     FMouseEvents: TksMouseEventList;
     FTimerService: IFMXTimerService;
     FDeselectTimer: TFmxHandle;
@@ -852,7 +878,6 @@ type
     FBeforeRowCache: TksRowCacheEvent;
     FAfterRowCache: TksRowCacheEvent;
     function _Items: TksListViewItems;
-
     procedure DoScrollTimer(Sender: TObject);
     procedure SetCheckMarks(const Value: TksListViewCheckMarks);
     function RowObjectAtPoint(ARow: TKsListItemRow; x, y: single): TksListItemRowObj;
@@ -870,11 +895,9 @@ type
     procedure DoRenderRow(ARow: TKsListItemRow);
     procedure CachePages;
     function LoadingBitmap: TBitmap;
-    //procedure CalculateSearchBoxHeight;
     procedure DeselectRow(const ADelay: integer = 0);
     procedure DoSearchFilterChanged(Sender: TObject; var Key: Word; var KeyChar: Char; Shift: TShiftState);
     procedure SetShowSelection(const Value: Boolean);
-    //procedure DoDeselectTimer(Sender: TObject);
     procedure QueueMouseEvent(AType: TksMouseEventType; X, Y: single; AId: string; ARow: TKsListItemRow; AObj: TksListItemRowObj);
     procedure ProcessMouseEvents;
     procedure DoDeselectRow;
@@ -2402,6 +2425,7 @@ begin
   Result.DefaultRowHeight := ARowHeight;
   Result.DefaultColWidth := AColWidth;
   Result.ColCount := AColCount;
+  Result.RowCount := ARowCount;
   Result.PlaceOffset := PointF(AX, AY);
   Result.ResizeTable;
   FList.Add(Result);
@@ -4778,48 +4802,94 @@ var
   ASearchBox: TSearchBox;
 { TksListItemRowTableCell }
 
-constructor TksListItemRowTableCell.Create;
+procedure TksListItemRowTableCell.Changed;
 begin
-  inherited;
+  // need to implement.
+end;
+
+constructor TksListItemRowTableCell.Create(ATable: TksListItemRowTable);
+begin
+  inherited Create;
+  FTable := ATable;
   FTextSettings := TTextSettings.Create(nil);
+  FFill := TksListItemBrush.Create;
+  FStroke := TksListItemStroke.Create;
   FPadding := TBounds.Create(RectF(0, 0, 0, 0));
   FTextSettings.FontColor := claBlack;
+  FSides := AllSides;
+  FVisible := True;
 end;
 
 destructor TksListItemRowTableCell.Destroy;
 begin
   FreeAndNil(FTextSettings);
+  FreeAndNil(FFill);
+  FreeAndNil(FStroke);
   FreeAndNil(FPadding);
   inherited;
 end;
 
-procedure TksListItemRowTableCell.DrawToCanvas(x, y: single; ACanvas: TCanvas; ASides: TSides);
+procedure TksListItemRowTableCell.DrawToCanvas(x, y: single; ACanvas: TCanvas; ACol, ARow: integer; AShadow: TksListItemTableShadow);
 var
   s: single;
   ARect: TRectF;
   ATextRect: TRectF;
+  AXShift: single;
+  AYShift: single;
+  AShadowRect: TRectF;
 begin
-  s := GetScreenScale;
+  if not FVisible then
+    Exit;
+  s := GetScreenScale * 2;
   with ACanvas do
   begin
     Stroke.Color := claBlack;
     Stroke.Thickness := 1;
+    AXShift := 0;
+    AYShift := 0;
+    if ACol = 0 then AXShift := 1;
+    if ARow = 0 then AYShift := 1;
     ARect := RectF(x*s, y*s, (x+FWidth)*s, (y+FHeight)*s);
+
+    ACanvas.Fill.Color := GetColorOrDefault(FFill.Color, claWhite);
+    ACanvas.Fill.Kind := FFill.Kind;
+    ACanvas.FillRect(RectF(ARect.Left+AXShift, ARect.Top+AYShift, ARect.Right, ARect.Bottom), 0, 0, AllCorners, 1);
+
+    if AShadow.Visible then
+    begin
+      // bottom shadow...
+      AShadowRect := RectF(ARect.Left, ARect.Bottom, ARect.Right, ARect.Bottom+(AShadow.Offset*s));
+      ACanvas.Fill.Color := AShadow.Color;
+      OffsetRect(AShadowRect, AShadow.Offset*s, 0);
+      ACanvas.FillRect(AShadowRect, 0, 0, AllCorners, 1);
+      // right shadow...
+      AShadowRect := RectF(ARect.Right, ARect.Top, ARect.Right+(AShadow.Offset*s), ARect.Bottom);
+      ACanvas.Fill.Color := AShadow.Color;
+      OffsetRect(AShadowRect, 0, AShadow.Offset*s);
+      ACanvas.FillRect(AShadowRect, 0, 0, AllCorners, 1);
+    end;
+
     ATextRect := ARect;
     ATextRect.Left := ATextRect.Left + (FPadding.Left * s);
     ATextRect.Top := ATextRect.Top + (FPadding.Top * s);
     ATextRect.Right := ATextRect.Right - (FPadding.Right * s);
     ATextRect.Bottom := ATextRect.Bottom - (FPadding.Bottom * s);
+    ACanvas.Font.Assign(FTextSettings.Font);
+    ACanvas.Font.Size := (FTextSettings.Font.Size * s);
     RenderText(ACanvas, ATextRect.Left, ATextRect.Top, ATextRect.Width, ATextRect.Height, FText,
-               FTextSettings.Font, FTextSettings.FontColor, True, FTextSettings.HorzAlign,
+               ACanvas.Font, FTextSettings.FontColor, True, FTextSettings.HorzAlign,
                FTextSettings.VertAlign, TTextTrimming.Character);
-    DrawRectSides(ARect, 0, 0, AllCorners, 1, ASides);
+
+    ACanvas.Stroke.Color :=  GetColorOrDefault(FStroke.FColor, claBlack);
+    ACanvas.StrokeThickness := FStroke.Thickness;
+    DrawRectSides(RectF(ARect.Left+AXShift, ARect.Top+AYShift, ARect.Right, ARect.Bottom), 0, 0, AllCorners, 1, AllSides);
   end;
 end;
 
-procedure TksListItemRowTableCell.SetBackground(const Value: TAlphaColor);
+
+function TksListItemRowTableCell.GetShadow: TksListItemTableShadow;
 begin
-  FBackground := Value;
+  Result := FTable.Shadow;
 end;
 
 procedure TksListItemRowTableCell.SetText(const Value: string);
@@ -4832,12 +4902,31 @@ begin
   FTextSettings := Value;
 end;
 
+procedure TksListItemRowTableCell.SetVisible(const Value: Boolean);
+begin
+  FVisible := Value;
+  Changed;
+end;
+
 { TksListItemRowTable }
+
+procedure TksListItemRowTable.Clear;
+var
+  X, Y: integer;
+  ARow: TksListItemRowTableRow;
+begin
+  for y := Low(FRows) to High(FRows) do
+  begin
+    ARow := FRows[y];
+    for x := Low(ARow) to High(ARow) do
+      FreeAndNil(ARow[x]);
+  end;
+end;
 
 constructor TksListItemRowTable.Create(ARow: TKsListItemRow);
 begin
   inherited;
-  //FRows := TksListItemRowTableRows.Create(True);
+  FShadow := TksListItemTableShadow.Create;
   SetLength(FRows, 5, 5);
   FBackground := claWhite;
   FBorderColor := claBlack;
@@ -4847,7 +4936,8 @@ end;
 
 destructor TksListItemRowTable.Destroy;
 begin
-  //FreeAndNil(FRows);
+  Clear;
+  FreeAndNil(FShadow);
   inherited;
 end;
 
@@ -4863,6 +4953,29 @@ begin
   Result := FRows[0, ACol].Width;
 end;
 
+function TksListItemRowTable.GetTableSize: TSizeF;
+var
+  ICount: integer;
+begin
+  Result.cx := 0;
+  Result.cy := 0;
+
+  if FRowCount > 0 then
+  begin
+    for ICount := Low(FRows) to High(FRows) do
+    begin
+      Result.cy := Result.cy + Frows[0, ICount].Height;
+    end;
+  end;
+  if (FColCount > 0) and (FColCount > 0) then
+  begin
+    for ICount := Low(FRows[0]) to High(FRows[0]) do
+    begin
+      Result.cx := Result.cx + Frows[0, ICount].Width;
+    end;
+  end;
+end;
+
 function TksListItemRowTable.Render(ACanvas: TCanvas): Boolean;
 var
   IRowCount, ICellCount: integer;
@@ -4870,42 +4983,58 @@ var
   ARow: TksListItemRowTableRow;
   ACell: TksListItemRowTableCell;
   ASides: TSides;
+  ABmp: TBitmap;
+  ASize: TSizeF;
 begin
   Result := inherited Render(ACanvas);
 
-  with ACanvas.Fill do
-  begin
-    Kind := TBrushKind.Solid;
-    Color := FBackground;
-  end;
-  with ACanvas.Stroke do
-  begin
-    Kind := TBrushKind.Solid;
-    Color := FBorderColor;
-  end;
-
-  AXPos := Rect.Left;
-  AYPos := Rect.Top;
-
-  ACell := nil;
-  for IRowCount := Low(FRows) to High(FRows) do
-  begin
-    ARow := FRows[IRowCount];
-    for ICellCount := Low(ARow) to High(ARow) do
+  ABmp := TBitmap.Create;
+  try
+    ASize := GetTableSize;
+    FWidth := ASize.cx;
+    FHeight := ASize.cy;
+    ABmp.SetSize(Round((ASize.cx+FShadow.Offset+2) * (GetScreenScale*2)), Round((ASize.cy+FShadow.Offset+2) * (GetScreenScale*2)));
+    ABmp.Clear(claNull);
+    ABmp.Canvas.BeginScene;
+    with ABmp.Canvas.Fill do
     begin
-      ACell := ARow[ICellCount];
-      begin
-        ASides := [TSide.Right, TSide.Bottom];
-        if ICellCount = 0 then ASides := ASides + [TSide.Left];
-        if IRowCount = 0 then ASides := ASides + [TSide.Top];
-
-
-        ACell.DrawToCanvas(AXpos, AYPos, ACanvas, ASides);
-      end;
-      AXPos := AXPos + (ACell.Width * GetScreenScale);
+      Kind := TBrushKind.Solid;
+      Color := FBackground;
     end;
-    AYpos := AYpos + (ACell.Height * GetScreenScale);
-    AXpos := Rect.Left;
+    with ABmp.Canvas.Stroke do
+    begin
+      Kind := TBrushKind.Solid;
+      Color := FBorderColor;
+    end;
+
+    AXPos := 0;//Rect.Left;
+    AYPos := 0;//Rect.Top;
+
+    ACell := nil;
+    for IRowCount := Low(FRows) to High(FRows) do
+    begin
+      ARow := FRows[IRowCount];
+      for ICellCount := Low(ARow) to High(ARow) do
+      begin
+        ACell := ARow[ICellCount];
+        begin
+          ASides := [TSide.Right, TSide.Bottom];
+          if ICellCount = 0 then ASides := ASides + [TSide.Left];
+          if IRowCount = 0 then ASides := ASides + [TSide.Top];
+
+
+          ACell.DrawToCanvas(AXpos, AYPos, ABmp.Canvas, ICellCount, IRowCount, FShadow);
+        end;
+        AXPos := AXPos + (ACell.Width * GetScreenScale);
+      end;
+      AYpos := AYpos + (ACell.Height * GetScreenScale);
+      AXpos := 0;//Rect.Left;
+    end;
+    ABmp.Canvas.EndScene;
+    ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height),
+                       RectF(Rect.Left, Rect.Top, Rect.Left+FWidth, Rect.Top+FHeight), 1, True);
+  finally
+    FreeAndNil(ABmp);
   end;
 end;
 
@@ -4926,6 +5055,11 @@ begin
   ResizeTable;
 end;
 
+procedure TksListItemRowTable.SetRowCount(const Value: integer);
+begin
+  FRowCount := Value;
+  ResizeTable;
+end;
 
 procedure TksListItemRowTable.SetColWidths(ACol: integer; const Value: single);
 var
@@ -4962,11 +5096,11 @@ begin
       ACell := ARow[x];
       if ACell = nil then
       begin
-        ACell := TksListItemRowTableCell.Create;
+        ACell := TksListItemRowTableCell.Create(Self);
         ACell.Width := FDefaultColWidth;
         ACell.Height := FDefaultRowHeight;
+        FRows[y, x] := ACell;
       end;
-      FRows[y, x] := ACell;
     end;
   end;
 end;
@@ -5072,6 +5206,20 @@ begin
     Items[ICount].SetColCount(AColCount);
 end;
                  }
+{ TksListItemRowTableShadow }
+
+constructor TksListItemTableShadow.Create;
+begin
+  FOffset := 3;
+  FColor := claSilver;
+  FVisible := True;
+end;
+
+procedure TksListItemTableShadow.SetVisible(const Value: Boolean);
+begin
+  FVisible := Value;
+end;
+
 initialization
 
   ATextLayout := TTextLayoutManager.DefaultTextLayout.Create;
