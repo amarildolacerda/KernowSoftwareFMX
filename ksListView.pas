@@ -274,6 +274,7 @@ type
     FText: string;
     FWidth: single;
     FHeight: single;
+    FPadding: TBounds;
     procedure SetText(const Value: string);
     procedure SetTextSettings(const Value: TTextSettings);
     procedure SetBackground(const Value: TAlphaColor);
@@ -286,6 +287,7 @@ type
     property Text: string read FText write SetText;
     property Width: single read FWidth write FWidth;
     property Height: single read FHeight write FHeight;
+    property Padding: TBounds read FPadding write FPadding;
   end;
 
   TksListItemRowTableRow = array of TksListItemRowTableCell;
@@ -4780,12 +4782,14 @@ constructor TksListItemRowTableCell.Create;
 begin
   inherited;
   FTextSettings := TTextSettings.Create(nil);
+  FPadding := TBounds.Create(RectF(0, 0, 0, 0));
   FTextSettings.FontColor := claBlack;
 end;
 
 destructor TksListItemRowTableCell.Destroy;
 begin
   FreeAndNil(FTextSettings);
+  FreeAndNil(FPadding);
   inherited;
 end;
 
@@ -4793,19 +4797,22 @@ procedure TksListItemRowTableCell.DrawToCanvas(x, y: single; ACanvas: TCanvas; A
 var
   s: single;
   ARect: TRectF;
+  ATextRect: TRectF;
 begin
   s := GetScreenScale;
   with ACanvas do
   begin
     Stroke.Color := claBlack;
     Stroke.Thickness := 1;
-    //DrawLine(PointF(x, y), PointF(x, y+Height), 1);
     ARect := RectF(x*s, y*s, (x+FWidth)*s, (y+FHeight)*s);
-
-    RenderText(ACanvas, ARect.Left, ARect.Top, ARect.Width, ARect.Height, FText,
+    ATextRect := ARect;
+    ATextRect.Left := ATextRect.Left + (FPadding.Left * s);
+    ATextRect.Top := ATextRect.Top + (FPadding.Top * s);
+    ATextRect.Right := ATextRect.Right - (FPadding.Right * s);
+    ATextRect.Bottom := ATextRect.Bottom - (FPadding.Bottom * s);
+    RenderText(ACanvas, ATextRect.Left, ATextRect.Top, ATextRect.Width, ATextRect.Height, FText,
                FTextSettings.Font, FTextSettings.FontColor, True, FTextSettings.HorzAlign,
                FTextSettings.VertAlign, TTextTrimming.Character);
-    //FillText(ARect, FText, True, 1, [], FTextSettings.HorzAlign, FTextSettings.VertAlign);
     DrawRectSides(ARect, 0, 0, AllCorners, 1, ASides);
   end;
 end;
