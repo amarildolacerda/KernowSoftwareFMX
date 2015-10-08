@@ -103,7 +103,6 @@ begin
     (IFMXScreenService));
   Result := Service.GetScreenScale;
   _ScreenScale := Result;
-
 end;
 
 function TextSizeHtml(AText: string; AFont: TFont; const AWidth: single = 0): TPointF;
