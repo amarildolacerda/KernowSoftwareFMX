@@ -328,6 +328,9 @@ type
     FDefaultRowHeight: single;
     FDefaultColWidth: single;
     FShadow: TksListItemTableShadow;
+    FFixedCellColor: TAlphaColor;
+    FFixedRows: integer;
+    FFixedCols: integer;
     procedure SetColCount(const Value: integer);
     procedure SetRowCount(const Value: integer);
     procedure SetBackgroundColor(const Value: TAlphaColor);
@@ -341,6 +344,7 @@ type
     function GetCells(ACol, ARow: integer): TksListItemRowTableCell;
     function GetTableSize: TSizeF;
     procedure RenderTableContents(ACanvas: TCanvas; AText: Boolean);
+    procedure SetFixedCellColor(const Value: TAlphaColor);
   protected
 
   public
@@ -351,6 +355,9 @@ type
     procedure MergeRowCells(x, y, AMergeCount: integer);
     property Background: TAlphaColor read FBackground write SetBackgroundColor default claWhite;
     property BorderColor: TAlphaColor read FBorderColor write SetBorderColor default claBlack;
+    property FixCellColor: TAlphaColor read FFixedCellColor write SetFixedCellColor default claGainsboro;
+    property FixedRows: integer read FFixedRows write FFixedRows default 1;
+    property FixedCols: integer read FFixedCols write FFixedCols default 1;
     property Cells[ACol, ARow: integer]: TksListItemRowTableCell read GetCells;
     property ColCount: integer read FColCount write SetColCount;
     property RowCount: integer read FRowCount write SetRowCount;
@@ -2424,7 +2431,6 @@ end;
 
 function  TKsListItemRow.AddTable(AX, AY, AColWidth, ARowHeight: single; AColCount, ARowCount: integer): TksListItemRowTable;
 begin
-  CanSelect := False;
   Result := TksListItemRowTable.Create(Self);
   Result.DefaultRowHeight := ARowHeight;
   Result.DefaultColWidth := AColWidth;
@@ -4855,7 +4861,7 @@ begin
   with ACanvas do
   begin
     Stroke.Color := claBlack;
-    Stroke.Thickness := FStroke.Thickness * s;
+    Stroke.Thickness := (FStroke.Thickness * s)/2;
     AXShift := 0;
     AYShift := 0;
     if ACol = 0 then AXShift := 1*s;
@@ -4878,12 +4884,14 @@ begin
         ACanvas.FillRect(AShadowRect, 0, 0, AllCorners, 1);
       end;
 
-      ACanvas.Fill.Color := GetColorOrDefault(FFill.Color, claWhite);
+      if (FRow <= (FTable.FixedRows-1)) or (FCol <= (FTable.FixedCols-1)) then
+        ACanvas.Fill.Color := GetColorOrDefault(FFill.Color, FTable.FixCellColor)
+      else
+        ACanvas.Fill.Color := GetColorOrDefault(FFill.Color, claWhite);
       ACanvas.Fill.Kind := FFill.Kind;
       ACanvas.FillRect(RectF(ARect.Left+AXShift, ARect.Top+AYShift, ARect.Right, ARect.Bottom), 0, 0, AllCorners, 1);
 
-      ACanvas.Stroke.Color :=  GetColorOrDefault(FStroke.FColor, claBlack);
-
+      ACanvas.Stroke.Color :=  GetColorOrDefault(FStroke.FColor, claDimgray);
       ACanvas.StrokeCap := TStrokeCap.Flat;
       ACanvas.StrokeJoin := TStrokeJoin.Miter;
       DrawRect(RectF(ARect.Left+AXShift, ARect.Top+AYShift, ARect.Right, ARect.Bottom), 0, 0, AllCorners, 1);
@@ -4958,6 +4966,9 @@ begin
   FBorderColor := claBlack;
   FColCount := 5;
   FRowCount := 5;
+  FFixedCellColor := claGainsboro;
+  FFixedRows := 1;
+  FFixedCols := 1;
 end;
 
 destructor TksListItemRowTable.Destroy;
@@ -5040,7 +5051,6 @@ begin
   AScale := GetScreenScale;
   if AScale < 2 then
     AScale := 2;
-  //AScale := AScale * 2;
 
   if AText then
   begin
@@ -5068,12 +5078,13 @@ begin
     Exit;
   end;
 
+
   ABmp := TBitmap.Create;
   try
     ASize := GetTableSize;
     FWidth := ASize.cx;
     FHeight := ASize.cy;
-    ABmp.SetSize(Round((ASize.cx+FShadow.Offset+2) * AScale), Round((ASize.cy+FShadow.Offset+2) * AScale));
+    ABmp.SetSize(Round((ASize.cx+FShadow.Offset+2) * (AScale)), Round((ASize.cy+FShadow.Offset+2) * (AScale)));
     ABmp.Clear(claNull);
     ABmp.Canvas.BeginScene;
     with ABmp.Canvas.Fill do
@@ -5155,6 +5166,11 @@ end;
 procedure TksListItemRowTable.SetDefaultRowHeight(const Value: single);
 begin
   FDefaultRowHeight := Value;
+end;
+
+procedure TksListItemRowTable.SetFixedCellColor(const Value: TAlphaColor);
+begin
+  FFixedCellColor := Value;
 end;
 
 procedure TksListItemRowTable.ResizeTable;
