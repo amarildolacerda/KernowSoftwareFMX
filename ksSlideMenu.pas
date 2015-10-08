@@ -1054,6 +1054,7 @@ begin
     AXPos := 10;
     ABmp.Clear(FSlideMenu.Appearence.ToolBarColor);
     ABmp.Canvas.BeginScene;
+
     if FBitmap.IsEmpty = False then
     begin
       ABmp.Canvas.DrawBitmap(FBitmap, RectF(0, 0, FBitmap.Width, FBitmap.Height), RectF(10, 10, 40, 40), 1);
@@ -1063,6 +1064,15 @@ begin
 
     ABmp.Canvas.Font.Assign(FFont);
     ABmp.Canvas.FillText(RectF(AXPos, 0, C_MENU_WIDTH, C_TOOLBAR_HEIGHT), FText, False, 1, [], TTextAlign.Leading);
+    ABmp.Canvas.EndScene;
+
+    ABmp.Canvas.BeginScene;
+    ABmp.Canvas.Fill.Color := FSlideMenu.Appearence.ItemColor;
+    //ABmp.Canvas.StrokeThickness := 1;
+    ABmp.Canvas.FillRect(RectF(0, C_TOOLBAR_HEIGHT-1, C_MENU_WIDTH, C_TOOLBAR_HEIGHT), 0, 0, AllCorners, 1, ABmp.Canvas.Fill);
+    //ABmp.Canvas.DrawLine(PointF(0, ABmp.Height-GetScreenScale), PointF(ABmp.Width, ABmp.Height-GetScreenScale), 1, ABmp.Canvas.Stroke);
+
+
     ABmp.Canvas.EndScene;
 
     FHeader.Bitmap := ABmp;

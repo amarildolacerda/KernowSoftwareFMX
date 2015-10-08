@@ -49,7 +49,7 @@ type
   function TextWidth(AText: string; AFont: TFont): single;
   function TextHeight(AText: string; AFont: TFont; AWordWrap: Boolean; const AWidth: single = 0): single;
 
-  function TextSizeHtml(AText: string; const AWidth: single = 0): TPointF;
+  function TextSizeHtml(AText: string; AFont: TFont; const AWidth: single = 0): TPointF;
 
 
   procedure RenderText(ACanvas: TCanvas;
@@ -106,7 +106,7 @@ begin
 
 end;
 
-function TextSizeHtml(AText: string; const AWidth: single = 0): TPointF;
+function TextSizeHtml(AText: string; AFont: TFont; const AWidth: single = 0): TPointF;
 {$IFDEF USE_TMS_HTML_ENGINE}
 var
   AnchorVal,
@@ -131,6 +131,7 @@ begin
   ABmp := TBitmap.Create(10, 10);
   try
     ABmp.BitmapScale := GetScreenScale;
+    ABmp.Canvas.Assign(AFont);
     {$IFDEF USE_TMS_HTML_ENGINE}
     HTMLDrawEx(ABmp.Canvas, AText, RectF(0, 0, XSize, MaxSingle), 0,0, 0, 0, 0, False,
                False, False, False, False, False, False, 1, claNull,
@@ -233,7 +234,8 @@ var
   {$ENDIF}
 begin
   {$IFDEF USE_TMS_HTML_ENGINE}
-  ACanvas.Fill.Color := claBlack;
+  ACanvas.Fill.Color := ATextColor;
+  ACanvas.Font.Assign(AFont);
   HTMLDrawEx(ACanvas, AText, RectF(x,y , x+AWidth, y+AHeight), 0,0, 0, 0, 0, False,
              False, True, False, False, False, AWordWrap, 1, claNull,
              claNull, claNull, claNull, AnchorVal, StripVal, FocusAnchor, XSize, YSize, HyperLinks, MouseLink,

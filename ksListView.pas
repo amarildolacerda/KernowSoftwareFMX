@@ -1915,10 +1915,12 @@ begin
   begin
     if ListView.Appearence.HeaderColor <> claNull then
     begin
+      ARect.Top := ARect.Top-1;
       ARect.Bottom := ARect.Bottom+1;
       Canvas.Fill.Color := ListView.Appearence.HeaderColor;
       Canvas.FillRect(ARect, 0, 0, AllCorners, 1);
       ARect.Bottom := ARect.Bottom-1;
+      ARect.Top := ARect.Top+1;
     end;
   end;
 
@@ -2565,7 +2567,7 @@ end;
 function TksListItemRow.TextWidth(AText: string; AIsHtml: Boolean): single;
 begin
   if AIsHtml then
-    Result := ksDrawFunctions.TextSizeHtml(AText, 0).X
+    Result := ksDrawFunctions.TextSizeHtml(AText, FFont, 0).X
   else
     Result := ksDrawFunctions.TextWidth(AText, FFont);
 end;
@@ -2607,7 +2609,7 @@ end;
 function TksListItemRow.TextHeight(AText: string; AWordWrap, AIsHtml: Boolean; const AMaxWidth: single): single;
 begin
   if AIsHtml then
-    Result := ksDrawFunctions.TextSizeHtml(AText, AMaxWidth).Y
+    Result := ksDrawFunctions.TextSizeHtml(AText, FFont, AMaxWidth).Y
   else
     Result := ksDrawFunctions.TextHeight(AText, FFont, AWordWrap, AMaxWidth);
 end;
@@ -3416,16 +3418,21 @@ function TksListView.RowObjectAtPoint(ARow: TKsListItemRow; x, y: single): TksLi
 var
   ICount: integer;
   AObjRect: TRectF;
+  AObj: TksListItemRowObj;
 begin
   Result := nil;
   for ICount := ARow.RowObjectCount - 1 downto 0 do
   begin
-    AObjRect := ARow.RowObject[ICount].Rect;
-    InflateRect(AObjRect, 4, 4);
-    if PtInRect(AObjRect, PointF(X, Y)) then
+    AObj := ARow.RowObject[ICount];
+    if AObj.HitTest then
     begin
-      Result := ARow.RowObject[ICount];
-      Exit;
+      AObjRect := AObj.Rect;
+      InflateRect(AObjRect, 4, 4);
+      if (PtInRect(AObjRect, PointF(X, Y))) then
+      begin
+        Result := AObj;
+        Exit;
+      end;
     end;
   end;
 end;
