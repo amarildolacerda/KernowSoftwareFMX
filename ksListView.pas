@@ -302,6 +302,7 @@ type
   public
     constructor Create(ATable: TksListItemRowTable); virtual;
     destructor Destroy; override;
+    function IsFixedCell: Boolean;
     procedure DrawToCanvas(x, y: single; ACanvas: TCanvas; ACol,
       ARow: integer; AShadow: TksListItemTableShadow; AText: Boolean);
     property Fill: TksListItemBrush read FFill;
@@ -346,13 +347,17 @@ type
     procedure RenderTableContents(ACanvas: TCanvas; AText: Boolean);
     procedure SetFixedCellColor(const Value: TAlphaColor);
   protected
-
+    procedure CalculateRect(ARowBmp: TBitmap); override;
   public
     constructor Create(ARow: TKsListItemRow); override;
     destructor Destroy; override;
     procedure Clear;
     function Render(ACanvas: TCanvas): Boolean; override;
     procedure MergeRowCells(x, y, AMergeCount: integer);
+    procedure SetRowColor(ARow: integer; AColor: TAlphaColor);
+    procedure SetColColor(ACol: integer; AColor: TAlphaColor);
+    procedure SetRowFont(ARow: integer; AFontName: TFontName; AColor: TAlphaColor; ASize: integer; AStyle: TFontStyles);
+    procedure SetColFont(ACol: integer; AFontName: TFontName; AColor: TAlphaColor; ASize: integer; AStyle: TFontStyles);
     property Background: TAlphaColor read FBackground write SetBackgroundColor default claWhite;
     property BorderColor: TAlphaColor read FBorderColor write SetBorderColor default claBlack;
     property FixCellColor: TAlphaColor read FFixedCellColor write SetFixedCellColor default claGainsboro;
@@ -1156,9 +1161,12 @@ begin
   if FAlign = TListItemAlign.Leading then
     OffsetRect(FRect, FPlaceOffset.X, 0);
 
+  if FAlign = TListItemAlign.Center then
+    OffsetRect(FRect, (ABmpWidth - Rect.Width) / 2, 0);
+
   if FAlign = TListItemAlign.Trailing then
   begin
-    OffsetRect(FRect, ABmpWidth - (4 + w+ DefaultScrollBarWidth + FPlaceOffset.X {+ FRow.ListView.ItemSpaces.Right}), 0);
+    OffsetRect(FRect, ABmpWidth - (4 + w+ DefaultScrollBarWidth + FPlaceOffset.X), 0);
     if (Self is TKsListItemRowAccessory) = False then
     begin
       if FRow.ShowAccessory then
@@ -4827,9 +4835,14 @@ begin
   FPadding := TBounds.Create(RectF(0, 0, 0, 0));
   FTextSettings.FontColor := claBlack;
   FTextSettings.Font.Family := 'Arial';
+  FTextSettings.HorzAlign := TTextAlign.Center;
+  FTextSettings.VertAlign := TTextAlign.Center;
   FTextSettings.Font.Size := 12;
   FSides := AllSides;
   FVisible := True;
+  {$IFDEF DEBUG}
+  //FText := 'CELL';
+  {$ENDIF}
 end;
 
 destructor TksListItemRowTableCell.Destroy;
@@ -4884,7 +4897,7 @@ begin
         ACanvas.FillRect(AShadowRect, 0, 0, AllCorners, 1);
       end;
 
-      if (FRow <= (FTable.FixedRows-1)) or (FCol <= (FTable.FixedCols-1)) then
+      if IsFixedCell then
         ACanvas.Fill.Color := GetColorOrDefault(FFill.Color, FTable.FixCellColor)
       else
         ACanvas.Fill.Color := GetColorOrDefault(FFill.Color, claWhite);
@@ -4926,6 +4939,11 @@ begin
   Result := FTable.Shadow;
 end;
 
+function TksListItemRowTableCell.IsFixedCell: Boolean;
+begin
+  Result := (FRow <= (FTable.FixedRows-1)) or (FCol <= (FTable.FixedCols-1));
+end;
+
 procedure TksListItemRowTableCell.SetText(const Value: string);
 begin
   FText := Value;
@@ -4943,6 +4961,18 @@ begin
 end;
 
 { TksListItemRowTable }
+
+procedure TksListItemRowTable.CalculateRect(ARowBmp: TBitmap);
+var
+  AShadowWidth: integer;
+begin
+  AShadowWidth := 0;
+  if FShadow.Visible then
+    AShadowWidth := FShadow.Offset;
+  Rect.Width := GetTableSize.cx + AShadowWidth + (4*GetScreenScale);
+  Rect.Height := GetTableSize.cy + AShadowWidth + (4*GetScreenScale);
+  inherited;
+end;
 
 procedure TksListItemRowTable.Clear;
 var
@@ -5137,16 +5167,70 @@ begin
   FBorderColor := Value;
 end;
 
+procedure TksListItemRowTable.SetColColor(ACol: integer; AColor: TAlphaColor);
+var
+  ICount: integer;
+begin
+  for ICount := Low(FRows) to High(FRows) do
+    FRows[ICount, ACol].Fill.Color := AColor;
+end;
+
 procedure TksListItemRowTable.SetColCount(const Value: integer);
 begin
   FColCount := Value;
   ResizeTable;
 end;
 
+procedure TksListItemRowTable.SetColFont(ACol: integer; AFontName: TFontName;
+  AColor: TAlphaColor; ASize: integer; AStyle: TFontStyles);
+var
+  ICount: integer;
+  ACell: TksListItemRowTableCell;
+begin
+  for ICount := Low(FRows) to High(FRows) do
+  begin
+    ACell := FRows[ICount, ACol];
+    with ACell.TextSettings do
+    begin
+      if AFontName <> '' then Font.Family := AFontName;
+      Font.Size := ASize;
+      FontColor := AColor;
+      Font.Style := AStyle;
+    end;
+  end;
+end;
+
+procedure TksListItemRowTable.SetRowColor(ARow: integer; AColor: TAlphaColor);
+var
+  ICount: integer;
+begin
+  for ICount := Low(FRows[ARow]) to High(FRows[ARow]) do
+    FRows[ARow, ICount].Fill.Color := AColor;
+end;
+
 procedure TksListItemRowTable.SetRowCount(const Value: integer);
 begin
   FRowCount := Value;
   ResizeTable;
+end;
+
+procedure TksListItemRowTable.SetRowFont(ARow: integer; AFontName: TFontName;
+  AColor: TAlphaColor; ASize: integer; AStyle: TFontStyles);
+var
+  ICount: integer;
+  ACell: TksListItemRowTableCell;
+begin
+  for ICount := Low(FRows[ARow]) to High(FRows[ARow]) do
+  begin
+    ACell := FRows[ARow, ICount];
+    with ACell.TextSettings do
+    begin
+      if AFontName <> '' then Font.Family := AFontName;
+      Font.Size := ASize;
+      FontColor := AColor;
+      Font.Style := AStyle;
+    end;
+  end;
 end;
 
 procedure TksListItemRowTable.SetColWidths(ACol: integer; const Value: single);
