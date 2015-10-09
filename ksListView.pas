@@ -53,7 +53,8 @@ uses
   FMX.ListView.Types, FMX.Graphics, Generics.Collections, System.UITypes,
   {$IFDEF XE8_OR_NEWER} FMX.ImgList, {$ENDIF} System.Rtti,
   System.UIConsts, FMX.StdCtrls, FMX.Styles.Objects, System.Generics.Collections,
-  FMX.ListBox, FMX.DateTimeCtrls, FMX.Menus, FMX.Objects, FMX.SearchBox
+  FMX.ListBox, FMX.DateTimeCtrls, FMX.Menus, FMX.Objects, FMX.SearchBox,
+  FMX.Edit
   {$IFDEF XE10_OR_NEWER}, FMX.ListView.Appearances {$ENDIF}
   ;
 
@@ -184,8 +185,10 @@ type
     procedure SetOffsetY(const Value: single);
   protected
     function GetConsumesRowClick: Boolean; virtual;
+    function GetRowRect: TRectF;
     procedure CalculateRect(ARowBmp: TBitmap); virtual;
     procedure DoChanged(Sender: TObject);
+
   public
     constructor Create(ARow: TKsListItemRow); virtual;
     procedure Assign(ASource: TPersistent); override;
@@ -280,12 +283,39 @@ type
     property Thickness: single read FThickness write SetThickness;
   end;
 
+  TksListItemEmbeddedControl = class(TksListItemRowObj)
+  private
+    FCached: TBitmap;
+    FControlActive: Boolean;
+    procedure SwapToControl;
+  protected
+    FControl: TControl;
+    function CreateControl: TControl; virtual; abstract;
+  public
+    constructor Create(ARow: TKsListItemRow); override;
+    destructor Destroy; override;
+    procedure MouseDown; override;
+    procedure HideControl;
+    function Render(ACanvas: TCanvas): Boolean; override;
+    property ControlActive: Boolean read FControlActive;
+  end;
+
+  TksListItemEmbeddedTEdit = class(TksListItemEmbeddedControl)
+  private
+    function GetEdit: TEdit;
+  protected
+    function GetConsumesRowClick: Boolean; override;
+    function CreateControl: TControl; override;
+  public
+    property Edit: TEdit read GetEdit;
+  end;
+
   TksListItemTableShadow = class(TPersistent)
   private
     FColor: TAlphaColor;
     FOffset: integer ;
     FVisible: Boolean;
-  private
+  public
     constructor Create; virtual;
     procedure SetVisible(const Value: Boolean);
     property Color: TAlphaColor read FColor write FColor default claSilver;
@@ -717,6 +747,9 @@ type
                                const AItemIndex: integer = 0): TksListItemRowSegmentButtons; overload;
 
     function AddTable(AX, AY, AColWidth, ARowHeight: single; AColCount, ARowCount: integer): TksListItemRowTable;
+
+    function AddEdit(AX, AY, AWidth: single): TksListItemEmbeddedTEdit;
+
     // text functions...
     function TextOut(AText: string; x: single; const AVertAlign: TListItemAlign = TListItemAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
     function TextOut(AText: string; x, AWidth: single; const AVertAlign: TListItemAlign = TListItemAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
@@ -922,6 +955,7 @@ type
     FProcessingMouseEvents: Boolean;
     FBeforeRowCache: TksRowCacheEvent;
     FAfterRowCache: TksRowCacheEvent;
+    FEmbeddedControls: TList<TksListItemEmbeddedControl>;
     function _Items: TksListViewItems;
     procedure DoScrollTimer(Sender: TObject);
     procedure SetCheckMarks(const Value: TksListViewCheckMarks);
@@ -966,6 +1000,7 @@ type
     procedure SetKsHeaderHeight(const Value: integer);
     function GetMaxScrollPos: single;
     procedure DoActionButtonClicked(AButton: TksListItemRowActionButton);
+    procedure HideEmbeddedControls;
     { Protected declarations }
   public
     constructor Create(AOwner: TComponent); override;
@@ -1262,6 +1297,11 @@ end;
 function TksListItemRowObj.GetOffsetY: single;
 begin
   Result := FPlaceOffset.Y;
+end;
+
+function TksListItemRowObj.GetRowRect: TRectF;
+begin
+  Result := FRow.ListView.GetItemRect(FRow.Index);
 end;
 
 procedure TksListItemRowObj.MouseDown;
@@ -2478,6 +2518,14 @@ begin
   FList.Add(Result);
 end;
 
+function TKsListItemRow.AddEdit(AX, AY, AWidth: single): TksListItemEmbeddedTEdit;
+begin
+  Result := TksListItemEmbeddedTEdit.Create(Self);
+  Result.Width := AWidth;
+  Result.Height := Result.Edit.Height;
+  Result.PlaceOffset := PointF(AX, AY);
+  FList.Add(Result);
+end;
 
 function TKsListItemRow.AddSwitch(x: single;
                                   AIsChecked: Boolean;
@@ -2846,6 +2894,7 @@ begin
     else
       Items[_Items[ICount].Index].ReleaseRow;
   end;
+  Invalidate;
 end;
 
 procedure TksListView.ClearItems;
@@ -2876,6 +2925,7 @@ begin
   FDeleteButton := TksDeleteButton.Create;
   FScreenScale := GetScreenScale;
   FAppearence := TksListViewAppearence.Create(Self);
+  FEmbeddedControls := TList<TksListItemEmbeddedControl>.Create;
   FItemHeight := 44;
   FHeaderHeight := 44;
   FLastWidth := 0;
@@ -3623,6 +3673,16 @@ begin
   end;
 end;
 
+procedure TksListView.HideEmbeddedControls;
+var
+  ICount: integer;
+begin
+  for ICount := 0 to FEmbeddedControls.Count-1 do
+  begin
+    FEmbeddedControls[ICount].HideControl;
+  end;
+end;
+
 function TksListView.IsShowing: Boolean;
 begin
   FIsShowing := False;
@@ -3695,6 +3755,8 @@ begin
     Invalidate;
     Exit;
   end;
+
+  HideEmbeddedControls;
 
   inherited;
 
@@ -5365,6 +5427,107 @@ end;
 procedure TksListItemRowTableBanding.SetActive(const Value: Boolean);
 begin
   FActive := Value;
+end;
+
+{ TksListItemEmbeddedTEdit }
+
+
+function TksListItemEmbeddedTEdit.CreateControl: TControl;
+begin
+  Result := TEdit.Create(nil);
+  (Result as TEdit).Text := 'TEST';
+end;
+
+function TksListItemEmbeddedTEdit.GetEdit: TEdit;
+begin
+  Result := (FControl as TEdit);
+end;
+
+function TksListItemEmbeddedTEdit.GetConsumesRowClick: Boolean;
+begin
+  Result := True;
+end;
+
+{ TksListItemEmbeddedControl }
+
+constructor TksListItemEmbeddedControl.Create(ARow: TKsListItemRow);
+begin
+  inherited;
+  FCached := TBitmap.Create;
+  FControl := CreateControl;
+  FControl.Name := '_'+CreateGuidStr;
+  HitTest := True;
+  FControlActive := False;
+end;
+
+destructor TksListItemEmbeddedControl.Destroy;
+begin
+  FreeAndNil(FCached);
+  {$IFDEF NEXTGEN}
+  FControl.DisposeOf;
+  {$ELSE}
+  FControl.Free;
+  {$ENDIF}
+  inherited;
+end;
+
+
+procedure TksListItemEmbeddedControl.HideControl;
+begin
+  if FControlActive = False then
+    Exit;
+  FRow.ListView.SetFocus;
+  FCached := FControl.MakeScreenshot;
+  FRow.ListView.RemoveObject(FControl);
+  FControlActive := False;
+  FRow.ListView.FEmbeddedControls.Remove(Self);
+  FRow.Cached := False;
+  FRow.CacheRow;
+end;
+
+procedure TksListItemEmbeddedControl.MouseDown;
+begin
+  inherited;
+  SwapToControl;
+end;
+
+function TksListItemEmbeddedControl.Render(ACanvas: TCanvas): Boolean;
+var
+  AParent: TFmxObject;
+begin
+  inherited Render(ACanvas);
+  if FControlActive  then
+  begin
+    Result := True;
+    Exit;
+  end;
+  if FCached.IsEmpty then
+  begin
+    AParent := (FRow.ListView.Owner as TFmxObject);
+    FControl.Position.X := 1-FControl.Width;
+    AParent.InsertObject(0, FControl);
+    FCached := FControl.MakeScreenshot;
+    if IsBlankBitmap(FCached) then
+    begin
+      FCached.SetSize(0, 0);
+      Result := False;
+      Exit;
+    end;
+    AParent.RemoveObject(FControl);
+  end;
+  ACanvas.DrawBitmap(FCached, RectF(0, 0, FCached.Width, FCached.Height), Rect, 1, False);
+  Result := True;
+end;
+
+procedure TksListItemEmbeddedControl.SwapToControl;
+begin
+  FRow.ListView.FEmbeddedControls.Add(Self);
+  FControl.Position.X := GetRowRect.Left + Rect.Left;
+  FControl.Position.Y := GetRowRect.Top + Rect.Top;
+  FRow.ListView.AddObject(FControl);
+  FControl.SetFocus;
+  (FControl as TEdit).SelStart := (FControl as TEdit).Text.Length;
+  FControlActive := True;
 end;
 
 initialization
