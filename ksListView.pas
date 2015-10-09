@@ -22,6 +22,18 @@
 *                                                                              *
 *******************************************************************************}
 
+{ *** HTML SUPPORT - PLEASE READ ***
+
+In order to use the HTML formatting within ksListView, you will need to have the
+TMS Pack for FireMonkey installed.
+
+You can get this from the following link...
+http://www.tmssoftware.com/site/tmsfmxpack.asp
+
+Once installed, simply uncomment the conditional define in ksDrawFunctions.pas
+
+}
+
 unit ksListView;
 
 interface
@@ -319,6 +331,20 @@ type
 
   TksListItemRowTableRow = array of TksListItemRowTableCell;
 
+  TksListItemRowTableBanding = class(TPersistent)
+  private
+    FActive: Boolean;
+    FColor2: TAlphaColor;
+    FColor1: TAlphaColor;
+    procedure SetActive(const Value: Boolean);
+  public
+    constructor Create; virtual;
+    procedure Assign(Source: TPersistent); override;
+    property Color1: TAlphaColor read FColor1 write FColor1 default claNull;
+    property Color2: TAlphaColor read FColor2 write FColor2 default claNull;
+    property Active: Boolean read FActive write SetActive;
+  end;
+
   TksListItemRowTable = class(TksListItemRowObj)
   private
     FBackground: TAlphaColor;
@@ -332,6 +358,7 @@ type
     FFixedCellColor: TAlphaColor;
     FFixedRows: integer;
     FFixedCols: integer;
+    FBanding: TksListItemRowTableBanding;
     procedure SetColCount(const Value: integer);
     procedure SetRowCount(const Value: integer);
     procedure SetBackgroundColor(const Value: TAlphaColor);
@@ -346,6 +373,7 @@ type
     function GetTableSize: TSizeF;
     procedure RenderTableContents(ACanvas: TCanvas; AText: Boolean);
     procedure SetFixedCellColor(const Value: TAlphaColor);
+    procedure SetBanding(const Value: TksListItemRowTableBanding);
   protected
     procedure CalculateRect(ARowBmp: TBitmap); override;
   public
@@ -359,6 +387,7 @@ type
     procedure SetRowFont(ARow: integer; AFontName: TFontName; AColor: TAlphaColor; ASize: integer; AStyle: TFontStyles);
     procedure SetColFont(ACol: integer; AFontName: TFontName; AColor: TAlphaColor; ASize: integer; AStyle: TFontStyles);
     property Background: TAlphaColor read FBackground write SetBackgroundColor default claWhite;
+    property Banding: TksListItemRowTableBanding read FBanding write SetBanding;
     property BorderColor: TAlphaColor read FBorderColor write SetBorderColor default claBlack;
     property FixCellColor: TAlphaColor read FFixedCellColor write SetFixedCellColor default claGainsboro;
     property FixedRows: integer read FFixedRows write FFixedRows default 1;
@@ -4900,7 +4929,16 @@ begin
       if IsFixedCell then
         ACanvas.Fill.Color := GetColorOrDefault(FFill.Color, FTable.FixCellColor)
       else
+      begin
         ACanvas.Fill.Color := GetColorOrDefault(FFill.Color, claWhite);
+        if FTable.Banding.Active then
+        begin
+          case FRow mod 2 of
+            0: ACanvas.Fill.Color := GetColorOrDefault(FTable.Banding.Color1, claWhite);
+            1: ACanvas.Fill.Color := GetColorOrDefault(FTable.Banding.Color2, claWhite);
+          end;
+        end;
+      end;
       ACanvas.Fill.Kind := FFill.Kind;
       ACanvas.FillRect(RectF(ARect.Left+AXShift, ARect.Top+AYShift, ARect.Right, ARect.Bottom), 0, 0, AllCorners, 1);
 
@@ -4991,6 +5029,7 @@ constructor TksListItemRowTable.Create(ARow: TKsListItemRow);
 begin
   inherited;
   FShadow := TksListItemTableShadow.Create;
+  FBanding := TksListItemRowTableBanding.Create;
   SetLength(FRows, 5, 5);
   FBackground := claWhite;
   FBorderColor := claBlack;
@@ -5005,6 +5044,7 @@ destructor TksListItemRowTable.Destroy;
 begin
   Clear;
   FreeAndNil(FShadow);
+  FreeAndNil(FBanding);
   inherited;
 end;
 
@@ -5162,6 +5202,12 @@ begin
   FBackground := Value;
 end;
 
+procedure TksListItemRowTable.SetBanding(
+  const Value: TksListItemRowTableBanding);
+begin
+  FBanding.Assign(Value);
+end;
+
 procedure TksListItemRowTable.SetBorderColor(const Value: TAlphaColor);
 begin
   FBorderColor := Value;
@@ -5296,6 +5342,29 @@ end;
 procedure TksListItemTableShadow.SetVisible(const Value: Boolean);
 begin
   FVisible := Value;
+end;
+
+{ TksListItemRowTableAlternatatingColors }
+
+procedure TksListItemRowTableBanding.Assign(Source: TPersistent);
+begin
+  inherited;
+  FActive := (Source as TksListItemRowTableBanding).Active;
+  FColor1 := (Source as TksListItemRowTableBanding).FColor1;
+  FColor2 := (Source as TksListItemRowTableBanding).FColor2;
+end;
+
+constructor TksListItemRowTableBanding.Create;
+begin
+  inherited Create;
+  FActive :=False;
+  FColor1 := claNull;
+  FColor2 := claNull;
+end;
+
+procedure TksListItemRowTableBanding.SetActive(const Value: Boolean);
+begin
+  FActive := Value;
 end;
 
 initialization

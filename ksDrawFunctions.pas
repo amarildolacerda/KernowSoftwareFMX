@@ -22,6 +22,20 @@
 *                                                                              *
 *******************************************************************************}
 
+{ *** HTML SUPPORT - PLEASE READ ***
+
+In order to use the HTML formatting within ksListView, you will need to have the
+TMS Pack for FireMonkey installed.
+
+You can get this from the following link...
+http://www.tmssoftware.com/site/tmsfmxpack.asp
+
+Once installed, simply uncomment the conditional define below
+
+}
+
+//{$DEFINE USE_TMS_HTML_ENGINE}
+
 unit ksDrawFunctions;
 
 interface
@@ -29,7 +43,6 @@ interface
 uses Classes, FMX.Graphics, FMX.Types, Types, System.UIConsts, System.UITypes,
   FMX.ListView.Types, FMX.Platform;
 
-{.$DEFINE USE_TMS_HTML_ENGINE}
 
 type
   TksButtonStyle = (ksButtonDefault, ksButtonSegmentLeft, ksButtonSegmentMiddle, ksButtonSegmentRight);
