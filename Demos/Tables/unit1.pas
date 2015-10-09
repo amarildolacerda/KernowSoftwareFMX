@@ -37,7 +37,7 @@ begin
   ksListView1.BeginUpdate;
   for ICount := 1 to 20 do
   begin
-    ARow := ksListView1.Items.AddRow('');
+    ARow := ksListView1.Items.AddRow('', '', '', More);
     ARow.Height := 150;
     ATbl := ARow.AddTable(30, 30, 40, 20, 5, 5);
     ATbl.ColWidths[0] := 40;
