@@ -49,7 +49,7 @@ type
 
   function GetScreenScale: single;
 
-  function IsBlankBitmap(ABmp: TBitmap): Boolean;
+  function IsBlankBitmap(ABmp: TBitmap; const ABlankColor: TAlphaColor = claNull): Boolean;
   function GetColorOrDefault(AColor, ADefaultIfNull: TAlphaColor): TAlphaColor;
 
   procedure DrawSwitch(ACanvas: TCanvas; ARect: TRectF; AChecked, AEnabled: Boolean; ASelectedColor: TAlphaColor);
@@ -258,13 +258,13 @@ begin
   {$ENDIF}
 end;
 
-function IsBlankBitmap(ABmp: TBitmap): Boolean;
+function IsBlankBitmap(ABmp: TBitmap; const ABlankColor: TAlphaColor = claNull): Boolean;
 var
   ABlank: TBitmap;
 begin
   ABlank := TBitmap.Create(ABmp.Width, ABmp.Height);
   try
-    ABlank.Clear(claNull);
+    ABlank.Clear(ABlankColor);
     Result := ABmp.EqualsBitmap(ABlank);
   finally
     FreeAndNil(ABlank);
