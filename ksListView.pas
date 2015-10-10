@@ -967,6 +967,7 @@ type
     FMouseEvents: TksMouseEventList;
     FTimerService: IFMXTimerService;
     FDeselectTimer: TFmxHandle;
+    FOnShowTimer: TFmxHandle;
     {$IFDEF XE10_OR_NEWER}
     FMouseEventsTimer: TFmxHandle;
     {$ENDIF}
@@ -1001,6 +1002,7 @@ type
     procedure ProcessMouseEvents;
     procedure DoDeselectRow;
     procedure SetupSearchBoxEvent;
+    procedure DoAfterShow;
     { Private declarations }
   protected
     procedure SetColorStyle(AName: string; AColor: TAlphaColor);
@@ -3498,7 +3500,15 @@ begin
   //HideRowActionButtons;
   //FActionButtons.Clear;
 end;
-      {
+
+procedure TksListView.DoAfterShow;
+begin
+  RedrawAllRows;
+  Invalidate;
+  FTimerService.DestroyTimer(FOnShowTimer);
+end;
+
+{
 procedure TksListView.DoDelaySelect(Sender: TObject);
 begin
   FDelaySelect.Enabled := False;
@@ -4097,8 +4107,12 @@ begin
 
   if FIsShowing = False then
   begin
+    RedrawAllRows;
     CachePages;
     SetupSearchBoxEvent;
+    {$IFDEF IOS}
+    FOnShowTimer := FTimerService.CreateTimer(500, DoAfterShow);
+    {$ENDIF}
     FIsShowing := True;
   end;
 end;
@@ -5536,20 +5550,22 @@ var
   AParent: TFmxObject;
 begin
   AParent := (FRow.ListView.Owner as TFmxObject);
-  FControl.Visible := True;
+  //FControl.Position.X := (1-FControl.Width);
   AParent.InsertObject(0, FControl);
+
+  FControl.Visible := True;
+  Application.ProcessMessages;
   FCached.SetSize(Round(FControl.Width*GetScreenScale), Round(FControl.Height*GetScreenScale));
   FCached.BitmapScale := GetScreenScale;
-  FCached.Clear(claYellow);
+  FCached.Clear(claNull);
   FCached.Canvas.BeginScene;
-  Application.ProcessMessages;
-  FControl.PaintTo(FCached.Canvas, RectF(0, 0, FCached.Width, FCached.Height));
+  FControl.PaintTo(FCached.Canvas, RectF(0, 0, FControl.Width, FControl.Height));
   FCached.Canvas.EndScene;
   AParent.RemoveObject(FControl);
 
-  if IsBlankBitmap(FCached, claYellow) then
+  if IsBlankBitmap(FCached) then
   begin
-    //FCached.SetSize(0, 0);
+    FCached.SetSize(0, 0);
     Result := False;
     Exit;
   end;
@@ -5569,7 +5585,7 @@ begin
 
   FControl.Name := '_'+CreateGuidStr;
   FControl.Visible := True;
-  //ARow.ListView.InsertObject(0, FControl);
+  (ARow.ListView.Owner as TFmxObject).InsertObject(0, FControl);
   HitTest := True;
   FControlActive := False;
   FInitialized := False;
@@ -5597,11 +5613,14 @@ begin
 
   CacheToBitmap;
 
-  FControl.Visible := False;
+  //
 
   FRow.Cached := False;
   FRow.CacheRow;
-
+  //FRow.ListView.RemoveObject(FControl);
+  //Application.ProcessMessages;
+  FRow.ListView.Invalidate;
+  //FControl.Visible := False;
 end;
 
 
@@ -5631,17 +5650,9 @@ begin
   if FInitialized = False then
     Exit;
 
-  //if Finitialized then
-  //begin
   Result := True;
- //   Exit;
- // end;
- // if CacheToBitmap then
- // begin
-    FInitialized := True;
-    ACanvas.DrawBitmap(FCached, RectF(0, 0, FCached.Width, FCached.Height), Rect, 1, False);
- //   Result := True;
- // end;
+  FInitialized := True;
+  ACanvas.DrawBitmap(FCached, RectF(0, 0, FCached.Width, FCached.Height), Rect, 1, False);
 end;
 
 procedure TksListItemEmbeddedControl.SwapToControl;
