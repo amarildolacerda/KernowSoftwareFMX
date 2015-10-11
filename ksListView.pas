@@ -5593,35 +5593,6 @@ end;
 
 { TksListItemEmbeddedTEdit }
 
-
-{function TksListItemEmbeddedTEdit.CreateControl: TControl;
-begin
-  Result := TEdit.Create(nil);
-  (Result as TEdit).Text := 'TEST';
-end; }
-
-{function TksListItemEmbeddedTEdit.GetEdit: TEdit;
-begin
-  Result := (FControl as TEdit);
-end;}
-      {
-function TksListItemEmbeddedTEdit.CacheToBitmap: Boolean;
-var
-  AControl: TControl;
-begin
-  AControl := FRow.ListView.FEmbeddedEditControl;
-  FCached.SetSize(Round(FWidth*GetScreenScale), Round(FHeight*GetScreenScale));
-  AControl.Position.X := (1-AControl.Width);
-  AControl.Visible := True;
-
-  FCached.Canvas.BeginScene;
-
-  AControl.PaintTo(FCached.Canvas, RectF(0, 0, AControl.Width, AControl.Height));
-  FCached.Canvas.EndScene;
-  AControl.Visible := False;
-  Result := True;
-end;   }
-
 function TksListItemEmbeddedTEdit.GetControl: TControl;
 begin
   Result := FRow.ListView.FEmbeddedEditControl;
