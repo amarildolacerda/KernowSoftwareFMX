@@ -47,6 +47,10 @@ uses Classes, FMX.Graphics, FMX.Types, Types, System.UIConsts, System.UITypes,
 type
   TksButtonStyle = (ksButtonDefault, ksButtonSegmentLeft, ksButtonSegmentMiddle, ksButtonSegmentRight);
 
+  TksToolAccessory = ( taBack, taRefresh, taAction, taPlay, taRewind, taForward, taPause, taStop, taAdd,
+                       taPrior, taNext, taArrowUp, taArrowDown, taArrowLeft, taArrowRight, taReply, taSearch,
+                       taBookmarks, taTrash, taOrganize, taCamera, taCompose, taInfo, taPagecurl, taDetail );
+
   function GetScreenScale: single;
 
   function IsBlankBitmap(ABmp: TBitmap; const ABlankColor: TAlphaColor = claNull): Boolean;
@@ -88,13 +92,20 @@ type
                            AVertAlign: TTextAlign;
                            ATrimming: TTextTrimming);
 
+  function GetAccessoryImage(AKind: TksToolAccessory): TBitmap;
+
+
+
 implementation
 
-uses SysUtils, FMX.TextLayout, Math {$IFDEF USE_TMS_HTML_ENGINE} , FMX.TMSHTMLEngine {$ENDIF};
+uses SysUtils, FMX.TextLayout, Math, FMX.Objects, FMX.Styles, FMX.Styles.Objects,
+  FMX.Forms {$IFDEF USE_TMS_HTML_ENGINE} , FMX.TMSHTMLEngine {$ENDIF},
+  FMX.ImgList;
 
 var
   _ScreenScale: single;
   ATextLayout: TTextLayout;
+  AAccessoryImages: TImageList;
 
 function GetColorOrDefault(AColor, ADefaultIfNull: TAlphaColor): TAlphaColor;
 begin
@@ -490,13 +501,155 @@ begin
   end;
 end;
 
+
+procedure GetToolAccessoryBitmap(ToolAccessory : TksToolAccessory ; Bitmap : TBitmap);
+var
+  ObjectName            : String;
+  ActiveStyle           : TFmxObject;
+  RootStyleObject       : TFmxObject;
+  StyleObject           : TFmxObject;
+  IconButtonStyleObject : TButtonStyleObject;
+  IconStyleObject       : TStyleObject;
+  SrcImage              : TImage;
+  SrcBitmap             : TBitmap;
+  ScreenScale           : Single;
+  SrcBounds             : TBounds;
+  SrcRect               : TRectF;
+  DstRect               : TRectF;
+begin
+  case ToolAccessory of
+    taBack:         ObjectName := 'backtoolbutton';
+    taRefresh:      ObjectName := 'refreshtoolbutton';
+    taAction:       ObjectName := 'actiontoolbutton';
+    taPlay:         ObjectName := 'playtoolbutton';
+    taRewind:       ObjectName := 'rewindtoolbutton';
+    taForward:      ObjectName := 'forwardtoolbutton';
+    taPause:        ObjectName := 'pausetoolbutton';
+    taStop:         ObjectName := 'stoptoolbutton';
+    taAdd:          ObjectName := 'addtoolbutton';
+    taPrior:        ObjectName := 'priortoolbutton';
+    taNext:         ObjectName := 'nexttoolbutton';
+    taArrowUp:      ObjectName := 'arrowuptoolbutton';
+    taArrowDown:    ObjectName := 'arrowdowntoolbutton';
+    taArrowLeft:    ObjectName := 'arrowlefttoolbutton';
+    taArrowRight:   ObjectName := 'arrowrighttoolbutton';
+    taReply:        ObjectName := 'replytoolbutton';
+    taSearch:       ObjectName := 'searchtoolbutton';
+    taBookmarks:    ObjectName := 'bookmarkstoolbutton';
+    taTrash:        ObjectName := 'trashtoolbutton';
+    taOrganize:     ObjectName := 'organizetoolbutton';
+    taCamera:       ObjectName := 'cameratoolbutton';
+    taCompose:      ObjectName := 'composetoolbutton';
+    taInfo:         ObjectName := 'infotoolbutton';
+    taPagecurl:     ObjectName := 'pagecurltoolbutton';
+    taDetail:       ObjectName := 'detailstoolbutton';
+  end;
+
+  Bitmap.Clear(claNull);
+
+  //if (Application.MainForm.StyleBook<>Nil) then
+  //  ActiveStyle := StyleBook.Style
+  //else
+  ActiveStyle := TStyleManager.ActiveStyle(Nil);
+
+  if (ActiveStyle<>Nil) then
+  begin
+    RootStyleObject := ActiveStyle.FindStyleResource(ObjectName);
+    if (RootStyleObject<>Nil) then
+    begin
+      StyleObject := RootStyleObject.FindStyleResource('icon');
+      if (StyleObject<>Nil) then
+      begin
+        if (StyleObject is TButtonStyleObject) then
+        begin
+          IconButtonStyleObject := TButtonStyleObject(StyleObject);
+
+          StyleObject := ActiveStyle.FindStyleResource(IconButtonStyleObject.SourceLookup);
+          if (StyleObject<>Nil) then
+          begin
+            if (StyleObject is TImage) then
+            begin
+              SrcImage := TImage(StyleObject);
+
+              ScreenScale := GetScreenScale();
+              SrcBitmap   := SrcImage.MultiResBitmap.ItemByScale(ScreenScale,false,true).Bitmap;
+              SrcBounds   := IconButtonStyleObject.NormalLink.LinkByScale(ScreenScale,false).SourceRect;
+              SrcRect     := RectF(SrcBounds.Left,SrcBounds.Top,SrcBounds.Right,SrcBounds.Bottom);
+              DstRect     := RectF(0,0,SrcBounds.Width,SrcBounds.Height);
+
+              Bitmap.SetSize(Round(SrcBounds.Width),Round(SrcBounds.Height));
+              Bitmap.Canvas.BeginScene();
+              Bitmap.Canvas.Clear(claNull);
+              Bitmap.Canvas.DrawBitmap(SrcBitmap,SrcRect,DstRect,1,false);
+              Bitmap.Canvas.EndScene();
+            end;
+          end;
+        end
+        else if (StyleObject is TStyleObject) then
+        begin
+          IconStyleObject := TStyleObject(StyleObject);
+
+          StyleObject := ActiveStyle.FindStyleResource(IconStyleObject.SourceLookup);
+          if (StyleObject<>Nil) then
+          begin
+            if (StyleObject is TImage) then
+            begin
+              SrcImage := TImage(StyleObject);
+
+              ScreenScale := GetScreenScale();
+              SrcBitmap   := SrcImage.MultiResBitmap.ItemByScale(ScreenScale,false,true).Bitmap;
+              SrcBounds   := IconStyleObject.SourceLink.LinkByScale(ScreenScale,false).SourceRect;
+              SrcRect     := RectF(SrcBounds.Left,SrcBounds.Top,SrcBounds.Right,SrcBounds.Bottom);
+              DstRect     := RectF(0,0,SrcBounds.Width,SrcBounds.Height);
+
+              Bitmap.SetSize(Round(SrcBounds.Width),Round(SrcBounds.Height));
+              Bitmap.Canvas.BeginScene();
+              Bitmap.Canvas.Clear(claNull);
+              Bitmap.Canvas.DrawBitmap(SrcBitmap,SrcRect,DstRect,1,false);
+              Bitmap.Canvas.EndScene();
+            end;
+          end;
+        end;
+      end;
+    end;
+  end;
+end;
+
+function GetAccessoryImage(AKind: TksToolAccessory): TBitmap;
+var
+  ICount: TksToolAccessory;
+  ABmp: TBitmap;
+begin
+  if AAccessoryImages.Count = 0 then
+  begin
+    // initialize imagelist...
+    for ICount := Low(TkstoolAccessory) to High(tksToolAccessory) do
+    begin
+      ABmp := TBitmap.Create;
+      GetToolAccessoryBitmap(ICount, ABmp);
+      AAccessoryImages.Source.Add;// Source.Add.MultiResBitmap.Add.Bitmap.Assign(ABmp);
+
+    end;
+  end;
+
+end;
+
+
+
 initialization
 
   _ScreenScale := 0;
   ATextLayout := TTextLayoutManager.DefaultTextLayout.Create;
+  AAccessoryImages := TImageList.Create(nil);
 
+  GetAccessoryImage(taBack);
 finalization
 
+  {$IFDEF NEXTGEN}
+  AAccessoryImages.DisposeOf;
+  {$ELSE}
+  AAccessoryImages.Free;
+  {$ENDIF}
   FreeAndNil(ATextLayout);
 
 end.
