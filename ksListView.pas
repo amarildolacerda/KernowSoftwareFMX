@@ -2217,18 +2217,7 @@ begin
 
   ListView.DoRenderRow(Self);
 
-  //inherited;
-
-  Canvas.DrawBitmap(Bitmap,
-                    RectF(0, 0, Bitmap.Width, Bitmap.Height),
-                    {$IFDEF XE10_OR_NEWER}
-                    LocalRect,
-                    {$ELSE}
-                    FLocalRect,
-                    {$ENDIF}
-                    1,
-                    False);
-
+  inherited;
 
   if (Purpose = TListItemPurpose.None) and (ANextItemIsHeader = False) then
   begin
@@ -3084,18 +3073,23 @@ begin
   FAppearence := TksListViewAppearence.Create(Self);
   FEmbeddedControls := TList<TksListItemEmbeddedControl>.Create;
   FEmbeddedEditControl := TEdit.Create(nil);
-  FEmbeddedEditControl.Position.X := 0;//1-FEmbeddedEditControl.Width;
+  FEmbeddedEditControl.Position.X := 0;
+  FEmbeddedEditControl.Width := 1;
 
   FEmbeddedListBoxControl := TListBox.Create(nil);
-  FEmbeddedListBoxControl.Position.X := 0;//50-FEmbeddedListBoxControl.Width;
+  FEmbeddedListBoxControl.Position.X := 0;
+  FEmbeddedListBoxControl.Width := 1;
   //FEmbeddedListBoxControl.Visible := False;
   //FEmbeddedListBoxControl.Items.Add('TEST');
 
   if csDesigning in ComponentState = False then
   begin
-    (Owner as TFmxObject).InsertObject(0, FEmbeddedEditControl);
-    (Owner as TFmxObject).InsertObject(0, FEmbeddedListBoxControl);
-
+    {(Application.MainForm as TFmxObject).InsertObject} AddObject(FEmbeddedEditControl);
+    {(Application.MainForm as TFmxObject).}AddObject(FEmbeddedListBoxControl);
+    //FEmbeddedEditControl.Locked := True;
+    //FEmbeddedListBoxControl.Locked := True;
+   // FEmbeddedEditControl.Visible := False;
+   // FEmbeddedListBoxControl.Visible := False;
   end;
 
   FItemHeight := 44;
@@ -3880,6 +3874,8 @@ begin
       FLastSelectedControl := AControl.Control;
     AControl.HideControl;
   end;
+  //FEmbeddedEditControl.Visible := False;
+  //FEmbeddedListBoxControl.Visible := False;
 end;
 
 function TksListView.IsShowing: Boolean;
@@ -4238,6 +4234,10 @@ begin
     //{$ENDIF}
     FIsShowing := True;
   end;
+
+  //if FEmbeddedEditControl.IsFocused = False then TFmxObject(Owner).RemoveObject(FEmbeddedEditControl);
+  //if FEmbeddedListBoxControl.IsFocused = False then TFmxObject(Owner).RemoveObject(FEmbeddedListBoxControl);
+
 end;
 
 procedure TksListView.ProcessMouseEvents;
@@ -5714,7 +5714,14 @@ var
   AControl: TControl;
 begin
   AControl := GetControl;
+  //AControl.Visible := True;
+  //Application.ProcessMessages;
   StoreControlProperties;
+  AControl.Position.X := 0;
+  AControl.Width := FWidth;
+  //Application.ProcessMessages;
+  //TFmxObject(FRow.ListView.Owner).AddObject(AControl);
+  //Application.ProcessMessages;
   FCached.SetSize(Round(FWidth*GetScreenScale), Round(FHeight*GetScreenScale));
   FCached.BitmapScale := GetScreenScale;
   FCached.Clear(claNull);
@@ -5726,10 +5733,13 @@ begin
 
   AControl.PaintTo(FCached.Canvas, RectF(0, 0, FWidth, FHeight));
   FCached.Canvas.EndScene;
-
   //FCached.savetofile('C:\Users\Graham\Desktop\untitled.png');
-  //Application.ProcessMessages;
+  //
   Result := True;
+  AControl.Width := 0;
+  //Application.ProcessMessages;
+  //AControl.Visible := False;
+
 end;
 
 
@@ -5825,6 +5835,7 @@ begin
   AControl.Position.Y := GetRowRect.Top + Rect.Top;
   AControl.Width := FWidth;
   AControl.Height := FHeight;
+  //AControl.Position.X := 0;
   // initialize control specific properties...
   InitializeControl(AClickX, AClickY);
   AControl.Visible := True;
@@ -5937,11 +5948,13 @@ begin
   inherited Create(True);
   //FImageMap := TBitmap.Create;
   ///FImageMap.BitmapScale := GetScreenScale;
-  Initialize;
+ //Initialize;
 end;
 
 function TksAccessoryImageList.GetAccessoryImage(AAccessory: TksAccessoryType): TksAccessoryImage;
 begin
+  if Count = 0 then
+    Initialize;
    Result := Items[Ord(AAccessory)];
 end;
 
@@ -5961,9 +5974,8 @@ var
   r: TRectF;
 begin
 
-  Result := TksAccessoryImage.Create(16, 16);
+  Result := TksAccessoryImage.Create;
   Result.BitmapScale := GetScreenScale;
-  Result.Clear(claNull);
 
   AIds := TStringList.Create;
   try
@@ -5983,34 +5995,18 @@ begin
       if FImageMap = nil then
       begin
         FImageMap := ((AStyleObj as TStyleObject).Source.Bitmap);
-        //FImageMap.BitmapScale := 2;
-
-        {FImageMap.SetSize(Round(ABmp.Width * GetScreenScale), Round(ABmp.Height*GetScreenScale));
-        //FImageMap.BitmapScale := GetScreenScale;
-        FImageMap.Clear(claNull);
-        FImageMap.Canvas.BeginScene;
-        FImageMap.Canvas.DrawBitmap(ABmp,
-                                    RectF(0, 0, ABmp.Width, ABmp.Height),
-                                    RectF(0, 0, FImageMap.Width, FImageMap.Height),
-                                    1, True);
-        FImageMap.Canvas.EndScene; }
-
-        //FImageMap.SaveToFile('C:\Users\Graham\Desktop\New folder (3)\map.png');
-        //;
       end;
 
       AImgRect := AStyleObj.SourceLink.LinkByScale(1, True).SourceRect;
 
       Result.SetSize(Round(AImgRect.Width), Round(AImgRect.Height));
+      Result.Clear(claNull);
       Result.Canvas.BeginScene;
 
       r := AImgRect.Rect;
-      //r.Left := r.Left * GetScreenScale;
-      //r.Top := r.Top * GetScreenScale;
       r.Width := (r.Width * GetScreenScale);
       r.Height := (r.Height * GetScreenScale);
 
-     // Result.BitmapScale := GetScreenScale;
       Result.Canvas.DrawBitmap(FImageMap,
                                r,
                                RectF(0, 0, Result.Width, Result.Height),
@@ -6025,8 +6021,6 @@ begin
     AIds.Free;
     {$ENDIF}
   end;
-  //Result.SaveToFile('C:\Users\Graham\Desktop\images\'+AStyleName+'.png');
-  //Result.Free;
 end;
 
 procedure TksAccessoryImageList.Initialize;
