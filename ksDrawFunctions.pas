@@ -41,15 +41,11 @@ unit ksDrawFunctions;
 interface
 
 uses Classes, FMX.Graphics, FMX.Types, Types, System.UIConsts, System.UITypes,
-  FMX.ListView.Types, FMX.Platform;
+  FMX.ListView.Types, Generics.Collections, FMX.Platform;
 
 
 type
   TksButtonStyle = (ksButtonDefault, ksButtonSegmentLeft, ksButtonSegmentMiddle, ksButtonSegmentRight);
-
-  TksToolAccessory = ( taBack, taRefresh, taAction, taPlay, taRewind, taForward, taPause, taStop, taAdd,
-                       taPrior, taNext, taArrowUp, taArrowDown, taArrowLeft, taArrowRight, taReply, taSearch,
-                       taBookmarks, taTrash, taOrganize, taCamera, taCompose, taInfo, taPagecurl, taDetail );
 
   function GetScreenScale: single;
 
@@ -59,10 +55,10 @@ type
   procedure DrawSwitch(ACanvas: TCanvas; ARect: TRectF; AChecked, AEnabled: Boolean; ASelectedColor: TAlphaColor);
   procedure DrawButton(ACanvas: TCanvas; ARect: TRectF; AText: string; ASelected: Boolean; AColor: TAlphaColor; AStyle: TksButtonStyle);
 
-  procedure DrawAccessory(ACanvas: TCanvas; ARect: TRectF; AColor: TAlphaColor; AAccessory: TAccessoryType);
+  {procedure DrawAccessory(ACanvas: TCanvas; ARect: TRectF; AColor: TAlphaColor; AAccessory: TAccessoryType);
   procedure DrawCheckMarkAccessory(ACanvas: TCanvas; ARect: TRectF; AColor: TAlphaColor);
   procedure DrawMoreAccessory(ACanvas: TCanvas; ARect: TRectF; AColor: TAlphaColor);
-
+  }
   function TextWidth(AText: string; AFont: TFont): single;
   function TextHeight(AText: string; AFont: TFont; AWordWrap: Boolean; const AWidth: single = 0): single;
 
@@ -92,20 +88,19 @@ type
                            AVertAlign: TTextAlign;
                            ATrimming: TTextTrimming);
 
-  function GetAccessoryImage(AKind: TksToolAccessory): TBitmap;
+
 
 
 
 implementation
 
 uses SysUtils, FMX.TextLayout, Math, FMX.Objects, FMX.Styles, FMX.Styles.Objects,
-  FMX.Forms {$IFDEF USE_TMS_HTML_ENGINE} , FMX.TMSHTMLEngine {$ENDIF},
-  FMX.ImgList;
+
+  FMX.Forms {$IFDEF USE_TMS_HTML_ENGINE} , FMX.TMSHTMLEngine {$ENDIF};
 
 var
   _ScreenScale: single;
   ATextLayout: TTextLayout;
-  AAccessoryImages: TImageList;
 
 function GetColorOrDefault(AColor, ADefaultIfNull: TAlphaColor): TAlphaColor;
 begin
@@ -424,7 +419,7 @@ begin
   end;
 end;
 
-procedure DrawAccessory(ACanvas: TCanvas; ARect: TRectF; AColor: TAlphaColor; AAccessory: TAccessoryType);
+{procedure DrawAccessory(ACanvas: TCanvas; ARect: TRectF; AColor: TAlphaColor; AAccessory: TksAccessoryType);
 begin
   case AAccessory of
 
@@ -432,7 +427,7 @@ begin
     TAccessoryType.Checkmark: DrawCheckMarkAccessory(ACanvas, ARect, AColor) ;
     TAccessoryType.Detail: ;
   end;
-end;
+end;   }
 
 procedure DrawCheckMarkAccessory(ACanvas: TCanvas; ARect: TRectF; AColor: TAlphaColor);
 var
@@ -500,8 +495,35 @@ begin
     FreeAndNil(ABmp);
   end;
 end;
+  {
 
+function GetListItemAccessory(AStyleName: string): TksToolImage;
+var
+  ActiveStyle: TFmxObject;
+  AStyleObj: TStyleObject;
+  AImageMap: TBitmap;
+  AImgRect: TBounds;
+begin
+  Result := TksToolImage.Create;
+  ActiveStyle := TStyleManager.ActiveStyle(Nil);
+  AStyleObj := TStyleOBject(ActiveStyle.FindStyleResource(AStyleName));
+  AImageMap := (AStyleObj as TStyleObject).Source.Bitmap;
+  AImgRect := AStyleObj.SourceLink.LinkByScale(GetScreenScale, True).SourceRect;
+  Result.SetSize(Round(AImgRect.Width), Round(AImgRect.Height));
+  Result.Clear(claNull);
+  Result.Canvas.BeginScene;
+  Result.Canvas.DrawBitmap(AImageMap,
+                           AImgRect.Rect,
+                           RectF(0, 0, Result.Width, Result.Height),
+                           1,
+                           False);
+  Result.Canvas.EndScene;
 
+  //Result.SaveToFile('C:\Users\Graham\Desktop\images\'+AStyleName+'.png');
+  //Result.Free;
+end;    }
+
+{
 procedure GetToolAccessoryBitmap(ToolAccessory : TksToolAccessory ; Bitmap : TBitmap);
 var
   ObjectName            : String;
@@ -543,8 +565,9 @@ begin
     taInfo:         ObjectName := 'infotoolbutton';
     taPagecurl:     ObjectName := 'pagecurltoolbutton';
     taDetail:       ObjectName := 'detailstoolbutton';
+    taAccessoryChecked: ObjectName := 'listboxitemstyle.accessorycheckmark';
   end;
-
+    exit;
   Bitmap.Clear(claNull);
 
   //if (Application.MainForm.StyleBook<>Nil) then
@@ -552,11 +575,28 @@ begin
   //else
   ActiveStyle := TStyleManager.ActiveStyle(Nil);
 
+  if ObjectName = 'listboxitemstyle.accessorycheckmark' then
+  begin
+    RootStyleObject := ActiveStyle.FindStyleResource(ObjectName);
+
+    //(RootStyleObject as TStyleObject).Source.Bitmap.SaveToFile('C:\Users\Graham\Desktop\images\'+ObjectName+'.png');
+    //(RootStyleOBject as TImage).Bitmap.SaveToFile('C:\Users\Graham\Desktop\images\'+ObjectName+'.png');
+     Exit;
+  end;
+
   if (ActiveStyle<>Nil) then
   begin
     RootStyleObject := ActiveStyle.FindStyleResource(ObjectName);
     if (RootStyleObject<>Nil) then
     begin
+      if (RootStyleObject is TStyleObject) then
+      begin
+        if (RootStyleObject as TStyleObject).Source <> nil then
+          (RootStyleObject as TStyleObject).Source.Bitmap.SaveToFile('C:\Users\Graham\Desktop\images\'+ObjectName+'.png');
+
+      end;
+
+
       StyleObject := RootStyleObject.FindStyleResource('icon');
       if (StyleObject<>Nil) then
       begin
@@ -595,9 +635,9 @@ begin
             if (StyleObject is TImage) then
             begin
               SrcImage := TImage(StyleObject);
-
               ScreenScale := GetScreenScale();
               SrcBitmap   := SrcImage.MultiResBitmap.ItemByScale(ScreenScale,false,true).Bitmap;
+              SrcBitmap.SaveToFile('C:\Users\Graham\Desktop\images\'+ObjectName+'.png');
               SrcBounds   := IconStyleObject.SourceLink.LinkByScale(ScreenScale,false).SourceRect;
               SrcRect     := RectF(SrcBounds.Left,SrcBounds.Top,SrcBounds.Right,SrcBounds.Bottom);
               DstRect     := RectF(0,0,SrcBounds.Width,SrcBounds.Height);
@@ -607,48 +647,115 @@ begin
               Bitmap.Canvas.Clear(claNull);
               Bitmap.Canvas.DrawBitmap(SrcBitmap,SrcRect,DstRect,1,false);
               Bitmap.Canvas.EndScene();
+            //  Bitmap.SaveToFile('C:\Users\Graham\Desktop\images\'+ObjectName+'.png');
+
             end;
           end;
         end;
       end;
     end;
   end;
-end;
+end;    }
 
-function GetAccessoryImage(AKind: TksToolAccessory): TBitmap;
+{function GetAccessoryImage(AKind: TksToolAccessory): TBitmap;
+begin
+
+
+end; }
+
+
+
+{ TksToolAccessoryImageList }
+
+{constructor TksToolAccessoryImageList.Create;
+begin
+  inherited Create(True);
+  Initialize;
+end; }
+
+{function TksToolAccessoryImageList.GetAccessory(AAccessory: TksToolAccessory): TBitmap;
+begin
+  Result := Items[Ord(AAccessory)];
+end;}
+     {
+procedure TksToolAccessoryImageList.Initialize;
 var
   ICount: TksToolAccessory;
-  ABmp: TBitmap;
+  ABmp: TksToolImage;
+  AStrings: TStrings;
+  AStyleID: string;
 begin
-  if AAccessoryImages.Count = 0 then
+  for ICount := Low(TksToolAccessory) to High(TksToolAccessory) do
   begin
-    // initialize imagelist...
-    for ICount := Low(TkstoolAccessory) to High(tksToolAccessory) do
-    begin
-      ABmp := TBitmap.Create;
-      GetToolAccessoryBitmap(ICount, ABmp);
-      AAccessoryImages.Source.Add;// Source.Add.MultiResBitmap.Add.Bitmap.Assign(ABmp);
-
+    case ICount of
+      taBack: ;
+      taRefresh: ;
+      taAction: ;
+      taPlay: ;
+      taRewind: ;
+      taForward: ;
+      taPause: ;
+      taStop: ;
+      taAdd: ;
+      taPrior: ;
+      taNext: ;
+      taArrowUp: ;
+      taArrowDown: ;
+      taArrowLeft: ;
+      taArrowRight: ;
+      taReply: ;
+      taSearch: ;
+      taBookmarks: ;
+      taTrash: ;
+      taOrganize: ;
+      taCamera: ;
+      taCompose: ;
+      taInfo: ;
+      taPagecurl: ;
+      taDetail: ;
+      taAccessoryChecked: ;
     end;
+    Add(GetListItemAccessory(GetStyleName(ICount)));
+
+
+    //GetToolAccessoryBitmap(ICount, ABmp);
+    Add(ABmp);
   end;
-
 end;
-
-
+      }
+{procedure TksToolAccessoryImageList.SetAccessory(AAccessory: TksToolAccessory;
+  const Value: TBitmap);
+begin
+  Items[Ord(AAccessory)].Assign(Value)
+end;  }
 
 initialization
 
   _ScreenScale := 0;
   ATextLayout := TTextLayoutManager.DefaultTextLayout.Create;
-  AAccessoryImages := TImageList.Create(nil);
 
-  GetAccessoryImage(taBack);
+
+  // *)oolAccessoryImages := TksToolAccessoryImageList.Create;
+{
+      taBack:         ObjectName := 'backtoolbutton';
+    taRefresh:      ObjectName := 'refreshtoolbutton';
+    taAction:       ObjectName := 'actiontoolbutton';
+    taPlay:         ObjectName := 'playtoolbutton'; }
+
+
+
+  //GetListItemAccessory('listviewstyle.accessorymore');
+  //GetListItemAccessory('listviewstyle.accessorydetail');
+  //GetListItemAccessory('listviewstyle.accessorycheckmark');
+
+
+  //GetAccessoryImage(taBack);
 finalization
 
   {$IFDEF NEXTGEN}
-  AAccessoryImages.DisposeOf;
+  //AToolAccessoryImages.DisposeOf;
   {$ELSE}
-  AAccessoryImages.Free;
+  //AToolAccessoryImages.Free;
   {$ENDIF}
   FreeAndNil(ATextLayout);
 

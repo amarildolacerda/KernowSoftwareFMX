@@ -588,7 +588,7 @@ begin
         ARow := lv.Items.AddHeader(AItem.Text)
       else
       begin
-        ARow := lv.Items.AddRow(AItem.Text, '', '', More);
+        ARow := lv.Items.AddRow(AItem.Text, '', '', atMore);
         ARow.Image.Bitmap.Assign(AItem.Image);
         ARow.ID := AItem.ID;
 

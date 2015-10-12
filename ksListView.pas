@@ -107,16 +107,32 @@ type
   TksListViewCheckStyle = (ksCmsDefault, ksCmsRed, ksCmsGreen, ksCmsBlue);
   TksListViewShape = (ksRectangle, ksRoundRect, ksEllipse);
   TksItemImageShape = (ksRectangleImage, ksRoundRectImage, ksCircleImage);
-  TksAccessoryType = (None, More, Checkmark, Detail);
-  TksImageButtonStyle = (Action, Add, Camara, Compose, Information, ArrowLeft,
+
+
+  TksAccessoryType = (atNone, atMore, atCheckmark, atDetail, atBack, atRefresh,
+                      atAction, atPlay, atRewind, atForward, atPause, atStop,
+                      atAdd, atPrior, atNext, atArrowUp, atArrowDown, atArrowLeft,
+                      atArrowRight, atReply, atSearch, atBookmarks, atTrash, atOrganize,
+                      atCamera, atCompose, atInfo, atPagecurl, atDetails,
+                      atUserDefined1, atUserDefined2, atUserDefined3);
+
+  TksImageButtonStyle = TksAccessoryType;
+  {(Action, Add, Camara, Compose, Information, ArrowLeft,
     ArrowDown, ArrowRight, ArrowUp, Delete, Details, Organise, PageCurl, Pause,
-    Play, Refresh, Reply, Search, Stop, Trash);
+    Play, Refresh, Reply, Search, Stop, Trash);  }
+
   TksButtonState = (Pressed, Unpressed);
   TksListItemRowSelector = (NoSelector, DateSelector, ItemPicker);
   TksScrollDirection = (sdUp, sdDown);
   TksItemSwipeDirection = (sdLeftToRight, sdRightToLeft);
   TksActionButtonState = (ksActionBtnVisible, ksActionBtnHidden, ksActionBtnAnimIn, ksActopmBtnAnimOut);
 
+  {TksButtonStyle = (ksButtonDefault, ksButtonSegmentLeft, ksButtonSegmentMiddle, ksButtonSegmentRight);
+
+  TksToolAccessory = ( taBack, taRefresh, taAction, taPlay, taRewind, taForward, taPause, taStop, taAdd,
+                       taPrior, taNext, taArrowUp, taArrowDown, taArrowLeft, taArrowRight, taReply, taSearch,
+                       taBookmarks, taTrash, taOrganize, taCamera, taCompose, taInfo, taPagecurl, taDetail );
+                     }
   TksMouseEventType = (ksMouseItemClick, ksMouseItemRightClick, ksMouseDown, ksMouseMove, ksMouseUp, ksMouseLongPress);
 
 
@@ -158,6 +174,27 @@ type
   end;
 
   TksMouseEventList = TList<TksMouseEvent>;
+
+  TksAccessoryImage = class(TBitmap)
+  public
+    procedure SetBitmap(ASource: TBitmap);
+    procedure DrawToCanvas(ACanvas: TCanvas; ADestRect: TRectF);
+  end;
+
+  TksAccessoryImageList = class(TObjectList<TksAccessoryImage>)
+  private
+    function GetAccessoryFromResource(AStyleName: string): TksAccessoryImage;
+
+    procedure Initialize;
+    function GetAccessory(AAccessory: TksAccessoryType): TksAccessoryImage;
+    procedure SetAccessory(AAccessory: TksAccessoryType; const Value: TksAccessoryImage);
+  public
+    constructor Create;
+    property ToolAccessory[AAccessory: TksAccessoryType]: TksAccessoryImage read GetAccessory;
+  end;
+
+
+
 
   TksListItemRowObj = class(TPersistent)
   strict private
@@ -506,14 +543,14 @@ type
 
   TKsListItemRowAccessory = class(TksListItemRowObj)
   private
-    FAccessoryType: TAccessoryType;
-    procedure SetAccessoryType(const Value: TAccessoryType);
+    FAccessoryType: TksAccessoryType;
+    procedure SetAccessoryType(const Value: TksAccessoryType);
   protected
     procedure CalculateRect(ARowBmp: TBitmap); override;
   public
     constructor Create(ARow: TKsListItemRow); override;
     function Render(ACanvas: TCanvas): Boolean; override;
-    property AccessoryType: TAccessoryType read FAccessoryType write SetAccessoryType;
+    property AccessoryType: TksAccessoryType read FAccessoryType write SetAccessoryType;
   end;
 
   TksListItemRowSwitch = class(TksListItemRowObj)
@@ -697,15 +734,16 @@ type
     FLastHeight: single;
     FBackgroundColor: TAlphaColor;
     FUpdating: Boolean;
-
+    //FHasCustomAccessory: Boolean;
+    //FCustomAccessory: TksToolAccessory;
     function RowHeight(const AScale: Boolean = True): single;
     function RowWidth(const AScale: Boolean = True): single;
     function GetListView: TksListView;
     function GetRowObject(AIndex: integer): TksListItemRowObj;
     function GetRowObjectCount: integer;
-    procedure SetAccessory(const Value: TAccessoryType);
+    procedure SetAccessory(const Value: TksAccessoryType);
     procedure SetShowAccessory(const Value: Boolean);
-    function GetAccessory: TAccessoryType;
+    function GetAccessory: TksAccessoryType;
     procedure SetAutoCheck(const Value: Boolean);
     procedure SetImageIndex(const Value: integer);
     function GetSearchIndex: string;
@@ -811,7 +849,7 @@ type
     property Index: integer read FIndex write FIndex;
     property Cached: Boolean read FCached write FCached;
     property IndicatorColor: TAlphaColor read FIndicatorColor write SetIndicatorColor;
-    property Accessory: TAccessoryType read GetAccessory write SetAccessory;
+    property Accessory: TksAccessoryType read GetAccessory write SetAccessory;
     property ShowAccessory: Boolean read FShowAccessory write SetShowAccessory default True;
     property AutoCheck: Boolean read FAutoCheck write SetAutoCheck default False;
     property Image: TksListItemRowImage read FImage write FImage;
@@ -844,7 +882,7 @@ type
   public
     constructor Create(AListView: TksListView; AItems: TksListViewItems) ; virtual;
 
-    function AddRow(AText: string; const AAccessoryType: TksAccessoryType = None): TKsListItemRow; overload;
+    function AddRow(AText: string; const AAccessoryType: TksAccessoryType = atNone): TKsListItemRow; overload;
     function AddRow(AText, ASubTitle, ADetail: string;
                     AAccessory: TksAccessoryType;
                     const AImageIndex: integer = -1;
@@ -1206,9 +1244,13 @@ type
 
 procedure Register;
 
+var
+  AccessoryImages: TksAccessoryImageList;
+
+
 implementation
 
-uses SysUtils, FMX.Platform, ksDrawFunctions, FMX.Ani,
+uses SysUtils, FMX.Platform, ksDrawFunctions, FMX.Ani, FMX.Styles,
   System.StrUtils, DateUtils, FMX.Forms, Math, ksSlideMenu;
 
 var
@@ -1216,6 +1258,7 @@ var
 
   ATextLayout: TTextLayout;
   ASearchBoxHeight: single;
+
 
 procedure Register;
 begin
@@ -1951,7 +1994,7 @@ begin
 
     if FAutoCheck then
     begin
-      FAccessory.AccessoryType := TAccessoryType.Checkmark;
+      FAccessory.AccessoryType := TksAccessoryType.atCheckmark;
       if Checked then
       begin
         FAccessory.CalculateRect(Bitmap);
@@ -2283,7 +2326,7 @@ begin
     Result := Result * GetScreenScale;
 end;
 
-function TKsListItemRow.GetAccessory: TAccessoryType;
+function TKsListItemRow.GetAccessory: TksAccessoryType;
 begin
   Result := FAccessory.AccessoryType;
 end;
@@ -2353,7 +2396,7 @@ begin
 
   if FAutoCheck then
   begin
-    Accessory := TAccessoryType.Checkmark;
+    Accessory := TksAccessoryType.atCheckmark;
     if ListView.CheckMarks = TksListViewCheckMarks.ksCmSingleSelect  then
     begin
       for ICount := 0 to ListView.Items.Count-1 do
@@ -2484,8 +2527,8 @@ begin
   Result := AddButton(44, '', ATintColor);
   Result.Width := 44;
   Result.Height := 44;
-  case AStyle of
-    Action: AStr := 'actiontoolbuttonbordered';
+  {case AStyle of
+    atAction: AStr := 'actiontoolbutton';
     Add: AStr := 'addtoolbuttonbordered';
     Camara: AStr := 'cameratoolbuttonbordered';
     Compose: AStr := 'composetoolbuttonbordered';
@@ -2505,7 +2548,7 @@ begin
     Search: AStr := 'searchtrashtoolbuttonbordered';
     Stop: AStr := 'stoptrashtoolbuttonbordered';
     Trash: AStr := 'trashtoolbuttonbordered';
-  end;
+  end;   }
   Result.StyleLookup := AStr;
 end;
 
@@ -2640,7 +2683,7 @@ begin
   //
 end;
 
-procedure TKsListItemRow.SetAccessory(const Value: TAccessoryType);
+procedure TKsListItemRow.SetAccessory(const Value: TksAccessoryType);
 begin
   FAccessory.AccessoryType := Value;
 end;
@@ -2649,7 +2692,7 @@ procedure TKsListItemRow.SetAutoCheck(const Value: Boolean);
 begin
   FAutoCheck := Value;
   if FAutoCheck then
-    FAccessory.AccessoryType := TAccessoryType.Checkmark;
+    FAccessory.AccessoryType := TksAccessoryType.atCheckmark;
   Changed;
 end;
 
@@ -3141,14 +3184,14 @@ end;
 function TKsListItemRows.AddRowDateSelector(AText: string;
   ADate: TDateTime): TKsListItemRow;
 begin
-  Result := AddRow(AText, '', FormatDateTime('ddd, dd mmmm, yyyy', ADate), More);
+  Result := AddRow(AText, '', FormatDateTime('ddd, dd mmmm, yyyy', ADate), atMore);
   Result.Selector := DateSelector;
   Result.FSelectionValue := ADate;
 end;
 
 function TKsListItemRows.AddRowItemSelector(AText, ASelected: string; AItems: TStrings): TKsListItemRow;
 begin
-  Result := AddRow(AText, '', ASelected, More);
+  Result := AddRow(AText, '', ASelected, atMore);
   Result.Selector := ItemPicker;
   Result.FPickerItems.Assign(AItems);
   Result.FSelectionValue := ASelected;
@@ -3171,7 +3214,7 @@ end;
 
 function TKsListItemRows.AddHeader(AText: string): TKsListItemRow;
 begin
-  Result := AddRow('', '', '', None);
+  Result := AddRow('', '', '', atNone);
   Result.Owner.Purpose := TListItemPurpose.Header;
   Result.CanSelect := False;
 
@@ -3186,7 +3229,7 @@ begin
     Result.CacheRow;
 end;
 
-function TKsListItemRows.AddRow(AText: string; const AAccessoryType: TksAccessoryType = None): TKsListItemRow;
+function TKsListItemRows.AddRow(AText: string; const AAccessoryType: TksAccessoryType = atNone): TKsListItemRow;
 begin
   Result := AddRow(AText, '', '', AAccessoryType);
 end;
@@ -3224,12 +3267,9 @@ begin
   if FListView.CheckMarks <> ksCmNone then
     Result.AutoCheck := True;
   Result.Name := 'ksRow';
-  Result.ShowAccessory := AAccessory <> None;
-  case AAccessory of
-    More: Result.Accessory := TAccessoryType.More;
-    Checkmark: Result.Accessory := TAccessoryType.Checkmark;
-    Detail: Result.Accessory := TAccessoryType.Detail;
-  end;
+  Result.ShowAccessory := AAccessory <> atNone;
+  Result.Accessory := AAccessory;
+
   Result.SetFontProperties('', AFontSize, AFontColor, []);
   Result.Image.Bitmap.Assign(AImage);
 
@@ -4294,9 +4334,14 @@ end;
 { TKsListItemRowAccessory }
 
 procedure TKsListItemRowAccessory.CalculateRect(ARowBmp: TBitmap);
+var
+  AAccessoryImg: TksAccessoryImage;
 begin
-  Width := 14;
-  Height := 14;
+  AAccessoryImg := AccessoryImages.ToolAccessory[FAccessoryType];
+  Width := AAccessoryImg.Width;
+  Height := AAccessoryImg.Height;
+  //Width := 14;
+  //Height := 14;
   inherited;
 end;
 
@@ -4320,7 +4365,7 @@ var
   ADestRect: TRectF;
 begin
   inherited Render(ACanvas);
-  if (FAccessoryType = TAccessoryType.Checkmark) and
+  if (FAccessoryType = TksAccessoryType.atCheckmark) and
      (TksListView(FRow.ListView).CheckMarkStyle <> ksCmsDefault)  then
   begin
     ARect := RectF(Rect.Left, Rect.Top, Rect.Left + (64*GetScreenScale), Rect.Top + (64*GetScreenScale));
@@ -4370,12 +4415,14 @@ begin
   end
   else
   begin
-    DrawAccessory(ACanvas, Rect, C_PLATFORM_ACCESSORY_COLOR, FAccessoryType);
+    AccessoryImages.ToolAccessory[FAccessoryType].DrawToCanvas(ACanvas, Rect);
+    { TODO : draw accessory }
+    //DrawAccessory(ACanvas, Rect, C_PLATFORM_ACCESSORY_COLOR, FAccessoryType);
   end;
   Result := True;
 end;
 
-procedure TKsListItemRowAccessory.SetAccessoryType(const Value: TAccessoryType);
+procedure TKsListItemRowAccessory.SetAccessoryType(const Value: TksAccessoryType);
 begin
   if FAccessoryType <> Value then
   begin
@@ -5867,9 +5914,121 @@ begin
   ListBox.OnChange := nil;
 end;
 
+{ TksAccessoryImageList }
+
+constructor TksAccessoryImageList.Create;
+begin
+  inherited Create(True);
+  Initialize;
+end;
+
+function TksAccessoryImageList.GetAccessory(AAccessory: TksAccessoryType): TksAccessoryImage;
+begin
+   Result := Items[Ord(AAccessory)];
+end;
+
+function TksAccessoryImageList.GetAccessoryFromResource(
+  AStyleName: string): TksAccessoryImage;
+var
+  ActiveStyle: TFmxObject;
+  AStyleObj: TStyleObject;
+  AImageMap: TBitmap;
+  AImgRect: TBounds;
+begin
+  Result := TksAccessoryImage.Create(16, 16);
+  Result.Clear(claNull);
+  ActiveStyle := TStyleManager.ActiveStyle(Nil);
+  AStyleObj := TStyleOBject(ActiveStyle.FindStyleResource(AStyleName));
+  if AStyleObj <> nil then
+  begin
+    AImageMap := (AStyleObj as TStyleObject).Source.Bitmap;
+    AImgRect := AStyleObj.SourceLink.LinkByScale(GetScreenScale, True).SourceRect;
+    Result.SetSize(Round(AImgRect.Width), Round(AImgRect.Height));
+    Result.Canvas.BeginScene;
+    Result.Canvas.DrawBitmap(AImageMap,
+                             AImgRect.Rect,
+                             RectF(0, 0, Result.Width, Result.Height),
+                             1,
+                             False);
+    Result.Canvas.EndScene;
+  end;
+  //Result.SaveToFile('C:\Users\Graham\Desktop\images\'+AStyleName+'.png');
+  //Result.Free;
+end;
+
+procedure TksAccessoryImageList.Initialize;
+var
+  ICount: TksAccessoryType;
+  ABmp: TksAccessoryImage;
+  AStrings: TStrings;
+  AStyleID: string;
+begin
+  for ICount := Low(TksAccessoryType) to High(TksAccessoryType) do
+  begin
+    case ICount of
+      atNone        : AStyleID := 'none';
+      atMore        : AStyleID := 'listviewstyle.accessorymore';
+      atCheckmark   : AStyleID := 'listviewstyle.accessorycheckmark';
+      atDetail      : AStyleID := 'listviewstyle.accessorydetail';
+      atBack        : AStyleID := 'backtoolbutton.icon';
+      atRefresh     : AStyleID := 'refreshtoolbutton.icon';
+      atAction      : AStyleID := 'actiontoolbutton.icon';
+      atPlay        : AStyleID := 'playtoolbutton.icon';
+      atRewind      : AStyleID := 'rewindtoolbutton.icon';
+      atForward     : AStyleID := 'forwardtoolbutton.icon';
+      atPause       : AStyleID := 'pausetoolbutton.icon';
+      atStop        : AStyleID := 'stoptoolbutton.icon';
+      atAdd         : AStyleID := 'addtoolbutton.icon';
+      atPrior       : AStyleID := 'priortoolbutton.icon';
+      atNext        : AStyleID := 'nexttoolbutton.icon';
+      atArrowUp     : AStyleID := 'arrowuptoolbutton.icon';
+      atArrowDown   : AStyleID := 'arrowdowntoolbutton.icon';
+      atArrowLeft   : AStyleID := 'arrowlefttoolbutton.icon';
+      atArrowRight  : AStyleID := 'arrowrighttoolbutton.icon';
+      atReply       : AStyleID := 'replytoolbutton.icon';
+      atSearch      : AStyleID := 'searchtoolbutton.icon';
+      atBookmarks   : AStyleID := 'bookmarkstoolbutton.icon';
+      atTrash       : AStyleID := 'trashtoolbutton.icon';
+      atOrganize    : AStyleID := 'organizetoolbutton.icon';
+      atCamera      : AStyleID := 'cameratoolbutton.icon';
+      atCompose     : AStyleID := 'composetoolbutton.icon';
+      atInfo        : AStyleID := 'infotoolbutton.icon';
+      atPagecurl    : AStyleID := 'pagecurltoolbutton.icon';
+      atDetails     : AStyleID := 'detailstoolbutton.icon';
+      atUserDefined1: AStyleID := 'user.defined1';
+      atUserDefined2: AStyleID := 'user.defined2';
+      atUserDefined3: AStyleID := 'user.defined3';
+    end;
+    Add(GetAccessoryFromResource(AStyleID));
+  end;
+end;
+
+procedure TksAccessoryImageList.SetAccessory(AAccessory: TksAccessoryType;
+  const Value: TksAccessoryImage);
+begin
+  Items[Ord(AAccessory)].Assign(Value)
+end;
+
+{ TksAccessoryImage }
+
+procedure TksAccessoryImage.DrawToCanvas(ACanvas: TCanvas; ADestRect: TRectF);
+begin
+  ACanvas.DrawBitmap(Self,
+                     RectF(0, 0, Width, Height),
+                     ADestRect,
+                     1,
+                     False);
+end;
+
+procedure TksAccessoryImage.SetBitmap(ASource: TBitmap);
+begin
+  Assign(ASource);
+end;
+
 initialization
 
   ATextLayout := TTextLayoutManager.DefaultTextLayout.Create;
+  AccessoryImages := TksAccessoryImageList.Create;
 
   ASearchBox := TSearchBox.Create(nil);
   try
@@ -5890,6 +6049,7 @@ initialization
 finalization
 
   FreeAndNil(ATextLayout);
+  FreeAndNil(AccessoryImages);
 
 
 end.
