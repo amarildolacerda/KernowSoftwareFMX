@@ -38,7 +38,6 @@ unit ksListView;
 
 interface
 
-
 {$IFDEF VER290}
   {$DEFINE XE8_OR_NEWER}
 {$ENDIF}
@@ -5997,7 +5996,12 @@ begin
         FImageMap := ((AStyleObj as TStyleObject).Source.Bitmap);
       end;
 
+      {$IFDEF XE8_OR_NEWER}
       AImgRect := AStyleObj.SourceLink.LinkByScale(1, True).SourceRect;
+      {$ELSE}
+      AImgRect := AStyleObj.SourceLink.LinkByScale(1).SourceRect;
+      {$ENDIF}
+
 
       Result.SetSize(Round(AImgRect.Width), Round(AImgRect.Height));
       Result.Clear(claNull);
