@@ -136,7 +136,7 @@ begin
       ARow := ksListview1.Items.AddRow('Line '+InttoStr(ICount),      // main title
                                  'a sub title for '+IntToStr(ICount), // subtitle
                                  'detail text',                       // detail text
-                                 More,                                // "more" accessory
+                                 atMore,                                // "more" accessory
                                  Image2.Bitmap);                      // image
 
 
@@ -172,7 +172,7 @@ begin
       ARow := lvSmoothScrolling.Items.AddRow('Line '+InttoStr(ICount),  // main title
                                              'sub title',               // subtitle
                                              '',                        // detail text
-                                             More,                      // "more" accessory
+                                             atMore,                      // "more" accessory
                                              Image2.Bitmap);            // image
       ARow.AddSegmentButtons(100, 110, ['one','two','three'], TListItemAlign.Leading).OffsetY:= -16;
 
@@ -212,11 +212,11 @@ begin
         2: AColor := claRed;
         3: AColor := claGreen;
       end;
-      ARow := lvSegmentButtons.Items.AddRow('Item '+IntToStr(ICount), '', '', None);
+      ARow := lvSegmentButtons.Items.AddRow('Item '+IntToStr(ICount), '', '', atMore);
       ARow.AddSegmentButtons(180, ['one', 'two', 'three']).TintColor := AColor;
 
      //lvSegmentButtons.RecalcSize;
-     with lvSegmentButtons.Items.AddRow('Item '+IntToStr(ICount), '', '', None) do
+     with lvSegmentButtons.Items.AddRow('Item '+IntToStr(ICount), '', '', atNone) do
       AddSwitchRight(0, False);
     end;
 
@@ -235,16 +235,16 @@ begin
     Exit;
   lvIndicators.BeginUpdate;
   try
-    lvIndicators.Items.AddRow('Green', 'indicator color', 'some detail', More).IndicatorColor := claGreen;
-    lvIndicators.Items.AddRow('Yellow', 'indicator color', 'some detail', More).IndicatorColor := claYellow;
-    lvIndicators.Items.AddRow('Blue', 'indicator color', 'some detail', More).IndicatorColor := claBlue;
-    lvIndicators.Items.AddRow('Red', 'indicator color', 'some detail', More).IndicatorColor := claRed;
-    lvIndicators.Items.AddRow('Orange', 'indicator color', 'some detail', More).IndicatorColor := claOrange;
-    lvIndicators.Items.AddRow('Teal', 'indicator color', 'some detail', More).IndicatorColor := claTeal;
-    lvIndicators.Items.AddRow('Fuchsia', 'indicator color', 'some detail', More).IndicatorColor := claFuchsia;
-    lvIndicators.Items.AddRow('Silver', 'indicator color', 'some detail', More).IndicatorColor := claSilver;
-    lvIndicators.Items.AddRow('Gray', 'indicator color', 'some detail', More).IndicatorColor := claGray;
-    lvIndicators.Items.AddRow('Black', 'indicator color', 'some detail', More).IndicatorColor := claBlack;
+    lvIndicators.Items.AddRow('Green', 'indicator color', 'some detail', atMore).IndicatorColor := claGreen;
+    lvIndicators.Items.AddRow('Yellow', 'indicator color', 'some detail', atMore).IndicatorColor := claYellow;
+    lvIndicators.Items.AddRow('Blue', 'indicator color', 'some detail', atMore).IndicatorColor := claBlue;
+    lvIndicators.Items.AddRow('Red', 'indicator color', 'some detail', atMore).IndicatorColor := claRed;
+    lvIndicators.Items.AddRow('Orange', 'indicator color', 'some detail', atMore).IndicatorColor := claOrange;
+    lvIndicators.Items.AddRow('Teal', 'indicator color', 'some detail', atMore).IndicatorColor := claTeal;
+    lvIndicators.Items.AddRow('Fuchsia', 'indicator color', 'some detail', atMore).IndicatorColor := claFuchsia;
+    lvIndicators.Items.AddRow('Silver', 'indicator color', 'some detail', atMore).IndicatorColor := claSilver;
+    lvIndicators.Items.AddRow('Gray', 'indicator color', 'some detail', atMore).IndicatorColor := claGray;
+    lvIndicators.Items.AddRow('Black', 'indicator color', 'some detail', atMore).IndicatorColor := claBlack;
   finally
     lvIndicators.EndUpdate;
   end;
@@ -263,19 +263,19 @@ begin
   begin
     try
       // row 1
-      ARow := AddRow('Progress bar 1', ''{'green/round corner'}, '', More);
+      ARow := AddRow('Progress bar 1', ''{'green/round corner'}, '', atMore);
       ARow.DrawProgressBar(0, 0, 120, 18, 25, claGreenyellow, 9);
 
       // row 2
-      ARow := AddRow('Progress bar 2', {'red/round corner'}'', '', More);
+      ARow := AddRow('Progress bar 2', {'red/round corner'}'', '', atMore);
       ARow.DrawProgressBar(0, 0, 120, 18, 50, claIndianred, 9);
 
       // row 3
-      ARow := AddRow('Progress bar 3', ''{'blue/square corner'}, '', More);
+      ARow := AddRow('Progress bar 3', ''{'blue/square corner'}, '', atMore);
       ARow.DrawProgressBar(0, 0, 120, 18, 75, claSkyblue, 0);
 
       // row 4
-      ARow := AddRow('Progress bar 4', ''{'orange/square corner'}, '', More);
+      ARow := AddRow('Progress bar 4', ''{'orange/square corner'}, '', atMore);
       ARow.DrawProgressBar(0, 0, 120, 18, 90, claOrange, 0);
     finally
       lvProgressBars.EndUpdate;
@@ -303,10 +303,10 @@ begin
     Exit;
   lvAccessorys.BeginUpdate;
   try
-    lvAccessorys.Items.AddRow('No Accessory', '', '', None);
-    lvAccessorys.Items.AddRow('"More" Accessory', '', '', More);
-    lvAccessorys.Items.AddRow('"Checkmark" Accessory', '', '', Checkmark);
-    lvAccessorys.Items.AddRow('"Detail" Accessory', '', '', Detail);
+    lvAccessorys.Items.AddRow('No Accessory', '', '', atNone);
+    lvAccessorys.Items.AddRow('"More" Accessory', '', '', atMore);
+    lvAccessorys.Items.AddRow('"Checkmark" Accessory', '', '', atCheckmark);
+    lvAccessorys.Items.AddRow('"Detail" Accessory', '', '', atDetail);
   finally
     lvAccessorys.EndUpdate;
   end;
@@ -320,7 +320,7 @@ begin
     Exit;
   lvCheckList.BeginUpdate;
   for ICount := 1 to 50 do
-    lvCheckList.Items.AddRow('Item '+IntToStr(ICount), '', '', None);
+    lvCheckList.Items.AddRow('Item '+IntToStr(ICount), '', '', atNone);
   lvCheckList.EndUpdate;
 end;
 

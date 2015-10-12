@@ -183,14 +183,16 @@ type
 
   TksAccessoryImageList = class(TObjectList<TksAccessoryImage>)
   private
+    FImageMap: TBitmap;
     function GetAccessoryFromResource(AStyleName: string): TksAccessoryImage;
 
     procedure Initialize;
-    function GetAccessory(AAccessory: TksAccessoryType): TksAccessoryImage;
-    procedure SetAccessory(AAccessory: TksAccessoryType; const Value: TksAccessoryImage);
+    function GetAccessoryImage(AAccessory: TksAccessoryType): TksAccessoryImage;
   public
     constructor Create;
-    property ToolAccessory[AAccessory: TksAccessoryType]: TksAccessoryImage read GetAccessory;
+    destructor Destroy; override;
+    property Images[AAccessory: TksAccessoryType]: TksAccessoryImage read GetAccessoryImage; default;
+    property ImageMap: TBitmap read FImageMap;
   end;
 
 
@@ -2149,6 +2151,9 @@ var
   ASeparatorOffset: integer;
   lv: TksListView;
 begin
+  if SubPassNo <> 0 then
+    Exit;
+
   lv := ListView;
   if FLastHeight = 0 then
     FLastHeight := Height;
@@ -2211,7 +2216,18 @@ begin
   end;
 
   ListView.DoRenderRow(Self);
-  inherited;
+
+  //inherited;
+
+  Canvas.DrawBitmap(Bitmap,
+                    RectF(0, 0, Bitmap.Width, Bitmap.Height),
+                    {$IFDEF XE10_OR_NEWER}
+                    LocalRect,
+                    {$ELSE}
+                    FLocalRect,
+                    {$ENDIF}
+                    1,
+                    False);
 
 
   if (Purpose = TListItemPurpose.None) and (ANextItemIsHeader = False) then
@@ -4337,7 +4353,7 @@ procedure TKsListItemRowAccessory.CalculateRect(ARowBmp: TBitmap);
 var
   AAccessoryImg: TksAccessoryImage;
 begin
-  AAccessoryImg := AccessoryImages.ToolAccessory[FAccessoryType];
+  AAccessoryImg := AccessoryImages[FAccessoryType];
   Width := AAccessoryImg.Width;
   Height := AAccessoryImg.Height;
   //Width := 14;
@@ -4415,7 +4431,7 @@ begin
   end
   else
   begin
-    AccessoryImages.ToolAccessory[FAccessoryType].DrawToCanvas(ACanvas, Rect);
+    AccessoryImages[FAccessoryType].DrawToCanvas(ACanvas, Rect);
     { TODO : draw accessory }
     //DrawAccessory(ACanvas, Rect, C_PLATFORM_ACCESSORY_COLOR, FAccessoryType);
   end;
@@ -5919,12 +5935,20 @@ end;
 constructor TksAccessoryImageList.Create;
 begin
   inherited Create(True);
+  //FImageMap := TBitmap.Create;
+  ///FImageMap.BitmapScale := GetScreenScale;
   Initialize;
 end;
 
-function TksAccessoryImageList.GetAccessory(AAccessory: TksAccessoryType): TksAccessoryImage;
+function TksAccessoryImageList.GetAccessoryImage(AAccessory: TksAccessoryType): TksAccessoryImage;
 begin
    Result := Items[Ord(AAccessory)];
+end;
+
+destructor TksAccessoryImageList.Destroy;
+begin
+  //(FImageMap);
+  inherited;
 end;
 
 function TksAccessoryImageList.GetAccessoryFromResource(
@@ -5932,25 +5956,74 @@ function TksAccessoryImageList.GetAccessoryFromResource(
 var
   ActiveStyle: TFmxObject;
   AStyleObj: TStyleObject;
-  AImageMap: TBitmap;
   AImgRect: TBounds;
+  AIds: TStrings;
+  r: TRectF;
 begin
+
   Result := TksAccessoryImage.Create(16, 16);
+  Result.BitmapScale := GetScreenScale;
   Result.Clear(claNull);
-  ActiveStyle := TStyleManager.ActiveStyle(Nil);
-  AStyleObj := TStyleOBject(ActiveStyle.FindStyleResource(AStyleName));
-  if AStyleObj <> nil then
-  begin
-    AImageMap := (AStyleObj as TStyleObject).Source.Bitmap;
-    AImgRect := AStyleObj.SourceLink.LinkByScale(GetScreenScale, True).SourceRect;
-    Result.SetSize(Round(AImgRect.Width), Round(AImgRect.Height));
-    Result.Canvas.BeginScene;
-    Result.Canvas.DrawBitmap(AImageMap,
-                             AImgRect.Rect,
-                             RectF(0, 0, Result.Width, Result.Height),
-                             1,
-                             False);
-    Result.Canvas.EndScene;
+
+  AIds := TStringList.Create;
+  try
+    AIds.Text := StringReplace(AStyleName, '.', #13, [rfReplaceAll]);
+    ActiveStyle := TStyleManager.ActiveStyle(Nil);
+
+    AStyleObj := TStyleObject(ActiveStyle);
+
+    while AIds.Count > 0 do
+    begin
+      AStyleObj := TStyleOBject(AStyleObj.FindStyleResource(AIds[0]));
+      AIds.Delete(0);
+    end;
+
+    if AStyleObj <> nil then
+    begin
+      if FImageMap = nil then
+      begin
+        FImageMap := ((AStyleObj as TStyleObject).Source.Bitmap);
+        //FImageMap.BitmapScale := 2;
+
+        {FImageMap.SetSize(Round(ABmp.Width * GetScreenScale), Round(ABmp.Height*GetScreenScale));
+        //FImageMap.BitmapScale := GetScreenScale;
+        FImageMap.Clear(claNull);
+        FImageMap.Canvas.BeginScene;
+        FImageMap.Canvas.DrawBitmap(ABmp,
+                                    RectF(0, 0, ABmp.Width, ABmp.Height),
+                                    RectF(0, 0, FImageMap.Width, FImageMap.Height),
+                                    1, True);
+        FImageMap.Canvas.EndScene; }
+
+        //FImageMap.SaveToFile('C:\Users\Graham\Desktop\New folder (3)\map.png');
+        //;
+      end;
+
+      AImgRect := AStyleObj.SourceLink.LinkByScale(1, True).SourceRect;
+
+      Result.SetSize(Round(AImgRect.Width), Round(AImgRect.Height));
+      Result.Canvas.BeginScene;
+
+      r := AImgRect.Rect;
+      //r.Left := r.Left * GetScreenScale;
+      //r.Top := r.Top * GetScreenScale;
+      r.Width := (r.Width * GetScreenScale);
+      r.Height := (r.Height * GetScreenScale);
+
+     // Result.BitmapScale := GetScreenScale;
+      Result.Canvas.DrawBitmap(FImageMap,
+                               r,
+                               RectF(0, 0, Result.Width, Result.Height),
+                               1,
+                               True);
+      Result.Canvas.EndScene;
+    end;
+  finally
+    {$IFDEF NEXTGEN}
+    FreeAndNil(AIds);
+    {$ELSE}
+    AIds.Free;
+    {$ENDIF}
   end;
   //Result.SaveToFile('C:\Users\Graham\Desktop\images\'+AStyleName+'.png');
   //Result.Free;
@@ -5959,8 +6032,6 @@ end;
 procedure TksAccessoryImageList.Initialize;
 var
   ICount: TksAccessoryType;
-  ABmp: TksAccessoryImage;
-  AStrings: TStrings;
   AStyleID: string;
 begin
   for ICount := Low(TksAccessoryType) to High(TksAccessoryType) do
@@ -5995,21 +6066,16 @@ begin
       atInfo        : AStyleID := 'infotoolbutton.icon';
       atPagecurl    : AStyleID := 'pagecurltoolbutton.icon';
       atDetails     : AStyleID := 'detailstoolbutton.icon';
-      atUserDefined1: AStyleID := 'user.defined1';
-      atUserDefined2: AStyleID := 'user.defined2';
-      atUserDefined3: AStyleID := 'user.defined3';
+      atUserDefined1: AStyleID := 'userdefined1';
+      atUserDefined2: AStyleID := 'userdefined2';
+      atUserDefined3: AStyleID := 'userdefined3';
     end;
     Add(GetAccessoryFromResource(AStyleID));
   end;
 end;
 
-procedure TksAccessoryImageList.SetAccessory(AAccessory: TksAccessoryType;
-  const Value: TksAccessoryImage);
-begin
-  Items[Ord(AAccessory)].Assign(Value)
-end;
-
 { TksAccessoryImage }
+
 
 procedure TksAccessoryImage.DrawToCanvas(ACanvas: TCanvas; ADestRect: TRectF);
 begin
@@ -6017,7 +6083,7 @@ begin
                      RectF(0, 0, Width, Height),
                      ADestRect,
                      1,
-                     False);
+                     True);
 end;
 
 procedure TksAccessoryImage.SetBitmap(ASource: TBitmap);
@@ -6041,10 +6107,6 @@ initialization
     {$ENDIF}
   end;
 
-
-  {$IFDEF MSWINDOWS}
-  DefaultScrollBarWidth := 16;
-  {$ENDIF}
 
 finalization
 
