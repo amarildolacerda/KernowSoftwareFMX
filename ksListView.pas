@@ -2240,8 +2240,8 @@ begin
 
   ListView.DoRenderRow(Self);
 
-  //inherited;
-  Canvas.DrawBitmap(Bitmap, RectF(0, 0, Bitmap.Width, Bitmap.Height), RectF(0, ARect.Top, Bitmap.Width, ARect.Top+Bitmap.Height), 1, True);
+  inherited;
+  //Canvas.DrawBitmap(Bitmap, RectF(0, 0, Bitmap.Width, Bitmap.Height), RectF(0, ARect.Top, Bitmap.Width, ARect.Top+Bitmap.Height), 1, True);
 
   if (Purpose = TListItemPurpose.None) and (ANextItemIsHeader = False) then
   begin
