@@ -185,10 +185,13 @@ type
   TksAccessoryImageList = class(TObjectList<TksAccessoryImage>)
   private
     FImageMap: TBitmap;
+    function GetAccessoryID(AAccessory: TksAccessoryType): string;
     function GetAccessoryFromResource(AStyleName: string; const AState: string = ''): TksAccessoryImage;
     procedure Initialize;
     function GetAccessoryImage(AAccessory: TksAccessoryType): TksAccessoryImage;
   public
+    constructor Create;
+    destructor Destroy; override;
     property Images[AAccessory: TksAccessoryType]: TksAccessoryImage read GetAccessoryImage; default;
     property ImageMap: TBitmap read FImageMap;
   end;
@@ -1085,6 +1088,7 @@ type
     //procedure EmbeddedEditChange(ARow: TKsListItemRow; AText: string);
     //procedure EmbeddedListBoxChange(ARow: TKsListItemRow; AItemIndex: integer; ASelected: string);
     procedure StartScrollTimer;
+    function GetSearchBoxHeight: single;
     //procedure DoAfterShow;
     { Private declarations }
   protected
@@ -1274,7 +1278,7 @@ var
   DefaultScrollBarWidth: integer = 7;
 
   ATextLayout: TTextLayout;
-  ASearchBoxHeight: single;
+  //ASearchBoxHeight: single;
   //AEmbeddedEditControl: TEdit;
   //AEmbeddedListBoxControl: TListBox;
 
@@ -1345,11 +1349,11 @@ begin
 
   if FAlign = TListItemAlign.Trailing then
   begin
-    OffsetRect(FRect, ABmpWidth - (4 + w+ DefaultScrollBarWidth + FPlaceOffset.X), 0);
+    OffsetRect(FRect, ABmpWidth - (w + DefaultScrollBarWidth + FPlaceOffset.X + (2*GetScreenScale)), 0);
     if (Self is TKsListItemRowAccessory) = False then
     begin
       if FRow.ShowAccessory then
-        OffsetRect(FRect, 0-FRow.FAccessory.Width, 0);
+        OffsetRect(FRect, 0-((FRow.FAccessory.Width)+(2*GetScreenScale)), 0);
     end;
   end;
   case VertAlign of
@@ -2289,19 +2293,20 @@ begin
   FImageIndex := -1;
   FCanSelect := True;
    // title...
-  FTitle.Font.Size := 13;
-  FTitle.TextColor := claDimgray;
+  //FTitle.Font.Size := 13;
+  FTitle.TextColor := claBlack;
   FTitle.TextAlignment := TTextAlign.Leading;
   FTitle.ID := C_TITLE;
+
   // sub-title...
-  FSubTitle.TextColor := claGray;
-  FSubTitle.Font.Size := 13;
+  FSubTitle.TextColor := claDimgray;
+  //FSubTitle.Font.Size := 13;
   FSubTitle.TextAlignment := TTextAlign.Leading;
   FSubTitle.ID := C_SUBTITLE;
   // detail...
   FDetail.Align := TListItemAlign.Trailing;
   FDetail.TextColor := claDodgerblue;
-  FDetail.Font.Size := 13;
+  //FDetail.Font.Size := 13;
   FDetail.ID := C_DETAIL;
   FDetail.TextAlignment := TTextAlign.Trailing;
   FRowHeight := lv.ItemHeight;
@@ -2455,7 +2460,6 @@ end;
 
 function TKsListItemRow.DrawAccessory(AAccessory: TksAccessoryType; x, y: single): TksListItemRowImage;
 var
-  AWidth, AHeight: single;
   AImg: TksAccessoryImage;
 begin
   AImg := AccessoryImages.Images[AAccessory];
@@ -3206,6 +3210,7 @@ begin
   //FLastSelectedControl := nil;
   FActiveEmbeddedControl := nil;
   FScrollTimer := 0;
+  SetupSearchBoxEvent;
 end;
 
 procedure TksListView.DoDeselectRow;
@@ -3788,7 +3793,7 @@ begin
         end;
         ASearchHeight := 0;
         if SearchVisible then
-          ASearchHeight := ASearchBoxHeight;
+          ASearchHeight := FSearchEdit.Height;// ASearchBoxHeight;
         if ScrollViewPos-ASearchHeight = GetMaxScrollPos then
         begin
           if Assigned(FOnScrollLastItem) then
@@ -3971,26 +3976,20 @@ begin
 end;
 
 
+function TksListView.GetSearchBoxHeight: single;
+begin
+  Result := 0;
+  if FSearchEdit <> nil then
+    Result := FSearchEdit.Height;
+end;
+
 procedure TksListView.HideEmbeddedControls;
-var
-  ICount: integer;
-  AControl: TksListItemEmbeddedControl;
 begin
   if FActiveEmbeddedControl <> nil then
   begin
     FActiveEmbeddedControl.HideControl;
     FActiveEmbeddedControl := nil;
   end;
-  {
-  for ICount := FEmbeddedControls.Count-1 downto 0 do
-  begin
-    AControl := TksListItemEmbeddedControl(FEmbeddedControls[ICount]);
-    //if AControl.ControlActive then
-    //  FLastSelectedControl := AControl.Control;
-    AControl.HideControl;
-  end;
-  //FEmbeddedEditControl.Visible := False;
-  //FEmbeddedListBoxControl.Visible := False;  }
 end;
 
 function TksListView.IsShowing: Boolean;
@@ -4009,7 +4008,7 @@ begin
   cr := RectF(0, 0, Width, Height);;
   if SearchVisible then
   begin
-    cr.Top := ASearchBoxHeight;
+    cr.Top := FSearchEdit.Height;// ASearchBoxHeight;
   end;
   Result.IndexStart := -1;
   Result.IndexEnd := -1;
@@ -4345,7 +4344,7 @@ begin
   begin
     RedrawAllRows;
     CachePages;
-    SetupSearchBoxEvent;
+    //SetupSearchBoxEvent;
     //{$IFDEF IOS}
     //FOnShowTimer := FTimerService.CreateTimer(3000, DoAfterShow);
     //{$ENDIF}
@@ -4471,10 +4470,8 @@ var
   AAccessoryImg: TksAccessoryImage;
 begin
   AAccessoryImg := AccessoryImages[FAccessoryType];
-  Width := AAccessoryImg.Width;
-  Height := AAccessoryImg.Height;
-  //Width := 14;
-  //Height := 14;
+  Width := AAccessoryImg.Width / GetScreenScale;
+  Height := AAccessoryImg.Height / GetScreenScale;
   inherited;
 end;
 
@@ -5038,7 +5035,9 @@ var
   ARect: TRectF;
   ABtn: TksListItemRowActionButton;
   ICount: integer;
+  ASearchBoxHeight: single;
 begin
+  ASearchBoxHeight := FListView.GetSearchBoxHeight;
   FSwipeDirection := ASwipeDirection;
   ARect := FListView.GetItemRect(ARow.Index);
 
@@ -5249,8 +5248,6 @@ begin
   inherited;
 end;
 
-var
-  ASearchBox: TSearchBox;
 { TksListItemRowTableCell }
 
 procedure TksListItemRowTableCell.Changed;
@@ -5882,7 +5879,6 @@ function TksListItemOptionSelector.Render(ACanvas: TCanvas): Boolean;
 var
   ABmp: TBitmap;
   ICount: integer;
-  AGlyph: TksAccessoryImage;
   AItemRect: TRectF;
   ACheckRect: TRectF;
   ATextRect: TRectF;
@@ -5968,28 +5964,85 @@ end;
 
 { TksAccessoryImageList }
 
+function TksAccessoryImageList.GetAccessoryID(
+  AAccessory: TksAccessoryType): string;
+begin
+  case AAccessory of
+    atNone              : Result := 'none';
+    atMore              : Result := 'listviewstyle.accessorymore';
+    atCheckmark         : Result := 'listviewstyle.accessorycheckmark';
+    atDetail            : Result := 'listviewstyle.accessorydetail';
+    atBack              : Result := 'backtoolbutton.icon';
+    atRefresh           : Result := 'refreshtoolbutton.icon';
+    atAction            : Result := 'actiontoolbutton.icon';
+    atPlay              : Result := 'playtoolbutton.icon';
+    atRewind            : Result := 'rewindtoolbutton.icon';
+    atForward           : Result := 'forwardtoolbutton.icon';
+    atPause             : Result := 'pausetoolbutton.icon';
+    atStop              : Result := 'stoptoolbutton.icon';
+    atAdd               : Result := 'addtoolbutton.icon';
+    atPrior             : Result := 'priortoolbutton.icon';
+    atNext              : Result := 'nexttoolbutton.icon';
+    atArrowUp           : Result := 'arrowuptoolbutton.icon';
+    atArrowDown         : Result := 'arrowdowntoolbutton.icon';
+    atArrowLeft         : Result := 'arrowlefttoolbutton.icon';
+    atArrowRight        : Result := 'arrowrighttoolbutton.icon';
+    atReply             : Result := 'replytoolbutton.icon';
+    atSearch            : Result := 'searchtoolbutton.icon';
+    atBookmarks         : Result := 'bookmarkstoolbutton.icon';
+    atTrash             : Result := 'trashtoolbutton.icon';
+    atOrganize          : Result := 'organizetoolbutton.icon';
+    atCamera            : Result := 'cameratoolbutton.icon';
+    atCompose           : Result := 'composetoolbutton.icon';
+    atInfo              : Result := 'infotoolbutton.icon';
+    atPagecurl          : Result := 'pagecurltoolbutton.icon';
+    atDetails           : Result := 'detailstoolbutton.icon';
+    atRadioButton       : Result := 'radiobuttonstyle.background';
+    atRadioButtonChecked: Result := 'radiobuttonstyle.background|checked';
+    atCheckBox          : Result := 'checkboxstyle.background';
+    atCheckBoxChecked   : Result := 'checkboxstyle.background|checked';
+    atUserDefined1      : Result := 'userdefined1';
+    atUserDefined2      : Result := 'userdefined2';
+    atUserDefined3      : Result := 'userdefined3';
+  end;
+end;
+
 function TksAccessoryImageList.GetAccessoryImage(AAccessory: TksAccessoryType): TksAccessoryImage;
 begin
   if Count = 0 then
     Initialize;
-   Result := Items[Ord(AAccessory)];
+  Result := Items[Ord(AAccessory)];
+  if Result = nil then
+  begin
+    Items[Ord(AAccessory)] := GetAccessoryFromResource(GetAccessoryID(AAccessory));
+    Result := Items[Ord(AAccessory)];
+  end;
+end;
+
+constructor TksAccessoryImageList.Create;
+begin
+  inherited Create(True);
+  FImageMap := TBitmap.Create;
+end;
+
+destructor TksAccessoryImageList.Destroy;
+begin
+  FreeAndNil(FImageMap);
+  inherited;
 end;
 
 function TksAccessoryImageList.GetAccessoryFromResource(
   AStyleName: string; const AState: string = ''): TksAccessoryImage;
 var
-  s: string;
   ActiveStyle: TFmxObject;
   AStyleObj: TStyleObject;
   AImgRect: TBounds;
   AIds: TStrings;
   r: TRectF;
   ABitmapLink: TBitmapLinks;
+  AImageMap: TBitmap;
 begin
-
   Result := TksAccessoryImage.Create;
-  Result.BitmapScale := GetScreenScale;
-
   AIds := TStringList.Create;
   try
     AIds.Text := StringReplace(AStyleName, '.', #13, [rfReplaceAll]);
@@ -6005,10 +6058,22 @@ begin
 
     if AStyleObj <> nil then
     begin
-      if FImageMap = nil then
+      if FImageMap.IsEmpty then
       begin
-        FImageMap := ((AStyleObj as TStyleObject).Source.Bitmap);
-        //FImageMap.SaveToFile('C:\Users\Graham\Desktop\map.png');
+        AImageMap := ((AStyleObj as TStyleObject).Source.MultiResBitmap.Bitmaps[GetScreenScale]);
+
+        FImageMap.SetSize(Round(AImageMap.Width), Round(AImageMap.Height));
+        FImageMap.Clear(claNull);
+
+        FImageMap.Canvas.BeginScene;
+        try
+          FImageMap.Canvas.DrawBitmap(AImageMap,
+                                      RectF(0, 0, AImageMap.Width, AImageMap.Height),
+                                      RectF(0, 0, FImageMap.Width, FImageMap.Height),
+                                      1, True);
+        finally
+          FImageMap.Canvas.EndScene;
+        end;
       end;
 
       ABitmapLink := nil;
@@ -6020,28 +6085,27 @@ begin
           ABitmapLink := TCheckStyleObject(AStyleObj).ActiveLink
         else
           ABitmapLink := TCheckStyleObject(AStyleObj).SourceLink
-     
+
         
       end;
 
       if ABitmapLink = nil then
         ABitmapLink := AStyleObj.SourceLink;
-      //if LowerCase(ALink) = LowerCase('ActiveLink') then ABitmapLink := AStyleObj.SourceLink;
 
       {$IFDEF XE8_OR_NEWER}
-      AImgRect := ABitmapLink.LinkByScale(1, True).SourceRect;
+      AImgRect := ABitmapLink.LinkByScale(GetScreenScale, True).SourceRect;
       {$ELSE}
-      AImgRect := ABitmapLink.LinkByScale(1).SourceRect;
+      AImgRect := ABitmapLink.LinkByScale(GetScreenScale).SourceRect;
       {$ENDIF}
-
 
       Result.SetSize(Round(AImgRect.Width), Round(AImgRect.Height));
       Result.Clear(claNull);
       Result.Canvas.BeginScene;
 
       r := AImgRect.Rect;
-      r.Width := (r.Width * GetScreenScale);
-      r.Height := (r.Height * GetScreenScale);
+
+
+
 
       Result.Canvas.DrawBitmap(FImageMap,
                                r,
@@ -6049,6 +6113,11 @@ begin
                                1,
                                True);
       Result.Canvas.EndScene;
+
+      FImageMap.Canvas.BeginScene;
+      FImageMap.Canvas.Stroke.Color := claRed;
+      FImageMap.Canvas.DrawRect(r,0, 0, AllCorners, 1);
+      FImageMap.Canvas.EndScene;
     end;
   finally
     {$IFDEF NEXTGEN}
@@ -6062,53 +6131,12 @@ end;
 procedure TksAccessoryImageList.Initialize;
 var
   ICount: TksAccessoryType;
-  AStyleID: string;
 begin
   for ICount := Low(TksAccessoryType) to High(TksAccessoryType) do
-  begin
-    case ICount of
-      atNone              : Add(GetAccessoryFromResource('none'));
-      atMore              : Add(GetAccessoryFromResource('listviewstyle.accessorymore'));
-      atCheckmark         : Add(GetAccessoryFromResource('listviewstyle.accessorycheckmark'));
-      atDetail            : Add(GetAccessoryFromResource('listviewstyle.accessorydetail'));
-      atBack              : Add(GetAccessoryFromResource('backtoolbutton.icon'));
-      atRefresh           : Add(GetAccessoryFromResource('refreshtoolbutton.icon'));
-      atAction            : Add(GetAccessoryFromResource('actiontoolbutton.icon'));
-      atPlay              : Add(GetAccessoryFromResource('playtoolbutton.icon'));
-      atRewind            : Add(GetAccessoryFromResource('rewindtoolbutton.icon'));
-      atForward           : Add(GetAccessoryFromResource('forwardtoolbutton.icon'));
-      atPause             : Add(GetAccessoryFromResource('pausetoolbutton.icon'));
-      atStop              : Add(GetAccessoryFromResource('stoptoolbutton.icon'));
-      atAdd               : Add(GetAccessoryFromResource('addtoolbutton.icon'));
-      atPrior             : Add(GetAccessoryFromResource('priortoolbutton.icon'));
-      atNext              : Add(GetAccessoryFromResource('nexttoolbutton.icon'));
-      atArrowUp           : Add(GetAccessoryFromResource('arrowuptoolbutton.icon'));
-      atArrowDown         : Add(GetAccessoryFromResource('arrowdowntoolbutton.icon'));
-      atArrowLeft         : Add(GetAccessoryFromResource('arrowlefttoolbutton.icon'));
-      atArrowRight        : Add(GetAccessoryFromResource('arrowrighttoolbutton.icon'));
-      atReply             : Add(GetAccessoryFromResource('replytoolbutton.icon'));
-      atSearch            : Add(GetAccessoryFromResource('searchtoolbutton.icon'));
-      atBookmarks         : Add(GetAccessoryFromResource('bookmarkstoolbutton.icon'));
-      atTrash             : Add(GetAccessoryFromResource('trashtoolbutton.icon'));
-      atOrganize          : Add(GetAccessoryFromResource('organizetoolbutton.icon'));
-      atCamera            : Add(GetAccessoryFromResource('cameratoolbutton.icon'));
-      atCompose           : Add(GetAccessoryFromResource('composetoolbutton.icon'));
-      atInfo              : Add(GetAccessoryFromResource('infotoolbutton.icon'));
-      atPagecurl          : Add(GetAccessoryFromResource('pagecurltoolbutton.icon'));
-      atDetails           : Add(GetAccessoryFromResource('detailstoolbutton.icon'));
-      atRadioButton       : Add(GetAccessoryFromResource('radiobuttonstyle.background'));
-      atRadioButtonChecked: Add(GetAccessoryFromResource('radiobuttonstyle.background', 'checked'));
-      atCheckBox          : Add(GetAccessoryFromResource('checkboxstyle.background'));
-      atCheckBoxChecked   : Add(GetAccessoryFromResource('checkboxstyle.background', 'checked'));
-      atUserDefined1      : Add(GetAccessoryFromResource('userdefined1'));
-      atUserDefined2      : Add(GetAccessoryFromResource('userdefined2'));
-      atUserDefined3      : Add(GetAccessoryFromResource('userdefined3'));
-    end;
-  end;
+    Add(nil);
 end;
 
 { TksAccessoryImage }
-
 
 procedure TksAccessoryImage.DrawToCanvas(ACanvas: TCanvas; ADestRect: TRectF);
 begin
@@ -6203,11 +6231,10 @@ end;
 
 function TksListItemEmbeddedControl.Render(ACanvas: TCanvas): Boolean;
 begin
+  Result := False;
   if FFocused = True then
     Exit;
-  //  ACanvas.DrawRect(Rect, 0, 0, AllCorners, 1);
 
-  Result := False;
   if GetControlBitmap then
   begin
     ACanvas.DrawBitmap(FCached, RectF(0, 0, FCached.Width, FCached.Height), Rect, 1, True);
@@ -6250,6 +6277,9 @@ begin
   Result := (FControl as TButton);
 end;
 
+//var
+//  ASearchBox: TSearchBox;
+
 initialization
 
   ATextLayout := TTextLayoutManager.DefaultTextLayout.Create;
@@ -6259,7 +6289,7 @@ initialization
   DefaultScrollBarWidth := 16;
   {$ENDIF}
 
-  ASearchBox := TSearchBox.Create(nil);
+  (*ASearchBox := TSearchBox.Create(nil);
   try
     ASearchBoxHeight := ASearchBox.Height;
   finally
@@ -6268,7 +6298,7 @@ initialization
     {$ELSE}
     ASearchBox.Free;
     {$ENDIF}
-  end;
+  end;   *)
 
 
 finalization
