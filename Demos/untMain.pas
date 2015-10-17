@@ -118,7 +118,7 @@ var
 
 implementation
 
-uses System.UIConsts, untSourceCode;
+uses System.UIConsts, untSourceCode, TypInfo;
 
 {$R *.fmx}
 
@@ -298,15 +298,24 @@ begin
 end;
 
 procedure TfrmMain.BuildAccessoryListView;
+var
+  ICount: TksAccessoryType;
+  AName: string;
 begin
   if lvAccessorys.Items.Count > 0 then
     Exit;
   lvAccessorys.BeginUpdate;
   try
-    lvAccessorys.Items.AddRow('No Accessory', '', '', atNone);
+    for ICount := Low(TksaccessoryType) to High(TksAccessoryType) do
+    begin
+      AName := GetEnumName(TypeInfo(TksAccessoryType), Integer(ICount));
+      lvAccessorys.Items.AddRow(AName, '', '', ICount);
+    end;
+
+    {lvAccessorys.Items.AddRow('No Accessory', '', '', atNone);
     lvAccessorys.Items.AddRow('"More" Accessory', '', '', atMore);
     lvAccessorys.Items.AddRow('"Checkmark" Accessory', '', '', atCheckmark);
-    lvAccessorys.Items.AddRow('"Detail" Accessory', '', '', atDetail);
+    lvAccessorys.Items.AddRow('"Detail" Accessory', '', '', atDetail);}
   finally
     lvAccessorys.EndUpdate;
   end;

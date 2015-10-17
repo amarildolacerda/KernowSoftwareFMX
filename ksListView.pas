@@ -53,7 +53,7 @@ uses
   {$IFDEF XE8_OR_NEWER} FMX.ImgList, {$ENDIF} System.Rtti,
   System.UIConsts, FMX.StdCtrls, FMX.Styles.Objects, System.Generics.Collections,
   FMX.ListBox, FMX.DateTimeCtrls, FMX.Menus, FMX.Objects, FMX.SearchBox,
-  FMX.Edit
+  FMX.Edit, FMX.SpinBox
   {$IFDEF XE10_OR_NEWER}, FMX.ListView.Appearances {$ENDIF}
   ;
 
@@ -155,8 +155,12 @@ type
   TksItemActionButtonClickEvent = procedure(Sender: TObject; ARow: TksListItemRow; AButton: TksListItemRowActionButton) of object;
   TksSearchFilterChange = procedure(Sender: TObject; ASearchText: string) of object;
   TksRowCacheEvent = procedure(Sender: TObject; ACanvas: TCanvas; ARow: TksListItemRow; ARect: TRectF) of object;
+  TksOptionSelectionEvent = procedure(Sender: TObject; ARow: TksListItemRow; AItemIndex: integer; ASelected: string) of object;
   TksEmbeddedEditChange = procedure(Sender: TObject; ARow: TksListItemRow; AText: string) of object;
   TksEmbeddedListBoxChange = procedure(Sender: TObject; ARow: TksListItemRow; AItemIndex: integer; ASelected: string) of object;
+  TksEmbeddedSpinBoxChange = procedure(Sender: TObject; ARow: TksListItemRow; AValue: integer) of object;
+  TksEmbeddedTrackBarChange = procedure(Sender: TObject; ARow: TksListItemRow; AValue: integer) of object;
+  //TksEmbeddedButtonClick = procedure(Sender: TObject; ARow: TksListItemRow; AValue: integer) of object;
 
   // ------------------------------------------------------------------------------
 
@@ -185,7 +189,6 @@ type
   TksAccessoryImageList = class(TObjectList<TksAccessoryImage>)
   private
     FImageMap: TBitmap;
-    function GetAccessoryID(AAccessory: TksAccessoryType): string;
     function GetAccessoryFromResource(AStyleName: string; const AState: string = ''): TksAccessoryImage;
     procedure Initialize;
     function GetAccessoryImage(AAccessory: TksAccessoryType): TksAccessoryImage;
@@ -225,7 +228,6 @@ type
     procedure SetOffsetY(const Value: single);
     procedure SetHeight(const Value: single);
     procedure SetWidth(const Value: single);
-
   protected
     function GetConsumesRowClick: Boolean; virtual;
     function GetRowRect: TRectF;
@@ -326,19 +328,6 @@ type
     property Thickness: single read FThickness write SetThickness;
   end;
 
-  TksListItemInputBox = class(TksListItemRowObj)
-  private
-    FText: string;
-    procedure SetText(const Value: string);
-  protected
-    function GetConsumesRowClick: Boolean; override;
-  public
-    constructor Create(ARow: TKsListItemRow); override;
-    function Render(ACanvas: TCanvas): Boolean; override;
-    procedure MouseDown; override;
-    property Text: string read FText write SetText;
-  end;
-
   TksListItemOptionSelector = class(TksListItemRowObj)
   private
     FItems: TStrings;
@@ -348,6 +337,7 @@ type
     procedure SetItemIndex(const Value: integer);
   protected
     function GetConsumesRowClick: Boolean; override;
+    procedure ProcessClick(x, y: single); override;
   public
     constructor Create(ARow: TKsListItemRow); override;
     destructor Destroy; override;
@@ -375,22 +365,50 @@ type
     procedure MouseDown; override;
   end;
 
+  TksListItemEmbeddedEdit = class(TksListItemEmbeddedControl)
+  private
+    function GetEdit: TEdit;
+    procedure DoTyping(Sender: TObject);
+  protected
+    function CreateControl: TStyledControl; override;
+  end;
+
   TksListItemEmbeddedListBox = class(TksListItemEmbeddedControl)
   private
     function GetListBox: TListView;
+    procedure DoSelect(const Sender: TObject; const AItem: TListViewItem);
   protected
     function CreateControl: TStyledControl; override;
-  public
-    property ListView: TListView read GetListBox;
   end;
 
-  TksListItemEmbeddedButton = class(TksListItemEmbeddedControl)
+  {TksListItemEmbeddedButton = class(TksListItemEmbeddedControl)
   private
     function GetButton: TButton;
+    procedure DoClick(
   protected
     function CreateControl: TStyledControl; override;
   public
     property Button: TButton read GetButton;
+  end;      }
+
+  TksListItemEmbeddedSpinBox = class(TksListItemEmbeddedControl)
+  private
+    function GetSpinBox: TSpinBox;
+    procedure DoChange(Sender: TObject);
+  protected
+    function CreateControl: TStyledControl; override;
+  public
+    property SpinBox: TSpinBox read GetSpinBox;
+  end;
+
+  TksListItemEmbeddedTrackBar = class(TksListItemEmbeddedControl)
+  private
+    function GetTrackBar: TTrackBar;
+    procedure DoChange(Sender: TObject);
+  protected
+    function CreateControl: TStyledControl; override;
+  public
+    property TrackBar: TTrackBar read GetTrackBar;
   end;
 
   TksListItemTableShadow = class(TPersistent)
@@ -653,7 +671,10 @@ type
 
   TKsSegmentButtonPosition = (ksSegmentLeft, ksSegmentMiddle, ksSegmentRight);
 
-  TksListItemObjects = class(TObjectList<TksListItemRowObj>);
+  TksListItemObjects = class(TObjectList<TksListItemRowObj>)
+  public
+    function ObjectByID(AId: string): TksListItemRowObj;
+  end;
 
   TksActionButtonType = (btCustom, btDelete);
   TKsListItemRowActionButton = class
@@ -694,7 +715,6 @@ type
     [weak]FTimerService: IFMXTimerService;
     [weak]FListView: TksListView;
     [weak]FRow: TksListItemRow;
-    //FVisible: Boolean;
     FSwipeDirection: TksItemSwipeDirection;
     FState: TksActionButtonState;
     FShowTimer: TFmxHandle;
@@ -714,9 +734,6 @@ type
     procedure Hide(AAnimate: Boolean);
     property State: TksActionButtonState read FState;
     property IsAnimating: Boolean read GetIsAnimating;
-    //property Visible: Boolean read GetVisible write SetVisible;
-
-
   end;
 
 
@@ -772,6 +789,7 @@ type
     function GetData(const AIndex: string): TValue;
     function GetHasData(const AIndex: string): Boolean;
     procedure SetData(const AIndex: string; const Value: TValue);
+    function GetRowObjectByID(AId: string): TksListItemRowObj;
     property ListView: TksListView read GetListView;
     procedure DoOnListChanged(Sender: TObject; const Item: TksListItemRowObj; Action: TCollectionNotification);
     function ScreenWidth: single;
@@ -786,14 +804,23 @@ type
     destructor Destroy; override;
     procedure Render(const Canvas: TCanvas; const DrawItemIndex: Integer; const DrawStates: TListItemDrawStates;
       const SubPassNo: Integer = 0); override;
+
     procedure Assign(Source: TPersistent); override;
     procedure CacheRow;
     procedure ReleaseRow;
     procedure SetRowFontStyle(AFontStyle: TFontStyles);
     procedure SetRowTextColor(AColor: TAlphaColor);
+
+
+    {$IFDEF VER290}
+    function LocalRect: TRectF;
+    {$ENDIF}
+
     // bitmap functions...
+
     function DrawAccessory(AAccessory: TksAccessoryType; x, y: single): TksListItemRowImage;
     function DrawBitmap(ABmp: TBitmap; x, AWidth, AHeight: single): TksListItemRowImage overload;
+
 
     {$IFDEF XE8_OR_NEWER}
     function DrawBitmap(ABmpIndex: integer; x, AWidth, AHeight: single): TksListItemRowImage overload;
@@ -834,13 +861,14 @@ type
 
     function AddTable(AX, AY, AColWidth, ARowHeight: single; AColCount, ARowCount: integer): TksListItemRowTable;
 
-    function AddEdit(AX, AY, AWidth: single; AText: string): TksListItemInputBox;
+    function AddEdit(AX, AY, AWidth: single; AText: string): TksListItemEmbeddedEdit;
+    function AddSpinBox(AX, AY, AWidth: single; AValue: integer): TksListItemEmbeddedSpinBox;
+    function AddTrackBar(AX, AY, AWidth: single): TksListItemEmbeddedTrackBar;
     function AddOptionSelectiontBox(AX, AY, AWidth, AHeight, AItemHeight: single; AItems: TStrings): TksListItemOptionSelector; overload;
     function AddOptionSelectiontBox(AX, AY, AWidth, AHeight, AItemHeight: single; AItems: array of string): TksListItemOptionSelector; overload;
-
     function AddListBox(AX, AY, AWidth, AHeight, AItemHeight: single; AItems: array of string): TksListItemEmbeddedListBox; overload;
     function AddListBox(AX, AY, AWidth, AHeight, AItemHeight: single; AItems: TStrings): TksListItemEmbeddedListBox; overload;
-    function AddEmbeddedButton(AX, AY, AWidth: single; AText: string): TksListItemEmbeddedButton;
+    //function AddEmbeddedButton(AX, AY, AWidth: single; AText: string): TksListItemEmbeddedButton;
 
     // text functions...
     function TextOut(AText: string; x: single; const AVertAlign: TListItemAlign = TListItemAlign.Center; const AWordWrap: Boolean = False): TksListItemRowText; overload;
@@ -881,6 +909,7 @@ type
     property PickerItems: TStrings read FPickerItems write SetPickerItems;
     property Data[const AIndex: string]: TValue read GetData write SetData;
     property HasData[const AIndex: string]: Boolean read GetHasData;
+    property RowObjectByID[AId: string]: TksListItemRowObj read GetRowObjectByID;
   end;
 
 
@@ -1049,16 +1078,15 @@ type
     FProcessingMouseEvents: Boolean;
     FBeforeRowCache: TksRowCacheEvent;
     FAfterRowCache: TksRowCacheEvent;
-    //FEmbeddedControls: TList<TksListItemEmbeddedControl>;
-    //FLastSelectedControl: TControl;
 
-    //FEmbeddedEditControl: TEdit;
-    //FEmbeddedListBoxControl: TListBox;
     FActiveEmbeddedControl: TksListItemEmbeddedControl;
 
+    FOnOptionSelection: TksOptionSelectionEvent;
     FOnEmbeddedEditChange: TksEmbeddedEditChange;
     FOnEmbeddedListBoxChange: TksEmbeddedListBoxChange;
-
+    FOnEmbeddedSpinBoxChange: TksEmbeddedSpinBoxChange;
+    FOnEmbeddedTrackBarChange: TksEmbeddedTrackBarChange;
+    function GetSearchBoxHeight: single;
     function _Items: TksListViewItems;
     procedure DoScrollTimer;
     procedure SetCheckMarks(const Value: TksListViewCheckMarks);
@@ -1084,11 +1112,17 @@ type
     procedure QueueMouseEvent(AType: TksMouseEventType; X, Y: single; AId: string; ARow: TKsListItemRow; AObj: TksListItemRowObj);
     procedure ProcessMouseEvents;
     procedure DoDeselectRow;
-    procedure SetupSearchBoxEvent;
+    procedure SetupSearchBox;
     //procedure EmbeddedEditChange(ARow: TKsListItemRow; AText: string);
     //procedure EmbeddedListBoxChange(ARow: TKsListItemRow; AItemIndex: integer; ASelected: string);
     procedure StartScrollTimer;
-    function GetSearchBoxHeight: single;
+    procedure EmbeddedEditChange(ARow: TKsListItemRow; AText: string);
+    procedure EmbeddedListBoxChange(ARow: TKsListItemRow; AItemIndex: integer;
+      ASelected: string);
+    procedure EmbeddedSpinBoxChange(ARow: TKsListItemRow; AValue: integer);
+    procedure EmbeddedTrackBarChange(ARow: TKsListItemRow; AValue: integer);
+    procedure RowOptionSelected(ARow: TKsListItemRow; AIndex: integer; ASelected: string);
+
     //procedure DoAfterShow;
     { Private declarations }
   protected
@@ -1183,6 +1217,7 @@ type
     property AfterRowCache: TksRowCacheEvent read FAfterRowCache write FAfterRowCache;
     property BeforeRowCache: TksRowCacheEvent read FBeforeRowCache write FBeforeRowCache;
 
+    property OnSelectOption: TksOptionSelectionEvent read FOnOptionSelection write FOnOptionSelection;
     property OnEmbeddedEditChange: TksEmbeddedEditChange read FOnEmbeddedEditChange write FOnEmbeddedEditChange;
     property OnEmbeddedListBoxChange: TksEmbeddedListBoxChange read FOnEmbeddedListBoxChange write FOnEmbeddedListBoxChange;
 
@@ -1334,7 +1369,7 @@ var
 begin
   if FWidth > 0 then Rect.Width := FWidth;
   if FHeight > 0 then Rect.Height := FHeight;
-  
+
   w := Rect.Width;
   h := Rect.Height;
 
@@ -1349,13 +1384,14 @@ begin
 
   if FAlign = TListItemAlign.Trailing then
   begin
-    OffsetRect(FRect, ABmpWidth - (w + DefaultScrollBarWidth + FPlaceOffset.X + (2*GetScreenScale)), 0);
+    OffsetRect(FRect, ABmpWidth - (w + DefaultScrollBarWidth + FPlaceOffset.X + (4*GetScreenScale)), 0);
     if (Self is TKsListItemRowAccessory) = False then
     begin
       if FRow.ShowAccessory then
-        OffsetRect(FRect, 0-((FRow.FAccessory.Width)+(2*GetScreenScale)), 0);
+        OffsetRect(FRect, 0-((FRow.FAccessory.Width)+(4*GetScreenScale)), 0);
     end;
   end;
+
   case VertAlign of
     TListItemAlign.Center: OffsetRect(FRect, 0, (FRow.Height - FRect.Height) / 2);
     TListItemAlign.Trailing: OffsetRect(FRect, 0, (FRow.Height - FRect.Height));
@@ -1428,6 +1464,15 @@ function TksListItemRowObj.GetRowRect: TRectF;
 begin
   Result := FRow.ListView.GetItemRect(FRow.Index);
 end;
+
+{$IFDEF VER290}
+   {
+function TksListItemRowObj.LocalRect: TRectF;
+begin
+  Result :=
+end;    }
+
+{$ENDIF}
 
 procedure TksListItemRowObj.MouseDown;
 begin
@@ -2133,7 +2178,7 @@ begin
   if FUpdating then
     Exit;
   FCached := False;
-  if not ListView.IsUpdating then
+  if ListView.FUpdateCount = 0 then
   begin
     CacheRow;
     ListView.Invalidate;
@@ -2245,7 +2290,7 @@ begin
   ListView.DoRenderRow(Self);
 
   inherited;
-  //Canvas.DrawBitmap(Bitmap, RectF(0, 0, Bitmap.Width, Bitmap.Height), RectF(0, ARect.Top, Bitmap.Width, ARect.Top+Bitmap.Height), 1, True);
+  //Canvas.DrawBitmap(Bitmap, RectF(0, 0, Bitmap.Width, Bitmap.Height), RectF(0, ARect.Top, Bitmap.Width/GetScreenScale, ARect.Top+(Bitmap.Height/GetScreenScale)), 1, True);
 
   if (Purpose = TListItemPurpose.None) and (ANextItemIsHeader = False) then
   begin
@@ -2297,9 +2342,8 @@ begin
   FTitle.TextColor := claBlack;
   FTitle.TextAlignment := TTextAlign.Leading;
   FTitle.ID := C_TITLE;
-
   // sub-title...
-  FSubTitle.TextColor := claDimgray;
+  FSubTitle.TextColor := claGray;
   //FSubTitle.Font.Size := 13;
   FSubTitle.TextAlignment := TTextAlign.Leading;
   FSubTitle.ID := C_SUBTITLE;
@@ -2390,6 +2434,11 @@ begin
   Result := FList[AIndex];
 end;
 
+function TksListItemRow.GetRowObjectByID(AId: string): TksListItemRowObj;
+begin
+  Result := FList.ObjectByID(AId);
+end;
+
 function TKsListItemRow.GetRowObjectCount: integer;
 begin
   Result := FList.Count;
@@ -2404,6 +2453,15 @@ function TksListItemRow.GetSearchText: string;
 begin
   Result := (Owner as TListViewItem).Text;
 end;
+
+{$IFDEF VER290}
+
+function TksListItemRow.LocalRect: TRectF;
+begin
+  Result := FLocalRect;
+end;
+
+{$ENDIF}
 
 procedure TksListItemRow.PickerItemsChanged(Sender: TObject);
 begin
@@ -2661,15 +2719,36 @@ begin
   FList.Add(Result);
 end;
 
-function TKsListItemRow.AddEdit(AX, AY, AWidth: single; AText: string): TksListItemInputBox;
+function TKsListItemRow.AddEdit(AX, AY, AWidth: single; AText: string): TksListItemEmbeddedEdit;
 begin
-  Result := TksListItemInputBox.Create(Self);
+  Result := TksListItemEmbeddedEdit.Create(Self);
   Result.Width := AWidth;
   Result.PlaceOffset := PointF(AX, AY);
-  Result.Text := AText;
+  Result.GetEdit.Text := AText;
   FList.Add(Result);
 end;
 
+function TksListItemRow.AddSpinBox(AX, AY, AWidth: single;
+  AValue: integer): TksListItemEmbeddedSpinBox;
+begin
+  Result := TksListItemEmbeddedSpinBox.Create(Self);
+  Result.Width := AWidth;
+  Result.PlaceOffset := PointF(AX, AY);
+  Result.SpinBox.Value := AValue;
+  FList.Add(Result);
+end;
+
+
+
+function TKsListItemRow.AddTrackBar(AX, AY, AWidth: single): TksListItemEmbeddedTrackBar;
+begin
+  Result := TksListItemEmbeddedTrackBar.Create(Self);
+  Result.Width := AWidth;
+  Result.PlaceOffset := PointF(AX, AY);
+  FList.Add(Result);
+end;
+
+{
 function TksListItemRow.AddEmbeddedButton(AX, AY, AWidth: single;
   AText: string): TksListItemEmbeddedButton;
 begin
@@ -2680,7 +2759,7 @@ begin
   Result.Button.Text := AText;
   FList.Add(Result);
   CacheRow;
-end;
+end;      }
 
 function TksListItemRow.AddListBox(AX, AY, AWidth, AHeight, AItemHeight: single;
   AItems: TStrings): TksListItemEmbeddedListBox;
@@ -2691,16 +2770,14 @@ begin
   Result.Width := AWidth;
   Result.Height := AHeight;
   Result.PlaceOffset := PointF(AX, AY);
-  //Result.ListView.Items(AItems);
   for ICount := 0 to AItems.Count-1 do
   begin
-    with Result.ListView.Items.Add do
+    with Result.GetListBox.Items.Add do
     begin
       Text := AItems[ICount];
       ShowAccessory := False;
     end;
   end;
-  //Result.ListView.ItemHeight := AItemHeight;
   FList.Add(Result);
   CacheRow;
 end;
@@ -3135,6 +3212,8 @@ end;
 procedure TksListView.ClearItems;
 begin
   TListView(Self).Items.Clear;
+  //FSearchEdit.Text := ' ';
+  FSearchEdit.Text := '';
   Items.Clear;
 end;
 
@@ -3210,7 +3289,6 @@ begin
   //FLastSelectedControl := nil;
   FActiveEmbeddedControl := nil;
   FScrollTimer := 0;
-  SetupSearchBoxEvent;
 end;
 
 procedure TksListView.DoDeselectRow;
@@ -3548,7 +3626,7 @@ begin
   Invalidate;
 end;
 
-procedure TksListView.SetupSearchBoxEvent;
+procedure TksListView.SetupSearchBox;
 var
   ICount: integer;
 begin
@@ -3791,9 +3869,7 @@ begin
         begin
           FOnFinishScrolling(Self, AVisibleItems.IndexStart, AVisibleItems.Count);
         end;
-        ASearchHeight := 0;
-        if SearchVisible then
-          ASearchHeight := FSearchEdit.Height;// ASearchBoxHeight;
+        ASearchHeight := GetSearchBoxHeight;
         if ScrollViewPos-ASearchHeight = GetMaxScrollPos then
         begin
           if Assigned(FOnScrollLastItem) then
@@ -3918,7 +3994,14 @@ begin
     end;
   end;
 end;
-    {
+
+procedure TksListView.RowOptionSelected(ARow: TKsListItemRow; AIndex: integer;
+  ASelected: string);
+begin
+  if Assigned(FOnOptionSelection) then
+    FOnOptionSelection(Self, ARow, AIndex, ASelected);
+end;
+
 procedure TksListView.EmbeddedEditChange(ARow: TKsListItemRow; AText: string);
 begin
   if Assigned(FOnEmbeddedEditChange) then
@@ -3930,7 +4013,21 @@ procedure TksListView.EmbeddedListBoxChange(ARow: TKsListItemRow;
 begin
   if Assigned(FOnEmbeddedListBoxChange) then
     FOnEmbeddedListBoxChange(Self, ARow, AItemIndex, ASelected);
-end;        }
+end;
+
+procedure TksListView.EmbeddedSpinBoxChange(ARow: TKsListItemRow;
+  AValue: integer);
+begin
+  if Assigned(FOnEmbeddedSpinBoxChange) then
+    FOnEmbeddedSpinBoxChange(Self, ARow, AValue);
+end;
+
+procedure TksListView.EmbeddedTrackBarChange(ARow: TKsListItemRow;
+  AValue: integer);
+begin
+  if Assigned(FOnEmbeddedTrackBarChange) then
+    FOnEmbeddedTrackBarChange(Self, ARow, AValue);
+end;
 
 procedure TksListView.EndUpdate;
 begin
@@ -3979,8 +4076,12 @@ end;
 function TksListView.GetSearchBoxHeight: single;
 begin
   Result := 0;
-  if FSearchEdit <> nil then
+  if SearchVisible then
+  begin
+    if FSearchEdit = nil then
+      SetupSearchBox;
     Result := FSearchEdit.Height;
+  end;
 end;
 
 procedure TksListView.HideEmbeddedControls;
@@ -3990,6 +4091,16 @@ begin
     FActiveEmbeddedControl.HideControl;
     FActiveEmbeddedControl := nil;
   end;
+  {
+  for ICount := FEmbeddedControls.Count-1 downto 0 do
+  begin
+    AControl := TksListItemEmbeddedControl(FEmbeddedControls[ICount]);
+    //if AControl.ControlActive then
+    //  FLastSelectedControl := AControl.Control;
+    AControl.HideControl;
+  end;
+  //FEmbeddedEditControl.Visible := False;
+  //FEmbeddedListBoxControl.Visible := False;  }
 end;
 
 function TksListView.IsShowing: Boolean;
@@ -4006,10 +4117,8 @@ var
   cr: TRectF;
 begin
   cr := RectF(0, 0, Width, Height);;
-  if SearchVisible then
-  begin
-    cr.Top := FSearchEdit.Height;// ASearchBoxHeight;
-  end;
+  cr.Top := GetSearchBoxHeight;
+
   Result.IndexStart := -1;
   Result.IndexEnd := -1;
   Result.Count := 0;
@@ -4329,7 +4438,7 @@ begin
 
   if FLastPaintPos <> ScrollViewPos then
   begin
-    //HideEmbeddedControls;
+    HideEmbeddedControls;
     FLastPaintPos := ScrollViewPos;
   end;
 
@@ -4344,7 +4453,7 @@ begin
   begin
     RedrawAllRows;
     CachePages;
-    //SetupSearchBoxEvent;
+    SetupSearchBox;
     //{$IFDEF IOS}
     //FOnShowTimer := FTimerService.CreateTimer(3000, DoAfterShow);
     //{$ENDIF}
@@ -4470,8 +4579,10 @@ var
   AAccessoryImg: TksAccessoryImage;
 begin
   AAccessoryImg := AccessoryImages[FAccessoryType];
-  Width := AAccessoryImg.Width / GetScreenScale;
-  Height := AAccessoryImg.Height / GetScreenScale;
+  Width := AAccessoryImg.Width;
+  Height := AAccessoryImg.Height;
+  //Width := 14;
+  //Height := 14;
   inherited;
 end;
 
@@ -5035,9 +5146,7 @@ var
   ARect: TRectF;
   ABtn: TksListItemRowActionButton;
   ICount: integer;
-  ASearchBoxHeight: single;
 begin
-  ASearchBoxHeight := FListView.GetSearchBoxHeight;
   FSwipeDirection := ASwipeDirection;
   ARect := FListView.GetItemRect(ARow.Index);
 
@@ -5058,8 +5167,8 @@ begin
   for ICount := 0 to Count-1 do
   begin
     ABtn := Items[ICount];
-    if (ARect.Top < ASearchBoxHeight) and (FListView.SearchVisible) then
-      ARect.Top := ASearchBoxHeight;
+    if (ARect.Top < FListView.GetSearchBoxHeight) then
+      ARect.Top := FListView.GetSearchBoxHeight;
     ABtn.FBackground.Height := ARect.Height;
     ABtn.FLabel.Text := ABtn.Text;
     ABtn.FBackground.Position.X := Items[ICount].FOffscreenXPos;
@@ -5112,7 +5221,7 @@ begin
 end;
 
 function TksListItemRowActionButtons.GetVisibleXPos(
-  ABtn: TksListItemRowActionButton; ARowRect: TRectF; 
+  ABtn: TksListItemRowActionButton; ARowRect: TRectF;
   ASwipeDirection: TksItemSwipeDirection): single;
 var
   ICount: integer;
@@ -5135,7 +5244,7 @@ begin
     begin
       Result := Result - Items[ICount].Width;
       if Items[ICount] = ABtn then
-        Exit   
+        Exit
     end;
   end;
 end;
@@ -5248,6 +5357,8 @@ begin
   inherited;
 end;
 
+//var
+//  ASearchBox: TSearchBox;
 { TksListItemRowTableCell }
 
 procedure TksListItemRowTableCell.Changed;
@@ -5800,27 +5911,7 @@ procedure TksListItemEmbeddedTEdit.AfterControlFocus;
 begin
   inherited;
   Edit.SelStart := Edit.Text.Length;
-end;       }
-
-constructor TksListItemInputBox.Create(ARow: TKsListItemRow);
-begin
-  inherited;
-  FHeight := 22;
-  FText := '';
-  HitTest := True;
-end;
-
-
-function TksListItemInputBox.GetConsumesRowClick: Boolean;
-begin
-  Result := True;
-end;
-
-procedure TksListItemInputBox.MouseDown;
-begin
-  inherited;
-  Text := InputBox('', '', FText);
-end;
+end;      {
 
 function TksListItemInputBox.Render(ACanvas: TCanvas): Boolean;
 var
@@ -5857,7 +5948,7 @@ begin
     FText := Value;
     Changed;
   end;
-end;
+end;       }
 
 constructor TksListItemOptionSelector.Create(ARow: TKsListItemRow);
 begin
@@ -5921,10 +6012,10 @@ begin
         ABmp.Canvas.Fill.Color := claLimegreen;
         ABmp.Canvas.FillEllipse(ACheckRect, 1);
       end;
-      
-      //ABmp.Canvas.DrawBitmap(AGlyph, 
-      //                       RectF(0, 0, AGlyph.Width, AGlyph.Height), 
-      //                       RectF(AItemRect.Left, AItemRect.Top, AItemRect.Left + AGlyph.Width, AItemRect.Top+AGlyph.Height), 
+
+      //ABmp.Canvas.DrawBitmap(AGlyph,
+      //                       RectF(0, 0, AGlyph.Width, AGlyph.Height),
+      //                       RectF(AItemRect.Left, AItemRect.Top, AItemRect.Left + AGlyph.Width, AItemRect.Top+AGlyph.Height),
       //                       1);
     end;
 
@@ -5932,7 +6023,7 @@ begin
     ABmp.Canvas.EndScene;
     ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), Rect, 1, True);
 
-    
+
   finally
     FreeAndNil(ABmp);
   end;
@@ -5962,61 +6053,30 @@ begin
   Result := True;
 end;
 
-{ TksAccessoryImageList }
-
-function TksAccessoryImageList.GetAccessoryID(
-  AAccessory: TksAccessoryType): string;
+procedure TksListItemOptionSelector.ProcessClick(x, y: single);
+var
+  ICount: integer;
+  AIndex: integer;
 begin
-  case AAccessory of
-    atNone              : Result := 'none';
-    atMore              : Result := 'listviewstyle.accessorymore';
-    atCheckmark         : Result := 'listviewstyle.accessorycheckmark';
-    atDetail            : Result := 'listviewstyle.accessorydetail';
-    atBack              : Result := 'backtoolbutton.icon';
-    atRefresh           : Result := 'refreshtoolbutton.icon';
-    atAction            : Result := 'actiontoolbutton.icon';
-    atPlay              : Result := 'playtoolbutton.icon';
-    atRewind            : Result := 'rewindtoolbutton.icon';
-    atForward           : Result := 'forwardtoolbutton.icon';
-    atPause             : Result := 'pausetoolbutton.icon';
-    atStop              : Result := 'stoptoolbutton.icon';
-    atAdd               : Result := 'addtoolbutton.icon';
-    atPrior             : Result := 'priortoolbutton.icon';
-    atNext              : Result := 'nexttoolbutton.icon';
-    atArrowUp           : Result := 'arrowuptoolbutton.icon';
-    atArrowDown         : Result := 'arrowdowntoolbutton.icon';
-    atArrowLeft         : Result := 'arrowlefttoolbutton.icon';
-    atArrowRight        : Result := 'arrowrighttoolbutton.icon';
-    atReply             : Result := 'replytoolbutton.icon';
-    atSearch            : Result := 'searchtoolbutton.icon';
-    atBookmarks         : Result := 'bookmarkstoolbutton.icon';
-    atTrash             : Result := 'trashtoolbutton.icon';
-    atOrganize          : Result := 'organizetoolbutton.icon';
-    atCamera            : Result := 'cameratoolbutton.icon';
-    atCompose           : Result := 'composetoolbutton.icon';
-    atInfo              : Result := 'infotoolbutton.icon';
-    atPagecurl          : Result := 'pagecurltoolbutton.icon';
-    atDetails           : Result := 'detailstoolbutton.icon';
-    atRadioButton       : Result := 'radiobuttonstyle.background';
-    atRadioButtonChecked: Result := 'radiobuttonstyle.background|checked';
-    atCheckBox          : Result := 'checkboxstyle.background';
-    atCheckBoxChecked   : Result := 'checkboxstyle.background|checked';
-    atUserDefined1      : Result := 'userdefined1';
-    atUserDefined2      : Result := 'userdefined2';
-    atUserDefined3      : Result := 'userdefined3';
+  inherited;
+  AIndex := (Round(y) div Round(FItemHeight));
+  if (AIndex >= 0) and (AIndex <= FItems.Count-1) then
+  begin
+    if AIndex <> ItemIndex then
+    begin
+      ItemIndex := AIndex;
+      FRow.ListView.RowOptionSelected(FRow, AIndex, FItems[AIndex]);
+    end;
   end;
 end;
+
+{ TksAccessoryImageList }
 
 function TksAccessoryImageList.GetAccessoryImage(AAccessory: TksAccessoryType): TksAccessoryImage;
 begin
   if Count = 0 then
     Initialize;
-  Result := Items[Ord(AAccessory)];
-  if Result = nil then
-  begin
-    Items[Ord(AAccessory)] := GetAccessoryFromResource(GetAccessoryID(AAccessory));
-    Result := Items[Ord(AAccessory)];
-  end;
+   Result := Items[Ord(AAccessory)];
 end;
 
 constructor TksAccessoryImageList.Create;
@@ -6086,7 +6146,7 @@ begin
         else
           ABitmapLink := TCheckStyleObject(AStyleObj).SourceLink
 
-        
+
       end;
 
       if ABitmapLink = nil then
@@ -6133,10 +6193,50 @@ var
   ICount: TksAccessoryType;
 begin
   for ICount := Low(TksAccessoryType) to High(TksAccessoryType) do
-    Add(nil);
+  begin
+    case ICount of
+      atNone              : Add(GetAccessoryFromResource('none'));
+      atMore              : Add(GetAccessoryFromResource('listviewstyle.accessorymore'));
+      atCheckmark         : Add(GetAccessoryFromResource('listviewstyle.accessorycheckmark'));
+      atDetail            : Add(GetAccessoryFromResource('listviewstyle.accessorydetail'));
+      atBack              : Add(GetAccessoryFromResource('backtoolbutton.icon'));
+      atRefresh           : Add(GetAccessoryFromResource('refreshtoolbutton.icon'));
+      atAction            : Add(GetAccessoryFromResource('actiontoolbutton.icon'));
+      atPlay              : Add(GetAccessoryFromResource('playtoolbutton.icon'));
+      atRewind            : Add(GetAccessoryFromResource('rewindtoolbutton.icon'));
+      atForward           : Add(GetAccessoryFromResource('forwardtoolbutton.icon'));
+      atPause             : Add(GetAccessoryFromResource('pausetoolbutton.icon'));
+      atStop              : Add(GetAccessoryFromResource('stoptoolbutton.icon'));
+      atAdd               : Add(GetAccessoryFromResource('addtoolbutton.icon'));
+      atPrior             : Add(GetAccessoryFromResource('priortoolbutton.icon'));
+      atNext              : Add(GetAccessoryFromResource('nexttoolbutton.icon'));
+      atArrowUp           : Add(GetAccessoryFromResource('arrowuptoolbutton.icon'));
+      atArrowDown         : Add(GetAccessoryFromResource('arrowdowntoolbutton.icon'));
+      atArrowLeft         : Add(GetAccessoryFromResource('arrowlefttoolbutton.icon'));
+      atArrowRight        : Add(GetAccessoryFromResource('arrowrighttoolbutton.icon'));
+      atReply             : Add(GetAccessoryFromResource('replytoolbutton.icon'));
+      atSearch            : Add(GetAccessoryFromResource('searchtoolbutton.icon'));
+      atBookmarks         : Add(GetAccessoryFromResource('bookmarkstoolbutton.icon'));
+      atTrash             : Add(GetAccessoryFromResource('trashtoolbutton.icon'));
+      atOrganize          : Add(GetAccessoryFromResource('organizetoolbutton.icon'));
+      atCamera            : Add(GetAccessoryFromResource('cameratoolbutton.icon'));
+      atCompose           : Add(GetAccessoryFromResource('composetoolbutton.icon'));
+      atInfo              : Add(GetAccessoryFromResource('infotoolbutton.icon'));
+      atPagecurl          : Add(GetAccessoryFromResource('pagecurltoolbutton.icon'));
+      atDetails           : Add(GetAccessoryFromResource('detailstoolbutton.icon'));
+      atRadioButton       : Add(GetAccessoryFromResource('radiobuttonstyle.background'));
+      atRadioButtonChecked: Add(GetAccessoryFromResource('radiobuttonstyle.background', 'checked'));
+      atCheckBox          : Add(GetAccessoryFromResource('checkboxstyle.background'));
+      atCheckBoxChecked   : Add(GetAccessoryFromResource('checkboxstyle.background', 'checked'));
+      atUserDefined1      : Add(GetAccessoryFromResource('userdefined1'));
+      atUserDefined2      : Add(GetAccessoryFromResource('userdefined2'));
+      atUserDefined3      : Add(GetAccessoryFromResource('userdefined3'));
+    end;
+  end;
 end;
 
 { TksAccessoryImage }
+
 
 procedure TksAccessoryImage.DrawToCanvas(ACanvas: TCanvas; ADestRect: TRectF);
 begin
@@ -6165,9 +6265,11 @@ constructor TksListItemEmbeddedControl.Create(ARow: TKsListItemRow);
 begin
   inherited;
   FCached := TBitmap.Create;
+  //FCached.BitmapScale := GetScreenScale;
   FControl := CreateControl;
   FFocused := False;
   HitTest := True;
+  FHeight := FControl.Height;
 end;
 
 destructor TksListItemEmbeddedControl.Destroy;
@@ -6190,36 +6292,55 @@ function TksListItemEmbeddedControl.GetControlBitmap: Boolean;
 var
   ABmp: TBitmap;
 begin
-  Result := False;
   FControl.Position.X := -1000;
   if FControl.Parent = nil then
-  FControl.Parent := FRow.ListView;
-  Application.ProcessMessages;
+    FControl.Parent := FRow.ListView;
+
   InitializeControl;
+  FCached.SetSize(Round(FWidth * GetScreenScale), Round(FHeight * GetScreenScale));
+  FCached.Clear(claNull);
+
   ABmp := FControl.MakeScreenshot;
-  try
-    if IsBlankBitmap(ABmp) = False then
-    begin
-      FCached.Assign(ABmp);
-      Result := True;
-    end;
-  finally
-    ABmp.Free;
-  end;
+  FCached.Assign(ABmp);
+  ABmp.DisposeOf;
+
+  Result := True;
   FControl.Parent := nil;
 end;
 
 procedure TksListItemEmbeddedControl.HideControl;
 begin
+  FRow.ListView.SetFocus;
+  GetControlBitmap;
+  FFocused := False;
+  FRow.Changed;
+  FRow.ListView.Invalidate;
   FControl.Parent := nil;
 end;
 
 procedure TksListItemEmbeddedControl.InitializeControl;
+
+  procedure ApplyStyle(AControl: TFmxObject);
+  var
+    ICount: integer;
+  begin
+    if (AControl is TStyledControl) then
+    begin
+      (AControl as TStyledControl).RecalcSize;
+      (AControl as TStyledControl).UpdateEffects;
+      (AControl as TStyledControl).ApplyStyleLookup;
+
+    end;
+    for ICount := 0 to AControl.ChildrenCount-1 do
+      ApplyStyle(AControl.Children[ICount]);
+  end;
+
 begin
   FControl.Width := Rect.Width;
   FControl.Height := Rect.Height;
   FControl.RecalcSize;
-  FControl.ApplyStyleLookup;
+  ApplyStyle(FControl);
+  FControl.UpdateEffects;
 end;
 
 procedure TksListItemEmbeddedControl.MouseDown;
@@ -6231,10 +6352,13 @@ end;
 
 function TksListItemEmbeddedControl.Render(ACanvas: TCanvas): Boolean;
 begin
-  Result := False;
   if FFocused = True then
+  begin
+    Result := True;
     Exit;
+  end;
 
+  Result := False;
   if GetControlBitmap then
   begin
     ACanvas.DrawBitmap(FCached, RectF(0, 0, FCached.Width, FCached.Height), Rect, 1, True);
@@ -6247,10 +6371,15 @@ end;
 procedure TksListItemEmbeddedControl.ShowControl;
 begin
   FRow.ListView.HideEmbeddedControls;
-  FControl.SetBounds(Rect.Left, Rect.Top,Rect.Width, Rect.Height);
+
+  FControl.SetBounds( Rect.Left, FRow.LocalRect.Top + Rect.Top,Rect.Width, Rect.Height);
   FControl.Parent := FRow.ListView;
+
   FControl.BringToFront;
   FRow.ListView.FActiveEmbeddedControl := Self;
+  FFocused := True;
+  FControl.SetFocus;
+  FRow.Changed;
 end;
 
 { TksListItemEmbeddedListBox }
@@ -6258,6 +6387,17 @@ end;
 function TksListItemEmbeddedListBox.CreateControl: TStyledControl;
 begin
   Result := TListView.Create(nil);
+  (Result as TListView).OnItemClick := DoSelect;
+end;
+
+procedure TksListItemEmbeddedListBox.DoSelect(const Sender: TObject; const AItem: TListViewItem);
+var
+  ASelected: string;
+begin
+  ASelected := '';
+  if GetListBox.ItemIndex > -1 then
+    ASelected := TListViewItem(GetListBox.Selected).Text;
+  FRow.ListView.EmbeddedListBoxChange(FRow, GetListBox.ItemIndex, ASelected);
 end;
 
 function TksListItemEmbeddedListBox.GetListBox: TListView;
@@ -6265,20 +6405,80 @@ begin
   Result := (FControl as TListView);
 end;
 
-{ TksListItemEmbeddedButton }
+{ TksListItemEmbeddedEdit }
 
-function TksListItemEmbeddedButton.CreateControl: TStyledControl;
+function TksListItemEmbeddedEdit.CreateControl: TStyledControl;
 begin
-  Result := TButton.Create(nil);
+  Result := TEdit.Create(nil);
+  FHeight := Result.Height;
+  (Result as TEdit).OnTyping := DoTyping;
 end;
 
-function TksListItemEmbeddedButton.GetButton: TButton;
+function TksListItemEmbeddedEdit.GetEdit: TEdit;
 begin
-  Result := (FControl as TButton);
+  Result := (FControl as TEdit);
 end;
 
-//var
-//  ASearchBox: TSearchBox;
+procedure TksListItemEmbeddedEdit.DoTyping(Sender: TObject);
+begin
+  FRow.ListView.EmbeddedEditChange(FRow, GetEdit.Text);
+end;
+
+{ TksListItemEmbeddedTrackBar }
+
+
+function TksListItemEmbeddedTrackBar.CreateControl: TStyledControl;
+begin
+  Result := TTrackBar.Create(FRow.ListView);
+  (Result as TTrackBar).OnChange := DoChange;
+end;
+
+procedure TksListItemEmbeddedTrackBar.DoChange(Sender: TObject);
+begin
+  FRow.ListView.EmbeddedTrackBarChange(FRow, Round(GetTrackBar.Value));
+end;
+
+function TksListItemEmbeddedTrackBar.GetTrackBar: TTrackBar;
+begin
+  Result := (FControl as TTrackBar);
+end;
+
+{ TksListItemEmbeddedSpinBox }
+
+function TksListItemEmbeddedSpinBox.CreateControl: TStyledControl;
+begin
+  Result := TSpinBox.Create(nil);
+  (Result as TSpinBox).OnChange := DoChange;
+end;
+
+procedure TksListItemEmbeddedSpinBox.DoChange(Sender: TObject);
+begin
+  FRow.ListView.EmbeddedSpinBoxChange(FRow, Round(GetSpinBox.Value));
+end;
+
+function TksListItemEmbeddedSpinBox.GetSpinBox: TSpinBox;
+begin
+  Result := (FControl as TSpinBox);
+end;
+
+{ TksListItemObjects }
+
+function TksListItemObjects.ObjectByID(AId: string): TksListItemRowObj;
+var
+  ICount: integer;
+begin
+  Result := nil;
+  if AId = '' then
+    Exit;
+  for ICount := 0 to Count-1 do
+  begin
+    if Items[ICount].ID = AId  then
+    begin
+      Result := Items[ICount];
+      Exit;
+    end;
+  end;
+end;
 
 initialization
 
@@ -6288,17 +6488,6 @@ initialization
   {$IFDEF MSWINDOWS}
   DefaultScrollBarWidth := 16;
   {$ENDIF}
-
-  (*ASearchBox := TSearchBox.Create(nil);
-  try
-    ASearchBoxHeight := ASearchBox.Height;
-  finally
-    {$IFDEF NEXTGEN}
-    ASearchBox.DisposeOf;
-    {$ELSE}
-    ASearchBox.Free;
-    {$ENDIF}
-  end;   *)
 
 
 finalization
