@@ -5957,66 +5957,37 @@ end;
 
 function TksListItemOptionSelector.Render(ACanvas: TCanvas): Boolean;
 var
-  ABmp: TBitmap;
+  //ABmp: TBitmap;
   ICount: integer;
-  AItemRect: TRectF;
+  r: TRectF;
   ACheckRect: TRectF;
   ATextRect: TRectF;
+  AYPos: single;
+  ABmp: TBitmap;
+  ABmpRect: TRectF;
 begin
   inherited Render(ACanvas);
-  ABmp := TBitmap.Create;
-  try
-    ABmp.Width := Round(Rect.Width * GetScreenScale);
-    ABmp.Height := Round(Rect.Height * GetScreenScale);
-    ABmp.Clear(claNull);
-    ABmp.Canvas.BeginScene;
-
-    ABmp.Canvas.Fill.Color := claDimgray;
-    ABmp.Canvas.StrokeThickness := GetScreenScale;
-    //ABmp.Canvas.DrawRect(RectF(0, 0, ABmp.Width, ABmp.Height), 0, 0, AllCorners, 1);
-    Result := True;
-
-    //AGlyph := AccessoryImages[atRadioButton];
-    for ICount := 0 to FItems.Count-1 do
+  r := RectF(Rect.Left, Rect.Top, Rect.Right, Rect.Top+FItemHeight);
+  for ICount := 0 to FItems.Count-1 do
+  begin
+    if ICount = FItemIndex then
     begin
-      AItemRect := RectF(0, 0, ABmp.Width, FItemHeight);
-      OffsetRect(AItemRect, 0, (ICount*FItemHeight) * GetScreenScale);
-      ACheckRect := AItemRect;
-      ACheckRect.Width := ACheckRect.Height;
-      InflateRect(ACheckRect, -6, -6);
-      OffsetRect(ACheckRect, -4, 0);
-      ATextRect := ACheckRect;
-      ATextRect.Left := ACheckRect.Right+8;
-      ATextRect.Right := AItemRect.Right;
-      ABmp.Canvas.DrawEllipse(ACheckRect, 1);
-      if FItemIndex = ICount then
-        ABmp.Canvas.Fill.Color := claBlack
-      else
-        ABmp.Canvas.Fill.Color := claDimGray;
-      ABmp.Canvas.Font.Size := 13;
-      ABmp.Canvas.FillText(ATextRect, FItems[ICount], False, 1, [], TTextAlign.Leading, TTextAlign.Center);
-      if ICount = FItemIndex then
-      begin
-        InflateRect(ACheckRect, -4, -4);
-        ABmp.Canvas.Fill.Color := claLimegreen;
-        ABmp.Canvas.FillEllipse(ACheckRect, 1);
-      end;
-
-      //ABmp.Canvas.DrawBitmap(AGlyph,
-      //                       RectF(0, 0, AGlyph.Width, AGlyph.Height),
-      //                       RectF(AItemRect.Left, AItemRect.Top, AItemRect.Left + AGlyph.Width, AItemRect.Top+AGlyph.Height),
-      //                       1);
+      ABmp := AccessoryImages.GetAccessoryImage(atRadioButtonChecked);
+      ACanvas.Fill.Color := claBlack;
+    end
+    else
+    begin
+      ACanvas.Fill.Color := claDimgray;
+      ABmp := AccessoryImages.GetAccessoryImage(atRadioButton);
     end;
-
-
-    ABmp.Canvas.EndScene;
-    ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), Rect, 1, True);
-
-
-  finally
-    FreeAndNil(ABmp);
+    //ACanvas.DrawRect(r, 0, 0, AllCorners, 1);
+    ABmpRect := RectF(r.Left, r.Top, r.Left+(ABmp.Width / GetScreenScale), r.Top+(ABmp.Height / GetScreenScale));
+    OffsetRect(ABmpRect, 0, (r.Height - ABmpRect.Height) / 2);
+    ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ABmpRect, 1);
+    ACanvas.FillText(RectF(r.Left+(ABmp.Width / GetScreenScale)+8, r.Top, r.Right, r.Bottom), FItems[ICount], False, 1, [], TTextAlign.Leading, TTextAlign.Center);
+    OffsetRect(r, 0, FItemHeight);
   end;
-
+  Result := True;
 end;
 
 procedure TksListItemOptionSelector.SetItemHeight(const Value: single);
