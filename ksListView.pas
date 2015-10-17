@@ -1384,11 +1384,11 @@ begin
 
   if FAlign = TListItemAlign.Trailing then
   begin
-    OffsetRect(FRect, ABmpWidth - (w + DefaultScrollBarWidth + FPlaceOffset.X + (4*GetScreenScale)), 0);
+    OffsetRect(FRect, ABmpWidth - (w + DefaultScrollBarWidth + FPlaceOffset.X + 4), 0);
     if (Self is TKsListItemRowAccessory) = False then
     begin
       if FRow.ShowAccessory then
-        OffsetRect(FRect, 0-((FRow.FAccessory.Width)+(4*GetScreenScale)), 0);
+        OffsetRect(FRect, 0-((FRow.FAccessory.Width)), 0);
     end;
   end;
 
@@ -1630,30 +1630,16 @@ end;
 
 function TksListItemRowText.CalculateTextHeight: single;
 var
-  APoint: TPointF;
+  x: single;
 begin
-  //ATextLayout.BeginUpdate;
-
-  // Setting the layout MaxSize
-  APoint.X := FWidth;
+  x := FWidth;
   if FWidth = 0 then
   begin
-    if FId = C_TITLE then APoint.X := FRow.ListView.Width / 2;
-    if FId = C_SUBTITLE then APoint.X := FRow.ListView.Width / 2;
-    if FId = C_DETAIL then APoint.X := FRow.ListView.Width / 2;
+    if FId = C_TITLE then x := FRow.ListView.Width / 2;
+    if FId = C_SUBTITLE then x := FRow.ListView.Width / 2;
+    if FId = C_DETAIL then x := FRow.ListView.Width / 2;
   end;
-
-  APoint.Y := 0;
-  {ATextLayout.MaxSize := aPoint;
-
-  ATextLayout.Text := FText;
-  ATextLayout.WordWrap := FWordWrap;
-  ATextLayout.Font := FFont;
-  ATextLayout.HorizontalAlign := FAlignment;
-  //ATextLayout.EndUpdate;
-  Result := ATextLayout.Height; }
-  Result := TextHeight(FText, FFont, FWordWrap, APoint.X);
-
+  Result := TextHeight(FText, FFont, FWordWrap, x);
 end;
 
 constructor TksListItemRowText.Create(ARow: TKsListItemRow);
@@ -1664,6 +1650,7 @@ begin
   FWordWrap := False;
   FFullWidth := False;
   VertAlign := TListItemAlign.Center;
+  FTextLayout := TTextAlign.Center;
 end;
 
 destructor TksListItemRowText.Destroy;
@@ -2341,6 +2328,8 @@ begin
   //FTitle.Font.Size := 13;
   FTitle.TextColor := claBlack;
   FTitle.TextAlignment := TTextAlign.Leading;
+
+
   FTitle.ID := C_TITLE;
   // sub-title...
   FSubTitle.TextColor := claGray;
@@ -4579,8 +4568,8 @@ var
   AAccessoryImg: TksAccessoryImage;
 begin
   AAccessoryImg := AccessoryImages[FAccessoryType];
-  Width := AAccessoryImg.Width;
-  Height := AAccessoryImg.Height;
+  Width := AAccessoryImg.Width / GetScreenScale;
+  Height := AAccessoryImg.Height / GetScreenScale;
   //Width := 14;
   //Height := 14;
   inherited;
@@ -6174,10 +6163,10 @@ begin
                                True);
       Result.Canvas.EndScene;
 
-      FImageMap.Canvas.BeginScene;
+      {FImageMap.Canvas.BeginScene;
       FImageMap.Canvas.Stroke.Color := claRed;
       FImageMap.Canvas.DrawRect(r,0, 0, AllCorners, 1);
-      FImageMap.Canvas.EndScene;
+      FImageMap.Canvas.EndScene;    }
     end;
   finally
     {$IFDEF NEXTGEN}

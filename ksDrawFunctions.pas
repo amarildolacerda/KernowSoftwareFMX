@@ -201,7 +201,7 @@ begin
   ATextLayout.HorizontalAlign := TTextAlign.Leading;
   ATextLayout.VerticalAlign := TTextAlign.Leading;
   ATextLayout.EndUpdate;
-  Result := ATextLayout.Height;
+  Result := ATextLayout.TextHeight;
 end;
 
 procedure RenderText(ACanvas: TCanvas;

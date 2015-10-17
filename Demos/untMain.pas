@@ -311,11 +311,6 @@ begin
       AName := GetEnumName(TypeInfo(TksAccessoryType), Integer(ICount));
       lvAccessorys.Items.AddRow(AName, '', '', ICount);
     end;
-
-    {lvAccessorys.Items.AddRow('No Accessory', '', '', atNone);
-    lvAccessorys.Items.AddRow('"More" Accessory', '', '', atMore);
-    lvAccessorys.Items.AddRow('"Checkmark" Accessory', '', '', atCheckmark);
-    lvAccessorys.Items.AddRow('"Detail" Accessory', '', '', atDetail);}
   finally
     lvAccessorys.EndUpdate;
   end;
