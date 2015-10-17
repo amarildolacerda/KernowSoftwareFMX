@@ -2237,9 +2237,6 @@ begin
     ListView.FScrolling := True;
   end;
 
-  //if FCached = False then
-  //  CacheRow;
-
   {$IFDEF VER290}
   ARect := FLocalRect;
   {$ELSE}
@@ -4422,8 +4419,6 @@ procedure TksListView.Paint;
 begin
   if SlideMenuAnimating then
     Exit;
-  //if FUpdating > 0 then
-  //  Exit;
 
   if FLastPaintPos <> ScrollViewPos then
   begin
@@ -4435,6 +4430,7 @@ begin
 
   if (csDesigning in ComponentState) then
     Exit;
+
   if (ScrollViewPos <> FLastScrollPos) and (FActionButtons.State <> ksActionBtnHidden) then
     FActionButtons.Hide(True);
 
@@ -4443,15 +4439,9 @@ begin
     RedrawAllRows;
     CachePages;
     SetupSearchBox;
-    //{$IFDEF IOS}
-    //FOnShowTimer := FTimerService.CreateTimer(3000, DoAfterShow);
-    //{$ENDIF}
     FIsShowing := True;
   end;
-
-  //if FEmbeddedEditControl.IsFocused = False then TFmxObject(Owner).RemoveObject(FEmbeddedEditControl);
-  //if FEmbeddedListBoxControl.IsFocused = False then TFmxObject(Owner).RemoveObject(FEmbeddedListBoxControl);
-
+  inherited;
 end;
 
 procedure TksListView.ProcessMouseEvents;
@@ -4568,8 +4558,8 @@ var
   AAccessoryImg: TksAccessoryImage;
 begin
   AAccessoryImg := AccessoryImages[FAccessoryType];
-  Width := AAccessoryImg.Width / GetScreenScale;
-  Height := AAccessoryImg.Height / GetScreenScale;
+  Width := AAccessoryImg.Width / Round(GetScreenScale);
+  Height := AAccessoryImg.Height / Round(GetScreenScale);
   //Width := 14;
   //Height := 14;
   inherited;
@@ -6043,6 +6033,7 @@ constructor TksAccessoryImageList.Create;
 begin
   inherited Create(True);
   FImageMap := TBitmap.Create;
+  //Initialize;
 end;
 
 destructor TksAccessoryImageList.Destroy;
@@ -6080,7 +6071,7 @@ begin
     begin
       if FImageMap.IsEmpty then
       begin
-        AImageMap := ((AStyleObj as TStyleObject).Source.MultiResBitmap.Bitmaps[GetScreenScale]);
+        AImageMap := ((AStyleObj as TStyleObject).Source.MultiResBitmap.Bitmaps[Round(GetScreenScale)]);
 
         FImageMap.SetSize(Round(AImageMap.Width), Round(AImageMap.Height));
         FImageMap.Clear(claNull);
@@ -6113,9 +6104,9 @@ begin
         ABitmapLink := AStyleObj.SourceLink;
 
       {$IFDEF XE8_OR_NEWER}
-      AImgRect := ABitmapLink.LinkByScale(GetScreenScale, True).SourceRect;
+      AImgRect := ABitmapLink.LinkByScale(Round(GetScreenScale), True).SourceRect;
       {$ELSE}
-      AImgRect := ABitmapLink.LinkByScale(GetScreenScale).SourceRect;
+      AImgRect := ABitmapLink.LinkByScale(Round(GetScreenScale)).SourceRect;
       {$ENDIF}
 
       Result.SetSize(Round(AImgRect.Width), Round(AImgRect.Height));
