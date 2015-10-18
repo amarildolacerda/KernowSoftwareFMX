@@ -3198,7 +3198,7 @@ end;
 procedure TksListView.ClearItems;
 begin
   TListView(Self).Items.Clear;
-  //FSearchEdit.Text := ' ';
+  if FSearchEdit <> nil then
   FSearchEdit.Text := '';
   Items.Clear;
 end;
