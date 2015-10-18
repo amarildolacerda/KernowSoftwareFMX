@@ -53,7 +53,7 @@ uses
   {$IFDEF XE8_OR_NEWER} FMX.ImgList, {$ENDIF} System.Rtti,
   System.UIConsts, FMX.StdCtrls, FMX.Styles.Objects, System.Generics.Collections,
   FMX.ListBox, FMX.DateTimeCtrls, FMX.Menus, FMX.Objects, FMX.SearchBox,
-  FMX.Edit, FMX.SpinBox
+  FMX.Edit, FMX.SpinBox, FMX.Memo
   {$IFDEF XE10_OR_NEWER}, FMX.ListView.Appearances {$ENDIF}
   ;
 
@@ -228,20 +228,20 @@ type
     procedure SetOffsetY(const Value: single);
     procedure SetHeight(const Value: single);
     procedure SetWidth(const Value: single);
+    procedure ProcessClick(x, y: single); //virtual;
   protected
     function GetConsumesRowClick: Boolean; virtual;
     function GetRowRect: TRectF;
     procedure CalculateRect(ARowBmp: TBitmap); virtual;
     procedure DoChanged(Sender: TObject);
     procedure ChangeSize; virtual;
+    procedure DoClick(x, y: single); virtual;
   public
     constructor Create(ARow: TKsListItemRow); virtual;
     procedure Assign(ASource: TPersistent); override;
     function Render(ACanvas: TCanvas): Boolean; virtual;
     procedure MouseDown; virtual;
     procedure MouseUp; virtual;
-    procedure ProcessClick(x, y: single); virtual;
-    procedure DoClick(x, y: single); virtual;
     property Rect: TRectF read FRect write SetRect;
     property ID: string read FId write SetID;
     property Align: TListItemAlign read FAlign write SetAlign default TListItemAlign.Leading;
@@ -337,7 +337,7 @@ type
     procedure SetItemIndex(const Value: integer);
   protected
     function GetConsumesRowClick: Boolean; override;
-    procedure ProcessClick(x, y: single); override;
+    procedure DoClick(x, y: single); override;
   public
     constructor Create(ARow: TKsListItemRow); override;
     destructor Destroy; override;
@@ -347,6 +347,8 @@ type
   end;
 
   TksListItemEmbeddedControl = class(TksListItemRowObj)
+  private
+    procedure SimulateClick(x, y: single);
   protected
     FControl: TStyledControl;
     FFocused: Boolean;
@@ -358,16 +360,25 @@ type
     procedure InitializeControl; virtual;
     procedure ShowControl;
     procedure HideControl;
+    procedure DoClick(x, y: single); override;
   public
     constructor Create(ARow: TKsListItemRow); override;
     destructor Destroy; override;
     function Render(ACanvas: TCanvas): Boolean; override;
-    procedure MouseDown; override;
+
   end;
 
   TksListItemEmbeddedEdit = class(TksListItemEmbeddedControl)
   private
     function GetEdit: TEdit;
+    procedure DoTyping(Sender: TObject);
+  protected
+    function CreateControl: TStyledControl; override;
+  end;
+
+  TksListItemEmbeddedMemo = class(TksListItemEmbeddedControl)
+  private
+    function GetMemo: TMemo;
     procedure DoTyping(Sender: TObject);
   protected
     function CreateControl: TStyledControl; override;
@@ -862,6 +873,7 @@ type
     function AddTable(AX, AY, AColWidth, ARowHeight: single; AColCount, ARowCount: integer): TksListItemRowTable;
 
     function AddEdit(AX, AY, AWidth: single; AText: string): TksListItemEmbeddedEdit;
+    function AddMemo(AX, AY, AWidth, AHeight: single; AText: string): TksListItemEmbeddedMemo;
     function AddSpinBox(AX, AY, AWidth: single; AValue: integer): TksListItemEmbeddedSpinBox;
     function AddTrackBar(AX, AY, AWidth: single): TksListItemEmbeddedTrackBar;
     function AddOptionSelectiontBox(AX, AY, AWidth, AHeight, AItemHeight: single; AItems: TStrings): TksListItemOptionSelector; overload;
@@ -1313,13 +1325,10 @@ var
   DefaultScrollBarWidth: integer = 7;
 
   ATextLayout: TTextLayout;
-  //ASearchBoxHeight: single;
-  //AEmbeddedEditControl: TEdit;
-  //AEmbeddedListBoxControl: TListBox;
 
 procedure Register;
 begin
-  RegisterComponents('kernow Software FMX', [TksListView]);
+  RegisterComponents('Kernow Software FMX', [TksListView]);
 end;
 
 
@@ -2711,6 +2720,16 @@ begin
   Result.Width := AWidth;
   Result.PlaceOffset := PointF(AX, AY);
   Result.GetEdit.Text := AText;
+  FList.Add(Result);
+end;
+
+function TKsListItemRow.AddMemo(AX, AY, AWidth, AHeight: single; AText: string): TksListItemEmbeddedMemo;
+begin
+  Result := TksListItemEmbeddedMemo.Create(Self);
+  Result.Width := AWidth;
+  Result.Height := AWidth;
+  Result.PlaceOffset := PointF(AX, AY);
+  Result.GetMemo.Text := AText;
   FList.Add(Result);
 end;
 
@@ -6003,7 +6022,7 @@ begin
   Result := True;
 end;
 
-procedure TksListItemOptionSelector.ProcessClick(x, y: single);
+procedure TksListItemOptionSelector.DoClick(x, y: single);
 var
   ICount: integer;
   AIndex: integer;
@@ -6234,6 +6253,14 @@ begin
   inherited;
 end;
 
+procedure TksListItemEmbeddedControl.DoClick(x, y: single);
+begin
+  inherited;
+  if FFocused = False then
+    ShowControl;
+  SimulateClick(x, y);
+end;
+
 function TksListItemEmbeddedControl.GetConsumesRowClick: Boolean;
 begin
   Result := True;
@@ -6294,12 +6321,6 @@ begin
   FControl.UpdateEffects;
 end;
 
-procedure TksListItemEmbeddedControl.MouseDown;
-begin
-  inherited;
-  if FFocused = False then
-    ShowControl;
-end;
 
 function TksListItemEmbeddedControl.Render(ACanvas: TCanvas): Boolean;
 begin
@@ -6331,6 +6352,28 @@ begin
   FFocused := True;
   FControl.SetFocus;
   FRow.Changed;
+end;
+
+procedure TksListItemEmbeddedControl.SimulateClick(x, y: single);
+var
+  AParent   : TFmxObject;
+  AForm     : TCommonCustomForm;
+  AFormPoint: TPointF;
+begin
+  AParent := FControl.Parent;
+  if AParent = nil then
+    Exit;
+  while not (AParent is TCommonCustomForm) do
+    AParent := AParent.Parent;
+
+  if (AParent is TCommonCustomForm) then
+  begin
+    AForm      := TCommonCustomForm(AParent);
+    AFormPoint := FControl.LocalToAbsolute(PointF(X,Y));
+
+    AForm.MouseDown(TMouseButton.mbLeft, [], AFormPoint.X, AFormPoint.Y);
+    AForm.MouseUp(TMouseButton.mbLeft, [], AFormPoint.X, AFormPoint.Y);
+  end;
 end;
 
 { TksListItemEmbeddedListBox }
@@ -6429,6 +6472,25 @@ begin
       Exit;
     end;
   end;
+end;
+
+{ TksListItemEmbeddedMemo }
+
+function TksListItemEmbeddedMemo.CreateControl: TStyledControl;
+begin
+  Result := TMemo.Create(nil);
+  (Result as TMemo).WordWrap := True;
+  (Result as TMemo).OnChange := DoTyping;
+end;
+
+procedure TksListItemEmbeddedMemo.DoTyping(Sender: TObject);
+begin
+  FRow.ListView.EmbeddedEditChange(FRow, GetMemo.Text);
+end;
+
+function TksListItemEmbeddedMemo.GetMemo: TMemo;
+begin
+  Result := (FControl as TMemo);
 end;
 
 initialization
