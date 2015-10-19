@@ -357,22 +357,22 @@ var
   r: TRectF;
   ARadius: single;
   AFill, AOutline, AFontColor: TAlphaColor;
+  AScale: single;
 begin
-  ARadius := 5*GetScreenScale;
-  //ACanvas.FillEllipse(ARect, 1, ACanvas.Fill);
-  ABmp := TBitmap.Create(Round(ARect.Width * GetScreenScale), Round(ARect.Height * GetScreenScale));
+  AScale := 2;
+  ARadius := 5*AScale;
+  ABmp := TBitmap.Create(Round(ARect.Width * AScale), Round(ARect.Height * AScale));
   try
     if AColor = claNull then
-      AColor := claBlue;
+      AColor := claDodgerblue;
 
     ABmp.Clear(claNull);
-    ABmp.BitmapScale := GetScreenScale;
+    ABmp.BitmapScale := AScale;
     r := RectF(0, 0, ABmp.Width, ABmp.Height);
     ABmp.Canvas.BeginScene;
-    ABmp.Canvas.StrokeThickness := GetScreenScale;
+    ABmp.Canvas.StrokeThickness := AScale;
     ABmp.Canvas.Stroke.Color := claSilver;
-    ABmp.Canvas.Font.Size := (13 * GetScreenScale);
-    //ABmp.Canvas.FillEllipse(RectF(0, 0, ABmp.Width, ABmp.Height), 1, ACanvas.Fill);
+    ABmp.Canvas.Font.Size := (13 * AScale);
 
     if ASelected then
     begin
@@ -409,11 +409,9 @@ begin
     ABmp.Canvas.Fill.Color := AFontColor;
     ABmp.Canvas.FillText(r, AText, False, 1, [], TTextAlign.Center);
 
-
-    //ABmp.Canvas.DrawRect(RectF(0, 0, ABmp.Width, ABmp.Height), 0, 0, AllCorners, 1, ACanvas.Stroke);
     ABmp.Canvas.EndScene;
 
-    ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ARect, 1, False);
+    ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ARect, 1, True);
   finally
     FreeAndNil(ABmp);
   end;
