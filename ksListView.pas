@@ -160,7 +160,7 @@ type
   TksEmbeddedListBoxChange = procedure(Sender: TObject; ARow: TksListItemRow; AItemIndex: integer; ASelected: string) of object;
   TksEmbeddedSpinBoxChange = procedure(Sender: TObject; ARow: TksListItemRow; AValue: integer) of object;
   TksEmbeddedTrackBarChange = procedure(Sender: TObject; ARow: TksListItemRow; AValue: integer) of object;
-  //TksEmbeddedButtonClick = procedure(Sender: TObject; ARow: TksListItemRow; AValue: integer) of object;
+
 
   // ------------------------------------------------------------------------------
 
@@ -188,6 +188,7 @@ type
 
   TksAccessoryImageList = class(TObjectList<TksAccessoryImage>)
   private
+    FImageScale: integer;
     FImageMap: TBitmap;
     function GetAccessoryFromResource(AStyleName: string; const AState: string = ''): TksAccessoryImage;
     procedure Initialize;
@@ -198,8 +199,6 @@ type
     property Images[AAccessory: TksAccessoryType]: TksAccessoryImage read GetAccessoryImage; default;
     property ImageMap: TBitmap read FImageMap;
   end;
-
-
 
 
   TksListItemRowObj = class(TPersistent)
@@ -348,7 +347,10 @@ type
 
   TksListItemEmbeddedControl = class(TksListItemRowObj)
   private
+    FEventsDisabled: Boolean;
     procedure SimulateClick(x, y: single);
+    procedure DisableEvents;
+    procedure EnableEvents;
   protected
     FControl: TStyledControl;
     FFocused: Boolean;
@@ -640,17 +642,22 @@ type
     FCaptions: TStrings;
     FItemIndex: integer;
     FTintColor: TAlphaColor;
+    procedure CaptionsChanged(Sender: TObject);
     procedure SetItemIndex(const Value: integer);
     procedure SetTintColor(const Value: TAlphaColor);
+    function GetSelected: string;
   protected
     function GetConsumesRowClick: Boolean; override;
   public
     constructor Create(ARow: TKsListItemRow); override;
     destructor Destroy; override;
     procedure DoClick(x, y: single); override;
+    procedure SelectButton(ACaption: string; const ACaseSensitive: Boolean = False);
+    procedure Clear;
     function Render(ACanvas: TCanvas): Boolean; override;
     property ItemIndex: integer read FItemIndex write SetItemIndex;
     property Captions: TStrings read FCaptions;
+    property Selected: string read GetSelected;
     property TintColor: TAlphaColor read FTintColor write SetTintColor;
   end;
 
@@ -862,13 +869,9 @@ type
                        const AVertAlign: TListItemAlign = TListItemAlign.Center;
                        const AYPos: integer = 0): TksListItemRowButton; overload;
     function AddButton(AStyle: TksImageButtonStyle; const ATintColor: TAlphaColor = claNull): TksListItemRowButton; overload;
-    function AddSegmentButtons(AWidth: integer;
-                               ACaptions: array of string;
-                               const AItemIndex: integer = 0): TksListItemRowSegmentButtons; overload;
-    function AddSegmentButtons(AXPos, AWidth: integer;
-                               ACaptions: array of string;
-                               AAlign: TListItemAlign;
-                               const AItemIndex: integer = 0): TksListItemRowSegmentButtons; overload;
+    function AddSegmentButtons(AWidth: integer; ACaptions: TStrings; const AItemIndex: integer = 0): TksListItemRowSegmentButtons; overload;
+    function AddSegmentButtons(AWidth: integer; ACaptions: array of string; const AItemIndex: integer = 0): TksListItemRowSegmentButtons; overload;
+    function AddSegmentButtons(AXPos, AWidth: integer; ACaptions: array of string; AAlign: TListItemAlign; const AItemIndex: integer = 0): TksListItemRowSegmentButtons; overload;
 
     function AddTable(AX, AY, AColWidth, ARowHeight: single; AColCount, ARowCount: integer): TksListItemRowTable;
 
@@ -957,6 +960,12 @@ type
     function AddRowItemSelector(AText, ASelected: string; AItems: TStrings): TKsListItemRow; overload;
     function AddRowItemSelector(AText, ASelected: string; AItems: array of string): TKsListItemRow; overload;
     function AddHeader(AText: string): TKsListItemRow;
+
+    //function AddRowWithItemPicker(AText, ADetail: string; ALookupItems: array of string): TKsListItemRow; overload;
+    //function AddRowWithItemPicker(AText, ADetail: string; ALookupItems: TStrings): TKsListItemRow; overload;
+    function AddRowWithEdit(AText, AEditText: string; AEditWidth: integer): TKsListItemRow;
+    function AddRowWithSegmentButtons(AText, ASelected: string; AButtons: array of string; AWidth: integer; AID: string): TKsListItemRow; overload;
+    function AddRowWithSegmentButtons(AText, ASelected: string; AButtons: TStrings; AWidth: integer; AID: string): TKsListItemRow; overload;
 
     procedure UncheckAll;
     procedure CheckAll;
@@ -1161,6 +1170,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
+    function FindRowObjectByID(AID: string): TksListItemRowObj;
     procedure Resize; override;
     procedure ClearItems;
     procedure RedrawAllRows;
@@ -1346,6 +1356,15 @@ begin
   Result := StringReplace(Result, '}', '', [rfReplaceAll]);
 end;
 
+function ArrayToStrings(AArray: array of string): TStrings;
+var
+  ICount: integer;
+begin
+  Result := TStringList.Create;
+  for ICount := Low(AArray) to High(AArray) do
+    Result.Add(AArray[ICount]);
+end;
+
 // ------------------------------------------------------------------------------
 
 { TksListItemRowObj }
@@ -1397,7 +1416,7 @@ begin
     if (Self is TKsListItemRowAccessory) = False then
     begin
       if FRow.ShowAccessory then
-        OffsetRect(FRect, 0-((FRow.FAccessory.Width)), 0);
+        OffsetRect(FRect, 0-((FRow.FAccessory.Width + 4)), 0);
     end;
   end;
 
@@ -2671,6 +2690,16 @@ begin
   Changed;
 end;
 
+function TKsListItemRow.AddSegmentButtons(AWidth: integer; ACaptions: TStrings; const AItemIndex: integer = 0): TksListItemRowSegmentButtons;
+var
+  ICount: integer;
+  AArray: array of string;
+begin
+  SetLength(AArray, ACaptions.Count);
+  for ICount := 0 to ACaptions.Count-1 do
+    AArray[ICount] := ACaptions[ICount];
+  Result := AddSegmentButtons(AWidth, AArray, AItemIndex);
+end;
 
 function TKsListItemRow.AddSegmentButtons(AWidth: integer;
                                           ACaptions: array of string;
@@ -3396,6 +3425,62 @@ begin
     FreeAndNil(AStrings);
   end;
 end;
+{
+function TKsListItemRows.AddRowWithItemPicker(AText, ADetail: string;
+  ALookupItems: array of string): TKsListItemRow;
+var
+  ICount: integer;
+  AStrings: TStrings;
+begin
+  AStrings := TStringList.Create;
+  try
+    for ICount := Low(ALookupItems) to High(ALookupItems) do
+    begin
+      AStrings.Add(ALookupItems[ICount]);
+      AddRowWithItemPicker(AText, ADetail, AStrings);
+    end;
+  finally
+    AStrings.Free;
+  end;
+end;  }
+
+
+function TKsListItemRows.AddRowWithEdit(AText,
+  AEditText: string; AEditWidth: integer): TKsListItemRow;
+begin
+  Result := AddRow(AText, atNone);
+  with Result.AddEdit(0, 0, AEditWidth, AEditText) do
+  begin
+    Align := TListItemAlign.Trailing;
+    VertAlign := TListItemAlign.Center;
+  end;
+end;
+
+function TKsListItemRows.AddRowWithSegmentButtons(AText, ASelected: string;
+  AButtons: array of string; AWidth: integer; AID: string): TKsListItemRow;
+var
+  AStrings: TStrings;
+begin
+  AStrings := ArrayToStrings(AButtons);
+  try
+    Result := AddRowWithSegmentButtons(AText, ASelected, AStrings, AWidth, AID);
+
+  finally
+    FreeAndNil(AStrings);
+  end;
+end;
+
+function TKsListItemRows.AddRowWithSegmentButtons(AText, ASelected: string;
+  AButtons: TStrings; AWidth: integer; AID: string): TKsListItemRow;
+var
+  ASegButtons: TksListItemRowSegmentButtons;
+begin
+  Result := AddRow(AText, atNone);
+  ASegButtons := Result.AddSegmentButtons(AWidth, AButtons, -1);
+  ASegButtons.SelectButton(ASelected);
+  ASegButtons.ID := AID;
+  ASegButtons.Align := TListItemAlign.Trailing;
+end;
 
 function TKsListItemRows.AddHeader(AText: string): TKsListItemRow;
 begin
@@ -3418,6 +3503,8 @@ function TKsListItemRows.AddRow(AText: string; const AAccessoryType: TksAccessor
 begin
   Result := AddRow(AText, '', '', AAccessoryType);
 end;
+
+//function TKsListItemRows
 
 function TKsListItemRows.AddRow(AText, ASubTitle, ADetail: string; AAccessory: TksAccessoryType;
   const AImageIndex: integer = -1; const AFontSize: integer = 14;
@@ -3490,6 +3577,7 @@ begin
   Result := inherited Items.Add;
 end;
 
+
 procedure TksListView.SelectDate(ARow: TKsListItemRow; ASelected: TDateTime; AOnSelectDate: TNotifyEvent);
 begin
   if FDateSelector = nil then
@@ -3497,15 +3585,15 @@ begin
     FDateSelector := TDateEdit.Create(nil);
     FDateSelector.OnClosePicker := ComboClosePopup;
   end;
+  FDateSelector.Position.X := ARow.LocalRect.Right - 100;
+  FDateSelector.Position.Y := ARow.LocalRect.Top;
   FDateSelector.OnChange := nil;
   FDateSelector.TagObject := ARow;
   FDateSelector.Width := 0;
   {$IFDEF MSWINDOWS}
   FDateSelector.Width := 200;
   {$ENDIF}
-  FDateSelector.Align := TAlignLayout.Center;
   AddObject(FDateSelector);
-  Application.ProcessMessages;
   FDateSelector.Date := ASelected;
   FDateSelector.OnChange := AOnSelectDate;
   FDateSelector.OpenPicker;
@@ -3536,17 +3624,19 @@ begin
     FCombo.OnClosePopup := ComboClosePopup;
   end;
   FCombo.OnChange := nil;
+  FCombo.Position.X := ARow.LocalRect.Right - 100;
+  FCombo.Position.Y := ARow.LocalRect.Top;
   FCombo.TagObject := ARow;
   FCombo.Items.Assign(AItems);
+
   FCombo.ItemIndex := AItems.IndexOf(ASelected);
   FCombo.Width := 0;
   {$IFDEF MSWINDOWS}
   FCombo.Width := 200;
   {$ENDIF}
   FCombo.OnChange := AOnSelectItem;
-  FCombo.Align := TAlignLayout.Center;
+  //FCombo.Align := TAlignLayout.Center;
   AddObject(FCombo);
-  Application.ProcessMessages;
   FCombo.DropDown;
 end;
 procedure TksListView.SetCheckMarks(const Value: TksListViewCheckMarks);
@@ -4048,6 +4138,23 @@ begin
   Invalidate;
 end;
 
+function TksListView.FindRowObjectByID(AID: string): TksListItemRowObj;
+var
+  ICount: integer;
+  AObj: TksListItemRowObj;
+begin
+  Result := nil;
+  for ICount := 0 to FItems.Count-1 do
+  begin
+    AObj := FItems[ICount].RowObjectByID[AId];
+    if AObj <> nil then
+    begin
+      Result := AObj;
+      Exit;
+    end;
+  end;
+end;
+
 function TksListView.GetMaxScrollPos: single;
 var
   ICount: integer;
@@ -4371,7 +4478,7 @@ begin
         else
           Invalidate;
         // remove row selection?
-        Application.ProcessMessages;
+        //Application.ProcessMessages;
         ARow.ProcessClick;
         if (ARow.CanSelect) and (AObjectConsumesClick = False) then
         begin
@@ -4682,10 +4789,22 @@ begin
   ItemIndex := Trunc(x / ABtnWidth);
 end;
 
+procedure TksListItemRowSegmentButtons.CaptionsChanged(Sender: TObject);
+begin
+  Changed;
+end;
+
+procedure TksListItemRowSegmentButtons.Clear;
+begin
+  FCaptions.Clear;
+  Changed;
+end;
+
 constructor TksListItemRowSegmentButtons.Create(ARow: TKsListItemRow);
 begin
   inherited;
   FCaptions := TStringList.Create;
+  (FCaptions as TStringList).OnChange := CaptionsChanged;
   FItemIndex := -1;
   HitTest := True;
 end;
@@ -4701,6 +4820,13 @@ begin
   Result := True;
 end;
 
+function TksListItemRowSegmentButtons.GetSelected: string;
+begin
+  Result := '';
+  if ItemIndex > -1 then
+    Result := FCaptions[ItemIndex];
+end;
+
 function TksListItemRowSegmentButtons.Render(ACanvas: TCanvas): Boolean;
 var
   ABtnWidth: integer;
@@ -4709,22 +4835,52 @@ var
   AStyle: TksButtonStyle;
 begin
   inherited Render(ACanvas);
-  ABtnWidth := Trunc(FWidth / FCaptions.Count);
-  ABtnRect := RectF(Rect.Left, Rect.Top, Rect.Left + ABtnWidth, Rect.Bottom);
+  if FCaptions.Count > 0 then
+  begin
+    ABtnWidth := Trunc(FWidth / FCaptions.Count);
+    ABtnRect := RectF(Rect.Left, Rect.Top, Rect.Left + ABtnWidth, Rect.Bottom);
+    for ICount := 0 to FCaptions.Count-1 do
+    begin
+      ACanvas.Fill.Color := claRed;
+      AStyle := ksButtonSegmentLeft;
+      if ICount > 0 then
+        AStyle := ksButtonSegmentMiddle;
+      if ICount = FCaptions.Count-1 then
+        AStyle := ksButtonSegmentRight;
+
+
+      DrawButton(ACanvas, ABtnRect, FCaptions[ICount], FItemIndex = ICount, FTintColor, AStyle);
+      OffsetRect(ABtnRect, ABtnWidth-1, 0);
+    end;
+  end;
+
+  Result := True;
+end;
+
+procedure TksListItemRowSegmentButtons.SelectButton(ACaption: string;
+  const ACaseSensitive: Boolean = False);
+var
+  ICount: integer;
+  s1, s2: string;
+  AIndex: integer;
+begin
+  AIndex := -1;
   for ICount := 0 to FCaptions.Count-1 do
   begin
-    ACanvas.Fill.Color := claRed;
-    AStyle := ksButtonSegmentLeft;
-    if ICount > 0 then
-      AStyle := ksButtonSegmentMiddle;
-    if ICount = FCaptions.Count-1 then
-      AStyle := ksButtonSegmentRight;
-
-
-    DrawButton(ACanvas, ABtnRect, FCaptions[ICount], FItemIndex = ICount, FTintColor, AStyle);
-    OffsetRect(ABtnRect, ABtnWidth-1, 0);
+    s1 := FCaptions[ICount];
+    s2 := ACaption;
+    if ACaseSensitive = False then
+    begin
+      s1 := LowerCase(s1);
+      s2 := LowerCase(s2);
+    end;
+    if s1 = s2 then
+    begin
+      AIndex := ICount;
+      Break;
+    end;
   end;
-  Result := True;
+  ItemIndex := AIndex;
 end;
 
 procedure TksListItemRowSegmentButtons.SetItemIndex(const Value: integer);
@@ -5966,12 +6122,8 @@ end;
 
 function TksListItemOptionSelector.Render(ACanvas: TCanvas): Boolean;
 var
-  //ABmp: TBitmap;
   ICount: integer;
   r: TRectF;
-  ACheckRect: TRectF;
-  ATextRect: TRectF;
-  AYPos: single;
   ABmp: TBitmap;
   ABmpRect: TRectF;
 begin
@@ -6024,7 +6176,6 @@ end;
 
 procedure TksListItemOptionSelector.DoClick(x, y: single);
 var
-  ICount: integer;
   AIndex: integer;
 begin
   inherited;
@@ -6072,6 +6223,10 @@ var
   ABitmapLink: TBitmapLinks;
   AImageMap: TBitmap;
 begin
+  FImageScale := 1;
+  if GetScreenScale >= 2 then
+    FImageScale := 2;
+
   Result := TksAccessoryImage.Create;
   AIds := TStringList.Create;
   try
@@ -6090,7 +6245,7 @@ begin
     begin
       if FImageMap.IsEmpty then
       begin
-        AImageMap := ((AStyleObj as TStyleObject).Source.MultiResBitmap.Bitmaps[Round(GetScreenScale)]);
+        AImageMap := ((AStyleObj as TStyleObject).Source.MultiResBitmap.Bitmaps[FImageScale]);
 
         FImageMap.SetSize(Round(AImageMap.Width), Round(AImageMap.Height));
         FImageMap.Clear(claNull);
@@ -6123,9 +6278,9 @@ begin
         ABitmapLink := AStyleObj.SourceLink;
 
       {$IFDEF XE8_OR_NEWER}
-      AImgRect := ABitmapLink.LinkByScale(Round(GetScreenScale), True).SourceRect;
+      AImgRect := ABitmapLink.LinkByScale(FImageScale, True).SourceRect;
       {$ELSE}
-      AImgRect := ABitmapLink.LinkByScale(Round(GetScreenScale)).SourceRect;
+      AImgRect := ABitmapLink.LinkByScale(FImageScale).SourceRect;
       {$ENDIF}
 
       Result.SetSize(Round(AImgRect.Width), Round(AImgRect.Height));
@@ -6143,11 +6298,6 @@ begin
                                1,
                                True);
       Result.Canvas.EndScene;
-
-      {FImageMap.Canvas.BeginScene;
-      FImageMap.Canvas.Stroke.Color := claRed;
-      FImageMap.Canvas.DrawRect(r,0, 0, AllCorners, 1);
-      FImageMap.Canvas.EndScene;    }
     end;
   finally
     {$IFDEF NEXTGEN}
@@ -6234,6 +6384,7 @@ end;
 constructor TksListItemEmbeddedControl.Create(ARow: TKsListItemRow);
 begin
   inherited;
+  FEventsDisabled := False;
   FCached := TBitmap.Create;
   //FCached.BitmapScale := GetScreenScale;
   FControl := CreateControl;
@@ -6253,12 +6404,24 @@ begin
   inherited;
 end;
 
+procedure TksListItemEmbeddedControl.DisableEvents;
+begin
+  FEventsDisabled := True;
+end;
+
 procedure TksListItemEmbeddedControl.DoClick(x, y: single);
 begin
+  if FEventsDisabled then
+    Exit;
   inherited;
   if FFocused = False then
     ShowControl;
   SimulateClick(x, y);
+end;
+
+procedure TksListItemEmbeddedControl.EnableEvents;
+begin
+  FEventsDisabled := False;
 end;
 
 function TksListItemEmbeddedControl.GetConsumesRowClick: Boolean;
@@ -6360,19 +6523,27 @@ var
   AForm     : TCommonCustomForm;
   AFormPoint: TPointF;
 begin
-  AParent := FControl.Parent;
-  if AParent = nil then
+  if FEventsDisabled then
     Exit;
-  while not (AParent is TCommonCustomForm) do
-    AParent := AParent.Parent;
 
-  if (AParent is TCommonCustomForm) then
-  begin
-    AForm      := TCommonCustomForm(AParent);
-    AFormPoint := FControl.LocalToAbsolute(PointF(X,Y));
+  DisableEvents;
+  try
+    AParent := FControl.Parent;
+    if AParent = nil then
+      Exit;
+    while not (AParent is TCommonCustomForm) do
+      AParent := AParent.Parent;
 
-    AForm.MouseDown(TMouseButton.mbLeft, [], AFormPoint.X, AFormPoint.Y);
-    AForm.MouseUp(TMouseButton.mbLeft, [], AFormPoint.X, AFormPoint.Y);
+    if (AParent is TCommonCustomForm) then
+    begin
+      AForm      := TCommonCustomForm(AParent);
+      AFormPoint := FControl.LocalToAbsolute(PointF(X,Y));
+
+      AForm.MouseDown(TMouseButton.mbLeft, [], AFormPoint.X, AFormPoint.Y);
+      AForm.MouseUp(TMouseButton.mbLeft, [], AFormPoint.X, AFormPoint.Y);
+    end;
+  finally
+    EnableEvents;
   end;
 end;
 
