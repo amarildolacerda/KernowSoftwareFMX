@@ -637,27 +637,45 @@ type
   end;
   // ------------------------------------------------------------------------------
 
+  TksListItemRowSegmentButton = class
+  private
+    FText: string;
+    FID: string;
+  public
+    property Text: string read FText write FText;
+    property ID: string read FID write FID;
+  end;
+
+  TksListItemRowSegmentButtonList = class(TObjectList<TksListItemRowSegmentButton>)
+  public
+    function AddButton(AText, AID: string): TksListItemRowSegmentButton;
+  end;
+
+
   TksListItemRowSegmentButtons = class(TksListItemRowObj)
   private
-    FCaptions: TStrings;
+    FButtons: TksListItemRowSegmentButtonList;
     FItemIndex: integer;
     FTintColor: TAlphaColor;
     procedure CaptionsChanged(Sender: TObject);
     procedure SetItemIndex(const Value: integer);
     procedure SetTintColor(const Value: TAlphaColor);
-    function GetSelected: string;
+    function GetSelected: TksListItemRowSegmentButton;
   protected
     function GetConsumesRowClick: Boolean; override;
   public
     constructor Create(ARow: TKsListItemRow); override;
     destructor Destroy; override;
+    procedure AddButton(AText, AID: string);
     procedure DoClick(x, y: single); override;
-    procedure SelectButton(ACaption: string; const ACaseSensitive: Boolean = False);
+    procedure SelectButton(ATextOrID: string; const ACaseSensitive: Boolean = False);
+    procedure SelectFirst;
     procedure Clear;
     function Render(ACanvas: TCanvas): Boolean; override;
     property ItemIndex: integer read FItemIndex write SetItemIndex;
-    property Captions: TStrings read FCaptions;
-    property Selected: string read GetSelected;
+
+    //property Buttons: TksListItemRowSegmentButtonList read FButtons;
+    property Selected: TksListItemRowSegmentButton read GetSelected;
     property TintColor: TAlphaColor read FTintColor write SetTintColor;
   end;
 
@@ -1394,6 +1412,7 @@ procedure TksListItemRowObj.CalculateRect(ARowBmp: TBitmap);
 var
   w,h: single;
   ABmpWidth: single;
+  AAccessoryWidth: single;
 begin
   if FWidth > 0 then Rect.Width := FWidth;
   if FHeight > 0 then Rect.Height := FHeight;
@@ -1415,8 +1434,14 @@ begin
     OffsetRect(FRect, ABmpWidth - (w + DefaultScrollBarWidth + FPlaceOffset.X + 4), 0);
     if (Self is TKsListItemRowAccessory) = False then
     begin
-      if FRow.ShowAccessory then
-        OffsetRect(FRect, 0-((FRow.FAccessory.Width + 4)), 0);
+      AAccessoryWidth := 0;
+      if (FRow.ShowAccessory) then
+      begin  AAccessoryWidth := FRow.FAccessory.Width + 4;
+      //if FRow.ListView.CheckMarks <> TksListViewCheckMarks.ksCmNone then
+      //  AAccessoryWidth := 100;
+
+      OffsetRect(FRect, 0-((AAccessoryWidth )), 0);
+      end;
     end;
   end;
 
@@ -1652,7 +1677,7 @@ begin
     if FRow.Image.Bitmap.IsEmpty = False then
       Rect.Offset(FRow.Image.Width+8, 0);
     if (FRow.ListView.ShowIndicatorColors) and (FRow.Purpose = TListItemPurpose.None) then
-      Rect.Offset(16, 0);
+      Rect.Offset(24, 0);
   end;
 end;
 
@@ -1939,10 +1964,10 @@ var
 begin
   Result := inherited Render(ACanvas);
   ACorners := [TCorner.TopLeft, TCorner.TopRight, TCorner.BottomLeft, TCorner.BottomRight];
-  ABitmap := TBitmap.Create;
+  ABitmap := TBitmap.Create(Round(Width*2), Round(Height*2));
   try
-    ABitmap.Width := Round(Width * GetScreenScale);
-    ABitmap.Height := Round(Height * GetScreenScale);
+    //ABitmap.Width := Round(Width * 2);
+    //ABitmap.Height := Round(Height * 2);
     ARect := RectF(0, 0, ABitmap.Width, ABitmap.Height);
     ARadius := Round(FCornerRadius * GetScreenScale);
     ABitmap.Clear(claNull);
@@ -1961,19 +1986,30 @@ begin
       end;
 
       if FShape = ksEllipse then
-        ABitmap.Canvas.FillEllipse(ARect, 1)
+      begin
+        // ellipse...
+        ABitmap.Canvas.FillEllipse(ARect, 1);
+        ABitmap.Canvas.DrawEllipse(ARect, 1);
+      end
       else
+      begin
+        // rectangle...
+        ABitmap.Canvas.Fill.Color := FStroke.Color;
+        ABitmap.Canvas.FillRect(ARect, ARadius, ARadius, AllCorners, 1);
+        InflateRect(ARect, -1, -1);
+        ABitmap.Canvas.Fill.Color := FFill.Color;
         ABitmap.Canvas.FillRect(ARect, ARadius, ARadius, ACorners, 1);
-
-
-      if FShape = ksEllipse then
+        InflateRect(ARect, 1, 1);
+      end;
+      //  
+      {if FShape = ksEllipse then
         ABitmap.Canvas.DrawEllipse(ARect, 1)
       else
-        ABitmap.Canvas.DrawRect(ARect, ARadius, ARadius, ACorners, 1);
+        ABitmap.Canvas.DrawRect(ARect, ARadius, ARadius, ACorners, 1);     }
     finally
       ABitmap.Canvas.EndScene;
     end;
-    ACanvas.DrawBitmap(ABitmap, ARect, Rect, 1);
+    ACanvas.DrawBitmap(ABitmap, ARect, Rect, 1, True);
   finally
     FreeAndNil(ABitmap);
   end;
@@ -2004,7 +2040,7 @@ end;
 procedure TKsListItemRow.CacheRow;
 var
   ICount: integer;
-  AMargins: TBounds;
+  //AMargins: TBounds;
   lv: TksListView;
   ADetailHeight: single;
   {$IFDEF XE8_OR_NEWER}
@@ -2014,6 +2050,9 @@ var
   ABmpWidth: single;
   ABeforeCache: TksRowCacheEvent;
   AAfterCache: TksRowCacheEvent;
+  AColorRect: TRectF;
+  AIndicatorBmp: TBitmap;
+  AShadowOffset: single;
 begin
   if ListView.FUpdateCount > 0 then
     Exit;
@@ -2035,13 +2074,10 @@ begin
   ABeforeCache := lv.BeforeRowCache;
   AAfterCache := lv.AfterRowCache;
 
-  AMargins := lv.ItemSpaces;
+  //AMargins := lv.ItemSpaces;
   BeginUpdate;
   try
-
-
-
-    ABmpWidth := (Round(RowWidth)) - Round((AMargins.Left + AMargins.Right)) * GetScreenScale;
+    ABmpWidth := (Round(RowWidth)) {- Round((AMargins.Left + AMargins.Right)} * GetScreenScale;
     Bitmap.Height := Trunc(RowHeight);
 
     ADetailHeight := FDetail.CalculateTextHeight;
@@ -2068,8 +2104,45 @@ begin
 
     if (FIndicatorColor <> claNull) and (lv.ShowIndicatorColors) then
     begin
-      Bitmap.Canvas.Fill.Color := FIndicatorColor;
-      Bitmap.Canvas.FillRect(RectF(8, 8, 14, RowHeight(False)-8), 0, 0, [], 1, Bitmap.Canvas.Fill);
+      AShadowOffset := 2;
+      AIndicatorBmp := TBitmap.Create(Round((16+AShadowOffset)*GetScreenScale), Round((16+AShadowOffset)*GetScreenScale));
+      try
+        AIndicatorBmp.Clear(claNull);
+
+        AColorRect := RectF(0, 0, 16*GetScreenScale, 16*GetScreenScale);
+
+        AIndicatorBmp.Canvas.BeginScene;
+
+        // shadow...
+        OffsetRect(AColorRect, AShadowOffset, AShadowOffset);
+        AIndicatorBmp.Canvas.Fill.Color := claDimgray;
+        AIndicatorBmp.Canvas.FillRect(AColorRect, 0, 0, AllCorners, 1);
+        OffsetRect(AColorRect, 0-AShadowOffset, 0-AShadowOffset);
+
+
+        AIndicatorBmp.Canvas.Stroke.Color := claBlack;
+        AIndicatorBmp.Canvas.Fill.Color := claBlack;
+        AIndicatorBmp.Canvas.FillRect(AColorRect, 0, 0, [], 1, AIndicatorBmp.Canvas.Fill);
+        InflateRect(AColorRect, -1, -1);
+        AIndicatorBmp.Canvas.Fill.Color := FIndicatorColor;
+        AIndicatorBmp.Canvas.FillRect(AColorRect, 0, 0, [], 1, AIndicatorBmp.Canvas.Fill);
+
+        AIndicatorBmp.Canvas.EndScene;
+
+
+        AColorRect := RectF(0, 0, AIndicatorBmp.Width, AIndicatorBmp.Height);
+        AColorRect.Width := AColorRect.Width / GetScreenScale;
+        AColorRect.Height := AColorRect.Height / GetScreenScale;
+        OffsetRect(AColorRect, 8, (RowHeight-AColorRect.Height)/2);
+
+        Bitmap.Canvas.DrawBitmap(AIndicatorBmp,
+                                 RectF(0, 0, AIndicatorBmp.Width, AIndicatorBmp.Height),
+                                 AColorRect,
+                                 1, True);
+
+      finally
+        FreeAndNil(AIndicatorBmp);
+      end;
     end;
 
     {$IFDEF XE8_OR_NEWER}
@@ -2148,45 +2221,6 @@ begin
     EndUpdate;
   end;
 end;
-              {
-function TksListItemRow.TextWidth(AText: string): single;
-var
-  APoint: TPointF;
-begin
-  ATextLayout.BeginUpdate;
-  // Setting the layout MaxSize
-  APoint.X := MaxSingle;
-  APoint.Y := 100;
-  ATextLayout.MaxSize := aPoint;
-  ATextLayout.Text := AText;
-  ATextLayout.WordWrap := False;
-  ATextLayout.Font := FFont;
-  ATextLayout.HorizontalAlign := TTextAlign.Leading;
-  ATextLayout.EndUpdate;
-  Result := ATextLayout.Width;
-end;   }
-      {                  function TksListItemRow.TextHeight(AText: string; AFont: TFont; AWordWrap: Boolean; const AWidth: single = 0): single;
-var
-  APoint: TPointF;
-begin
-  ATextLayout.BeginUpdate;
-  // Setting the layout MaxSize
-  APoint.X := MaxSingle;
-  if AWidth > 0 then
-    APoint.X := AWidth;
-  APoint.Y := 100;
-
-  ATextLayout.MaxSize := aPoint;
-  ATextLayout.Text := AText;
-  ATextLayout.WordWrap := AWordWrap;
-  ATextLayout.Font := FFont;
-  ATextLayout.HorizontalAlign := TTextAlign.Leading;
-  ATextLayout.VerticalAlign := TTextAlign.Leading;
-  ATextLayout.EndUpdate;
- // ATextLayout.RenderLayout(nil);
-  Result := ATextLayout.Height;
-end;
-   }
 
 procedure TKsListItemRow.Changed;
 begin
@@ -2724,7 +2758,7 @@ begin
 
   Result.TintColor := C_DEFAULT_SEGMENT_BUTTON_COLOR;
   for ICount := Low(ACaptions) to High(ACaptions) do
-    Result.Captions.Add(ACaptions[ICount]);
+    Result.AddButton(ACaptions[ICount], '');
   Result.ItemIndex := AItemIndex;
   Result.PlaceOffset := PointF(AXPos, 0);
   ShowAccessory := False;
@@ -3449,6 +3483,7 @@ function TKsListItemRows.AddRowWithEdit(AText,
   AEditText: string; AEditWidth: integer): TKsListItemRow;
 begin
   Result := AddRow(AText, atNone);
+  Result.CanSelect := False;
   with Result.AddEdit(0, 0, AEditWidth, AEditText) do
   begin
     Align := TListItemAlign.Trailing;
@@ -3993,8 +4028,6 @@ var
 begin
   AAllow := True;
   ARow := TKsListItemRow(FDateSelector.TagObject);
-  if Assigned(FOnSelectDate) then
-    FOnSelectDate(Self, ARow, FDateSelector.Date, AAllow);
   if AAllow then
   begin
     ARow.FSelectionValue := FDateSelector.Date;
@@ -4002,6 +4035,8 @@ begin
     ARow.Cached := False;
     ARow.CacheRow;
   end;
+  if Assigned(FOnSelectDate) then
+    FOnSelectDate(Self, ARow, FDateSelector.Date, AAllow);
 end;
 
 procedure TksListView.DoSelectPickerItem(Sender: TObject);
@@ -4785,8 +4820,13 @@ var
   ABtnWidth: single;
 begin
   inherited;
-  ABtnWidth := FWidth / FCaptions.Count;
+  ABtnWidth := FWidth / FButtons.Count;
   ItemIndex := Trunc(x / ABtnWidth);
+end;
+
+procedure TksListItemRowSegmentButtons.AddButton(AText, AID: string);
+begin
+  FButtons.AddButton(AText, AID);
 end;
 
 procedure TksListItemRowSegmentButtons.CaptionsChanged(Sender: TObject);
@@ -4796,22 +4836,22 @@ end;
 
 procedure TksListItemRowSegmentButtons.Clear;
 begin
-  FCaptions.Clear;
+  FButtons.Clear;
   Changed;
 end;
 
 constructor TksListItemRowSegmentButtons.Create(ARow: TKsListItemRow);
 begin
   inherited;
-  FCaptions := TStringList.Create;
-  (FCaptions as TStringList).OnChange := CaptionsChanged;
+  FButtons := TksListItemRowSegmentButtonList.Create;
+  //(FCaptions as TStringList).OnChange := CaptionsChanged;
   FItemIndex := -1;
   HitTest := True;
 end;
 
 destructor TksListItemRowSegmentButtons.Destroy;
 begin
-  FreeAndNil(FCaptions);
+  FreeAndNil(FButtons);
   inherited;
 end;
 
@@ -4820,11 +4860,11 @@ begin
   Result := True;
 end;
 
-function TksListItemRowSegmentButtons.GetSelected: string;
+function TksListItemRowSegmentButtons.GetSelected: TksListItemRowSegmentButton;
 begin
-  Result := '';
+  Result := nil;
   if ItemIndex > -1 then
-    Result := FCaptions[ItemIndex];
+    Result := FButtons[ItemIndex];
 end;
 
 function TksListItemRowSegmentButtons.Render(ACanvas: TCanvas): Boolean;
@@ -4835,21 +4875,21 @@ var
   AStyle: TksButtonStyle;
 begin
   inherited Render(ACanvas);
-  if FCaptions.Count > 0 then
+  if FButtons.Count > 0 then
   begin
-    ABtnWidth := Trunc(FWidth / FCaptions.Count);
+    ABtnWidth := Trunc(FWidth / FButtons.Count);
     ABtnRect := RectF(Rect.Left, Rect.Top, Rect.Left + ABtnWidth, Rect.Bottom);
-    for ICount := 0 to FCaptions.Count-1 do
+    for ICount := 0 to FButtons.Count-1 do
     begin
       ACanvas.Fill.Color := claRed;
       AStyle := ksButtonSegmentLeft;
       if ICount > 0 then
         AStyle := ksButtonSegmentMiddle;
-      if ICount = FCaptions.Count-1 then
+      if ICount = FButtons.Count-1 then
         AStyle := ksButtonSegmentRight;
 
 
-      DrawButton(ACanvas, ABtnRect, FCaptions[ICount], FItemIndex = ICount, FTintColor, AStyle);
+      DrawButton(ACanvas, ABtnRect, FButtons[ICount].Text, FItemIndex = ICount, FTintColor, AStyle);
       OffsetRect(ABtnRect, ABtnWidth-1, 0);
     end;
   end;
@@ -4857,24 +4897,26 @@ begin
   Result := True;
 end;
 
-procedure TksListItemRowSegmentButtons.SelectButton(ACaption: string;
+procedure TksListItemRowSegmentButtons.SelectButton(ATextOrID: string;
   const ACaseSensitive: Boolean = False);
 var
   ICount: integer;
-  s1, s2: string;
+  s1, s2, s3: string;
   AIndex: integer;
 begin
   AIndex := -1;
-  for ICount := 0 to FCaptions.Count-1 do
+  for ICount := 0 to FButtons.Count-1 do
   begin
-    s1 := FCaptions[ICount];
-    s2 := ACaption;
+    s1 := FButtons[ICount].Text;
+    s2 := FButtons[ICount].ID;
+    s3 := ATextOrID;
     if ACaseSensitive = False then
     begin
       s1 := LowerCase(s1);
       s2 := LowerCase(s2);
+      s3 := LowerCase(s3);
     end;
-    if s1 = s2 then
+    if (s1 = s3) or (s2 = s3) then
     begin
       AIndex := ICount;
       Break;
@@ -4883,12 +4925,18 @@ begin
   ItemIndex := AIndex;
 end;
 
+procedure TksListItemRowSegmentButtons.SelectFirst;
+begin
+  if FButtons.Count > 0 then
+    ItemIndex := 0;
+end;
+
 procedure TksListItemRowSegmentButtons.SetItemIndex(const Value: integer);
 begin
   if FItemIndex = Value then
     Exit;
-  if Value > FCaptions.Count-1 then
-    FItemIndex := FCaptions.Count-1
+  if Value > FButtons.Count-1 then
+    FItemIndex := FButtons.Count-1
   else
     FItemIndex := Value;
   Changed;
@@ -6662,6 +6710,17 @@ end;
 function TksListItemEmbeddedMemo.GetMemo: TMemo;
 begin
   Result := (FControl as TMemo);
+end;
+
+{ TksListItemRowSegmentButtonList }
+
+function TksListItemRowSegmentButtonList.AddButton(AText,
+  AID: string): TksListItemRowSegmentButton;
+begin
+  Result := TksListItemRowSegmentButton.Create;
+  Result.Text := AText;
+  Result.ID := AId;
+  Add(Result);
 end;
 
 initialization
