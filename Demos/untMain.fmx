@@ -198,19 +198,22 @@ object frmMain: TfrmMain
     Size.Height = 451.000000000000000000
     Size.PlatformDefault = False
     TabHeight = 49.000000000000000000
-    TabIndex = 6
+    TabIndex = 0
     TabOrder = 1
     TabPosition = Bottom
     object tabListView: TTabItem
       CustomIcon = <
         item
         end>
-      IsSelected = False
-      Size.Width = 71.000000000000000000
+      IsSelected = True
+      Size.Width = 70.000000000000000000
       Size.Height = 49.000000000000000000
       Size.PlatformDefault = False
+      StyleLookup = ''
       TabOrder = 0
       Text = 'tabListViewIndicators'
+      ExplicitSize.cx = 71.000000000000000000
+      ExplicitSize.cy = 49.000000000000000000
       object ToolBar3: TToolBar
         Align = Bottom
         Position.Y = 358.000000000000000000
@@ -1107,6 +1110,7 @@ object frmMain: TfrmMain
         Size.Width = 496.000000000000000000
         Size.Height = 299.000000000000000000
         Size.PlatformDefault = False
+        RowIndicators.Visible = True
         TabOrder = 1
         PageCaching.Enabled = True
         ShowSelection = True
@@ -1132,11 +1136,14 @@ object frmMain: TfrmMain
         item
         end>
       IsSelected = False
-      Size.Width = 71.000000000000000000
+      Size.Width = 70.000000000000000000
       Size.Height = 49.000000000000000000
       Size.PlatformDefault = False
+      StyleLookup = ''
       TabOrder = 0
       Text = 'tabProgressBars'
+      ExplicitSize.cx = 71.000000000000000000
+      ExplicitSize.cy = 49.000000000000000000
       object ToolBar9: TToolBar
         Align = Bottom
         Position.Y = 358.000000000000000000
@@ -2238,6 +2245,7 @@ object frmMain: TfrmMain
         Size.Width = 496.000000000000000000
         Size.Height = 299.000000000000000000
         Size.PlatformDefault = False
+        RowIndicators.Visible = True
         TabOrder = 1
         PageCaching.Enabled = True
         PageCaching.PageSize = 25
@@ -2251,15 +2259,18 @@ object frmMain: TfrmMain
       TextSettings.Font.Size = 8.000000000000000000
       StyledSettings = [Family, Style, FontColor]
       IsSelected = False
-      Size.Width = 71.000000000000000000
+      Size.Width = 70.000000000000000000
       Size.Height = 49.000000000000000000
       Size.PlatformDefault = False
+      StyleLookup = ''
       TabOrder = 0
       Text = 'tabSegmentButtons'
+      ExplicitSize.cx = 71.000000000000000000
+      ExplicitSize.cy = 49.000000000000000000
       object ToolBar4: TToolBar
         Align = Bottom
-        Position.Y = 358.000000000000000000
-        Size.Width = 496.000000000000000000
+        Position.Y = 6.000000000000000000
+        Size.Width = 50.000000000000000000
         Size.Height = 44.000000000000000000
         Size.PlatformDefault = False
         StyleLookup = 'bottomtoolbar'
@@ -2267,7 +2278,7 @@ object frmMain: TfrmMain
         object Label4: TLabel
           Align = Client
           StyledSettings = [Family, Style]
-          Size.Width = 496.000000000000000000
+          Size.Width = 50.000000000000000000
           Size.Height = 44.000000000000000000
           Size.PlatformDefault = False
           TextSettings.FontColor = claDodgerblue
@@ -2321,13 +2332,13 @@ object frmMain: TfrmMain
         StyledSettings = [Family, Style, FontColor]
         TextSettings.Font.Size = 10.000000000000000000
         Align = Bottom
-        Position.Y = 299.000000000000000000
-        Size.Width = 496.000000000000000000
+        Position.Y = -53.000000000000000000
+        Size.Width = 50.000000000000000000
         Size.Height = 59.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 2
-        Viewport.Width = 476.000000000000000000
-        Viewport.Height = 55.000000000000000000
+        Viewport.Width = 30.000000000000000000
+        Viewport.Height = 39.000000000000000000
         object imgSource3: TImage
           MultiResBitmap.Height = 591
           MultiResBitmap.Width = 683
@@ -3302,9 +3313,9 @@ object frmMain: TfrmMain
               FileName = 'C:\Users\Graham\Desktop\ks\3.fw.png'
             end>
           Align = Right
-          Position.X = 426.000000000000000000
+          Position.X = -20.000000000000000000
           Size.Width = 50.000000000000000000
-          Size.Height = 55.000000000000000000
+          Size.Height = 39.000000000000000000
           Size.PlatformDefault = False
         end
       end
@@ -3312,9 +3323,9 @@ object frmMain: TfrmMain
         Appearence.SeparatorColor = xFFE0E0E0
         Align = Client
         DeleteButton.Text = 'Delete'
-        Size.Width = 496.000000000000000000
-        Size.Height = 299.000000000000000000
+        Size.Width = 50.000000000000000000
         Size.PlatformDefault = False
+        RowIndicators.Visible = True
         TabOrder = 1
         PageCaching.Enabled = True
         ShowSelection = True
@@ -3327,15 +3338,18 @@ object frmMain: TfrmMain
         item
         end>
       IsSelected = False
-      Size.Width = 71.000000000000000000
+      Size.Width = 70.000000000000000000
       Size.Height = 49.000000000000000000
       Size.PlatformDefault = False
+      StyleLookup = ''
       TabOrder = 0
       Text = 'tabIndicators'
+      ExplicitSize.cx = 71.000000000000000000
+      ExplicitSize.cy = 49.000000000000000000
       object ToolBar6: TToolBar
         Align = Bottom
-        Position.Y = 358.000000000000000000
-        Size.Width = 496.000000000000000000
+        Position.Y = 6.000000000000000000
+        Size.Width = 50.000000000000000000
         Size.Height = 44.000000000000000000
         Size.PlatformDefault = False
         StyleLookup = 'bottomtoolbar'
@@ -3343,7 +3357,7 @@ object frmMain: TfrmMain
         object Label7: TLabel
           Align = Client
           StyledSettings = [Family, Style]
-          Size.Width = 496.000000000000000000
+          Size.Width = 50.000000000000000000
           Size.Height = 44.000000000000000000
           Size.PlatformDefault = False
           TextSettings.FontColor = claDodgerblue
@@ -3400,13 +3414,13 @@ object frmMain: TfrmMain
         StyledSettings = [Family, Style, FontColor]
         TextSettings.Font.Size = 10.000000000000000000
         Align = Bottom
-        Position.Y = 299.000000000000000000
-        Size.Width = 496.000000000000000000
+        Position.Y = -53.000000000000000000
+        Size.Width = 50.000000000000000000
         Size.Height = 59.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 2
-        Viewport.Width = 476.000000000000000000
-        Viewport.Height = 55.000000000000000000
+        Viewport.Width = 30.000000000000000000
+        Viewport.Height = 39.000000000000000000
         object imgSource4: TImage
           MultiResBitmap.Height = 403
           MultiResBitmap.Width = 899
@@ -4603,9 +4617,9 @@ object frmMain: TfrmMain
               FileName = 'C:\Users\Graham\Desktop\ks\4.fw.png'
             end>
           Align = Right
-          Position.X = 426.000000000000000000
+          Position.X = -20.000000000000000000
           Size.Width = 50.000000000000000000
-          Size.Height = 55.000000000000000000
+          Size.Height = 39.000000000000000000
           Size.PlatformDefault = False
         end
       end
@@ -4613,10 +4627,9 @@ object frmMain: TfrmMain
         Appearence.SeparatorColor = xFFE0E0E0
         Align = Client
         DeleteButton.Text = 'Delete'
-        Size.Width = 496.000000000000000000
-        Size.Height = 299.000000000000000000
+        Size.Width = 50.000000000000000000
         Size.PlatformDefault = False
-        ShowIndicatorColors = True
+        RowIndicators.Visible = True
         TabOrder = 1
         PageCaching.Enabled = True
         ShowSelection = True
@@ -4627,15 +4640,18 @@ object frmMain: TfrmMain
         item
         end>
       IsSelected = False
-      Size.Width = 71.000000000000000000
+      Size.Width = 70.000000000000000000
       Size.Height = 49.000000000000000000
       Size.PlatformDefault = False
+      StyleLookup = ''
       TabOrder = 0
       Text = 'tabItemAccessorys'
+      ExplicitSize.cx = 71.000000000000000000
+      ExplicitSize.cy = 49.000000000000000000
       object ToolBar7: TToolBar
         Align = Bottom
-        Position.Y = 358.000000000000000000
-        Size.Width = 496.000000000000000000
+        Position.Y = 6.000000000000000000
+        Size.Width = 50.000000000000000000
         Size.Height = 44.000000000000000000
         Size.PlatformDefault = False
         StyleLookup = 'bottomtoolbar'
@@ -4643,7 +4659,7 @@ object frmMain: TfrmMain
         object Label8: TLabel
           Align = Client
           StyledSettings = [Family, Style]
-          Size.Width = 496.000000000000000000
+          Size.Width = 50.000000000000000000
           Size.Height = 44.000000000000000000
           Size.PlatformDefault = False
           TextSettings.FontColor = claDodgerblue
@@ -4676,13 +4692,13 @@ object frmMain: TfrmMain
         StyledSettings = [Family, Style, FontColor]
         TextSettings.Font.Size = 10.000000000000000000
         Align = Bottom
-        Position.Y = 299.000000000000000000
-        Size.Width = 496.000000000000000000
+        Position.Y = -53.000000000000000000
+        Size.Width = 50.000000000000000000
         Size.Height = 59.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 2
-        Viewport.Width = 476.000000000000000000
-        Viewport.Height = 55.000000000000000000
+        Viewport.Width = 30.000000000000000000
+        Viewport.Height = 39.000000000000000000
         object imgSource5: TImage
           MultiResBitmap.Height = 303
           MultiResBitmap.Width = 601
@@ -5267,9 +5283,9 @@ object frmMain: TfrmMain
               FileName = 'C:\Users\Graham\Desktop\ks\5.fw.png'
             end>
           Align = Right
-          Position.X = 426.000000000000000000
+          Position.X = -20.000000000000000000
           Size.Width = 50.000000000000000000
-          Size.Height = 55.000000000000000000
+          Size.Height = 39.000000000000000000
           Size.PlatformDefault = False
         end
       end
@@ -5277,9 +5293,9 @@ object frmMain: TfrmMain
         Appearence.SeparatorColor = xFFE0E0E0
         Align = Client
         DeleteButton.Text = 'Delete'
-        Size.Width = 496.000000000000000000
-        Size.Height = 299.000000000000000000
+        Size.Width = 50.000000000000000000
         Size.PlatformDefault = False
+        RowIndicators.Visible = True
         TabOrder = 1
         PageCaching.Enabled = True
         ShowSelection = True
@@ -5290,15 +5306,18 @@ object frmMain: TfrmMain
         item
         end>
       IsSelected = False
-      Size.Width = 71.000000000000000000
+      Size.Width = 70.000000000000000000
       Size.Height = 49.000000000000000000
       Size.PlatformDefault = False
+      StyleLookup = ''
       TabOrder = 0
       Text = 'tabCheckList'
+      ExplicitSize.cx = 71.000000000000000000
+      ExplicitSize.cy = 49.000000000000000000
       object ToolBar2: TToolBar
         Align = Bottom
-        Position.Y = 314.000000000000000000
-        Size.Width = 496.000000000000000000
+        Position.Y = -38.000000000000000000
+        Size.Width = 50.000000000000000000
         Size.Height = 44.000000000000000000
         Size.PlatformDefault = False
         StyleLookup = 'bottomtoolbar'
@@ -5325,7 +5344,7 @@ object frmMain: TfrmMain
         object Label3: TLabel
           Align = Right
           StyledSettings = [Family, Style]
-          Position.X = 368.000000000000000000
+          Position.X = -78.000000000000000000
           Size.Width = 128.000000000000000000
           Size.Height = 44.000000000000000000
           Size.PlatformDefault = False
@@ -5335,8 +5354,8 @@ object frmMain: TfrmMain
       end
       object ToolBar8: TToolBar
         Align = Bottom
-        Position.Y = 358.000000000000000000
-        Size.Width = 496.000000000000000000
+        Position.Y = 6.000000000000000000
+        Size.Width = 50.000000000000000000
         Size.Height = 44.000000000000000000
         Size.PlatformDefault = False
         StyleLookup = 'bottomtoolbar'
@@ -5381,13 +5400,13 @@ object frmMain: TfrmMain
         StyledSettings = [Family, Style, FontColor]
         TextSettings.Font.Size = 10.000000000000000000
         Align = Bottom
-        Position.Y = 255.000000000000000000
-        Size.Width = 496.000000000000000000
+        Position.Y = -97.000000000000000000
+        Size.Width = 50.000000000000000000
         Size.Height = 59.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 2
-        Viewport.Width = 476.000000000000000000
-        Viewport.Height = 55.000000000000000000
+        Viewport.Width = 30.000000000000000000
+        Viewport.Height = 39.000000000000000000
         object imgSource6: TImage
           MultiResBitmap.Height = 243
           MultiResBitmap.Width = 586
@@ -5800,9 +5819,9 @@ object frmMain: TfrmMain
               FileName = 'C:\Users\Graham\Desktop\ks\6.fw.png'
             end>
           Align = Right
-          Position.X = 426.000000000000000000
+          Position.X = -20.000000000000000000
           Size.Width = 50.000000000000000000
-          Size.Height = 55.000000000000000000
+          Size.Height = 39.000000000000000000
           Size.PlatformDefault = False
         end
       end
@@ -5812,9 +5831,9 @@ object frmMain: TfrmMain
         Align = Client
         CheckMarks = ksCmSingleSelect
         DeleteButton.Text = 'Delete'
-        Size.Width = 496.000000000000000000
-        Size.Height = 255.000000000000000000
+        Size.Width = 50.000000000000000000
         Size.PlatformDefault = False
+        RowIndicators.Visible = True
         TabOrder = 3
         PageCaching.Enabled = True
         ShowSelection = True
@@ -5845,12 +5864,15 @@ object frmMain: TfrmMain
       CustomIcon = <
         item
         end>
-      IsSelected = True
-      Size.Width = 68.000000000000000000
+      IsSelected = False
+      Size.Width = 74.000000000000000000
       Size.Height = 49.000000000000000000
       Size.PlatformDefault = False
+      StyleLookup = ''
       TabOrder = 0
       Text = 'tabEverything'
+      ExplicitSize.cx = 68.000000000000000000
+      ExplicitSize.cy = 49.000000000000000000
       object Memo7: TMemo
         Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
         DataDetectorTypes = []
@@ -5906,12 +5928,12 @@ object frmMain: TfrmMain
         StyledSettings = [Family, Style, FontColor]
         TextSettings.Font.Size = 10.000000000000000000
         Align = Bottom
-        Position.Y = 343.000000000000000000
-        Size.Width = 496.000000000000000000
+        Position.Y = -9.000000000000000000
+        Size.Width = 50.000000000000000000
         Size.Height = 59.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 2
-        Viewport.Width = 476.000000000000000000
+        Viewport.Width = 30.000000000000000000
         Viewport.Height = 39.000000000000000000
         object imgSource7: TImage
           MultiResBitmap.Height = 562
@@ -7119,7 +7141,7 @@ object frmMain: TfrmMain
               FileName = 'C:\Users\Graham\Desktop\ks\7.fw.png'
             end>
           Align = Right
-          Position.X = 426.000000000000000000
+          Position.X = -20.000000000000000000
           Size.Width = 50.000000000000000000
           Size.Height = 39.000000000000000000
           Size.PlatformDefault = False
@@ -7131,9 +7153,9 @@ object frmMain: TfrmMain
         ItemImageSize = 40
         Align = Client
         DeleteButton.Text = 'Delete'
-        Size.Width = 496.000000000000000000
-        Size.Height = 343.000000000000000000
+        Size.Width = 50.000000000000000000
         Size.PlatformDefault = False
+        RowIndicators.Visible = True
         TabOrder = 1
         PageCaching.Enabled = True
         ShowSelection = True

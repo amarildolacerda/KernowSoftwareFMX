@@ -1693,7 +1693,7 @@ begin
     if FRow.Image.Bitmap.IsEmpty = False then
       Rect.Offset(FRow.Image.Width+8, 0);
     if (FRow.ListView.RowIndicators.Visible) and (FRow.Purpose = TListItemPurpose.None) then
-      Rect.Offset((FRow.ListView.RowIndicators.Width + 4), 0);
+      Rect.Offset((FRow.ListView.RowIndicators.Width + 8), 0);
   end;
 end;
 
@@ -2134,7 +2134,7 @@ begin
       try
         AIndicatorBmp.Clear(claNull);
 
-        AColorRect := RectF(0, 0, AIndicatorSize.cx*GetScreenScale, AIndicatorSize.cy*GetScreenScale);
+        AColorRect := RectF(0, 0, (AIndicatorSize.cx-AShadowOffset)*GetScreenScale, (AIndicatorSize.cy-AShadowOffset)*GetScreenScale);
 
         AIndicatorBmp.Canvas.BeginScene;
 
