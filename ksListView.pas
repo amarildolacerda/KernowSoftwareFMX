@@ -6754,7 +6754,7 @@ constructor TksListViewRowIndicators.Create;
 begin
   FWidth := C_DEFAULT_INDICATOR_WIDTH;
   FHeight := C_DEFAULT_INDICATOR_HEIGHT;
-  FVisible := True;
+  FVisible := False;
   FShadow := True;
 end;
 
