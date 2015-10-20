@@ -91,7 +91,7 @@ const
   C_ACTION_BTN_ANIMATION_SPEED = 0.2;
 
   C_DEFAULT_INDICATOR_WIDTH = 16;
-  C_DEFAULT_INDICATOR_HEIGHT = 16;
+  C_DEFAULT_INDICATOR_HEIGHT = 0; // default which stretches to row height
 
 type
   TksListView = class;
@@ -1693,7 +1693,7 @@ begin
     if FRow.Image.Bitmap.IsEmpty = False then
       Rect.Offset(FRow.Image.Width+8, 0);
     if (FRow.ListView.RowIndicators.Visible) and (FRow.Purpose = TListItemPurpose.None) then
-      Rect.Offset((FRow.ListView.RowIndicators.Width + 8), 0);
+      Rect.Offset((FRow.ListView.RowIndicators.Width + 4), 0);
   end;
 end;
 
@@ -2069,6 +2069,7 @@ var
   AColorRect: TRectF;
   AIndicatorBmp: TBitmap;
   AShadowOffset: single;
+  AIndicatorSize: TSize;
 begin
   if ListView.FUpdateCount > 0 then
     Exit;
@@ -2120,12 +2121,20 @@ begin
 
     if (FIndicatorColor <> claNull) and (lv.RowIndicators.Visible) then
     begin
-      AShadowOffset := 2;
-      AIndicatorBmp := TBitmap.Create(Round((lv.RowIndicators.Width+AShadowOffset)*GetScreenScale), Round((lv.RowIndicators.Height+AShadowOffset)*GetScreenScale));
+      AShadowOffset := 0;
+      if lv.RowIndicators.Shadow then
+        AShadowOffset := 2;
+
+      AIndicatorSize.cx := Round((lv.RowIndicators.Width+AShadowOffset)*GetScreenScale);
+      AIndicatorSize.Cy := Round((lv.RowIndicators.Height+AShadowOffset)*GetScreenScale);
+      if AIndicatorSize.cy = 0 then
+        AIndicatorSize.cy := Round((FRowHeight-16) * GetScreenScale);
+
+      AIndicatorBmp := TBitmap.Create(AIndicatorSize.cx, AIndicatorSize.cy);
       try
         AIndicatorBmp.Clear(claNull);
 
-        AColorRect := RectF(0, 0, lv.RowIndicators.Width*GetScreenScale, lv.RowIndicators.Height*GetScreenScale);
+        AColorRect := RectF(0, 0, AIndicatorSize.cx*GetScreenScale, AIndicatorSize.cy*GetScreenScale);
 
         AIndicatorBmp.Canvas.BeginScene;
 
