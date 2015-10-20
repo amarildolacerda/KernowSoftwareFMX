@@ -2017,7 +2017,7 @@ begin
         ABitmap.Canvas.FillRect(ARect, ARadius, ARadius, ACorners, 1);
         InflateRect(ARect, 1, 1);
       end;
-      //  
+      //
       {if FShape = ksEllipse then
         ABitmap.Canvas.DrawEllipse(ARect, 1)
       else
@@ -2094,7 +2094,7 @@ begin
   //AMargins := lv.ItemSpaces;
   BeginUpdate;
   try
-    ABmpWidth := (Round(RowWidth)) {- Round((AMargins.Left + AMargins.Right)} * GetScreenScale;
+    ABmpWidth := (Round(RowWidth)) {- Round((AMargins.Left + AMargins.Right)} {* GetScreenScale};
     Bitmap.Height := Trunc(RowHeight);
 
     ADetailHeight := FDetail.CalculateTextHeight;
