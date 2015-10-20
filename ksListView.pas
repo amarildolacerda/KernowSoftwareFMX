@@ -1436,12 +1436,10 @@ begin
     begin
       AAccessoryWidth := 0;
       if (FRow.ShowAccessory) then
-      begin  AAccessoryWidth := FRow.FAccessory.Width + 4;
-      //if FRow.ListView.CheckMarks <> TksListViewCheckMarks.ksCmNone then
-      //  AAccessoryWidth := 100;
-
+        AAccessoryWidth := FRow.FAccessory.Width + 4;
+      if FRow.ListView.CheckMarks <> TksListViewCheckMarks.ksCmNone then
+        AAccessoryWidth := 24;
       OffsetRect(FRect, 0-((AAccessoryWidth )), 0);
-      end;
     end;
   end;
 
