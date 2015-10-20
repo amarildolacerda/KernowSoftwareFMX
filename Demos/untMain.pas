@@ -399,7 +399,7 @@ procedure TfrmMain.lvSegmentButtonsSegmentButtonClicked(Sender: TObject;
 begin
   Label4.Text := ('Segment Click: row index: '+IntToStr(AItem.Index+1)+'   '+
               'button index: '+IntToStr(AButtons.ItemIndex)+#13+'   '+
-              'text: '+AButtons.Captions[AButtons.ItemIndex]);
+              'text: '+AButtons.Selected.Text);
 
 end;
   procedure TfrmMain.lvSegmentButtonsSwitchClick(Sender: TObject;

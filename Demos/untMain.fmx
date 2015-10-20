@@ -206,14 +206,11 @@ object frmMain: TfrmMain
         item
         end>
       IsSelected = False
-      Size.Width = 70.000000000000000000
+      Size.Width = 71.000000000000000000
       Size.Height = 49.000000000000000000
       Size.PlatformDefault = False
-      StyleLookup = ''
       TabOrder = 0
       Text = 'tabListViewIndicators'
-      ExplicitSize.cx = 71.000000000000000000
-      ExplicitSize.cy = 49.000000000000000000
       object ToolBar3: TToolBar
         Align = Bottom
         Position.Y = 358.000000000000000000
@@ -1135,14 +1132,11 @@ object frmMain: TfrmMain
         item
         end>
       IsSelected = False
-      Size.Width = 70.000000000000000000
+      Size.Width = 71.000000000000000000
       Size.Height = 49.000000000000000000
       Size.PlatformDefault = False
-      StyleLookup = ''
       TabOrder = 0
       Text = 'tabProgressBars'
-      ExplicitSize.cx = 71.000000000000000000
-      ExplicitSize.cy = 49.000000000000000000
       object ToolBar9: TToolBar
         Align = Bottom
         Position.Y = 358.000000000000000000
@@ -2257,14 +2251,11 @@ object frmMain: TfrmMain
       TextSettings.Font.Size = 8.000000000000000000
       StyledSettings = [Family, Style, FontColor]
       IsSelected = False
-      Size.Width = 70.000000000000000000
+      Size.Width = 71.000000000000000000
       Size.Height = 49.000000000000000000
       Size.PlatformDefault = False
-      StyleLookup = ''
       TabOrder = 0
       Text = 'tabSegmentButtons'
-      ExplicitSize.cx = 71.000000000000000000
-      ExplicitSize.cy = 49.000000000000000000
       object ToolBar4: TToolBar
         Align = Bottom
         Position.Y = 358.000000000000000000
@@ -3336,14 +3327,11 @@ object frmMain: TfrmMain
         item
         end>
       IsSelected = False
-      Size.Width = 70.000000000000000000
+      Size.Width = 71.000000000000000000
       Size.Height = 49.000000000000000000
       Size.PlatformDefault = False
-      StyleLookup = ''
       TabOrder = 0
       Text = 'tabIndicators'
-      ExplicitSize.cx = 71.000000000000000000
-      ExplicitSize.cy = 49.000000000000000000
       object ToolBar6: TToolBar
         Align = Bottom
         Position.Y = 358.000000000000000000
@@ -4639,14 +4627,11 @@ object frmMain: TfrmMain
         item
         end>
       IsSelected = False
-      Size.Width = 70.000000000000000000
+      Size.Width = 71.000000000000000000
       Size.Height = 49.000000000000000000
       Size.PlatformDefault = False
-      StyleLookup = ''
       TabOrder = 0
       Text = 'tabItemAccessorys'
-      ExplicitSize.cx = 71.000000000000000000
-      ExplicitSize.cy = 49.000000000000000000
       object ToolBar7: TToolBar
         Align = Bottom
         Position.Y = 358.000000000000000000
@@ -5305,14 +5290,11 @@ object frmMain: TfrmMain
         item
         end>
       IsSelected = False
-      Size.Width = 70.000000000000000000
+      Size.Width = 71.000000000000000000
       Size.Height = 49.000000000000000000
       Size.PlatformDefault = False
-      StyleLookup = ''
       TabOrder = 0
       Text = 'tabCheckList'
-      ExplicitSize.cx = 71.000000000000000000
-      ExplicitSize.cy = 49.000000000000000000
       object ToolBar2: TToolBar
         Align = Bottom
         Position.Y = 314.000000000000000000
@@ -5864,14 +5846,11 @@ object frmMain: TfrmMain
         item
         end>
       IsSelected = True
-      Size.Width = 74.000000000000000000
+      Size.Width = 68.000000000000000000
       Size.Height = 49.000000000000000000
       Size.PlatformDefault = False
-      StyleLookup = ''
       TabOrder = 0
       Text = 'tabEverything'
-      ExplicitSize.cx = 68.000000000000000000
-      ExplicitSize.cy = 49.000000000000000000
       object Memo7: TMemo
         Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
         DataDetectorTypes = []

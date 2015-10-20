@@ -90,6 +90,9 @@ const
 
   C_ACTION_BTN_ANIMATION_SPEED = 0.2;
 
+  C_DEFAULT_INDICATOR_WIDTH = 16;
+  C_DEFAULT_INDICATOR_HEIGHT = 16;
+
 type
   TksListView = class;
   TKsListItemRow = class;
@@ -657,7 +660,6 @@ type
     FButtons: TksListItemRowSegmentButtonList;
     FItemIndex: integer;
     FTintColor: TAlphaColor;
-    procedure CaptionsChanged(Sender: TObject);
     procedure SetItemIndex(const Value: integer);
     procedure SetTintColor(const Value: TAlphaColor);
     function GetSelected: TksListItemRowSegmentButton;
@@ -1055,6 +1057,19 @@ type
 
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or pidiOSDevice or pidAndroid)]
 
+  TksListViewRowIndicators = class(TPersistent)
+  private
+    FWidth: integer;
+    FHeight: integer;
+    FVisible: Boolean;
+    FShadow: Boolean;
+  published
+    constructor Create; virtual;
+    property Width: integer read FWidth write FWidth default C_DEFAULT_INDICATOR_WIDTH;
+    property Height: integer read FHeight write FHeight default C_DEFAULT_INDICATOR_HEIGHT;
+    property Visible: Boolean read FVisible write FVisible default False;
+    property Shadow: Boolean read FShadow write FShadow default True;
+  end;
 
   TksListView = class(TCustomListView)
   private
@@ -1081,7 +1096,8 @@ type
     FCheckMarkStyle: TksListViewCheckStyle;
     FUpdateCount: integer;
     FItemImageSize: integer;
-    FShowIndicatorColors: Boolean;
+    //FShowIndicatorColors: Boolean;
+    FRowIndicators: TksListViewRowIndicators;
     FIsShowing: Boolean;
     FItems: TKsListItemRows;
     FCombo: TComboBox;
@@ -1133,7 +1149,7 @@ type
     procedure ReleaseAllDownButtons;
     procedure SetCheckMarkStyle(const Value: TksListViewCheckStyle);
     procedure SetItemImageSize(const Value: integer);
-    procedure SetShowIndicatorColors(const Value: Boolean);
+    //procedure SetShowIndicatorColors(const Value: Boolean);
     function AddItem: TListViewItem;
     procedure SelectDate(ARow: TKsListItemRow; ASelected: TDAteTime; AOnSelectDate: TNotifyEvent);
     procedure SelectItem(ARow: TKsListItemRow; AItems: TStrings; ASelected: string; AOnSelectItem: TNotifyEvent);
@@ -1249,7 +1265,9 @@ type
     property Scale;
     property SelectOnRightClick: Boolean read FSelectOnRightClick write FSelectOnRightClick default False;
     property Size;
-    property ShowIndicatorColors: Boolean read FShowIndicatorColors write SetShowIndicatorColors default False;
+    property RowIndicators: TksListViewRowIndicators read FRowIndicators write FRowIndicators;
+
+    //property ShowIndicatorColors: Boolean read FShowIndicatorColors write SetShowIndicatorColors default False;
     property TabOrder;
     property TabStop;
     property Visible default True;
@@ -1674,8 +1692,8 @@ begin
   begin
     if FRow.Image.Bitmap.IsEmpty = False then
       Rect.Offset(FRow.Image.Width+8, 0);
-    if (FRow.ListView.ShowIndicatorColors) and (FRow.Purpose = TListItemPurpose.None) then
-      Rect.Offset(24, 0);
+    if (FRow.ListView.RowIndicators.Visible) and (FRow.Purpose = TListItemPurpose.None) then
+      Rect.Offset((FRow.ListView.RowIndicators.Width + 8), 0);
   end;
 end;
 
@@ -2100,22 +2118,25 @@ begin
     if Assigned(ABeforeCache) then
       ABeforeCache(lv, Bitmap.Canvas, Self, RectF(0, 0, Bitmap.Width, Bitmap.Height));
 
-    if (FIndicatorColor <> claNull) and (lv.ShowIndicatorColors) then
+    if (FIndicatorColor <> claNull) and (lv.RowIndicators.Visible) then
     begin
       AShadowOffset := 2;
-      AIndicatorBmp := TBitmap.Create(Round((16+AShadowOffset)*GetScreenScale), Round((16+AShadowOffset)*GetScreenScale));
+      AIndicatorBmp := TBitmap.Create(Round((lv.RowIndicators.Width+AShadowOffset)*GetScreenScale), Round((lv.RowIndicators.Height+AShadowOffset)*GetScreenScale));
       try
         AIndicatorBmp.Clear(claNull);
 
-        AColorRect := RectF(0, 0, 16*GetScreenScale, 16*GetScreenScale);
+        AColorRect := RectF(0, 0, lv.RowIndicators.Width*GetScreenScale, lv.RowIndicators.Height*GetScreenScale);
 
         AIndicatorBmp.Canvas.BeginScene;
 
         // shadow...
-        OffsetRect(AColorRect, AShadowOffset, AShadowOffset);
-        AIndicatorBmp.Canvas.Fill.Color := claDimgray;
-        AIndicatorBmp.Canvas.FillRect(AColorRect, 0, 0, AllCorners, 1);
-        OffsetRect(AColorRect, 0-AShadowOffset, 0-AShadowOffset);
+        if lv.RowIndicators.Shadow then
+        begin
+          OffsetRect(AColorRect, AShadowOffset, AShadowOffset);
+          AIndicatorBmp.Canvas.Fill.Color := claDimgray;
+          AIndicatorBmp.Canvas.FillRect(AColorRect, 0, 0, AllCorners, 1);
+          OffsetRect(AColorRect, 0-AShadowOffset, 0-AShadowOffset);
+        end;
 
 
         AIndicatorBmp.Canvas.Stroke.Color := claBlack;
@@ -3300,6 +3321,7 @@ begin
   FMouseEvents := TksMouseEventList.Create;
   FItems := TKsListItemRows.Create(Self, inherited Items);
   FCombo := nil;
+  FRowIndicators := TksListViewRowIndicators.Create;
   FActionButtons := TksListItemRowActionButtons.Create(Self);
   FPageCaching := TksPageCaching.Create;
   FDeleteButton := TksDeleteButton.Create;
@@ -3338,7 +3360,7 @@ begin
   FCheckMarks := ksCmNone;
   FCheckMarkStyle := ksCmsDefault;
   FItemImageSize := 32;
-  FShowIndicatorColors := False;
+  //FShowIndicatorColors := False;
   FKeepSelection := False;
   ItemSpaces.Right := 0;
   ItemSpaces.Left := 0;
@@ -3408,6 +3430,7 @@ begin
   FreeAndNil(FPageCaching);
   FreeAndNil(FDeleteButton);
   FreeAndNil(FMouseEvents);
+  FreeAndNil(FRowIndicators);
   //FreeAndNil(FEmbeddedControls);
   // destroy FMX timers...
 
@@ -3741,12 +3764,12 @@ begin
   end;
   Repaint;
 end;
-
+          {
 procedure TksListView.SetShowIndicatorColors(const Value: Boolean);
 begin
   FShowIndicatorColors := Value;
   RedrawAllRows;
-end;
+end;    }
 
 procedure TksListView.SetShowSelection(const Value: Boolean);
 begin
@@ -4825,11 +4848,6 @@ end;
 procedure TksListItemRowSegmentButtons.AddButton(AText, AID: string);
 begin
   FButtons.AddButton(AText, AID);
-end;
-
-procedure TksListItemRowSegmentButtons.CaptionsChanged(Sender: TObject);
-begin
-  Changed;
 end;
 
 procedure TksListItemRowSegmentButtons.Clear;
@@ -6719,6 +6737,16 @@ begin
   Result.Text := AText;
   Result.ID := AId;
   Add(Result);
+end;
+
+{ TksListViewRowIndicators }
+
+constructor TksListViewRowIndicators.Create;
+begin
+  FWidth := C_DEFAULT_INDICATOR_WIDTH;
+  FHeight := C_DEFAULT_INDICATOR_HEIGHT;
+  FVisible := True;
+  FShadow := True;
 end;
 
 initialization
