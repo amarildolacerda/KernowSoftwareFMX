@@ -59,7 +59,6 @@ const
   C_DEFAULT_SELECTED_FONT_COLOR = claWhite;
   C_DEFAULT_FONT_COLOR = claBlack;
   C_DEFAULT_BACKGROUND_COLOR = claWhite;
-  C_DEFAULT_HEADER_COLOR = claGainsboro;
   C_DEFAULT_TOOLBAR_COLOR = claWhite;
 
 type
@@ -162,7 +161,7 @@ type
     [weak]FSlideMenu: TksSlideMenu;
     FToolBar: TksSlideMenuToolbar;
     FListView: TksListView;
-    procedure UpdateSelectedItem;
+   // procedure UpdateSelectedItem;
     procedure CreateListView;
     function CalculateListViewHeight: single;
     procedure ItemClick(Sender: TObject; x, y: Single; AItem: TKsListItemRow; AId: string; ARowObj: TksListItemRowObj);
@@ -507,9 +506,9 @@ begin
   FItemIndex := AItem.Index;
   if Assigned(FOnSelectMenuItemEvent) then
     FOnSelectMenuItemEvent(Self, AId);
-  Application.ProcessMessages;
+  //Application.ProcessMessages;
   GenerateFormImage(FFormImage.Position.X);
-  Application.ProcessMessages;
+  //Application.ProcessMessages;
   ToggleMenu;
 end;
 
@@ -604,8 +603,8 @@ begin
     FItemIndex := lv.ItemIndex;
     lv.ScrollTo(FItemIndex);
   end;
-  if (FItemIndex > -1) and (FItemIndex <= lv.Items.Count-1) then
-    lv.Items[FItemIndex].BackgroundColor := ASelectedColor;
+  //if (FItemIndex > -1) and (FItemIndex <= lv.Items.Count-1) then
+  //  lv.Items[FItemIndex].BackgroundColor := ASelectedColor;
 end;
 
 procedure TksSlideMenu.SetItemIndex(const Value: integer);
@@ -686,7 +685,7 @@ begin
     begin
       FMenu.ListView.ItemIndex := FItemIndex;
       FMenu.FToolBar.UpdateToolbar;
-      FMenu.UpdateSelectedItem;
+     //FMenu.UpdateSelectedItem;
     end;
     FMenu.HitTest := False;
 
@@ -846,6 +845,8 @@ begin
   FTheme := mtCustom;
 end;
 
+
+
 procedure TksSlideMenuAppearence.SetItemColor(const Value: TAlphaColor);
 begin
   FItemColor := Value;
@@ -868,21 +869,21 @@ procedure TksSlideMenuAppearence.SetTheme(const Value: TKsMenuTheme);
 begin
   if Value = mtDarkGray then
   begin
-    FHeaderColor := $FF323232;
+    FHeaderColor := $FF424242;
     FToolBarColor := $FF323232;
     FItemColor := $FF222222;
     FFontColor := claWhite;
     FSelectedFontColor := claWhite;
     FSelectedColor := claRed;
   end;
-  if Value = mtDarkBlue then
+if Value = mtDarkBlue then
   begin
-    FHeaderColor := $FF001C6F;
-    FToolBarColor := $FF001C6F;
-    FItemColor := $FF001451;
+    FHeaderColor := $FF2A7A9D;
+    FToolBarColor := $FF323232;
+    FItemColor := $FF424242;
     FFontColor := claWhite;
-    FSelectedFontColor := claWhite;
-    FSelectedColor := claRed;
+    FSelectedFontColor := claBlack;
+    FSelectedColor := $FF00F6FF;
   end;
   FTheme := Value;
 end;
@@ -923,7 +924,7 @@ begin
   FListView := TksListView.Create(Self);
   FListView.KeepSelection := True;
   FListView.CanSwipeDelete := False;
-  FListView.ShowSelection := False;
+  //FListView.ShowSelection := False;
   FListView.OnItemClick := ItemClick;
   FListView.Align := TAlignLayout.Client;
   FListView.FullWidthSeparator := True;
@@ -949,36 +950,10 @@ begin
   if HitTest = False then
     Exit;
   HitTest := False;
-  UpdateSelectedItem;
+  //UpdateSelectedItem;
   Sleep(200);
 
   FSlideMenu.MenuItemSelected(Self, x, y, AItem, AId, ARowObj);
-end;
-
-procedure TksSlideMenuContainer.UpdateSelectedItem;
-var
-  ICount: integer;
-  lv: TksListView;
-begin
-  lv := FListView;
-  if lv.ItemIndex = -1 then
-  begin
-    lv.SelectFirstItem;
-  end;
-  for ICount := 0 to lv.Items.Count-1 do
-  begin
-    if lv.ItemIndex = ICount then
-    begin
-      lv.Items[ICount].BackgroundColor := GetColorOrDefault(FSlideMenu.Appearence.SelectedItemColor, C_DEFAULT_SELECTED_COLOR);
-      lv.Items[ICount].SetRowTextColor(GetColorOrDefault(FSlideMenu.Appearence.SelectedFontColor, C_DEFAULT_SELECTED_FONT_COLOR));
-    end
-    else
-    begin
-      lv.Items[ICount].BackgroundColor := FSlideMenu.Appearence.ItemColor;
-      lv.Items[ICount].SetRowTextColor(GetColorOrDefault(FSlideMenu.Appearence.FontColor, C_DEFAULT_FONT_COLOR));
-    end;
-  end;
-  Application.ProcessMessages;
 end;
 
 { TksSlideMenuToolbar }

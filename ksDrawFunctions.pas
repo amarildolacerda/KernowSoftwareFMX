@@ -55,10 +55,6 @@ type
   procedure DrawSwitch(ACanvas: TCanvas; ARect: TRectF; AChecked, AEnabled: Boolean; ASelectedColor: TAlphaColor);
   procedure DrawButton(ACanvas: TCanvas; ARect: TRectF; AText: string; ASelected: Boolean; AColor: TAlphaColor; AStyle: TksButtonStyle);
 
-  {procedure DrawAccessory(ACanvas: TCanvas; ARect: TRectF; AColor: TAlphaColor; AAccessory: TAccessoryType);
-  procedure DrawCheckMarkAccessory(ACanvas: TCanvas; ARect: TRectF; AColor: TAlphaColor);
-  procedure DrawMoreAccessory(ACanvas: TCanvas; ARect: TRectF; AColor: TAlphaColor);
-  }
   function TextWidth(AText: string; AFont: TFont): single;
   function TextHeight(AText: string; AFont: TFont; AWordWrap: Boolean; const AWidth: single = 0): single;
 
