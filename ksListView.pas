@@ -968,6 +968,7 @@ type
     function GetItems(index: integer): TKsListItemRow;
     procedure ReindexRows;
     function KsRowFromRow(AIndex: integer): TKsListItemRow;
+    function GetRowByID(AID: string): TKsListItemRow;
   public
     constructor Create(AListView: TksListView; AItems: TksListViewItems) ; virtual;
 
@@ -1004,6 +1005,7 @@ type
     property CheckedCount: integer read GetCheckedCount;
     property Count: integer read GetCount;
     property Items[index: integer]: TKsListItemRow read GetItems; default;
+    property RowByRowID[AID: string]: TKsListItemRow read GetRowByID;
   end;
 
   // ------------------------------------------------------------------------------
@@ -1062,7 +1064,6 @@ type
 
   // ------------------------------------------------------------------------------
 
-  [ComponentPlatformsAttribute(pidWin32 or pidWin64 or pidiOSDevice or pidAndroid)]
 
   TksListViewRowIndicators = class(TPersistent)
   private
@@ -1078,6 +1079,7 @@ type
     property Shadow: Boolean read FShadow write FShadow default True;
   end;
 
+  [ComponentPlatformsAttribute(pidWin32 or pidWin64 or pidiOSDevice or pidAndroid)]
   TksListView = class(TCustomListView)
   private
     FScreenScale: single;
@@ -5160,6 +5162,23 @@ end;
 function TKsListItemRows.GetItems(index: integer): TKsListItemRow;
 begin
   Result := KsRowFromRow(index);
+end;
+
+function TKsListItemRows.GetRowByID(AID: string): TKsListItemRow;
+var
+  ICount: integer;
+begin
+  Result := nil;
+  if AId = '' then
+    Exit;
+  for ICount := 0 to Count-1 do
+  begin
+    if Items[ICount].ID = AID then
+    begin
+      Result := Items[ICount];
+      Exit;
+    end;
+  end;
 end;
 
 function TKsListItemRows.KsRowFromRow(AIndex: integer): TKsListItemRow;
