@@ -2080,8 +2080,9 @@ var
 begin
   if AForceRedraw then FCached := False;
 
-  if ListView.FUpdateCount > 0 then
+  if (ListView.FUpdateCount > 0) and (AForceRedraw = False) then
     Exit;
+
   if FCached then
     Exit;
 
@@ -2127,13 +2128,16 @@ begin
       Bitmap.Clear(GetColorOrDefault(lv.Appearence.HeaderColor, C_DEFAULT_HEADER_COLOR))
     else
     begin
-      if FBackgroundColor <> claNull then
-        Bitmap.Clear(FBackgroundColor)
+      if Index = lv.ItemIndex then
+        Bitmap.Clear(GetColorOrDefault(lv.Appearence.SelectedColor, C_DEFAULT_SELECTED_COLOR))
       else
-        Bitmap.Clear(lv.Appearence.ItemBackground);
+      begin
+        if FBackgroundColor <> claNull then
+          Bitmap.Clear(FBackgroundColor)
+        else
+          Bitmap.Clear(lv.Appearence.ItemBackground);
+      end;
     end;
-    if Index = lv.ItemIndex then
-      Bitmap.Clear(GetColorOrDefault(lv.Appearence.SelectedColor, C_DEFAULT_SELECTED_COLOR));
 
     Bitmap.Canvas.BeginScene;
 
@@ -3627,6 +3631,7 @@ begin
       Result.AutoCheck := True;
     Result.Name := 'ksRow';
     Result.ShowAccessory := AAccessory <> atNone;
+    Result.CanSelect := AAccessory <> atNone;
     Result.Accessory := AAccessory;
 
     Result.SetFontProperties('', AFontSize, AFontColor, []);
@@ -3799,14 +3804,14 @@ var
   ALastIndex: integer;
 begin
   ALastIndex := FItemIndex;
-  if ItemIndex <> Value then
+  //if ItemIndex <> Value then
   begin
     FItemIndex := Value;
     if ALastIndex > -1 then Items[ALastIndex].CacheRow(True);
     if FItemIndex > -1 then Items[FItemIndex].CacheRow(True);
-    inherited ItemIndex := Value;
-    Repaint;
-    Application.ProcessMessages;
+    //inherited ItemIndex := Value;
+    //Repaint;
+    //Application.ProcessMessages;
   end;
 end;
 
