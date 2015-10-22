@@ -3810,7 +3810,7 @@ begin
     if ALastIndex > -1 then Items[ALastIndex].CacheRow(True);
     if FItemIndex > -1 then Items[FItemIndex].CacheRow(True);
     //inherited ItemIndex := Value;
-    //Repaint;
+    Invalidate;
     //Application.ProcessMessages;
   end;
 end;
