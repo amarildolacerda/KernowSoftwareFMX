@@ -1086,6 +1086,7 @@ type
     FAppearence: TksListViewAppearence;
     FOnItemClick: TksListViewRowClickEvent;
     FOnItemRightClick: TksListViewRowClickEvent;
+    FMouseDownRow: TKsListItemRow;
     FMouseDownPos: TPointF;
     FCurrentMousepos: TPointF;
     FItemHeight: integer;
@@ -1151,6 +1152,7 @@ type
     FOnEmbeddedSpinBoxChange: TksEmbeddedSpinBoxChange;
     FOnEmbeddedTrackBarChange: TksEmbeddedTrackBarChange;
     FItemIndex: integer;
+    FMouseDownTimer: TFmxHandle;
     function GetSearchBoxHeight: single;
     function _Items: TksListViewItems;
     procedure DoScrollTimer;
@@ -1189,7 +1191,7 @@ type
     procedure RowOptionSelected(ARow: TKsListItemRow; AIndex: integer; ASelected: string);
 
     procedure SetItemIndex(const Value: integer);
-
+    procedure DoMouseDownDelayed;
     //procedure DoAfterShow;
     { Private declarations }
   protected
@@ -2128,7 +2130,7 @@ begin
       Bitmap.Clear(GetColorOrDefault(lv.Appearence.HeaderColor, C_DEFAULT_HEADER_COLOR))
     else
     begin
-      if Index = lv.ItemIndex then
+      if (Index = lv.ItemIndex) and (lv.ShowSelection) and (CanSelect = True) then
         Bitmap.Clear(GetColorOrDefault(lv.Appearence.SelectedColor, C_DEFAULT_SELECTED_COLOR))
       else
       begin
@@ -3420,6 +3422,12 @@ begin
   FTimerService.DestroyTimer(FDeselectTimer);
 end;
 
+procedure TksListView.DoMouseDownDelayed;
+begin
+  FTimerService.DestroyTimer(FMouseDownTimer);
+  ItemIndex := FMouseDownRow.Index;
+end;
+
 procedure TksListView.DeselectRow(const ADelay: integer = 0);
 begin
   if ADelay > 0 then
@@ -3804,14 +3812,12 @@ var
   ALastIndex: integer;
 begin
   ALastIndex := FItemIndex;
-  //if ItemIndex <> Value then
   begin
     FItemIndex := Value;
     if ALastIndex > -1 then Items[ALastIndex].CacheRow(True);
     if FItemIndex > -1 then Items[FItemIndex].CacheRow(True);
-    //inherited ItemIndex := Value;
+    inherited ItemIndex := Value;
     Invalidate;
-    //Application.ProcessMessages;
   end;
 end;
 
@@ -4029,6 +4035,7 @@ begin
   FItems.ReindexRows;
   if Assigned(FOnDeleteItem) then
     FOnDeleteItem(Sender, AIndex);
+  FItemIndex := inherited ItemIndex;
 end;
 
 procedure TksListView.DoRenderRow(ARow: TKsListItemRow);
@@ -4379,7 +4386,7 @@ end;
 procedure TksListView.MouseDown(Button: TMouseButton; Shift: TShiftState;
   x, y: single);
 var
-  ARow: TKsListItemRow;
+  //ARow: TKsListItemRow;
   ARowRect: TRectF;
 begin
 
@@ -4396,20 +4403,20 @@ begin
 
   inherited;
 
-  ARow := GetRowFromYPos(y);
-  if (y < 0) or (ARow = nil) then
+  FMouseDownRow := GetRowFromYPos(y);
+  if (y < 0) or (FMouseDownRow = nil) then
     Exit;
 
   FMouseDownPos := PointF(x-ItemSpaces.Left, y);
   FMouseDownTime := Now;
 
-  if (ARow.CanSelect = False) and (ItemIndex = ARow.Index) then
+  if (FMouseDownRow.CanSelect = False) and (ItemIndex = FMouseDownRow.Index) then
     DeselectRow;
 
-  ARowRect := GetItemRect(ARow.Index);
+  ARowRect := GetItemRect(FMouseDownRow.Index);
 
   FLastIndex := ItemIndex;
-  FClickedRowObj := RowObjectAtPoint(ARow, x, y - ARowRect.Top);
+  FClickedRowObj := RowObjectAtPoint(FMouseDownRow, x, y - ARowRect.Top);
   if FClickedRowObj <> nil then
   begin
     if FClickedRowObj.ConsumesRowClick then
@@ -4426,12 +4433,13 @@ begin
     FClickedRowObj.MouseDown;
   end;
 
-
-  if ARow.CanSelect = False then
+  if FMouseDownRow.CanSelect = False then
   begin
     ItemIndex := FLastIndex;
     Invalidate;
-  end;
+  end
+  else
+    FMouseDownTimer := FTimerService.CreateTimer(200, DoMouseDownDelayed)
 end;
 
 
@@ -4563,9 +4571,6 @@ begin
         end;
       end;
 
-      // apply deselect affect if required...
-      if (FKeepSelection = False) and (ItemIndex > -1) then
-        DeselectRow(300);
 
 
       ARowRect := GetItemRect(ARow.Index);
@@ -4629,12 +4634,19 @@ begin
     begin
       // mouse up was after scrolling...
     end;
+
+      // apply deselect affect if required...
+      if (FKeepSelection = False) and (ItemIndex > -1) then
+        DeselectRow(300);
+
   finally
 
 
     ReleaseAllDownButtons;
     //FDisableMouseMove := False;
     FMouseDownPos := PointF(-1, -1);
+   // if FKeepSelection = False then
+   //   ItemIndex := -1;
   end;
 end;
 
@@ -5219,6 +5231,7 @@ begin
   if (index > -1) and (index <= (Count-1)) then
   begin
     FListView._Items.Delete(index);
+    FListView.ItemIndex := -1;
     ReindexRows;
   end;
 end;

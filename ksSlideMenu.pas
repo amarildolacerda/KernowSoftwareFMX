@@ -35,7 +35,7 @@ interface
   {$DEFINE XE10_OR_NEWER}
 {$ENDIF}
 
-{.$DEFINE ADD_SAMPLE_MENU_ITEMS}
+{$DEFINE ADD_SAMPLE_MENU_ITEMS}
 
 
 uses System.UITypes, FMX.Controls, FMX.Layouts, FMX.Objects, System.Classes,
@@ -47,26 +47,31 @@ uses System.UITypes, FMX.Controls, FMX.Layouts, FMX.Objects, System.Classes,
   ;
 
 const
-  C_MENU_WIDTH = 250;
-  C_DEFAULT_TOOLBAR_HEIGHT = 44;
-  C_DEFAULT_HEADER_HEIGHT = 30;
-  C_DEFAULT_ITEM_HEIGHT = 50;
-  C_DEFAULT_FONT_SIZE = 14;
-  C_DEFAULT_TOOLBAR_FONT_SIZE = 14;
-  C_DEFAULT_SLIDE_SPEED = 0.2;
+  C_DEFAULT_MENU_WIDTH = 250;
+  C_DEFAULT_MENU_TOOLBAR_HEIGHT = 44;
 
-  C_DEFAULT_SELECTED_COLOR = claWhite;
-  C_DEFAULT_SELECTED_FONT_COLOR = claWhite;
-  C_DEFAULT_FONT_COLOR = claBlack;
-  C_DEFAULT_BACKGROUND_COLOR = claWhite;
-  C_DEFAULT_TOOLBAR_COLOR = claWhite;
+  C_DEFAULT_MENU_HEADER_HEIGHT = 30;
+  C_DEFAULT_MENU_HEADER_FONT_SIZE = 16;
+  C_DEFAULT_MENU_HEADER_TEXT_COLOR = claWhite;
+  C_DEFAULT_MENU_HEADER_COLOR = $FF323232;
+
+  C_DEFAULT_MENU_ITEM_HEIGHT = 50;
+  C_DEFAULT_MENU_FONT_SIZE = 14;
+  C_DEFAULT_MENU_TOOLBAR_FONT_SIZE = 14;
+  C_DEFAULT_MENU_SLIDE_SPEED = 0.2;
+
+  C_DEFAULT_MENU_SELECTED_COLOR = claWhite;
+  C_DEFAULT_MENU_SELECTED_FONT_COLOR = claWhite;
+  C_DEFAULT_MENU_FONT_COLOR = claBlack;
+  C_DEFAULT_MENU_BACKGROUND_COLOR = claWhite;
+  C_DEFAULT_MENU_TOOLBAR_COLOR = claWhite;
 
 type
   TSelectMenuItemEvent = procedure(Sender: TObject; AId: string) of object;
 
   TksMenuPosition = (mpLeft, mpRight);
   TKsMenuStyle = (msOverlap, msReveal);
-  TKsMenuTheme = (mtCustom, mtDarkGray, mtDarkBlue);
+  TKsMenuTheme = (mtCustom, mtDarkGray, mtDarkBlue, mtDarkOrange, mtDarkGreen, mtLightGray, mtLightBlue, mtLightOrange, mtLightGreen);
 
   TksSlideMenu = class;
 
@@ -101,6 +106,7 @@ type
   private
     [weak]FSlideMenu: TksSlideMenu;
     FHeaderColor: TAlphaColor;
+    FHeaderFontColor: TAlphaColor;
     FItemColor: TAlphaColor;
     FFontColor: TAlphaColor;
     FSelectedColor: TAlphaColor;
@@ -108,6 +114,7 @@ type
     FTheme: TKsMenuTheme;
     FToolBarColor: TAlphaColor;
     procedure SetHeaderColor(const Value: TAlphaColor);
+    procedure SetHeaderFontColor(const Value: TAlphaColor);
     procedure SetItemColor(const Value: TAlphaColor);
     procedure SetFontColor(const Value: TAlphaColor);
     procedure SetSelectedColor(const Value: TAlphaColor);
@@ -117,7 +124,8 @@ type
   public
     constructor Create(ASlideMenu: TksSlideMenu); virtual;
   published
-    property HeaderColor: TAlphaColor read FHeaderColor write SetHeaderColor default $FF323232;
+    property HeaderColor: TAlphaColor read FHeaderColor write SetHeaderColor default C_DEFAULT_MENU_HEADER_COLOR;
+    property HeaderFontColor: TAlphaColor read FHeaderFontColor write SetHeaderFontColor default C_DEFAULT_MENU_HEADER_TEXT_COLOR;
     property ItemColor: TAlphaColor read FItemColor write SetItemColor default $FF222222;
     property FontColor: TAlphaColor read FFontColor write SetFontColor default claWhite;
     property SelectedItemColor: TAlphaColor read FSelectedColor write SetSelectedColor default claRed;
@@ -147,7 +155,7 @@ type
     constructor Create(AOwner: TComponent; ASlideMenu: TksSlideMenu); virtual;
     destructor Destroy; override;
     procedure UpdateToolbar;
-    property Height: integer read FHeight default  C_DEFAULT_TOOLBAR_HEIGHT;
+    property Height: integer read FHeight default  C_DEFAULT_MENU_TOOLBAR_HEIGHT;
   published
     property Bitmap: TBitmap read GetBitmap write SetBitmap;
     property Visible: Boolean read FVisible write FVisible default True;
@@ -185,6 +193,7 @@ type
     FFormImage: TImage;
     FMenuImage: TImage;
     FFont: TFont;
+    FHeaderFont: TFont;
     FShowing: Boolean;
     FTopPadding: integer;
     FMenuPosition: TksMenuPosition;
@@ -200,6 +209,11 @@ type
     FItemHeight: integer;
     FToggleButton: TCustomButton;
     FAnimating: Boolean;
+
+    FHeaderTextAlign: TTextAlign;
+    FItemTextAlign: TTextAlign;
+    FSelectFirstItem: Boolean;
+
     procedure SetTopPadding(const Value: integer);
     procedure DoBackgroundClick(Sender: TObject);
     //procedure FadeBackground;
@@ -237,11 +251,12 @@ type
   published
     property Appearence: TksSlideMenuAppearence read FAppearence write FAppearence;
     property Font: TFont read FFont write FFont;
+    property HeaderFont: TFont read FHeaderFont write FHeaderFont;
     {$IFDEF XE8_OR_NEWER}
     property Images: TCustomImageList read FImages write FImages;
     {$ENDIF}
-    property ItemHeight: integer read FItemHeight write FItemHeight default C_DEFAULT_ITEM_HEIGHT;
-    property HeaderHeight: integer read FHeaderHeight write FHeaderHeight default C_DEFAULT_HEADER_HEIGHT;
+    property ItemHeight: integer read FItemHeight write FItemHeight default C_DEFAULT_MENU_ITEM_HEIGHT;
+    property HeaderHeight: integer read FHeaderHeight write FHeaderHeight default C_DEFAULT_MENU_HEADER_HEIGHT;
     property TopPadding: integer read FTopPadding write SetTopPadding default 0;
     property MenuPosition: TksMenuPosition read FMenuPosition write FMenuPosition default mpLeft;
     property MenuStyle: TKsMenuStyle read FMenuStyle write FMenuStyle default msReveal;
@@ -251,7 +266,9 @@ type
     property Toolbar: TksSlideMenuToolbar read GetToolbar write SetToolbar;
     property ToggleButton: TCustomButton read FToggleButton write SetToggleButton;
     property OnAfterSlideOut: TNotifyEvent read FOnAfterSlideOut write FOnAfterSlideOut;
-
+    property HeaderTextAlign: TTextAlign read FHeaderTextAlign write FHeaderTextAlign default TTextAlign.Leading;
+    property ItemTextAlign: TTextAlign read FItemTextAlign write FItemTextAlign default TTextAlign.Leading;
+    property SelectFirstItem: Boolean read FSelectFirstItem write FSelectFirstItem default True;
   end;
 
   procedure Register;
@@ -313,28 +330,33 @@ constructor TksSlideMenu.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
   FFont := TFont.Create;
+  FHeaderFont := TFont.Create;
   FItems := TksSlideMenuItems.Create;
   FAppearence := TksSlideMenuAppearence.Create(Self);
   FMenu := TksSlideMenuContainer.Create(Self);
   FFormImage := TImage.Create(Self);
   FBackground := TRectangle.Create(Self);
 
+  FHeaderTextAlign := TTextAlign.Leading;
+  FItemTextAlign := TTextAlign.Leading;
+
   FShowing := False;
   FTopPadding := 0;
-  FFont.Size := C_DEFAULT_FONT_SIZE;
+  FFont.Size := C_DEFAULT_MENU_FONT_SIZE;
+  FHeaderFont.Size := C_DEFAULT_MENU_HEADER_FONT_SIZE;
   FFormImage.OnClick := DoBackgroundClick;
   FMenuPosition := mpLeft;
   FMenuStyle := msReveal;
-  FSlideSpeed := C_DEFAULT_SLIDE_SPEED;
-  FHeaderHeight := C_DEFAULT_HEADER_HEIGHT;
-  FItemHeight := C_DEFAULT_ITEM_HEIGHT;
+  FSlideSpeed := C_DEFAULT_MENU_SLIDE_SPEED;
+  FHeaderHeight := C_DEFAULT_MENU_HEADER_HEIGHT;
+  FItemHeight := C_DEFAULT_MENU_ITEM_HEIGHT;
   //FItemIndex := -1;
 
   {$IFNDEF ANDROID}
   FShadowLeft := TImage.Create(Self);
   FShadowRight := TImage.Create(Self);
   GenerateShadows;
-
+  FSelectFirstItem := True;
   {$ENDIF}
   FAnimating := False;
 end;
@@ -342,6 +364,7 @@ end;
 destructor TksSlideMenu.Destroy;
 begin
   FreeAndNil(FFont);
+  FreeAndNil(FHeaderFont);
   FreeAndNil(FAppearence);
   FreeAndNil(FItems);
   inherited;
@@ -488,7 +511,7 @@ begin
   if True then
 
   if Toolbar.Visible then
-    Result := C_DEFAULT_TOOLBAR_HEIGHT;
+    Result := C_DEFAULT_MENU_TOOLBAR_HEIGHT;
 end;
 
 procedure TksSlideMenu.HidePickers;
@@ -502,12 +525,9 @@ end;
 procedure TksSlideMenu.MenuItemSelected(Sender: TObject; x, y: single;
   AItem: TKsListItemRow; AId: string; ARowObj: TksListItemRowObj);
 begin
-  //FItemIndex := AItem.Index;
   if Assigned(FOnSelectMenuItemEvent) then
     FOnSelectMenuItemEvent(Self, AId);
-  //Application.ProcessMessages;
   GenerateFormImage(FFormImage.Position.X);
-  //Application.ProcessMessages;
   ToggleMenu;
 end;
 
@@ -527,7 +547,7 @@ var
   ARow: TKsListItemRow;
   lv: TksListView;
   ASelectedColor: TAlphaColor;
-  AFontColor: TAlphaColor;
+  AFontColor, AHeaderFontColor: TAlphaColor;
 begin
   if FMenu.ListView = nil then
     Exit;
@@ -538,19 +558,20 @@ begin
   lv.Position.Y := 0;
   lv.Repaint;
 
-  lv.Position.Y := 0;//GetToolbarHeight;;
+  lv.Position.Y := GetToolbarHeight;;
 
-  lv.Width := C_MENU_WIDTH;
+  lv.Width := C_DEFAULT_MENU_WIDTH;
 
 
-  FMenu.Width := C_MENU_WIDTH;
-  AFontColor := GetColorOrDefault(FAppearence.FontColor, C_DEFAULT_FONT_COLOR);
-  ASelectedColor := GetColorOrDefault(FAppearence.SelectedItemColor, C_DEFAULT_SELECTED_COLOR);
+  FMenu.Width := C_DEFAULT_MENU_WIDTH;
+  AFontColor := GetColorOrDefault(FAppearence.FontColor, C_DEFAULT_MENU_FONT_COLOR);
+  AHeaderFontColor := GetColorOrDefault(FAppearence.HeaderFontColor, C_DEFAULT_MENU_HEADER_TEXT_COLOR);
+  ASelectedColor := GetColorOrDefault(FAppearence.SelectedItemColor, C_DEFAULT_MENU_SELECTED_COLOR);
 
-  lv.Appearence.Background := GetColorOrDefault(FAppearence.ItemColor, C_DEFAULT_BACKGROUND_COLOR);
-  lv.Appearence.ItemBackground := GetColorOrDefault(FAppearence.ItemColor, C_DEFAULT_BACKGROUND_COLOR);
-  lv.Appearence.HeaderColor := GetColorOrDefault(FAppearence.HeaderColor, C_DEFAULT_HEADER_COLOR);
-  lv.Appearence.SeparatorColor := GetColorOrDefault(FAppearence.HeaderColor, C_DEFAULT_HEADER_COLOR);
+  lv.Appearence.Background := GetColorOrDefault(FAppearence.ItemColor, C_DEFAULT_MENU_BACKGROUND_COLOR);
+  lv.Appearence.ItemBackground := GetColorOrDefault(FAppearence.ItemColor, C_DEFAULT_MENU_BACKGROUND_COLOR);
+  lv.Appearence.HeaderColor := GetColorOrDefault(FAppearence.HeaderColor, C_DEFAULT_MENU_HEADER_COLOR);
+  lv.Appearence.SeparatorColor := GetColorOrDefault(FAppearence.HeaderColor, C_DEFAULT_MENU_HEADER_COLOR);
   lv.Appearence.SelectedColor := ASelectedColor;
 
   lv.HeaderHeight := FHeaderHeight;
@@ -584,35 +605,28 @@ begin
     begin
       AItem := FItems[ICount];
       if AItem.IsHeader then
-        ARow := lv.Items.AddHeader(AItem.Text)
+      begin
+        ARow := lv.Items.AddHeader(AItem.Text);
+        ARow.Title.Font.Assign(FHeaderFont);
+        ARow.Title.TextColor := AHeaderFontColor;
+        ARow.Title.TextAlignment:= FHeaderTextAlign;
+      end
       else
       begin
         ARow := lv.Items.AddRow(AItem.Text, '', '', atMore);
         ARow.Image.Bitmap.Assign(AItem.Image);
         ARow.ID := AItem.ID;
-
+        ARow.Title.Font.Assign(FFont);
+        ARow.Title.TextColor := AFontColor;
+        ARow.Title.TextAlignment:= FItemTextAlign;
       end;
-      ARow.Title.TextColor := AFontColor;
     end;
-  //if FItemIndex = -1 then
-  if lv.ItemIndex = -1 then
-
-  begin
-    lv.SelectFirstItem;
-    //FItemIndex := lv.ItemIndex;
-    //lv.ScrollTo(FItemIndex);
-  end;
+    if (lv.ItemIndex = -1) and (FSelectFirstItem) then
+      lv.SelectFirstItem;
   finally
     lv.EndUpdate;
   end;
-  //if (FItemIndex > -1) and (FItemIndex <= lv.Items.Count-1) then
-  //  lv.Items[FItemIndex].BackgroundColor := ASelectedColor;
 end;
-  {
-procedure TksSlideMenu.SetItemIndex(const Value: integer);
-begin
-  FItemIndex := Value;
-end;   }
 
 procedure TksSlideMenu.SetToggleButton(const Value: TCustomButton);
 begin
@@ -637,14 +651,14 @@ var
   ABottom: single;
 begin
   AForm := (Owner as TForm);
-  ABmp := TBitmap.Create(Round(C_MENU_WIDTH * GetScreenScale), Round(AForm.ClientHeight * GetScreenScale));
+  ABmp := TBitmap.Create(Round(C_DEFAULT_MENU_WIDTH * GetScreenScale), Round(AForm.ClientHeight * GetScreenScale));
   try
      FMenuImage := TImage.Create(AForm);
-    FMenuImage.Width := C_MENU_WIDTH;
+    FMenuImage.Width := C_DEFAULT_MENU_WIDTH;
     FMenuImage.Height := AForm.ClientHeight;
     case FMenuPosition of
       mpLeft: FMenuImage.Position.X := 0;
-      mpRight: FMenuImage.Position.X := AForm.Width - C_MENU_WIDTH;
+      mpRight: FMenuImage.Position.X := AForm.Width - C_DEFAULT_MENU_WIDTH;
     end;
     ABmp.Canvas.BeginScene;
     ABmp.BitmapScale := GetScreenScale;
@@ -656,7 +670,7 @@ begin
     ABottom := (GetToolbarHeight + FMenu.CalculateListViewHeight)*GetScreenScale;
 
     ABmp.Canvas.Fill.Color := FAppearence.ItemColor;
-    ABmp.Canvas.FillRect(RectF(0, ABottom, C_MENU_WIDTH*GetScreenScale, ABmp.Height), 0, 0, AllCorners, 1, ABmp.Canvas.Fill);
+    ABmp.Canvas.FillRect(RectF(0, ABottom, C_DEFAULT_MENU_WIDTH*GetScreenScale, ABmp.Height), 0, 0, AllCorners, 1, ABmp.Canvas.Fill);
 
     ABmp.Canvas.EndScene;
     FMenuImage.Bitmap := ABmp;
@@ -687,7 +701,7 @@ begin
   try
     if (FShowing = False) then
     begin
-      //FMenu.ListView.ItemIndex := FItemIndex;
+
       FMenu.FToolBar.UpdateToolbar;
      //FMenu.UpdateSelectedItem;
     end;
@@ -702,8 +716,8 @@ begin
       AStartXPos := 0;
       ANewXPos := 0;
       case FMenuPosition of
-        mpLeft:  ANewXPos := C_MENU_WIDTH;
-        mpRight: ANewXPos := 0-C_MENU_WIDTH;
+        mpLeft:  ANewXPos := C_DEFAULT_MENU_WIDTH;
+        mpRight: ANewXPos := 0-C_DEFAULT_MENU_WIDTH;
       end;
 
 
@@ -722,7 +736,7 @@ begin
 
     case FMenuPosition of
       mpLeft : FMenu.Position.X := 0;
-      mpRight: FMenu.Position.X := AForm.Width - C_MENU_WIDTH;
+      mpRight: FMenu.Position.X := AForm.Width - C_DEFAULT_MENU_WIDTH;
     end;
     AForm.InsertObject(0, FMenu);
 
@@ -851,6 +865,12 @@ end;
 
 
 
+procedure TksSlideMenuAppearence.SetHeaderFontColor(const Value: TAlphaColor);
+begin
+  FHeaderFontColor := Value;
+  FTheme := mtCustom;
+end;
+
 procedure TksSlideMenuAppearence.SetItemColor(const Value: TAlphaColor);
 begin
   FItemColor := Value;
@@ -871,24 +891,86 @@ end;
 
 procedure TksSlideMenuAppearence.SetTheme(const Value: TKsMenuTheme);
 begin
-  if Value = mtDarkGray then
-  begin
-    FHeaderColor := $FF424242;
-    FToolBarColor := $FF323232;
-    FItemColor := $FF222222;
-    FFontColor := claWhite;
-    FSelectedFontColor := claWhite;
-    FSelectedColor := claRed;
-  end;
-if Value = mtDarkBlue then
-  begin
-    FHeaderColor := $FF2A7A9D;
-    FToolBarColor := $FF323232;
-    FItemColor := $FF424242;
-    FFontColor := claWhite;
-    FSelectedFontColor := claBlack;
-    FSelectedColor := $FF00F6FF;
-  end;
+   if Value = mtDarkGray then
+    begin
+      FHeaderColor := $FF424242;
+      FToolBarColor := $FF323232;
+      FItemColor := $FF222222;
+      FFontColor := claWhite;
+      FHeaderFontColor := $FFDADADA;
+      FSelectedFontColor := claWhite;
+      FSelectedColor := claRed;
+    end;
+  if Value = mtDarkBlue then
+    begin
+      FHeaderColor := $FF2A7A9D;
+      FToolBarColor := $FF323232;
+      FItemColor := $FF424242;
+      FFontColor := claWhite;
+      FHeaderFontColor := $FFC7FFFB;
+      FSelectedFontColor := claBlack;
+      FSelectedColor := $FF00F6FF;
+    end;
+  if Value = mtDarkOrange then
+    begin
+      FHeaderColor := $FFFF9900;
+      FToolBarColor := $FF323232;
+      FItemColor := $FF222222;
+      FFontColor := claWhite;
+      FHeaderFontColor := claBlack;
+      FSelectedFontColor := claBlack;
+      FSelectedColor := $FFFFCC00;
+    end;
+  if Value = mtDarkGreen then
+    begin
+      FHeaderColor := $FF76D015;
+      FToolBarColor := $FF323232;
+      FItemColor := $FF424242;
+      FFontColor := claWhite;
+      FHeaderFontColor := claBlack;
+      FSelectedFontColor := claBlack;
+      FSelectedColor := $FFDCFF00;
+    end;
+  if Value = mtLightGray then
+    begin
+      FHeaderColor := $FF424242;
+      FToolBarColor := $FF323232;
+      FItemColor := $FF828282;
+      FFontColor := claWhite;
+      FHeaderFontColor := $FFDADADA;
+      FSelectedFontColor := claWhite;
+      FSelectedColor := claRed;
+    end;
+  if Value = mtLightBlue then
+    begin
+      FHeaderColor := $FF424242;
+      FToolBarColor := $FF323232;
+      FItemColor := $FF2A7A9D;
+      FFontColor := claWhite;
+      FHeaderFontColor := $FFDADADA;
+      FSelectedFontColor := claBlack;
+      FSelectedColor := $FFC7FFFB;
+    end;
+  if Value = mtLightOrange then
+    begin
+      FHeaderColor := $FF424242;
+      FToolBarColor := $FF323232;
+      FItemColor := $FFFF9900;
+      FFontColor := claBlack;
+      FHeaderFontColor := $FFDADADA;
+      FSelectedFontColor := claBlack;
+      FSelectedColor := $FFFFCC00;
+    end;
+  if Value = mtLightGreen then
+    begin
+      FHeaderColor := $FF424242;
+      FToolBarColor := $FF323232;
+      FItemColor := $FF76D015;
+      FFontColor := claBlack;
+      FHeaderFontColor := $FFDADADA;
+      FSelectedFontColor := claBlack;
+      FSelectedColor := $FFDCFF00;
+    end;
   FTheme := Value;
 end;
 
@@ -968,11 +1050,12 @@ begin
   FSlideMenu := ASlideMenu;
   FBitmap := TBitmap.Create;
   FFont := TFont.Create;
+  FFont.Size := C_DEFAULT_MENU_TOOLBAR_FONT_SIZE;
   FHeader := TImage.Create(AOwner);
   FHeader.Position.X := 0;
   FHeader.Position.Y := 0;
-  FHeader.Width := C_MENU_WIDTH;
-  FHeader.Height := C_DEFAULT_TOOLBAR_HEIGHT;
+  FHeader.Width := C_DEFAULT_MENU_WIDTH;
+  FHeader.Height := C_DEFAULT_MENU_TOOLBAR_HEIGHT;
   FHeader.Align := TAlignLayout.Top;
   FHeader.HitTest := False;
   FVisible := True;
@@ -1027,7 +1110,7 @@ begin
     FHeader.Height := 0;
     Exit;
   end;
-  ABmp := TBitmap.Create(Round(C_MENU_WIDTH*GetScreenScale), Round(C_DEFAULT_TOOLBAR_HEIGHT*GetScreenScale));
+  ABmp := TBitmap.Create(Round(C_DEFAULT_MENU_WIDTH*GetScreenScale), Round(C_DEFAULT_MENU_TOOLBAR_HEIGHT*GetScreenScale));
   try
     ABmp.BitmapScale := GetScreenScale;
     AXPos := 10;
@@ -1042,13 +1125,13 @@ begin
     ABmp.Canvas.Fill.Color := FSlideMenu.Appearence.FFontColor;
 
     ABmp.Canvas.Font.Assign(FFont);
-    ABmp.Canvas.FillText(RectF(AXPos, 0, C_MENU_WIDTH, C_DEFAULT_TOOLBAR_HEIGHT), FText, False, 1, [], TTextAlign.Leading);
+    ABmp.Canvas.FillText(RectF(AXPos, 0, C_DEFAULT_MENU_WIDTH, C_DEFAULT_MENU_TOOLBAR_HEIGHT), FText, False, 1, [], TTextAlign.Leading);
     ABmp.Canvas.EndScene;
 
     ABmp.Canvas.BeginScene;
     ABmp.Canvas.Fill.Color := FSlideMenu.Appearence.ItemColor;
     //ABmp.Canvas.StrokeThickness := 1;
-    ABmp.Canvas.FillRect(RectF(0, C_DEFAULT_TOOLBAR_HEIGHT-1, C_MENU_WIDTH, C_DEFAULT_TOOLBAR_HEIGHT), 0, 0, AllCorners, 1, ABmp.Canvas.Fill);
+    ABmp.Canvas.FillRect(RectF(0, C_DEFAULT_MENU_TOOLBAR_HEIGHT-1, C_DEFAULT_MENU_WIDTH, C_DEFAULT_MENU_TOOLBAR_HEIGHT), 0, 0, AllCorners, 1, ABmp.Canvas.Fill);
     //ABmp.Canvas.DrawLine(PointF(0, ABmp.Height-GetScreenScale), PointF(ABmp.Width, ABmp.Height-GetScreenScale), 1, ABmp.Canvas.Stroke);
 
 
