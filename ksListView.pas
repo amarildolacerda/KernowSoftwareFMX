@@ -3631,7 +3631,7 @@ begin
       Result.AutoCheck := True;
     Result.Name := 'ksRow';
     Result.ShowAccessory := AAccessory <> atNone;
-    Result.CanSelect := AAccessory <> atNone;
+    //Result.CanSelect := AAccessory <> atNone;
     Result.Accessory := AAccessory;
 
     Result.SetFontProperties('', AFontSize, AFontColor, []);
