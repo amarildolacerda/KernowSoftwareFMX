@@ -35,7 +35,7 @@ interface
   {$DEFINE XE10_OR_NEWER}
 {$ENDIF}
 
-{$DEFINE ADD_SAMPLE_MENU_ITEMS}
+{.$DEFINE ADD_SAMPLE_MENU_ITEMS}
 
 
 uses System.UITypes, FMX.Controls, FMX.Layouts, FMX.Objects, System.Classes,

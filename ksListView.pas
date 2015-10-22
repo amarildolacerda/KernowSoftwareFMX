@@ -3814,8 +3814,8 @@ begin
   ALastIndex := FItemIndex;
   begin
     FItemIndex := Value;
-    if ALastIndex > -1 then Items[ALastIndex].CacheRow(True);
-    if FItemIndex > -1 then Items[FItemIndex].CacheRow(True);
+    if (ALastIndex > -1) and (ALastIndex <= Items.Count-1) then Items[ALastIndex].CacheRow(True);
+    if (FItemIndex > -1) and (FItemIndex <= Items.Count-1) then Items[FItemIndex].CacheRow(True);
     inherited ItemIndex := Value;
     Invalidate;
   end;
