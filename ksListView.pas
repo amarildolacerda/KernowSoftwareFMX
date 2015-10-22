@@ -609,6 +609,7 @@ type
     FActiveColor: TAlphaColor;
     procedure SetIsChecked(const Value: Boolean);
     procedure SetActiveColor(const Value: TAlphaColor);
+    function GetIsCheckedAsChar: Char;
   protected
     function GetConsumesRowClick: Boolean; override;
   public
@@ -617,7 +618,7 @@ type
     procedure DoClick(x, y: single); override;
     property IsChecked: Boolean read FIsChecked write SetIsChecked;
     property ActiveColor: TAlphaColor read FActiveColor write SetActiveColor default C_DEFAULT_ACTIVE_SWITCH_COLOR;
-
+    property IsCheckedAsChar: Char read GetIsCheckedAsChar;
   end;
 
   // ------------------------------------------------------------------------------
@@ -994,6 +995,7 @@ type
     function AddRowWithEdit(AText, AEditText: string; AEditWidth: integer): TKsListItemRow;
     function AddRowWithSegmentButtons(AText, ASelected: string; AButtons: array of string; AWidth: integer; AID: string): TKsListItemRow; overload;
     function AddRowWithSegmentButtons(AText, ASelected: string; AButtons: TStrings; AWidth: integer; AID: string): TKsListItemRow; overload;
+    function AddRowWithSwitch(AText: string; AChecked: Boolean; AID: string): TKsListItemRow;
 
     procedure UncheckAll;
     procedure CheckAll;
@@ -3579,6 +3581,17 @@ begin
   ASegButtons.Align := TListItemAlign.Trailing;
 end;
 
+function TKsListItemRows.AddRowWithSwitch(AText: string; AChecked: Boolean;
+  AID: string): TKsListItemRow;
+var
+  ASwitch: TksListItemRowSwitch;
+begin
+  Result := AddRow(AText);
+  Result.CanSelect := False;
+  ASwitch := Result.AddSwitch(0, AChecked, TListItemAlign.Trailing);
+  ASwitch.ID := AID;
+end;
+
 function TKsListItemRows.AddHeader(AText: string): TKsListItemRow;
 begin
   Result := AddRow('', '', '', atNone);
@@ -4767,6 +4780,13 @@ end;
 function TksListItemRowSwitch.GetConsumesRowClick: Boolean;
 begin
   Result := True;
+end;
+
+function TksListItemRowSwitch.GetIsCheckedAsChar: Char;
+begin
+  Result := 'F';
+  if IsChecked then
+    Result := 'T';
 end;
 
 function TksListItemRowSwitch.Render(ACanvas: TCanvas): Boolean;
