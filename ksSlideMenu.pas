@@ -571,7 +571,7 @@ begin
   Application.ProcessMessages;
   lv := FMenu.FListView;
 
-  lv.Position.X := 10;
+  lv.Position.X := 0;
   lv.Repaint;
 
   //lv.Position.Y := GetToolbarHeight;;
