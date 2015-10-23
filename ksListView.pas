@@ -3425,9 +3425,13 @@ begin
 end;
 
 procedure TksListView.DoMouseDownDelayed;
+var
+  AMouseDownRect: TRectF;
 begin
   FTimerService.DestroyTimer(FMouseDownTimer);
-  ItemIndex := FMouseDownRow.Index;
+  AMouseDownRect := RectF(FMouseDownPos.X-8, FMouseDownPos.Y-8, FMouseDownPos.X+8, FMouseDownPos.Y+8);
+  if PtInRect(AMouseDownRect, FCurrentMousepos)  then
+    ItemIndex := FMouseDownRow.Index;
 end;
 
 procedure TksListView.DeselectRow(const ADelay: integer = 0);
@@ -3830,6 +3834,7 @@ begin
     if (ALastIndex > -1) and (ALastIndex <= Items.Count-1) then Items[ALastIndex].CacheRow(True);
     if (FItemIndex > -1) and (FItemIndex <= Items.Count-1) then Items[FItemIndex].CacheRow(True);
     inherited ItemIndex := Value;
+    RecalcSize;
     Invalidate;
   end;
 end;
