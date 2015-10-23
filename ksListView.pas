@@ -3364,20 +3364,6 @@ begin
   FScreenScale := GetScreenScale;
   FAppearence := TksListViewAppearence.Create(Self);
   FItemIndex := -1;
-  //FEmbeddedControls := TList<TksListItemEmbeddedControl>.Create;
-  {FEmbeddedEditControl := TEdit.Create(nil);
-  FEmbeddedEditControl.Position.X := 0;
-  FEmbeddedEditControl.Width := 1;
-
-  FEmbeddedListBoxControl := TListBox.Create(nil);
-  FEmbeddedListBoxControl.Position.X := 0;
-  FEmbeddedListBoxControl.Width := 1;     }
-
-  {if csDesigning in ComponentState = False then
-  begin
-    (Owner as TFmxObject).InsertObject(0,FEmbeddedEditControl);
-    (Owner as TFmxObject).InsertObject(0,FEmbeddedListBoxControl);
-  end;   }
 
   FItemHeight := 44;
   FHeaderHeight := 44;
@@ -3385,19 +3371,9 @@ begin
   FSelectOnRightClick := False;
   FLastScrollPos := 0;
   FScrolling := False;
-
-
-
-  //FScrollTimer := TTimer.Create(Self);
-  //FScrollTimer.Interval := 500;
-  //FScrollTimer.OnTimer := DoScrollTimer;
-  //FScrollTimer.Enabled := True;
-
-
   FCheckMarks := ksCmNone;
   FCheckMarkStyle := ksCmsDefault;
   FItemImageSize := 32;
-  //FShowIndicatorColors := False;
   FKeepSelection := False;
   ItemSpaces.Right := 0;
   ItemSpaces.Left := 0;
@@ -3406,22 +3382,23 @@ begin
   inherited ShowSelection := False;
   FShowSelection := True;
   FMouseDownPos := PointF(-1, -1);
-  //FDisableMouseMove := False;
   FFullWidthSeparator := True;
   FProcessingMouseEvents := False;
   FCombo := nil;
   FDateSelector := nil;
-  //FLastSelectedControl := nil;
   FActiveEmbeddedControl := nil;
   FScrollTimer := 0;
 end;
 
 procedure TksListView.DoDeselectRow;
 begin
-  FLastIndex := -1;
-  ItemIndex := -1;
-  Invalidate;
-  FTimerService.DestroyTimer(FDeselectTimer);
+  if Self <> nil then
+  begin
+    FLastIndex := -1;
+    ItemIndex := -1;
+    Invalidate;
+    FTimerService.DestroyTimer(FDeselectTimer);
+  end;
 end;
 
 procedure TksListView.DoMouseDownDelayed;
@@ -3474,15 +3451,17 @@ begin
   FreeAndNil(FDeleteButton);
   FreeAndNil(FMouseEvents);
   FreeAndNil(FRowIndicators);
+
   //FreeAndNil(FEmbeddedControls);
   // destroy FMX timers...
 
   {$IFDEF XE10_OR_NEWER}
   FTimerService.DestroyTimer(FMouseEventsTimer);
-
   {$ENDIF}
 
   FTimerService.DestroyTimer(FScrollTimer);
+  FTimerService.DestroyTimer(FDeselectTimer);
+
   {$IFDEF NEXTGEN}
   if FCombo <> nil then FCombo.DisposeOf;
   if FDateSelector <> nil then FDateSelector.DisposeOf;
@@ -3824,13 +3803,16 @@ procedure TksListView.SetItemIndex(const Value: integer);
 var
   ALastIndex: integer;
 begin
-  ALastIndex := FItemIndex;
+  if FItemIndex <> Value then
   begin
-    FItemIndex := Value;
-    if (ALastIndex > -1) and (ALastIndex <= Items.Count-1) then Items[ALastIndex].CacheRow(True);
-    if (FItemIndex > -1) and (FItemIndex <= Items.Count-1) then Items[FItemIndex].CacheRow(True);
-    inherited ItemIndex := Value;
-    Invalidate;
+    ALastIndex := FItemIndex;
+    begin
+      FItemIndex := Value;
+      if (ALastIndex > -1) and (ALastIndex <= Items.Count-1) then Items[ALastIndex].CacheRow(True);
+      if (FItemIndex > -1) and (FItemIndex <= Items.Count-1) then Items[FItemIndex].CacheRow(True);
+      inherited ItemIndex := Value;
+      Invalidate;
+    end;
   end;
 end;
 
@@ -6194,77 +6176,6 @@ procedure TksListItemRowTableBanding.SetActive(const Value: Boolean);
 begin
   FActive := Value;
 end;
-
-{ TksListItemEmbeddedTEdit }
- {
-function TksListItemEmbeddedTEdit.GetControl: TControl;
-begin
-  Result := AEmbeddedEditControl; //FRow.ListView.FEmbeddedEditControl;
-end;
-        }
-        {
-function TksListItemEmbeddedTEdit.GetEdit: TEdit;
-begin
-  Result := (GetControl as TEdit);
-end;    }
-
-{
-procedure TksListItemEmbeddedTEdit.InitializeControl(AClickX, AClickY: single);
-begin
-  Edit.Text := FText;
-  Edit.OnTyping := DoChange;
-end;    }
-
-{
-procedure TksListItemEmbeddedTEdit.StoreControlProperties;
-begin
-  FText := Edit.Text;
-  Edit.OnTyping := nil;
-end;         }
-
-{
-procedure TksListItemEmbeddedTEdit.AfterControlFocus;
-begin
-  inherited;
-  Edit.SelStart := Edit.Text.Length;
-end;      {
-
-function TksListItemInputBox.Render(ACanvas: TCanvas): Boolean;
-var
-  ABmp: TBitmap;
-  ATextRect: TRectF;
-begin
-  inherited Render(ACanvas);
-  ABmp := TBitmap.Create;
-  try
-    ABmp.Width := Round(Rect.Width * GetScreenScale);
-    ABmp.Height := Round(Rect.Height * GetScreenScale);
-    ABmp.Clear(claNull);
-    ABmp.Canvas.BeginScene;
-
-    ABmp.Canvas.Stroke.Color := claDimgray;
-    ABmp.Canvas.StrokeThickness := 1;
-    ABmp.Canvas.DrawRect(RectF(0, 0, ABmp.Width, ABmp.Height), 0, 0, AllCorners, 1);
-    Result := True;
-    ABmp.Canvas.EndScene;
-    ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), Rect, 1, True);
-    ACanvas.Fill.Color := claBlack;
-    ATextRect := Rect;
-    InflateRect(ATextRect, -2, 0);
-    ACanvas.FillText(ATextRect, FText, False, 1, [], TTextAlign.Leading, TTextAlign.Center);
-  finally
-    FreeAndNil(ABmp);
-  end;
-end;
-
-procedure TksListItemInputBox.SetText(const Value: string);
-begin
-  if FText <> Value then
-  begin
-    FText := Value;
-    Changed;
-  end;
-end;       }
 
 constructor TksListItemOptionSelector.Create(ARow: TKsListItemRow);
 begin
