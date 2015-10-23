@@ -364,6 +364,7 @@ begin
   FSelectFirstItem := True;
   {$ENDIF}
   FAnimating := False;
+  FMenuIndex := -1;
 end;
 
 destructor TksSlideMenu.Destroy;
@@ -641,6 +642,9 @@ begin
     lv.EndUpdate;
   end;
   lv.RecalcAbsoluteNow;
+
+  MenuIndex := FMenuIndex;
+
   if (lv.ItemIndex = -1) and (FSelectFirstItem) then
     lv.SelectFirstItem;
 end;
@@ -665,6 +669,7 @@ begin
       end;
     end;
   end;
+  FMenuIndex := Value;
 end;
 
 procedure TksSlideMenu.SetToggleButton(const Value: TCustomButton);
