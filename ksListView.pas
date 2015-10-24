@@ -2507,8 +2507,8 @@ end;
 function TksListItemRow.GetPrevRow: TksListItemRow;
 begin
   Result := nil;
-  if Owner.Index > 0 then
-    Result := ListView.Items[Owner.Index-1];
+  if (Owner as TListViewItem).Index > 0 then
+    Result := ListView.Items[(Owner as TListViewItem).Index-1];
 end;
 
 function TKsListItemRow.GetPurpose: TListItemPurpose;
@@ -2543,7 +2543,7 @@ end;
 
 function TksListItemRow.IsLastRow: Boolean;
 begin
-  Result := Owner.Index = ListView.Items.Count-1;
+  Result := (Owner as TListViewItem).Index = ListView.Items.Count-1;
 end;
 
 {$IFDEF VER290}
