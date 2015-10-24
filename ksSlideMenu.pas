@@ -228,6 +228,7 @@ type
     procedure DoToggleButtonClick(Sender: TObject);
     
   private
+    FMenuIndex: integer;
     procedure MenuItemSelected(Sender: TObject; x, y: single; AItem: TKsListItemRow; AId: string; ARowObj: TksListItemRowObj);
     //procedure SetItemIndex(const Value: integer);
     procedure SwitchMenuToImage;
@@ -235,6 +236,8 @@ type
     function GetToolbar: TksSlideMenuToolbar;
     function GetToolbarHeight: integer;
     procedure SetToolbar(const Value: TksSlideMenuToolbar);
+    procedure SetMenuIndex(const Value: integer);
+    function GetMenuItemCount: integer;
   protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
   public
@@ -247,7 +250,8 @@ type
     procedure ToggleMenu;
     procedure UpdateMenu;
     property Showing: Boolean read FShowing;
-    //property ItemIndex: integer read FItemIndex write SetItemIndex;
+    property MenuIndex: integer read FMenuIndex write SetMenuIndex;
+    property MenuItemCount: integer read GetMenuItemCount;
   published
     property Appearence: TksSlideMenuAppearence read FAppearence write FAppearence;
     property Font: TFont read FFont write FFont;
@@ -278,7 +282,8 @@ var
 
 implementation
 
-uses FMX.Platform, SysUtils, FMX.Ani, FMX.Pickers, Math, ksDrawFunctions;
+uses FMX.Platform, SysUtils, FMX.Ani, FMX.Pickers, Math, ksDrawFunctions,
+  FMX.ListView.Types;
 
 
 procedure Register;
@@ -301,7 +306,7 @@ function TksSlideMenu.AddMenuItem(AId, AText: string; AImage: TBitmap): TksSlide
 begin
   Result := FItems.AddMenuItem(AId, AText, AImage);
   Result.Font.Assign(FFont);
-  UpdateMenu;
+  //UpdateMenu;
 end;
 
 function TksSlideMenu.AddMenuItem(AId, AText: string; const AImageIndex: integer = -1): TksSlideMenuItem;
@@ -359,6 +364,7 @@ begin
   FSelectFirstItem := True;
   {$ENDIF}
   FAnimating := False;
+  FMenuIndex := -1;
 end;
 
 destructor TksSlideMenu.Destroy;
@@ -500,6 +506,20 @@ end;
 
 {$ENDIF}
 
+function TksSlideMenu.GetMenuItemCount: integer;
+var
+  ICount: integer;
+  lv: TksListView;
+begin
+  Result := 0;
+  lv := FMenu.FListView;
+  for ICount := 0 to lv.Items.Count-1 do
+  begin
+    if lv.Items[ICount].Purpose = TListItemPurpose.None then
+      Result := Result + 1;
+  end;
+end;
+
 function TksSlideMenu.GetToolbar: TksSlideMenuToolbar;
 begin
   Result := FMenu.FToolBar;
@@ -508,8 +528,6 @@ end;
 function TksSlideMenu.GetToolbarHeight: integer;
 begin
   Result := 0;
-  if True then
-
   if Toolbar.Visible then
     Result := C_DEFAULT_MENU_TOOLBAR_HEIGHT;
 end;
@@ -555,14 +573,13 @@ begin
   lv := FMenu.FListView;
 
   lv.Position.X := 0;
-  lv.Position.Y := 0;
   lv.Repaint;
 
-  lv.Position.Y := GetToolbarHeight;;
+  //lv.Position.Y := GetToolbarHeight;;
 
   lv.Width := C_DEFAULT_MENU_WIDTH;
 
-
+  //FMenu
   FMenu.Width := C_DEFAULT_MENU_WIDTH;
   AFontColor := GetColorOrDefault(FAppearence.FontColor, C_DEFAULT_MENU_FONT_COLOR);
   AHeaderFontColor := GetColorOrDefault(FAppearence.HeaderFontColor, C_DEFAULT_MENU_HEADER_TEXT_COLOR);
@@ -621,11 +638,38 @@ begin
         ARow.Title.TextAlignment:= FItemTextAlign;
       end;
     end;
-    if (lv.ItemIndex = -1) and (FSelectFirstItem) then
-      lv.SelectFirstItem;
   finally
     lv.EndUpdate;
   end;
+  lv.RecalcAbsoluteNow;
+
+  MenuIndex := FMenuIndex;
+
+  if (lv.ItemIndex = -1) and (FSelectFirstItem) then
+    lv.SelectFirstItem;
+end;
+
+procedure TksSlideMenu.SetMenuIndex(const Value: integer);
+var
+  ICount: integer;
+  AIndex: integer;
+  lv: TksListView;
+begin
+  AIndex := -1;
+  lv := FMenu.FListView;
+  for ICount := 0 to lv.Items.Count-1 do
+  begin
+    if lv.Items[ICount].Purpose = TListItemPurpose.None then
+    begin
+      Inc(AIndex);
+      if AIndex = Value then
+      begin
+        lv.ItemIndex := ICount;
+        Exit;
+      end;
+    end;
+  end;
+  FMenuIndex := Value;
 end;
 
 procedure TksSlideMenu.SetToggleButton(const Value: TCustomButton);
