@@ -840,8 +840,8 @@ type
     procedure Changed;
     procedure ReleaseAllDownButtons;
     procedure PickerItemsChanged(Sender: TObject);
-    function GetPrevRow: TksListItemRow;
-    function PrevRowIsHeader: Boolean;
+    //function GetPrevRow: TksListItemRow;
+    //function PrevRowIsHeader: Boolean;
     function IsLastRow: Boolean;
   protected
     procedure DoResize; override;
@@ -1153,7 +1153,7 @@ type
     FOnEmbeddedListBoxChange: TksEmbeddedListBoxChange;
     FOnEmbeddedSpinBoxChange: TksEmbeddedSpinBoxChange;
     FOnEmbeddedTrackBarChange: TksEmbeddedTrackBarChange;
-    FItemIndex: integer;
+    //FItemIndex: integer;
     FMouseDownTimer: TFmxHandle;
     function GetSearchBoxHeight: single;
     function _Items: TksListViewItems;
@@ -1194,6 +1194,9 @@ type
 
     procedure SetItemIndex(const Value: integer);
     procedure DoMouseDownDelayed;
+    function GetSelectedItem: TKsListItemRow;
+    function GetItemIndex: integer;
+    procedure ReindexItems;
     //procedure DoAfterShow;
     { Private declarations }
   protected
@@ -1233,6 +1236,7 @@ type
     procedure SelectFirstItem;
     procedure Paint; override;
     property MaxScrollPos: single read GetMaxScrollPos;
+    property Selected: TKsListItemRow read GetSelectedItem;
     { Public declarations }
   published
     property Appearence: TksListViewAppearence read FAppearence write FAppearence;
@@ -1245,7 +1249,7 @@ type
     property Transparent default False;
     property AllowSelection;
     property AlternatingColors;
-    property ItemIndex: integer read FItemIndex write SetItemIndex;
+    property ItemIndex: integer read GetItemIndex write SetItemIndex;
     {$IFDEF XE8_OR_NEWER}
     property Images;
     {$ENDIF}
@@ -2503,13 +2507,13 @@ function TKsListItemRow.GetListView: TksListView;
 begin
   Result := (Owner.Parent as TksListView);
 end;
-
+   {
 function TksListItemRow.GetPrevRow: TksListItemRow;
 begin
   Result := nil;
   if (Owner as TListViewItem).Index > 0 then
     Result := ListView.Items[(Owner as TListViewItem).Index-1];
-end;
+end;  }
 
 function TKsListItemRow.GetPurpose: TListItemPurpose;
 begin
@@ -2561,7 +2565,7 @@ begin
   if FPickerItems.Count > 0 then
     FSelector := TksListItemRowSelector.ItemPicker;
 end;
-
+    {
 function TksListItemRow.PrevRowIsHeader: Boolean;
 var
   ARow: TKsListItemRow;
@@ -2571,7 +2575,7 @@ begin
   if ARow = nil then
     Exit;
   Result := ARow.Purpose <> TListItemPurpose.None;
-end;
+end;  }
 
 procedure TKsListItemRow.ProcessClick;
 var
@@ -3363,7 +3367,7 @@ begin
   FDeleteButton := TksDeleteButton.Create;
   FScreenScale := GetScreenScale;
   FAppearence := TksListViewAppearence.Create(Self);
-  FItemIndex := -1;
+  //FItemIndex := -1;
   //FEmbeddedControls := TList<TksListItemEmbeddedControl>.Create;
   {FEmbeddedEditControl := TEdit.Create(nil);
   FEmbeddedEditControl.Position.X := 0;
@@ -3487,6 +3491,7 @@ begin
   {$ENDIF}
 
   FTimerService.DestroyTimer(FScrollTimer);
+  FTimerService.DestroyTimer(FDeselectTimer);
   {$IFDEF NEXTGEN}
   if FCombo <> nil then FCombo.DisposeOf;
   if FDateSelector <> nil then FDateSelector.DisposeOf;
@@ -3828,11 +3833,11 @@ procedure TksListView.SetItemIndex(const Value: integer);
 var
   ALastIndex: integer;
 begin
-  ALastIndex := FItemIndex;
+  ALastIndex := ItemIndex;
   begin
-    FItemIndex := Value;
+    //ItemIndex := Value;
     if (ALastIndex > -1) and (ALastIndex <= Items.Count-1) then Items[ALastIndex].CacheRow(True);
-    if (FItemIndex > -1) and (FItemIndex <= Items.Count-1) then Items[FItemIndex].CacheRow(True);
+    if (Value > -1) and (Value <= Items.Count-1) then Items[Value].CacheRow(True);
     inherited ItemIndex := Value;
     RecalcSize;
     Invalidate;
@@ -4053,7 +4058,7 @@ begin
   FItems.ReindexRows;
   if Assigned(FOnDeleteItem) then
     FOnDeleteItem(Sender, AIndex);
-  FItemIndex := inherited ItemIndex;
+  //FItemIndex := inherited ItemIndex;
 end;
 
 procedure TksListView.DoRenderRow(ARow: TKsListItemRow);
@@ -4116,6 +4121,7 @@ procedure TksListView.DoSearchFilterChanged(Sender: TObject; var Key: Word; var 
 begin
   if Assigned(FOnSearchFilterChanged) then
     FOnSearchFilterChanged(Self, FSearchEdit.Text);
+  ReindexItems;
 end;
 
 procedure TksListView.DoSelectDate(Sender: TObject);
@@ -4175,6 +4181,16 @@ begin
   EndUpdate;
 end;
 
+
+procedure TksListView.ReindexItems;
+var
+  ICount: integer;
+begin
+  for Icount := 0 to Items.Count-1 do
+  begin
+    Items[ICount].Index := ICount;
+  end;
+end;
 
 procedure TksListView.ReleaseAllDownButtons;
 var
@@ -4266,6 +4282,7 @@ begin
     Exit;
   if FIsShowing = False then
     Exit;
+  ReindexItems;
   CachePages;
   Invalidate;
 end;
@@ -4285,6 +4302,11 @@ begin
       Exit;
     end;
   end;
+end;
+
+function TksListView.GetItemIndex: integer;
+begin
+  Result := inherited ItemIndex;
 end;
 
 function TksListView.GetMaxScrollPos: single;
@@ -4326,6 +4348,13 @@ begin
       SetupSearchBox;
     Result := FSearchEdit.Height;
   end;
+end;
+
+function TksListView.GetSelectedItem: TKsListItemRow;
+begin
+  Result := nil;
+  if ItemIndex > -1 then
+    Result := FItems[ItemIndex];
 end;
 
 procedure TksListView.HideEmbeddedControls;
