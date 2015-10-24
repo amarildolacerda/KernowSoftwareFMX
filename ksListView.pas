@@ -2282,7 +2282,7 @@ begin
         ASeparatorOffset := 24;
       Bitmap.Canvas.Stroke.Thickness := 1;
 
-      if  PrevRowIsHeader = False then
+      //if  PrevRowIsHeader = False then
         Bitmap.Canvas.DrawLine(PointF(ASeparatorOffset,0), PointF(Bitmap.Width,0), 1);
 
       if IsLastRow then
@@ -2507,8 +2507,8 @@ end;
 function TksListItemRow.GetPrevRow: TksListItemRow;
 begin
   Result := nil;
-  if Index > 0 then
-    Result := ListView.Items[Index-1];
+  if Owner.Index > 0 then
+    Result := ListView.Items[Owner.Index-1];
 end;
 
 function TKsListItemRow.GetPurpose: TListItemPurpose;
@@ -2543,7 +2543,7 @@ end;
 
 function TksListItemRow.IsLastRow: Boolean;
 begin
-  Result := Index = ListView.Items.Count-1;
+  Result := Owner.Index = ListView.Items.Count-1;
 end;
 
 {$IFDEF VER290}
