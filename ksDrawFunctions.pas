@@ -116,8 +116,14 @@ begin
   end;
   Service := IFMXScreenService(TPlatformServices.Current.GetPlatformService
     (IFMXScreenService));
+
   Result := Service.GetScreenScale;
+  {$IFDEF IOS}
+  //if Result < 2 then
+  //  Result := 2;
+  {$ENDIF}
   _ScreenScale := Result;
+
 end;
 
 function TextSizeHtml(AText: string; AFont: TFont; const AWidth: single = 0): TPointF;

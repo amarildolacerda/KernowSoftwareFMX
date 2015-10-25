@@ -1175,12 +1175,12 @@ type
     //procedure CacheEmbeddedControls;
     procedure CachePages;
     function LoadingBitmap: TBitmap;
-    procedure DeselectRow(const ADelay: integer = 0);
+    procedure _DeselectRow(const ADelay: integer = 0);
     procedure DoSearchFilterChanged(Sender: TObject; var Key: Word; var KeyChar: Char; Shift: TShiftState);
     procedure SetShowSelection(const Value: Boolean);
     procedure QueueMouseEvent(AType: TksMouseEventType; X, Y: single; AId: string; ARow: TKsListItemRow; AObj: TksListItemRowObj);
     procedure ProcessMouseEvents;
-    procedure DoDeselectRow;
+    procedure _DoDeselectRow;
     procedure SetupSearchBox;
     //procedure EmbeddedEditChange(ARow: TKsListItemRow; AText: string);
     //procedure EmbeddedListBoxChange(ARow: TKsListItemRow; AItemIndex: integer; ASelected: string);
@@ -1385,7 +1385,7 @@ var
 implementation
 
 uses SysUtils, FMX.Platform, ksDrawFunctions, FMX.Ani, FMX.Styles, FMX.Dialogs,
-  System.StrUtils, DateUtils, FMX.Forms, Math, ksSlideMenu;
+  System.StrUtils, DateUtils, FMX.Forms, Math, ksSlideMenu{, unit14};
 
 var
   DefaultScrollBarWidth: integer = 7;
@@ -2347,7 +2347,7 @@ procedure TksListItemRow.Render(const Canvas: TCanvas;
 var
   ARect: TRectF;
 begin
-  if SubPassNo <> 0 then
+  if (SubPassNo <> 0) {or (ListView.FUpdateCount > 0)} then
     Exit;
 
   if FLastHeight = 0 then
@@ -3420,12 +3420,17 @@ begin
   FScrollTimer := 0;
 end;
 
-procedure TksListView.DoDeselectRow;
+procedure TksListView._DoDeselectRow;
 begin
-  FLastIndex := -1;
-  ItemIndex := -1;
-  Invalidate;
   FTimerService.DestroyTimer(FDeselectTimer);
+  //if form14.Memo1 <> nil then
+  //  Form14.Memo1.Lines.Add('deselect row');
+  if ItemIndex <> -1 then
+  begin
+    //FLastIndex := -1;
+    ItemIndex := -1;
+    Invalidate;
+  end;
 end;
 
 procedure TksListView.DoMouseDownDelayed;
@@ -3438,15 +3443,15 @@ begin
     ItemIndex := FMouseDownRow.Index;
 end;
 
-procedure TksListView.DeselectRow(const ADelay: integer = 0);
+procedure TksListView._DeselectRow(const ADelay: integer = 0);
 begin
   if ADelay > 0 then
   begin
     FTimerService.DestroyTimer(FDeselectTimer);
-    FDeselectTimer := FTimerService.CreateTimer(ADelay, DoDeselectRow)
+    FDeselectTimer := FTimerService.CreateTimer(ADelay, _DoDeselectRow)
   end
   else
-    DoDeselectRow;
+    _DoDeselectRow;
 end;
 {var
   ATask: ITask;
@@ -3830,18 +3835,24 @@ begin
 end;
 
 procedure TksListView.SetItemIndex(const Value: integer);
-var
-  ALastIndex: integer;
 begin
-  ALastIndex := ItemIndex;
+  //if ItemIndex = Value then
+  //  Exit;
+
+  //if form14.Memo1 <> nil then
+  //  Form14.Memo1.Lines.Add('set item index');
+  //ALastIndex := ItemIndex;
   begin
     //ItemIndex := Value;
-    if (ALastIndex > -1) and (ALastIndex <= Items.Count-1) then Items[ALastIndex].CacheRow(True);
-    if (Value > -1) and (Value <= Items.Count-1) then Items[Value].CacheRow(True);
     inherited ItemIndex := Value;
-    RecalcSize;
+    if (FLastIndex > -1) and (FLastIndex <= Items.Count-1) then Items[FLastIndex].CacheRow(True);
+    if (Value > -1) and (Value <= Items.Count-1) then Items[Value].CacheRow(True);
+    FLastIndex := ItemIndex;
+    //RecalcSize;
     Invalidate;
   end;
+  if (ItemIndex > -1) and (FKeepSelection = False) then
+    _DeselectRow(300);
 end;
 
 {
@@ -3886,6 +3897,7 @@ end;
 begin
   if (FPageCaching.Enabled = False) or (FScrollTimer > 0) then
     Exit;
+  FTimerService.DestroyTimer(FScrollTimer);
   FScrollTimer := FTimerService.CreateTimer(500, DoScrollTimer);
 end;
 
@@ -3978,10 +3990,12 @@ procedure TksListView.ApplyStyle;
 begin
   SetColorStyle('background', FAppearence.Background);
   SetColorStyle('itembackground', FAppearence.ItemBackground);
-  if FAppearence.SeparatorColor = claNull then
-    SetColorStyle('frame', C_DEFAULT_SEPARATOR_COLOR)
-  else
-    SetColorStyle('frame', claNull);//FAppearence.SeparatorColor);
+
+  //if FAppearence.SeparatorColor = claNull then
+  //SetColorStyle('frame', C_DEFAULT_SEPARATOR_COLOR)
+
+  //else
+    SetColorStyle('frame', FAppearence.ItemBackground);//FAppearence.SeparatorColor);
   SetColorStyle('alternatingitembackground', FAppearence.AlternatingItemBackground);
   inherited;
 end;
@@ -4078,8 +4092,8 @@ begin
     begin
       if ScrollViewPos <> FLastScrollPos then
       begin
-        if (FKeepSelection = False) and (ItemIndex > -1) then
-          DeselectRow;
+        //if (FKeepSelection = False) and (ItemIndex > -1) then
+        //  DeselectRow;
 
         FScrolling := True;
         FLastScrollPos := ScrollViewPos;
@@ -4437,6 +4451,9 @@ var
   ARowRect: TRectF;
 begin
 
+  //FScrolling := False;
+  //FLastIndex := ItemIndex;
+
   if FActionButtons.State = ksActionBtnAnimIn then
     Exit;
 
@@ -4457,36 +4474,40 @@ begin
   FMouseDownPos := PointF(x-ItemSpaces.Left, y);
   FMouseDownTime := Now;
 
-  if (FMouseDownRow.CanSelect = False) and (ItemIndex = FMouseDownRow.Index) then
-    DeselectRow;
+  //if (FMouseDownRow.CanSelect = False) and (ItemIndex = FMouseDownRow.Index) then
+  //  DeselectRow;
 
   ARowRect := GetItemRect(FMouseDownRow.Index);
 
-  FLastIndex := ItemIndex;
+
   FClickedRowObj := RowObjectAtPoint(FMouseDownRow, x, y - ARowRect.Top);
   if FClickedRowObj <> nil then
   begin
-    if FClickedRowObj.ConsumesRowClick then
-      DeselectRow;
+    //if FClickedRowObj.ConsumesRowClick then
+    //  DeselectRow;
   end;
 
   if FClickedRowObj <> nil then
   begin
     if FClickedRowObj.ConsumesRowClick then
     begin
-      DeselectRow;
-      Invalidate;
+      //DeselectRow;
+      //Invalidate;
     end;
     FClickedRowObj.MouseDown;
   end;
 
   if FMouseDownRow.CanSelect = False then
   begin
-    ItemIndex := FLastIndex;
-    Invalidate;
+    //ItemIndex := FLastIndex;
+    //Invalidate;
   end
   else
+  begin
+    FTimerService.DestroyTimer(FMouseDownTimer);
     FMouseDownTimer := FTimerService.CreateTimer(200, DoMouseDownDelayed)
+  end;
+
 end;
 
 
@@ -4497,6 +4518,25 @@ var
   AMouseDownTime: integer;
   AMouseDownRow: TKsListItemRow;
 begin
+  FCurrentMousepos := PointF(x-ItemSpaces.Left, y);
+
+  if (ssLeft in Shift) then
+  begin
+    if (FMouseDownPos = PointF(-1, -1)) then
+    begin
+      FMouseDownPos := FCurrentMousepos;
+      FMouseDownTime := Now;
+    end;
+    if (Y < (FMouseDownPos.Y-20)) or (Y > (FMouseDownPos.Y + 20)) then
+      FScrolling := True;
+  end;
+
+  if (ssLeft in Shift) = False  then
+  begin
+      FMouseDownPos := PointF(-1, -1);
+      FMouseDownTime := 0;
+  end;
+
   if FActionButtons.State = ksActionBtnAnimIn then
     Exit;
 
@@ -4505,16 +4545,16 @@ begin
 
   inherited;
 
-  if y < 0 then
+  if (y < 0) or (FScrolling) then
     Exit;
 
 
   ARow := GetRowFromYPos(Y);
 
 
-  AMouseDownRow := GetRowFromYPos(FMouseDownPos.Y);
+  AMouseDownRow := FMouseDownRow;// GetRowFromYPos(FMouseDownPos.Y);
   AMouseDownTime := MilliSecondsBetween(FMouseDownTime, Now);
-  if ARow <> nil then
+  if (ARow <> nil) then
   begin
     if (ssLeft in Shift) and (ARow.Purpose = TListItemPurpose.None) then
     begin
@@ -4534,7 +4574,7 @@ begin
             FOnItemSwipe(Self, AMouseDownRow, ASwipeDirection, FActionButtons);
           if (FDeleteButton.Enabled) and (ASwipeDirection = sdRightToLeft) then
             FActionButtons.AddDeleteButton;
-          DeselectRow;
+          _DeselectRow;
 
           FActionButtons.InitializeActionButtons(AMouseDownRow, ASwipeDirection);
           Exit;
@@ -4543,25 +4583,6 @@ begin
     end;
   end;
 
-  FCurrentMousepos := PointF(x-ItemSpaces.Left, y);
-
-  begin
-    if (ssLeft in Shift) then
-    begin
-      if (FMouseDownPos = PointF(-1, -1)) then
-      begin
-        FMouseDownPos := FCurrentMousepos;
-        FMouseDownTime := Now;
-      end;
-      if (Y < (FMouseDownPos.Y-40)) or (Y > (FMouseDownPos.Y + 40)) then
-        FScrolling := True;
-    end;
-  end;
-  if (ssLeft in Shift) = False  then
-  begin
-      FMouseDownPos := PointF(-1, -1);
-      FMouseDownTime := 0;
-  end;
 end;
 
 
@@ -4578,7 +4599,7 @@ var
 begin
   if FActionButtons.State in [ksActionBtnVisible, ksActionBtnAnimIn] then
     Exit;
-
+  FTimerService.DestroyTimer(FMouseDownTimer);
   inherited;
   try
     if y < 0 then
@@ -4593,10 +4614,10 @@ begin
     if FClickedRowObj <> nil then
     begin
       AObjectConsumesClick := (FClickedRowObj.ConsumesRowClick);
-      if (AObjectConsumesClick) then
-        DeselectRow
-      else
-        Invalidate;
+      //if (AObjectConsumesClick) then
+      //  DeselectRow
+      //else
+      //  Invalidate;
     end;
 
     if PtInRect(AMouseDownRect, PointF(x, y)) then
@@ -4633,10 +4654,10 @@ begin
 
       else
       begin
-        if ARow.CanSelect = False then
-          DeselectRow
-        else
-          Repaint;
+        //if ARow.CanSelect = False then
+        //  DeselectRow
+        //else
+        //  Repaint;
 
 
         ARow.ProcessClick;
@@ -4683,8 +4704,8 @@ begin
     end;
 
       // apply deselect affect if required...
-      if (FKeepSelection = False) and (ItemIndex > -1) then
-        DeselectRow(300);
+      //if (FKeepSelection = False) and (ItemIndex > -1) then
+      //  DeselectRow(300);
 
   finally
 
@@ -4706,6 +4727,7 @@ end;
 
 procedure TksListView.Paint;
 begin
+  inherited;
   if SlideMenuAnimating then
     Exit;
 
@@ -4715,7 +4737,6 @@ begin
     FLastPaintPos := ScrollViewPos;
   end;
 
-  inherited;
 
   if (csDesigning in ComponentState) then
     Exit;
@@ -4730,7 +4751,6 @@ begin
     SetupSearchBox;
     FIsShowing := True;
   end;
-  inherited;
 end;
 
 procedure TksListView.ProcessMouseEvents;
@@ -4744,10 +4764,17 @@ begin
     while FMouseEvents.Count > 0 do
     begin
       AEvent := FMouseEvents[0];
-      case AEvent.EventType of
-        ksMouseItemClick      : if Assigned(FOnItemClick) then FOnItemClick(Self, AEvent.x, AEvent.y, AEvent.Row, AEvent.ID, AEvent.RowObj);
-        ksMouseItemRightClick : if Assigned(FOnItemRightClick) then FOnItemRightClick(Self, AEvent.x, AEvent.y, AEvent.Row, AEvent.ID, AEvent.RowObj);
-        ksMouseLongPress      : if Assigned(FOnLongClick) then FOnLongClick(Self, AEvent.x, AEvent.y, AEvent.Row, AEvent.ID, AEvent.RowObj);
+      try
+        case AEvent.EventType of
+
+            ksMouseItemClick      : if Assigned(FOnItemClick) then FOnItemClick(Self, AEvent.x, AEvent.y, AEvent.Row, AEvent.ID, AEvent.RowObj);
+            ksMouseItemRightClick : if Assigned(FOnItemRightClick) then FOnItemRightClick(Self, AEvent.x, AEvent.y, AEvent.Row, AEvent.ID, AEvent.RowObj);
+            ksMouseLongPress      : if Assigned(FOnLongClick) then FOnLongClick(Self, AEvent.x, AEvent.y, AEvent.Row, AEvent.ID, AEvent.RowObj);
+
+        end;
+
+      except
+        //
       end;
       FMouseEvents.Delete(0);
     end;
@@ -4764,7 +4791,10 @@ var
 begin
   {$IFDEF XE10_OR_NEWER}
   if FMouseEventsTimer = 0 then
-  FMouseEventsTimer := FTimerService.CreateTimer(250, ProcessMouseEvents);
+  begin
+    FTimerService.DestroyTimer(FMouseEventsTimer);
+    FMouseEventsTimer := FTimerService.CreateTimer(250, ProcessMouseEvents);
+  end;
   {$ENDIF}
 
   AEvent.EventType := AType;
@@ -4967,6 +4997,7 @@ end;
 procedure TksListItemRowSegmentButtons.Clear;
 begin
   FButtons.Clear;
+  FItemIndex := -1;
   Changed;
 end;
 
