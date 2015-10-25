@@ -53,7 +53,7 @@ uses
   {$IFDEF XE8_OR_NEWER} FMX.ImgList, {$ENDIF} System.Rtti,
   System.UIConsts, FMX.StdCtrls, FMX.Styles.Objects, System.Generics.Collections,
   FMX.ListBox, FMX.DateTimeCtrls, FMX.Menus, FMX.Objects, FMX.SearchBox,
-  FMX.Edit, FMX.SpinBox, FMX.Memo
+  FMX.Edit, FMX.SpinBox, FMX.Memo, FMX.Platform
   {$IFDEF XE10_OR_NEWER}, FMX.ListView.Appearances {$ENDIF}
   ;
 
@@ -1197,6 +1197,7 @@ type
     function GetSelectedItem: TKsListItemRow;
     function GetItemIndex: integer;
     procedure ReindexItems;
+    function HandleAppEvent(AAppEvent: TApplicationEvent; AContext: TObject): Boolean;
     //procedure DoAfterShow;
     { Private declarations }
   protected
@@ -1384,8 +1385,8 @@ var
 
 implementation
 
-uses SysUtils, FMX.Platform, ksDrawFunctions, FMX.Ani, FMX.Styles, FMX.Dialogs,
-  System.StrUtils, DateUtils, FMX.Forms, Math, ksSlideMenu{, unit14};
+uses SysUtils, ksDrawFunctions, FMX.Ani, FMX.Styles, FMX.Dialogs,
+  System.StrUtils, DateUtils, FMX.Forms, Math, ksSlideMenu;
 
 var
   DefaultScrollBarWidth: integer = 7;
@@ -3351,6 +3352,8 @@ begin
 end;
 
 constructor TksListView.Create(AOwner: TComponent);
+var
+  AEventService: IFMXApplicationEventService;
 begin
   inherited Create(AOwner);
   TPlatformServices.Current.SupportsPlatformService(IFMXTimerService, FTimerService);
@@ -3418,6 +3421,9 @@ begin
   //FLastSelectedControl := nil;
   FActiveEmbeddedControl := nil;
   FScrollTimer := 0;
+
+  if TPlatformServices.Current.SupportsPlatformService(IFMXApplicationEventService, IInterface(AEventService)) then
+    AEventService.SetApplicationEventHandler(HandleAppEvent);
 end;
 
 procedure TksListView._DoDeselectRow;
@@ -4298,7 +4304,6 @@ begin
     Exit;
   ReindexItems;
   CachePages;
-  Invalidate;
 end;
 
 function TksListView.FindRowObjectByID(AID: string): TksListItemRowObj;
@@ -4369,6 +4374,17 @@ begin
   Result := nil;
   if ItemIndex > -1 then
     Result := FItems[ItemIndex];
+end;
+
+function TksListView.HandleAppEvent(AAppEvent: TApplicationEvent;
+  AContext: TObject): Boolean;
+begin
+  Result := False;
+  if AAppEvent = TApplicationEvent.BecameActive then
+  begin
+    RedrawAllRows;
+    Result := True;
+  end;
 end;
 
 procedure TksListView.HideEmbeddedControls;
