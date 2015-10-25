@@ -265,7 +265,7 @@ type
 
 
 
-  TksListItemRowText = class(TksListItemRowObj)
+   TksListItemRowText = class(TksListItemRowObj)
   private
     FFont: TFont;
     FAlignment: TTextAlign;
@@ -281,7 +281,7 @@ type
     procedure SetTextColor(const Value: TAlphaColor);
     procedure SetText(const Value: string);
     procedure SetWordWrap(const Value: Boolean);
-    function CalculateTextHeight: single;
+
     procedure SetTextLayout(const Value: TTextAlign);
     procedure SetBackground(const Value: TAlphaColor);
     procedure SetIsHtmlText(const Value: Boolean);
@@ -292,6 +292,7 @@ type
     constructor Create(ARow: TKsListItemRow); override;
     destructor Destroy; override;
     procedure Assign(ASource: TPersistent); override;
+    function CalculateTextHeight: single;
     function Render(ACanvas: TCanvas): Boolean; override;
     property Font: TFont read FFont write SetFont;
     property TextAlignment: TTextAlign read FAlignment write SetAlignment;
@@ -1140,7 +1141,6 @@ type
     FTimerService: IFMXTimerService;
     FDeselectTimer: TFmxHandle;
     FMouseEventsTimer: TFmxHandle;
-    FProcessingMouseEvents: Boolean;
     FBeforeRowCache: TksRowCacheEvent;
     FAfterRowCache: TksRowCacheEvent;
 
@@ -1195,7 +1195,7 @@ type
     function GetSelectedItem: TKsListItemRow;
     function GetItemIndex: integer;
     procedure ReindexItems;
-    function HandleAppEvent(AAppEvent: TApplicationEvent; AContext: TObject): Boolean;
+    //function HandleAppEvent(AAppEvent: TApplicationEvent; AContext: TObject): Boolean;
     //procedure DoAfterShow;
     { Private declarations }
   protected
@@ -1208,6 +1208,7 @@ type
                                    ASwipeDirection: TksItemSwipeDirection;
                                    AButtons: TksListItemRowActionButtons);  }
     //procedure HideRowActionButtons;
+
     {$IFNDEF XE10_OR_NEWER}
     procedure DoItemChange(const AItem: TListViewItem); override;
     {$ENDIF}
@@ -3358,8 +3359,8 @@ begin
 end;
 
 constructor TksListView.Create(AOwner: TComponent);
-var
-  AEventService: IFMXApplicationEventService;
+//var
+//  AEventService: IFMXApplicationEventService;
 begin
   inherited Create(AOwner);
   TPlatformServices.Current.SupportsPlatformService(IFMXTimerService, FTimerService);
@@ -3419,15 +3420,14 @@ begin
   FMouseDownPos := PointF(-1, -1);
   //FDisableMouseMove := False;
   FFullWidthSeparator := True;
-  FProcessingMouseEvents := False;
   FCombo := nil;
   FDateSelector := nil;
   //FLastSelectedControl := nil;
   FActiveEmbeddedControl := nil;
   FScrollTimer := 0;
 
-  if TPlatformServices.Current.SupportsPlatformService(IFMXApplicationEventService, IInterface(AEventService)) then
-    AEventService.SetApplicationEventHandler(HandleAppEvent);
+  //if TPlatformServices.Current.SupportsPlatformService(IFMXApplicationEventService, IInterface(AEventService)) then
+  // c AEventService.SetApplicationEventHandler(HandleAppEvent);
 end;
 
 procedure TksListView._DoDeselectRow;
@@ -4037,7 +4037,8 @@ begin
   //HideRowActionButtons;
   //FActionButtons.Clear;
 end;
-   {
+
+{
 procedure TksListView.DoAfterShow;
 begin
   FTimerService.DestroyTimer(FOnShowTimer);
@@ -4379,16 +4380,16 @@ begin
     Result := FItems[ItemIndex];
 end;
 
-function TksListView.HandleAppEvent(AAppEvent: TApplicationEvent;
+{function TksListView.HandleAppEvent(AAppEvent: TApplicationEvent;
   AContext: TObject): Boolean;
 begin
   Result := False;
   if AAppEvent = TApplicationEvent.BecameActive then
   begin
-    RedrawAllRows(True);
-    Result := True;
+    //RedrawAllRows(True);
+    //Result := True;
   end;
-end;
+end;    }
 
 procedure TksListView.HideEmbeddedControls;
 begin
@@ -4593,10 +4594,13 @@ begin
             FOnItemSwipe(Self, AMouseDownRow, ASwipeDirection, FActionButtons);
           if (FDeleteButton.Enabled) and (ASwipeDirection = sdRightToLeft) then
             FActionButtons.AddDeleteButton;
-          _DeselectRow;
+          if FActionButtons.Count > 0 then
+          begin
+            _DeselectRow;
 
-          FActionButtons.InitializeActionButtons(AMouseDownRow, ASwipeDirection);
-          Exit;
+            FActionButtons.InitializeActionButtons(AMouseDownRow, ASwipeDirection);
+
+          end;
         end;
       end;
     end;
@@ -4633,10 +4637,6 @@ begin
   if FClickedRowObj <> nil then
   begin
     AObjectConsumesClick := (FClickedRowObj.ConsumesRowClick);
-    //if (AObjectConsumesClick) then
-    //  DeselectRow
-    //else
-    //  Invalidate;
   end;
 
   if PtInRect(AMouseDownRect, PointF(x, y)) then
@@ -4649,13 +4649,8 @@ begin
 
     if ARow.Purpose = TListItemPurpose.None then
     begin
-      if (Button = TMouseButton.mbLeft) then
-        ItemIndex := ARow.Index;
-
-      if (Button = TMouseButton.mbRight) and (SelectOnRightClick) then
-      begin
-        ItemIndex := ARow.Index;
-      end;
+      if (Button = TMouseButton.mbLeft) or ((Button = TMouseButton.mbRight) and (SelectOnRightClick)) then
+        DoMouseDownDelayed;
     end;
 
 
@@ -4673,12 +4668,6 @@ begin
 
     else
     begin
-      //if ARow.CanSelect = False then
-      //  DeselectRow
-      //else
-      //  Repaint;
-
-
       ARow.ProcessClick;
 
       if (ARow.CanSelect) and (AObjectConsumesClick = False) then
@@ -4723,10 +4712,10 @@ begin
   end;
 
   ReleaseAllDownButtons;
-  FMouseDownPos := PointF(-1, -1);
-
+  //FMouseDownPos := PointF(-1, -1);
+  //Application.ProcessMessages;
   FTimerService.DestroyTimer(FMouseEventsTimer);
-  FMouseEventsTimer := FTimerService.CreateTimer(250, ProcessMouseEvents);
+  FMouseEventsTimer := FTimerService.CreateTimer(500, ProcessMouseEvents);
 end;
 
 procedure TksListView.MouseWheel(Shift: TShiftState; WheelDelta: Integer;
@@ -4768,29 +4757,16 @@ procedure TksListView.ProcessMouseEvents;
 var
   AEvent: TksMouseEvent;
 begin
-  if FProcessingMouseEvents then
-    Exit;
-  FProcessingMouseEvents := True;
-  try
-    while FMouseEvents.Count > 0 do
-    begin
-      AEvent := FMouseEvents[0];
-      try
-        case AEvent.EventType of
-
-            ksMouseItemClick      : if Assigned(FOnItemClick) then FOnItemClick(Self, AEvent.x, AEvent.y, AEvent.Row, AEvent.ID, AEvent.RowObj);
-            ksMouseItemRightClick : if Assigned(FOnItemRightClick) then FOnItemRightClick(Self, AEvent.x, AEvent.y, AEvent.Row, AEvent.ID, AEvent.RowObj);
-            ksMouseLongPress      : if Assigned(FOnLongClick) then FOnLongClick(Self, AEvent.x, AEvent.y, AEvent.Row, AEvent.ID, AEvent.RowObj);
-
-        end;
-
-      except
-        //
-      end;
-      FMouseEvents.Delete(0);
+  FTimerService.DestroyTimer(FMouseEventsTimer);
+  while FMouseEvents.Count > 0 do
+  begin
+    AEvent := FMouseEvents[0];
+    case AEvent.EventType of
+      ksMouseItemClick      : if Assigned(FOnItemClick) then FOnItemClick(Self, AEvent.x, AEvent.y, AEvent.Row, AEvent.ID, AEvent.RowObj);
+      ksMouseItemRightClick : if Assigned(FOnItemRightClick) then FOnItemRightClick(Self, AEvent.x, AEvent.y, AEvent.Row, AEvent.ID, AEvent.RowObj);
+      ksMouseLongPress      : if Assigned(FOnLongClick) then FOnLongClick(Self, AEvent.x, AEvent.y, AEvent.Row, AEvent.ID, AEvent.RowObj);
     end;
-  finally
-    FProcessingMouseEvents := False;
+    FMouseEvents.Delete(0);
   end;
 end;
 
@@ -6377,6 +6353,7 @@ begin
     FItemIndex := Value;
     Changed;
   end;
+
 end;
 
 function TksListItemOptionSelector.GetConsumesRowClick: Boolean;
