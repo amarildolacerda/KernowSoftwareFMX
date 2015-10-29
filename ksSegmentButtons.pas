@@ -54,6 +54,7 @@ type
     function GetSelectedID: string;
     procedure DoButtonClick(Sender: TObject);
     function GetButton(index: integer): TKsSegmentButton;
+    procedure SetSelectedID(const Value: string);
   protected
     procedure Paint; override;
     procedure Resize; override;
@@ -64,7 +65,7 @@ type
     procedure Clear;
     procedure SelectFirst;
     property SelectedCaption: string read GetSelectedCaption write SetSelectedCaption;
-    property SelectedID: string read GetSelectedID;
+    property SelectedID: string read GetSelectedID write SetSelectedID;
     property Button[index: integer]: TKsSegmentButton read GetButton; default;
   published
     property Align;
@@ -127,8 +128,8 @@ begin
   inherited Create(AOwner);
   CreateGUID(AGuid);
   FGroupID := GUIDToString(AGuid);
-  Width := 200;
-  Height := 40;
+  //Width := 200;
+  //Height := 40;
   FItemIndex := -1;
   Clear;
 end;
@@ -174,6 +175,7 @@ end;
 
 procedure TksSegmentButtons.Resize;
 begin
+  inherited;
   ResizeButtons;
 end;
 
@@ -234,6 +236,24 @@ begin
       (Children[ICount] as TKsSegmentButton).IsPressed := True;
 end;
 
+
+procedure TksSegmentButtons.SetSelectedID(const Value: string);
+var
+  ICount: integer;
+  AIndex: integer;
+begin
+  AIndex := -1;
+
+  for ICount := 0 to ChildrenCount-1 do
+  begin
+    if Button[ICount].ID = Value then
+    begin
+      AIndex := ICount;
+      Break;
+    end;
+  end;
+  ItemIndex := AIndex;
+end;
 
 constructor TKsSegmentButton.Create(AOwner: TComponent);
 begin
