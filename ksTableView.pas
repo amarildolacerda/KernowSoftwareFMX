@@ -730,7 +730,7 @@ procedure Register;
 implementation
 
 uses SysUtils, FMX.Platform, Math, FMX.Forms, FMX.TextLayout, System.Math.Vectors,
-  FMX.Ani, System.Threading;
+  FMX.Ani, System.Threading, untmain;
 
 type
   TksTableViewAccessoryImage = class(TBitmap)
@@ -2729,8 +2729,7 @@ begin
       begin
         Canvas.Fill.Color := claSilver;
         Canvas.Font.Size := 20;
-        Canvas.FillText(RectF(0, 0, Width, 50), 'release to refresh', False, 1,
-          [], TTextAlign.Center);
+        Canvas.FillText(RectF(0, 0, Width, 50), 'release to refresh', False, 1, [], TTextAlign.Center);
         FNeedsRefresh := True;
       end;
 
@@ -2844,17 +2843,21 @@ end;
 
 procedure TksTableView.SetScrollViewPos(const Value: single);
 begin
-  if not SameValue(FScrollPos, Value, 1/GetScreenScale) then
+
+  //if not SameValue(FScrollPos, Value, 1/GetScreenScale) then
+  if Round(FScrollPos) <> Round(Value) then
+
   begin
-    FScrollPos := Value - GetSearchHeight;
+    FScrollPos := Round(Value) - GetSearchHeight;
     HideAllActionButtons(True);
     Repaint; //Invalidate;
-    if (FScrollPos = 0) and (FNeedsRefresh) then
+    if (Round(FScrollPos) = 0) and (FNeedsRefresh) then
     begin
       FNeedsRefresh := False;
       DoPullToRefresh;
     end;
   end;
+ // frmMain.lblHeader.Text := FloatToStr(Value);
 end;
 
 procedure TksTableView.SetSearchVisible(const Value: Boolean);
@@ -2930,7 +2933,7 @@ end;
 constructor TksTableViewItemShape.Create(ATableItem: TksTableViewItem);
 begin
   inherited;
-  FFill := TBrush.Create(TBrushKind.Solid, claNull);
+  FFill := TBrush.Create(TBrushKind.Solid, claWhite);
   FStroke := TStrokeBrush.Create(TBrushKind.Solid, claBlack);
   FCornerRadius := 0;
   FShape := ksRectangle;
@@ -2951,8 +2954,9 @@ begin
   if (Width = 0) or (Height = 0) then
     Exit;
   AShadowWidth := 0;
+
   if FTableItem.FTableView.RowIndicators.Shadow then
-    AShadowWidth := 2;
+    AShadowWidth := 1;
 
   Bitmap.SetSize(Round(Width * GetScreenScale), Round(Height * GetScreenScale));
   Bitmap.Clear(claNull);
@@ -2967,10 +2971,10 @@ begin
       Bitmap.Canvas.FillRect(ARect, FCornerRadius, FCornerRadius, AllCorners, 1);
       OffsetRect(ARect, 0-AShadowWidth, 0-AShadowWidth);
     end;
-
     Bitmap.Canvas.Fill.Assign(FFill);
     Bitmap.Canvas.Stroke.Assign(FStroke);
 
+    FFill.Color := GetColorOrDefault(FFill.Color, claWhite);
     if FShape in [ksRectangle, ksRoundRect] then
     begin
       Bitmap.Canvas.FillRect(ARect, FCornerRadius, FCornerRadius, AllCorners, 1);
