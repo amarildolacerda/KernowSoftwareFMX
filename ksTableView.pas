@@ -3130,41 +3130,6 @@ var
   AShadowWidth: single;
   ABmp: TBitmap;
 begin
-
- (*if (Width = 0) or (Height = 0) then
-    Exit;
-  AShadowWidth := 0;
-
-  if FTableItem.FTableView.RowIndicators.Shadow then
-    AShadowWidth := 2;
-
-  ARect := RectF(0, 0, (Width {/ GetScreenScale}) - AShadowWidth, (Height{ / GetScreenScale}) - AShadowWidth);
-  OffsetRect(ARect, GetObjectRect.Left, GetObjectRect.Top);
-  if AShadowWidth > 0 then
-  begin
-    OffsetRect(ARect, AShadowWidth, AShadowWidth);
-    ACanvas.Fill.Color := claDimgray;
-    ACanvas.FillRect(ARect, FCornerRadius, FCornerRadius, AllCorners, 1);
-    OffsetRect(ARect, 0-AShadowWidth, 0-AShadowWidth);
-  end;
-  ACanvas.Fill.Assign(FFill);
-  ACanvas.Stroke.Assign(FStroke);
-  ACanvas.StrokeThickness := FStroke.Thickness / GetScreenScale;
-
-  FFill.Color := GetColorOrDefault(FFill.Color, claWhite);
-  if FShape in [ksRectangle, ksRoundRect] then
-  begin
-    ACanvas.FillRect(ARect, FCornerRadius, FCornerRadius, AllCorners, 1);
-    ACanvas.DrawRect(ARect, FCornerRadius, FCornerRadius, AllCorners, 1);
-  end;
-  if FShape = ksEllipse then
-  begin
-    ACanvas.FillEllipse(ARect, 1);
-    ACanvas.DrawEllipse(ARect, 1);
-  end;
-        *)
-
-
   if (Width = 0) or (Height = 0) then
     Exit;
 
@@ -3173,7 +3138,7 @@ begin
     AShadowWidth := 0;
 
     if FTableItem.FTableView.RowIndicators.Shadow then
-      AShadowWidth := 2;
+      AShadowWidth := 2 / GetScreenScale;
 
     ABmp.SetSize(Round(Width * GetScreenScale), Round(Height * GetScreenScale));
     ABmp.BitmapScale := GetScreenScale;
