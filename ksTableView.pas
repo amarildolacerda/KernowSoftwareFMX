@@ -423,11 +423,11 @@ type
     FFont: TFont;
     FTextColor: TAlphaColor;
     FText: string;
-    FVisible: Boolean;
+    FEnabled: Boolean;
     procedure SetFont(const Value: TFont);
     procedure SetText(const Value: string);
     procedure SetTextColor(const Value: TAlphaColor);
-    procedure SetVisible(const Value: Boolean);
+    procedure SetEnabled(const Value: Boolean);
   public
     constructor Create; virtual;
     destructor Destroy; override;
@@ -435,7 +435,7 @@ type
     property Font: TFont read FFont write SetFont;
     property TextColor: TAlphaColor read FTextColor write SetTextColor default claSilver;
     property Text: string read FText write SetText;
-    property Visible: Boolean read FVisible write SetVisible default False;
+    property Enabled: Boolean read FEnabled write SetEnabled default True;
   end;
 
   // ------------------------------------------------------------------------------
@@ -2932,7 +2932,7 @@ begin
         end;
       end;
 
-      if (FBackgroundText.Visible) then
+      if (FBackgroundText.Enabled) and (AItems.Count = 0) then
       begin
         if FBackgroundText.Text <> '' then
         begin
@@ -3076,7 +3076,8 @@ begin
   FFont.Size := 18;
   FTextColor := claSilver;
   FText := '';
-  FVisible := False;
+  FEnabled := True;
+
 end;
 
 destructor TksTableViewBackgroundText.Destroy;
@@ -3100,9 +3101,9 @@ begin
   FTextColor := Value;
 end;
 
-procedure TksTableViewBackgroundText.SetVisible(const Value: Boolean);
+procedure TksTableViewBackgroundText.SetEnabled(const Value: Boolean);
 begin
-  FVisible := Value;
+  FEnabled := Value;
 end;
 
 { TksTableViewItemShape }
