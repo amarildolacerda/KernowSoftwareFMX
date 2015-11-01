@@ -555,6 +555,7 @@ type
     FShowSelection: Boolean;
     FItemIndex: integer;
     FMouseDownPoint: TPointF;
+    FMouseCurrentPos: TPointF;
     FUpdateCount: integer;
     FShowAccessory: Boolean;
     FSelectTimer: TFmxHandle;
@@ -2561,8 +2562,8 @@ end;
 
 procedure TksTableView.DoSelectItem;
 begin
-
   KillTimer(FSelectTimer);
+  MouseUp(TMouseButton.mbLeft, [], FMouseCurrentPos.x, FMouseCurrentPos.y);
   if FMouseDownItem = nil then
     Exit;
   if FMouseDownItem.FActionButtons.Visible then
@@ -2782,6 +2783,7 @@ begin
 
   FSwipeDirection := ksSwipeUnknown;
   FMouseDownPoint := PointF(x, y);
+  FMouseCurrentPos := FMouseDownPoint;
 
   FAniCalc.MouseDown(x, y);
 
@@ -2801,6 +2803,7 @@ var
   AMouseDownRect: TRectF;
 begin
   if UpdateCount > 0 then Exit;
+  FMouseCurrentPos := PointF(x, y);
   inherited;
 
   if not (ssLeft in Shift) then
@@ -3016,11 +3019,11 @@ end;
 procedure TksTableView.SetScrollViewPos(const Value: single);
 begin
 
-  //if not SameValue(FScrollPos, Value, 1/GetScreenScale) then
-  if Round(FScrollPos) <> Round(Value) then
+  if not SameValue(FScrollPos, Value, 1/GetScreenScale) then
+  //if Round(FScrollPos) <> Round(Value) then
 
   begin
-    FScrollPos := Round(Value) - GetSearchHeight;
+    FScrollPos := Value - GetSearchHeight;
     HideAllActionButtons(True);
     Repaint; //Invalidate;
     if (Round(FScrollPos) = 0) and (FNeedsRefresh) then
