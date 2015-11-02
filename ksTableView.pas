@@ -59,6 +59,12 @@ const
 
   C_TABLEVIEW_PAGE_SIZE = 50;
 
+  {$IFDEF ANDROID}
+  C_TABLEIEW_DEFAULT_SWITCH_COLOR = claDodgerBlue;
+  {$ELSE}
+  C_TABLEIEW_DEFAULT_SWITCH_COLOR = claLimeGreen;
+  {$ENDIF}
+
 type
   TksTableViewItem = class;
   TksTableViewItemObject = class;
@@ -89,7 +95,7 @@ type
   TksTableViewItemClickEvent = procedure(Sender: TObject; x, y: single; AItem: TksTableViewItem; AId: string; ARowObj: TksTableViewItemObject) of object;
   TksItemSwipeEvent = procedure(Sender: TObject; ARow: TksTableViewItem; ASwipeDirection: TksSwipeDirection; AButtons: TksTableViewActionButtons) of object;
   TksItemActionButtonClickEvent = procedure(Sender: TObject; ARow: TksTableViewItem; AButton: TksTableViewActionButon) of object;
-
+  TksItemChecMarkChangedEvent = procedure(Sender: TObject; ARow: TksTableViewItem; AChecked: Boolean) of object;
 
   TksAccessoryType = (atNone, atMore, atCheckmark, atDetail, atBack, atRefresh,
     atAction, atPlay, atRewind, atForward, atPause, atStop, atAdd, atPrior,
@@ -262,6 +268,20 @@ type
     property CornerRadius: single read FCornerRadius write SetCornerRadius;
   end;
 
+  TksTableViewItemSwitch = class(TksTableViewItemObject)
+  private
+    FChecked: Boolean;
+    FSelectedColor: TAlphaColor;
+    procedure SetChecked(const Value: Boolean);
+    procedure SetSelectedColor(const Value: TAlphaColor);
+  protected
+    procedure Render(ACanvas: TCanvas); override;
+  public
+    constructor Create(ATableItem: TksTableViewItem); override;
+    property Checked: Boolean read FChecked write SetChecked default False;
+    property SelectedColor: TAlphaColor read FSelectedColor write SetSelectedColor default C_TABLEIEW_DEFAULT_SWITCH_COLOR;
+  end;
+
   TksTableViewItemAccessory = class(TksTableViewItemImage)
   private
     FAccessory: TksAccessoryType;
@@ -369,8 +389,11 @@ type
     function TextOutRight(AText: string; y, AWidth: single; AXOffset: single; const AVertAlign: TksTableItemAlign = TksTableItemAlign.Center): TksTableViewItemText; overload;
 
     // shape functions...
-    function DrawRect(x, y, AWidth, AHeight: single;
-      AStroke, AFill: TAlphaColor): TksTableViewItemShape;
+    function DrawRect(x, y, AWidth, AHeight: single; AStroke, AFill: TAlphaColor): TksTableViewItemShape;
+
+
+    function AddSwitch(x: single; AIsChecked: Boolean; const AAlign: TksTableItemAlign = TksTableItemAlign.Trailing): TksTableViewItemSwitch;
+
 
     property AbsoluteIndex: integer read GetAbsoluteIndex;
     property Accessory: TksTableViewItemAccessory read FAccessory;
@@ -568,6 +591,7 @@ type
     FRowIndicators: TksListViewRowIndicators;
     FDeleteButton: TksDeleteButton;
     FTextDefaults: TksTableViewTextDefaults;
+    FStickyHeaders: Boolean;
 
     // events...
     FItemClickEvent: TksTableViewItemClickEvent;
@@ -581,7 +605,9 @@ type
     FOnDeletingItem: TksTableViewDeletingItemEvent;
     FBeforeRowCache: TksTableViewRowCacheEvent;
     FAfterRowCache: TksTableViewRowCacheEvent;
-    FStickyHeaders: Boolean;
+    FOnItemChecMarkChanged: TksItemChecMarkChangedEvent;
+    FFullWidthSeparator: Boolean;
+
     function GetViewPort: TRectF;
     procedure SetScrollViewPos(const Value: single);
     procedure AniCalcStart(Sender: TObject);
@@ -617,6 +643,7 @@ type
     function CreateTimer(AInterval: integer; AProc: TTimerProc): TFmxHandle;
     procedure KillTimer(ATimer: TFmxHandle);
     procedure KillAllTimers;
+    procedure SetFullWidthSeparator(const Value: Boolean);
   protected
     function GetTotalItemHeight: single;
     procedure Paint; override;
@@ -659,6 +686,8 @@ type
     property Cursor default crDefault;
 
     property DeleteButton: TksDeleteButton read FDeleteButton write FDeleteButton;
+    property FullWidthSeparator: Boolean read FFullWidthSeparator write SetFullWidthSeparator default True;
+
     property HeaderHeight: integer read FHeaderHeight write SetHeaderHeight default C_TABLEVIEW_DEFAULT_HEADER_HEIGHT;
 
     property ItemHeight: integer read FItemHeight write SetKsItemHeight default C_TABLEVIEW_DEFAULT_ITEM_HEIGHT;
@@ -696,6 +725,7 @@ type
     property OnDeletingItem: TKsTableViewDeletingItemEvent read FOnDeletingItem write FOnDeletingItem;
     property OnDeleteItem: TKsTableViewDeleteItemEvent read FOnDeleteItem write FOnDeleteItem;
     property OnItemActionButtonClick: TksItemActionButtonClickEvent read FOnItemActionButtonClick write FOnItemActionButtonClick;
+    //property OnItemCheckmarkChanged: TksItemChecMarkChangedEvent read FOnItemChecMarkChanged write FOnItemChecMarkChanged;
     property OnItemClick: TksTableViewItemClickEvent read FItemClickEvent write FItemClickEvent;
     property OnPainting;
     property OnPaint;
@@ -795,6 +825,9 @@ type
   end;
 
 procedure Register;
+
+procedure DrawSwitch(ACanvas: TCanvas; ARect: TRectF; AChecked: Boolean; ASelectedColor: TAlphaColor);
+
 
 implementation
 
@@ -986,6 +1019,86 @@ begin
 {$ENDIF}
 end;
 
+procedure DrawSwitch(ACanvas: TCanvas; ARect: TRectF; AChecked: Boolean; ASelectedColor: TAlphaColor);
+var
+  ABmp: TBitmap;
+  r: TRectF;
+  ASwitchRect: TRectF;
+  s: single;
+begin
+  s := 2;
+  ABmp := TBitmap.Create(Round(ARect.Width * s), Round(ARect.Height * s));
+  try
+    ABmp.Clear(claNull);
+    ABmp.BitmapScale := s;
+
+    ABmp.Canvas.BeginScene;
+    ABmp.Canvas.StrokeThickness := s*2;
+
+    r := RectF(0, 0, ABmp.Height, ABmp.Height);
+    InflateRect(r, -s, -s);
+    if not AChecked then
+      ASwitchRect := r;
+
+    ABmp.Canvas.Stroke.Color := claSilver;
+
+    //ABmp.Canvas.Fill.Color := claNull;
+    ABmp.Canvas.Fill.Color := claWhite;
+    if AChecked then
+    begin
+      Abmp.Canvas.Fill.Color := ASelectedColor;
+      ABmp.Canvas.Stroke.Color := ASelectedColor;
+    end
+    else
+      ABmp.Canvas.Fill.Color := $FFEEEEEE;
+
+    ABmp.Canvas.FillEllipse(r, 1, ABmp.Canvas.Fill);
+    ABmp.Canvas.DrawEllipse(r, 1, ABmp.Canvas.Stroke);
+    OffsetRect(r, ABmp.Width-(r.Height+(s*2)), 0);
+    if AChecked then
+      ASwitchRect := r;
+
+    ABmp.Canvas.FillEllipse(r, 1, ABmp.Canvas.Fill);
+    ABmp.Canvas.DrawEllipse(r, 1, ABmp.Canvas.Stroke);
+
+    if AChecked then
+      Abmp.Canvas.Stroke.Color := ABmp.Canvas.Fill.Color;
+    ABmp.Canvas.FillRect(RectF(0  + (r.Width/2), 0, ABmp.Width - (r.Width/2), ABmp.Height), 0, 0,  AllCorners, 1, ABmp.Canvas.Fill);
+
+    r := RectF(ABmp.Height/2, 0, ABmp.Width-(ABmp.Height/2), ABmp.Height);
+
+
+    ABmp.Canvas.FillRect(r, 0, 0, AllCorners, 1, ABmp.Canvas.Fill);
+    ABmp.Canvas.StrokeThickness := s{*4}*2;
+    r.Top := r.Top + s;
+    r.Bottom := r.Bottom - s;
+    r.Left := r.Left- (GetScreenScale*4);
+    r.Right := r.Right + (GetScreenScale*4);
+    ABmp.Canvas.DrawRectSides(r, 0, 0, AllCorners, 1, [TSide.Top, TSide.Bottom], ABmp.Canvas.Stroke);
+    ABmp.Canvas.StrokeThickness := s{*2};
+
+    ABmp.Canvas.Fill.Color := claWhite;
+
+    if AChecked then
+    begin
+
+      //InflateRect(ASwitchRect, s/2, s/2);
+      ABmp.Canvas.FillEllipse(ASwitchRect, 1);
+    end
+    else
+    begin
+      //InflateRect(ASwitchRect, s/2, s/2);
+      //ABmp.Canvas.fil.Color := claWhite;
+      ABmp.Canvas.Stroke.Color := claSilver;
+      ABmp.Canvas.FillEllipse(ASwitchRect, 1);
+      ABmp.Canvas.DrawEllipse(ASwitchRect, 1);
+    end;
+    ABmp.Canvas.EndScene;
+    ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ARect, 1, False);
+  finally
+    FreeAndNil(ABmp);
+  end;
+end;
 
 // ------------------------------------------------------------------------------
 
@@ -1027,13 +1140,16 @@ var
   ARowRect: TRectF;
 begin
   ARowRect := GetItemRect;
+  //ARowRect.Left := GetScreenScale*4;
+  //ARowRect.Width := GetItemRect.Width-(GetScreenScale*8);
+  //ARowRect.Right := ARowRect.Right - (GetScreenScale*8);
 
-
-  if Self <> FTableItem.Accessory then
+  {if Self <> FTableItem.Accessory then
   begin
     if (FTableItem.Accessory.Accessory <> atNone) then
       ARowRect.Right := ARowRect.Right - (8 + FTableItem.Accessory.Width);
-  end;
+  end;}
+
   Result := RectF(ARowRect.Left, 0, FWidth, FHeight);
 
   case FAlign of
@@ -1162,6 +1278,8 @@ begin
   r := GetObjectRect;
   RenderText(ACanvas, r.Left, r.Top, r.Width, r.Height, FText, FFont,
     FTextColor, FWordWrap, FTextAlign, FTextVertAlign, FTrimming);
+
+  //ACanvas.DrawRect(r, 0, 0, AllCorners, 1);
 end;
 
 procedure TksTableViewItemText.SetBackground(const Value: TAlphaColor);
@@ -1321,7 +1439,7 @@ end;    }
 function TksTableViewItemAccessory.GetObjectRect: TRectF;
 begin
   Result := inherited;
-  OffsetRect(Result, 0 - 4, 0);
+  //OffsetRect(Result, 0 - 4, 0);
 end;
      {
 function TksTableViewItemAccessory.GetWidth: single;
@@ -1458,6 +1576,20 @@ end;
 // ------------------------------------------------------------------------------
 
 { TksTableItem }
+
+function TksTableViewItem.AddSwitch(x: single; AIsChecked: Boolean;
+  const AAlign: TksTableItemAlign = TksTableItemAlign.Trailing): TksTableViewItemSwitch;
+begin
+  Result := TksTableViewItemSwitch.Create(Self);
+  Result.Width := 50;
+  Result.Height := 30;
+  Result.PlaceOffset := PointF(x, 0);
+  Result.SelectedColor := C_TABLEIEW_DEFAULT_SWITCH_COLOR;
+  Result.Checked := AIsChecked;
+  Result.Align := AAlign;
+  Result.VertAlign := TksTableItemAlign.Center;
+  FObjects.Add(Result);
+end;
 
 procedure TksTableViewItem.CacheItem(const AForceCache: Boolean = False);
 var
@@ -1746,7 +1878,14 @@ var
 begin
   //ADefaultAccessoryWidth := AccessoryImages.Images[atMore].Width;
   Result := GetItemRect;
-  Result.Right := Result.Right - (FAccessory.Width + 10);
+
+
+  Result.Left := Result.Left + 4;
+  Result.Right := Result.Right - 4;
+
+  if FAccessory.Accessory <> atNone then
+    Result.Right := Result.Right - FAccessory.Width;
+  //Result.Right := Result.Right - (FAccessory.Width + 10);
 end;
 
 {
@@ -1803,9 +1942,54 @@ begin
   try
     ARect := GetInternalRect;
 
-    ALeftMargin := 8;
-
     if (FPurpose = None) and (FTableView.RowIndicators.Visible) then
+    begin
+      FIndicator.PlaceOffset := PointF(ARect.Left, 0);
+      FIndicator.Width := FTableView.RowIndicators.Width;
+      FIndicator.Height := FTableView.RowIndicators.Height;
+      if FIndicator.Height = 0 then
+        FIndicator.Height := ItemRect.Height - 16;
+      ARect.Left := ARect.Left + FTableView.RowIndicators.Width+4;
+    end;
+
+    if FImage.Bitmap <> nil then
+    begin
+      FImage.Width := FTableView.ItemImageSize;
+      FImage.Height := FTableView.ItemImageSize;
+      FImage.PlaceOffset := PointF(ARect.Left, 0);
+      ARect.Left := ARect.Left + FTableView.ItemImageSize + 4;
+    end;
+
+    if FAccessory.Accessory <> atNone then
+    begin
+      ARect.Right := ARect.Right-4;
+      FAccessory.PlaceOffset := Point(-4, 0);
+    end;
+
+    FTitle.PlaceOffset := PointF(ARect.Left, 0);
+    FTitle.Width := ARect.Width/2;
+    FTitle.Height := TextHeight(FTitle.Text, False, False, 0);
+
+    FSubTitle.PlaceOffset := PointF(ARect.Left, 0);
+    FSubTitle.Width := ARect.Width/2;
+    FSubTitle.Height := TextHeight(FSubTitle.Text, False, False, 0);
+
+    if FSubTitle.Text <> '' then
+    begin
+      FTitle.PlaceOffset := PointF(FTitle.PlaceOffset.x, -9);
+      FSubTitle.PlaceOffset := PointF(FSubTitle.PlaceOffset.x, 9);
+    end;
+
+
+
+    FDetail.PlaceOffset := PointF(ARect.Right-(ARect.Width/2), 0);
+    FDetail.Width := ARect.Width/2;
+    FDetail.Height := GetTextHeight(FDetail.Text, FDetail.Font, FDetail.WordWrap);
+
+     //PointF(ARect.Right-(FAccessory.Width+4), 0);
+    (*ALeftMargin := ARect.Left;
+
+    [if (FPurpose = None) and (FTableView.RowIndicators.Visible) then
     begin
       FIndicator.PlaceOffset := PointF(ALeftMargin, 0);
       FIndicator.Width := FTableView.RowIndicators.Width;
@@ -1840,11 +2024,11 @@ begin
       FSubTitle.PlaceOffset := PointF(FSubTitle.PlaceOffset.x, 9);
     end;
 
-    FDetail.Width := (ARect.Width * (1-ATitleWidth));
     FDetail.PlaceOffset := PointF(FTitle.GetObjectRect.Right, 0);
+    FDetail.Width := (ARect.Width * (1-ATitleWidth));
     FDetail.Height := GetTextHeight(FDetail.Text, FDetail.Font,
       FDetail.WordWrap);
-
+           *)
   finally
     FUpdating := False;
   end;
@@ -1855,6 +2039,7 @@ var
   ARect: TRectF;
   AButtonRect: TRectF;
   AWidth: single;
+  ASeperatorMargin: single;
 begin
   CacheItem;
   if FBitmap = nil then
@@ -1894,10 +2079,13 @@ begin
     ACanvas.Stroke.Color := $FFD2D2D2;
     ACanvas.StrokeThickness := 0.5;
   end;
-  ACanvas.DrawLine(PointF(0, ARect.Top), PointF(ARect.Right, ARect.Top), 1);
+  ASeperatorMargin := 0;
+  {if (not FTableView.FullWidthSeparator) and (FPurpose = TksTableViewItemPurpose.None) then
+    ASeperatorMargin := FTitle.PlaceOffset.X;
+  ACanvas.DrawLine(PointF(ASeperatorMargin, ARect.Top), PointF(ARect.Right, ARect.Top), 1);
   if (IsLastItem) or (FPurpose = TksTableViewItemPurpose.Header) then
     ACanvas.DrawLine(PointF(0, ARect.Bottom),
-      PointF(ARect.Right, ARect.Bottom), 1);
+      PointF(ARect.Right, ARect.Bottom), 1);}
 end;
 
 procedure TksTableViewItem.SetCached(const Value: Boolean);
@@ -1911,6 +2099,8 @@ begin
   begin
     FChecked := Value;
     Changed;
+    //if Assigned(FTableView.OnItemCheckmarkChanged) then
+    //  FTableView.OnItemCheckmarkChanged(Self, Self, FChecked);
   end;
 end;
 
@@ -2487,6 +2677,7 @@ begin
   FCheckMarks := TksTableViewCheckMarks.cmNone;
   FShowSelection := True;
   FStickyHeaders := True;
+  FFullWidthSeparator := True;
 
   FUpdateCount := 0;
   AddObject(FSearchBox);
@@ -2863,7 +3054,7 @@ begin
     FAniCalc.MouseUp(x, y);
   FMouseDown := False;
   if (FItemIndex > -1) and (FKeepSelection = False) then
-    DeselectItem(100);
+    DeselectItem(200);
 end;
 
 procedure TksTableView.Paint;
@@ -2970,6 +3161,15 @@ begin
     FCheckMarks := Value;
     if FCheckMarks <> TksTableViewCheckMarks.cmMultiSelect then
       UncheckAll;
+  end;
+end;
+
+procedure TksTableView.SetFullWidthSeparator(const Value: Boolean);
+begin
+  if FFullWidthSeparator <> Value then
+  begin
+    FFullWidthSeparator := Value;
+    //Invalidate;
   end;
 end;
 
@@ -3175,6 +3375,8 @@ begin
       ABmp.Canvas.EndScene;
     end;
     ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ObjectRect, 1, True);
+    ACanvas.Stroke.Color := clablack;
+    ACanvas.DrawRect(ObjectRect, 0, 0, AllCorners, 1);
   finally
     ABmp.Free;
   end;
@@ -3472,6 +3674,38 @@ end;
 procedure TksTableViewTextDefault.SetTextColor(const Value: TAlphaColor);
 begin
   FTextColor := Value;
+end;
+
+{ TksTableViewItemSwitch }
+
+constructor TksTableViewItemSwitch.Create(ATableItem: TksTableViewItem);
+begin
+  inherited;
+  FChecked := False;
+  FSelectedColor := C_TABLEIEW_DEFAULT_SWITCH_COLOR;
+end;
+
+procedure TksTableViewItemSwitch.Render(ACanvas: TCanvas);
+begin
+  DrawSwitch(ACanvas, ObjectRect, FChecked, FSelectedColor);
+end;
+
+procedure TksTableViewItemSwitch.SetChecked(const Value: Boolean);
+begin
+  if FChecked <> Value then
+  begin
+    FChecked := Value;
+    Changed;;
+  end;
+end;
+
+procedure TksTableViewItemSwitch.SetSelectedColor(const Value: TAlphaColor);
+begin
+  if FSelectedColor <> Value then
+  begin
+    FSelectedColor := Value;
+    Changed;
+  end;
 end;
 
 initialization
