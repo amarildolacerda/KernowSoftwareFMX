@@ -561,6 +561,8 @@ type
 
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or pidiOSDevice32 or pidiOSDevice64 or pidAndroid)]
   TksTableView = class(TControl)
+  strict private
+    FFullWidthSeparator: Boolean;
   private
     FSearchBox: TSearchBox;
     FItems: TksTableViewItems;
@@ -606,7 +608,6 @@ type
     FBeforeRowCache: TksTableViewRowCacheEvent;
     FAfterRowCache: TksTableViewRowCacheEvent;
     FOnItemChecMarkChanged: TksItemChecMarkChangedEvent;
-    FFullWidthSeparator: Boolean;
 
     function GetViewPort: TRectF;
     procedure SetScrollViewPos(const Value: single);
@@ -725,7 +726,7 @@ type
     property OnDeletingItem: TKsTableViewDeletingItemEvent read FOnDeletingItem write FOnDeletingItem;
     property OnDeleteItem: TKsTableViewDeleteItemEvent read FOnDeleteItem write FOnDeleteItem;
     property OnItemActionButtonClick: TksItemActionButtonClickEvent read FOnItemActionButtonClick write FOnItemActionButtonClick;
-    //property OnItemCheckmarkChanged: TksItemChecMarkChangedEvent read FOnItemChecMarkChanged write FOnItemChecMarkChanged;
+    property OnItemCheckmarkChanged: TksItemChecMarkChangedEvent read FOnItemChecMarkChanged write FOnItemChecMarkChanged;
     property OnItemClick: TksTableViewItemClickEvent read FItemClickEvent write FItemClickEvent;
     property OnPainting;
     property OnPaint;
@@ -2080,12 +2081,12 @@ begin
     ACanvas.StrokeThickness := 0.5;
   end;
   ASeperatorMargin := 0;
-  {if (not FTableView.FullWidthSeparator) and (FPurpose = TksTableViewItemPurpose.None) then
+  if (FTableView.FullWidthSeparator = False) and (FPurpose = TksTableViewItemPurpose.None) then
     ASeperatorMargin := FTitle.PlaceOffset.X;
   ACanvas.DrawLine(PointF(ASeperatorMargin, ARect.Top), PointF(ARect.Right, ARect.Top), 1);
   if (IsLastItem) or (FPurpose = TksTableViewItemPurpose.Header) then
     ACanvas.DrawLine(PointF(0, ARect.Bottom),
-      PointF(ARect.Right, ARect.Bottom), 1);}
+      PointF(ARect.Right, ARect.Bottom), 1);
 end;
 
 procedure TksTableViewItem.SetCached(const Value: Boolean);
@@ -2099,8 +2100,8 @@ begin
   begin
     FChecked := Value;
     Changed;
-    //if Assigned(FTableView.OnItemCheckmarkChanged) then
-    //  FTableView.OnItemCheckmarkChanged(Self, Self, FChecked);
+    if Assigned(FTableView.OnItemCheckmarkChanged) then
+      FTableView.OnItemCheckmarkChanged(Self, Self, FChecked);
   end;
 end;
 
@@ -3166,11 +3167,8 @@ end;
 
 procedure TksTableView.SetFullWidthSeparator(const Value: Boolean);
 begin
-  if FFullWidthSeparator <> Value then
-  begin
-    FFullWidthSeparator := Value;
-    //Invalidate;
-  end;
+  FFullWidthSeparator := Value;
+  Invalidate;
 end;
 
 procedure TksTableView.SetHeaderHeight(const Value: integer);
