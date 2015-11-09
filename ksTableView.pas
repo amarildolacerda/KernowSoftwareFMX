@@ -438,6 +438,8 @@ type
   TksTableViewItem = class(TFmxObject)
   private
     [weak]FTableView: TksTableView;
+    FData: TDictionary<string, TValue>;
+
     FID: string;
     FAbsoluteIndex: integer;
     FIndicator: TksTableViewItemShape;
@@ -501,6 +503,8 @@ type
     procedure SetTitleWidth(const Value: TksTableViewTextWidth);
     procedure SetPickerItems(const Value: TStrings);
     procedure PickerItemsChanged(Sender: TObject);
+    function GetData(const AIndex: string): TValue;
+    procedure SetData(const AIndex: string; const Value: TValue);
   protected
     procedure Render(ACanvas: TCanvas; AScrollPos: single);
     procedure CacheItem(const AForceCache: Boolean = False);
@@ -541,6 +545,7 @@ type
     property Accessory: TksTableViewItemAccessory read FAccessory;
     property CanSelect: Boolean read FCanSelect write FCanSelect default True;
     property Checked: Boolean read FChecked write SetChecked default False;
+    property Data[const AIndex: string]: TValue read GetData write SetData;
     property Font: TFont read FFont write SetFont;
     property Height: single read GetHeight write SetHeight;
     property ItemRect: TRectF read GetItemRect write SetItemRect;
@@ -2120,12 +2125,16 @@ begin
   Result := FAbsoluteIndex;
 end;
 
-
 function TksTableViewItem.GetCached: Boolean;
 begin
   Result := FCached;
 end;
 
+function TksTableViewItem.GetData(const AIndex: string): TValue;
+begin
+  if (FData <> nil) and not FData.TryGetValue(AIndex, Result) then
+    Result := TValue.Empty;
+end;
 
 function TksTableViewItem.GetHeight: single;
 begin
@@ -2146,7 +2155,6 @@ function TksTableViewItem.GetInternalRect: TRectF;
 begin
   Result := GetItemRect;
 
-
   Result.Left := Result.Left + 4;
   Result.Right := Result.Right - 4;
 
@@ -2155,20 +2163,9 @@ begin
   //Result.Right := Result.Right - (FAccessory.Width + 10);
 end;
 
-{
-  function TksTableItem.GetInternalRect: TRectF;
-  begin
-  Result := FItemRect;
-  Result.Left := 8;
-  Result.Right := Result.Right-(C_SCROLL_BAR_WIDTH);
-  if FTableView.ShowAccessory then
-  Result.Right := Result.Right - 20;
-  end; }
-
 function TksTableViewItem.GetItemRect: TRectF;
 begin
   Result := FItemRect;
-
 end;
 
 function TksTableViewItem.GetPurpose: TksTableViewItemPurpose;
@@ -2384,6 +2381,13 @@ begin
     if Assigned(FTableView.OnItemCheckmarkChanged) then
       FTableView.OnItemCheckmarkChanged(Self, Self, FChecked);
   end;
+end;
+
+procedure TksTableViewItem.SetData(const AIndex: string; const Value: TValue);
+begin
+  if FData = nil then
+    FData := TDictionary<string, TValue>.Create;
+  FData.AddOrSetValue(AIndex, Value);
 end;
 
 procedure TksTableViewItem.SetFont(const Value: TFont);
