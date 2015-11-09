@@ -179,7 +179,9 @@ type
     property ListView: TksListView read FListView;
   end;
 
-  [ComponentPlatformsAttribute(pidWin32 or pidWin64 or pidiOSDevice or pidAndroid)]
+  [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
+    {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
+    {$ELSE} pidiOSDevice {$ENDIF} or pidAndroid)]
   TksSlideMenu = class(TFmxObject)
   strict private
     FAppearence: TksSlideMenuAppearence;

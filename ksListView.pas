@@ -1083,7 +1083,9 @@ type
     property Shadow: Boolean read FShadow write FShadow default True;
   end;
 
-  [ComponentPlatformsAttribute(pidWin32 or pidWin64 or pidiOSDevice or pidAndroid)]
+  [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
+    {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
+    {$ELSE} pidiOSDevice {$ENDIF} or pidAndroid)]
   TksListView = class(TCustomListView)
   private
     FScreenScale: single;
