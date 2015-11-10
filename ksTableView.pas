@@ -732,6 +732,7 @@ type
     constructor Create; virtual;
     destructor Destroy; override;
     procedure Assign(Source: TPersistent); override;
+  published
     property Enabled: Boolean read FEnabled write SetEnabled default True;
     property Font: TFont read FFont write SetFont;
     property PullText: string read FPullText write FPullText;
@@ -2275,11 +2276,11 @@ begin
     end;
 
     FTitle.PlaceOffset := PointF(ARect.Left, 0);
-    FTitle.Width := ARect.Width/2;
+    FTitle.Width := ARect.Width * (((Ord(FTitleWidth)+1)*10) / 100);
     FTitle.Height := TextHeight(FTitle.Text, False, False, 0);
 
     FSubTitle.PlaceOffset := PointF(ARect.Left, 0);
-    FSubTitle.Width := ARect.Width/2;
+    FSubTitle.Width := ARect.Width * (((Ord(FTitleWidth)+1)*10) / 100);
     FSubTitle.Height := TextHeight(FSubTitle.Text, False, False, 0);
 
     if FSubTitle.Text <> '' then
@@ -3458,7 +3459,7 @@ begin
   begin
     FPainting := True;
     try
-      Canvas.Clear(claWhite);
+      Canvas.Clear(GetColorOrDefault(FAppearence.Background, claWhite));
       if (FPullToRefresh.Enabled) and (ScrollViewPos < 0) then
       begin
         Canvas.Stroke.Thickness := 1/GetScreenScale;
@@ -3653,7 +3654,8 @@ end;
 
 procedure TksTableView.SetPullToRefresh(const Value: TksTableViewPullToRefresh);
 begin
-  FPullToRefresh.Assign(Value);
+  if Value <> nil then
+    FPullToRefresh.Assign(Value);
 end;
 
 procedure TksTableView.SetScrollViewPos(const Value: single);
@@ -4679,6 +4681,8 @@ procedure TksTableViewPullToRefresh.Assign(Source: TPersistent);
 var
   ASrc: TksTableViewPullToRefresh;
 begin
+  if ASrc = nil then
+    Exit;
   ASrc := (Source as TksTableViewPullToRefresh);
   FEnabled := ASrc.Enabled;
   FPullText := ASrc.PullText;
