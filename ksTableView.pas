@@ -503,8 +503,9 @@ type
     procedure SetTitleWidth(const Value: TksTableViewTextWidth);
     procedure SetPickerItems(const Value: TStrings);
     procedure PickerItemsChanged(Sender: TObject);
-    function GetData(const AIndex: string): TValue;
-    procedure SetData(const AIndex: string; const Value: TValue);
+    function GetItemData(const AIndex: string): TValue;
+    procedure SetItemData(const AIndex: string; const Value: TValue);
+    function GetHasData(const AIndex: string): Boolean;
   protected
     procedure Render(ACanvas: TCanvas; AScrollPos: single);
     procedure CacheItem(const AForceCache: Boolean = False);
@@ -545,8 +546,10 @@ type
     property Accessory: TksTableViewItemAccessory read FAccessory;
     property CanSelect: Boolean read FCanSelect write FCanSelect default True;
     property Checked: Boolean read FChecked write SetChecked default False;
-    property Data[const AIndex: string]: TValue read GetData write SetData;
+    property Data[const AIndex: string]: TValue read GetItemData write SetItemData;
     property Font: TFont read FFont write SetFont;
+    property HasData[const AIndex: string]: Boolean read GetHasData;
+
     property Height: single read GetHeight write SetHeight;
     property ItemRect: TRectF read GetItemRect write SetItemRect;
     property IndicatorColor: TAlphaColor read GetIndicatorColor write SetIndicatorColor;
@@ -716,6 +719,25 @@ type
     property Header: TksTableViewTextDefault read FHeader write SetHeader;
   end;
 
+  TksTableViewPullToRefresh = class(TPersistent)
+  private
+    FEnabled: Boolean;
+    FPullText: string;
+    FReleaseText: string;
+    FFont: TFont;
+    FTextColor: TAlphaColor;
+    procedure SetEnabled(const Value: Boolean);
+    procedure SetFont(const Value: TFont);
+  public
+    constructor Create; virtual;
+    destructor Destroy; override;
+    procedure Assign(Source: TPersistent); override;
+    property Enabled: Boolean read FEnabled write SetEnabled default True;
+    property Font: TFont read FFont write SetFont;
+    property PullText: string read FPullText write FPullText;
+    property ReleaseText: string read FReleaseText write FReleaseText;
+    property TextColor: TAlphaColor read FTextColor write FTextColor default claSilver;
+  end;
 
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
     {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
@@ -760,7 +782,7 @@ type
     // events...
     FItemClickEvent: TksTableViewItemClickEvent;
     FOnPullRefresh: TNotifyEvent;
-    FPullToRefresh: Boolean;
+    FPullToRefresh: TksTableViewPullToRefresh;
     FNeedsRefresh: Boolean;
     FCheckMarks: TksTableViewCheckMarks;
     FOnItemSwipe: TksItemSwipeEvent;
@@ -812,6 +834,7 @@ type
     procedure SetFullWidthSeparator(const Value: Boolean);
     procedure ComboClosePopup(Sender: TObject);
     procedure DoSwitchClicked(AItem: TksTableViewItem; ASwitch: TksTableViewItemSwitch);
+    procedure SetPullToRefresh(const Value: TksTableViewPullToRefresh);
 
   protected
     function GetTotalItemHeight: single;
@@ -875,7 +898,7 @@ type
     property Padding;
     property PopupMenu;
     property Position;
-    property PullToRefresh: Boolean read FPullToRefresh write FPullToRefresh default True;
+    property PullToRefresh: TksTableViewPullToRefresh read FPullToRefresh write SetPullToRefresh;
     property RotationAngle;
     property RotationCenter;
     property RowIndicators: TksListViewRowIndicators read FRowIndicators write FRowIndicators;
@@ -1870,7 +1893,7 @@ begin
   if FTableView.Appearence.AlternatingItemBackground <> claNull then
   begin
     if FIndex mod 2 = 0 then
-      FBitmap.Clear($FFFAFAFA);
+      FBitmap.Clear(FTableView.Appearence.AlternatingItemBackground);
   end;
 
   if (FTableView.ShowSelection) and (FCanSelect) then
@@ -2130,10 +2153,15 @@ begin
   Result := FCached;
 end;
 
-function TksTableViewItem.GetData(const AIndex: string): TValue;
+function TksTableViewItem.GetItemData(const AIndex: string): TValue;
 begin
   if (FData <> nil) and not FData.TryGetValue(AIndex, Result) then
     Result := TValue.Empty;
+end;
+
+function TksTableViewItem.GetHasData(const AIndex: string): Boolean;
+begin
+  Result := (FData <> nil) and FData.ContainsKey(AIndex);
 end;
 
 function TksTableViewItem.GetHeight: single;
@@ -2155,8 +2183,9 @@ function TksTableViewItem.GetInternalRect: TRectF;
 begin
   Result := GetItemRect;
 
-  Result.Left := Result.Left + 4;
-  Result.Right := Result.Right - 4;
+  Result.Left := Result.Left + 8;
+  Result.Right := Result.Right - 4
+  ;
 
   if FAccessory.Accessory <> atNone then
     Result.Right := Result.Right - FAccessory.Width;
@@ -2205,7 +2234,7 @@ begin
   for ICount := 0 to FObjects.Count-1 do
   begin
     AObj := FObjects[ICount];
-    if PtInRect(AObj.ObjectRect, PointF(x, y)) then
+    if PtInRect(AObj.ObjectRect, PointF(x, y-ItemRect.Top)) then
     begin
       Result := AObj;
       Exit;
@@ -2383,7 +2412,7 @@ begin
   end;
 end;
 
-procedure TksTableViewItem.SetData(const AIndex: string; const Value: TValue);
+procedure TksTableViewItem.SetItemData(const AIndex: string; const Value: TValue);
 begin
   if FData = nil then
     FData := TDictionary<string, TValue>.Create;
@@ -2939,7 +2968,7 @@ begin
   FAppearence := TksTableViewAppearence.Create(Self);
   FSearchBox := TSearchBox.Create(Self);
   FTextDefaults := TksTableViewTextDefaults.Create;
-
+  FPullToRefresh := TksTableViewPullToRefresh.Create;
   FSearchBox.Visible := False;
   FSearchBox.Align := TAlignLayout.Top;
   FSearchBox.OnTyping := DoFilterChanged;
@@ -2968,7 +2997,7 @@ begin
   FHeaderHeight := C_TABLEVIEW_DEFAULT_HEADER_HEIGHT;
   FItemImageSize := C_TABLEVIEW_DEFAULT_IMAGE_SIZE;
   FKeepSelection := False;
-  FPullToRefresh := True;
+
   FNeedsRefresh := False;
   FMouseDown := False;
   FCheckMarks := TksTableViewCheckMarks.cmNone;
@@ -2997,6 +3026,7 @@ begin
   FreeAndNil(FAppearence);
   FreeAndNil(FDeleteButton);
   FreeAndNil(FTextDefaults);
+  FreeAndNil(FPullToRefresh);
   inherited;
 end;
 
@@ -3089,13 +3119,29 @@ begin
   FMouseDownItem.DoClick(FMouseDownPoint.x, (FMouseDownPoint.y - FMouseDownItem.ItemRect.Top) + ScrollViewPos);
   if Assigned(FItemClickEvent) then
     FItemClickEvent(Self, FMouseDownPoint.x, FMouseDownPoint.y, FMouseDownItem,
-      FMouseDownItem.ID, nil);
+      FMouseDownItem.ID, FMouseDownObject);
   HideAllActionButtons(False);
 end;
 
 procedure TksTableView.DoSelectPickerItem(Sender: TObject);
+var
+  AAllow: Boolean;
+  ASelected: string;
+  AItem: TksTableViewItem;
 begin
-
+  ASelected := '';
+  AItem := TksTableViewItem(FCombo.TagObject);
+  if FCombo.ItemIndex > -1 then
+    ASelected := FCombo.Items[FCombo.ItemIndex];
+  AAllow := True;
+  if Assigned(FOnSelectPickerItem) then
+    FOnSelectPickerItem(Self, AItem, ASelected, AAllow);
+  if AAllow then
+  begin
+    AItem.FSelectionValue := ASelected;
+    AItem.Detail.Text := ASelected;
+    AItem.CacheItem(True);
+  end;
 end;
 
 procedure TksTableView.DoSwitchClicked(AItem: TksTableViewItem; ASwitch: TksTableViewItemSwitch);
@@ -3413,7 +3459,7 @@ begin
     FPainting := True;
     try
       Canvas.Clear(claWhite);
-      if (FPullToRefresh) and (ScrollViewPos < 0) then
+      if (FPullToRefresh.Enabled) and (ScrollViewPos < 0) then
       begin
         Canvas.Stroke.Thickness := 1/GetScreenScale;
         Canvas.Stroke.Color := claDimgray;
@@ -3422,13 +3468,18 @@ begin
         if (FMouseDown) then
           FNeedsRefresh := (ScrollViewPos <= -50);
 
+        Canvas.Fill.Color := FPullToRefresh.TextColor;
+        Canvas.Font.Size := 16;
+
         if (FNeedsRefresh) and (ScrollViewPos <= -25) then
         begin
-          Canvas.Fill.Color := claSilver;
-          Canvas.Font.Size := 16;
-          Canvas.FillText(RectF(0, 0, Width, 50), 'release to refresh', False, 1, [], TTextAlign.Center);
+          Canvas.FillText(RectF(0, 0, Width, 50), FPullToRefresh.FReleaseText, False, 1, [], TTextAlign.Center);
           FNeedsRefresh := True;
-        end;
+        end
+        else
+          Canvas.FillText(RectF(0, 0, Width, 50), FPullToRefresh.FPullText, False, 1, [], TTextAlign.Center);
+        Canvas.Fill.Color := GetColorOrDefault(FAppearence.Background, claWhite);
+        Canvas.FillRect(RectF(0, 0-ScrollViewPos, Width, Height), 0, 0, AllCorners, 1);
       end;
 
       AItemsDrawn := False;
@@ -3598,6 +3649,11 @@ end;
 procedure TksTableView.SetKsItemHeight(const Value: integer);
 begin
   FItemHeight := Value;
+end;
+
+procedure TksTableView.SetPullToRefresh(const Value: TksTableViewPullToRefresh);
+begin
+  FPullToRefresh.Assign(Value);
 end;
 
 procedure TksTableView.SetScrollViewPos(const Value: single);
@@ -4615,6 +4671,46 @@ begin
       Font.Style := AStyle;
     end;
   end;
+end;
+
+{ TksTableViewPullToRefresh }
+
+procedure TksTableViewPullToRefresh.Assign(Source: TPersistent);
+var
+  ASrc: TksTableViewPullToRefresh;
+begin
+  ASrc := (Source as TksTableViewPullToRefresh);
+  FEnabled := ASrc.Enabled;
+  FPullText := ASrc.PullText;
+  FReleaseText := ASrc.ReleaseText;
+  FFont.Assign(ASrc.Font);
+  FTextColor := ASrc.TextColor;
+end;
+
+constructor TksTableViewPullToRefresh.Create;
+begin
+  FFont := TFont.Create;
+  FEnabled := True;
+  FPullText := 'pull to refresh';
+  FReleaseText := 'release to refresh';
+  FFont.Size := 16;
+  FTextColor := claSilver;
+end;
+
+destructor TksTableViewPullToRefresh.Destroy;
+begin
+  FreeAndNil(FFont);
+  inherited;
+end;
+
+procedure TksTableViewPullToRefresh.SetEnabled(const Value: Boolean);
+begin
+  FEnabled := Value;
+end;
+
+procedure TksTableViewPullToRefresh.SetFont(const Value: TFont);
+begin
+  FFont.Assign(Value);
 end;
 
 initialization
