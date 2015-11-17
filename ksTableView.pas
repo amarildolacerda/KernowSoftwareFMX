@@ -29,7 +29,7 @@ interface
 uses Classes, FMX.Controls, FMX.Layouts, FMX.Types, Types, Generics.Collections,
   FMX.Graphics, FMX.Objects, FMX.InertialMovement, System.UITypes,
   System.UIConsts, System.Rtti, FMX.ListBox, FMX.DateTimeCtrls,
-  FMX.SearchBox, FMX.Styles, FMX.Styles.Objects;
+  FMX.SearchBox, FMX.Styles, FMX.Styles.Objects, FMX.Edit;
 
 {$IFDEF VER290}
 {$DEFINE XE8_OR_NEWER}
@@ -42,6 +42,8 @@ uses Classes, FMX.Controls, FMX.Layouts, FMX.Types, Types, Generics.Collections,
 const
   C_TABLEVIEW_DEFAULT_ITEM_HEIGHT = 44;
   C_TABLEVIEW_DEFAULT_HEADER_HEIGHT = 30;
+  C_TABLEVIEW_DEFAULT_WIDTH = 200;
+  C_TABLEVIEW_DEFAULT_HEIGHT = 300;
 
   C_TABLEVIEW_DEFAULT_SELECTED_COLOR = $FFD6EFF9;
   C_TABLEVIEW_DEFAULT_FONT_SIZE = 13;
@@ -191,6 +193,30 @@ type
     property Width: single read FWidth write SetWidth;
   end;
 
+  TksTableViewItemEmbeddedControl = class(TksTableViewItemObject)
+  private
+    FCached: TBitmap;
+    FFocused: Boolean;
+    procedure InitializeControl;
+  protected
+    FControl: TStyledControl;
+    function CreateControl: TStyledControl; virtual; abstract;
+    procedure Render(ACanvas: TCanvas); override;
+  public
+    constructor Create(ATableItem: TksTableViewItem); override;
+    destructor Destroy; override;
+  end;
+
+  TksTableViewItemEmbeddedEdit = class(TksTableViewItemEmbeddedControl)
+  private
+    function GetEditControl: TEdit;
+  protected
+
+    function CreateControl: TStyledControl; override;
+  public
+    property Edit: TEdit read GetEditControl;
+  end;
+
   TksTableViewItemText = class(TksTableViewItemObject)
   private
     FBackground: TAlphaColor;
@@ -232,16 +258,17 @@ type
     property IsHtmlText: Boolean read FIsHtmlText;
   end;
 
-  TksListItemTableShadow = class(TPersistent)
+  TksTableViewShadow = class(TPersistent)
   private
     FColor: TAlphaColor;
     FOffset: integer ;
     FVisible: Boolean;
   public
     constructor Create; virtual;
+    procedure Assign(ASource: TPersistent); override;
     procedure SetVisible(const Value: Boolean);
     property Color: TAlphaColor read FColor write FColor default claSilver;
-    property Offset: integer read FOffset write FOffset default 3;
+    property Offset: integer read FOffset write FOffset default 2;
     property Visible: Boolean read FVisible write SetVisible default True;
   end;
 
@@ -262,12 +289,12 @@ type
     procedure SetTextSettings(const Value: TTextSettings);
     procedure SetVisible(const Value: Boolean);
     procedure Changed;
-    function GetShadow: TksListItemTableShadow;
+    function GetShadow: TksTableViewShadow;
   public
     constructor Create(ATable: TksTableViewItemTable); virtual;
     destructor Destroy; override;
     function IsFixedCell: Boolean;
-    procedure DrawToCanvas(x, y: single; ACanvas: TCanvas; ACol, ARow: integer; AShadow: TksListItemTableShadow; AText: Boolean);
+    procedure DrawToCanvas(x, y: single; ACanvas: TCanvas; ACol, ARow: integer; AShadow: TksTableViewShadow; AText: Boolean);
     property Fill: TBrush read FFill;
     property Stroke: TStrokeBrush read FStroke;
     property TextSettings: TTextSettings read FTextSettings write SetTextSettings;
@@ -275,7 +302,7 @@ type
     property Width: single read FWidth write FWidth;
     property Height: single read FHeight write FHeight;
     property Padding: TBounds read FPadding write FPadding;
-    property Shadow: TksListItemTableShadow read GetShadow;
+    property Shadow: TksTableViewShadow read GetShadow;
     property Sides: TSides read FSides write FSides;
     property Visible: Boolean read FVisible write SetVisible default True;
   end;
@@ -305,7 +332,7 @@ type
     FColCount: integer;
     FDefaultRowHeight: single;
     FDefaultColWidth: single;
-    FShadow: TksListItemTableShadow;
+    FShadow: TksTableViewShadow;
     FFixedCellColor: TAlphaColor;
     FFixedRows: integer;
     FFixedCols: integer;
@@ -348,7 +375,7 @@ type
     property DefaultRowHeight: single read FDefaultRowHeight write SetDefaultRowHeight;
     property DefaultColWidth: single read FDefaultColWidth write SetDefaultColWidth;
     property ColWidths[ACol: integer]: single read GetColWidths write SetColWidths;
-    property Shadow: TksListItemTableShadow read FShadow;
+    property Shadow: TksTableViewShadow read FShadow;
     property TableSize: TSizeF read GetTableSize;
   end;
 
@@ -356,26 +383,28 @@ type
   TksTableViewItemBaseImage = class(TksTableViewItemObject)
   strict private
     FBitmap: TBitmap;
+    FShadow: TksTableViewShadow;
     [weak]FExternalBitmap: TBitmap;
   private
     FOwnsBitmap: Boolean;
     procedure SetBitmap(const Value: TBitmap);
     function GetBitmap: TBitmap;
     procedure SetOwnsBitmap(const Value: Boolean);
+    procedure SetShadow(const Value: TksTableViewShadow);
   protected
     procedure Render(ACanvas: TCanvas); override;
     property Bitmap: TBitmap read GetBitmap write SetBitmap;
+    property Shadow: TksTableViewShadow read FShadow write SetShadow;
     property OwnsBitmap: Boolean read FOwnsBitmap write SetOwnsBitmap default False;
   public
     constructor Create(ATableItem: TksTableViewItem); override;
     destructor Destroy; override;
-
-
   end;
 
   TksTableViewItemImage = class(TksTableViewItemBaseImage)
   public
     property Bitmap;
+    property Shadow;
   end;
 
   TksTableViewItemShape = class(TksTableViewItemObject)
@@ -538,6 +567,7 @@ type
     function DrawRect(x, y, AWidth, AHeight: single; AStroke, AFill: TAlphaColor): TksTableViewItemShape;
 
 
+    function AddEdit(AX, AY, AWidth: single; AText: string): TksTableViewItemEmbeddedEdit;
     function AddSwitch(x: single; AIsChecked: Boolean; const AAlign: TksTableItemAlign = TksTableItemAlign.Trailing): TksTableViewItemSwitch;
     function AddTable(AX, AY, AColWidth, ARowHeight: single; AColCount, ARowCount: integer): TksTableViewItemTable;
 
@@ -907,6 +937,7 @@ type
     property SearchVisible: Boolean read FSearchVisible write SetSearchVisible default False;
     property ShowAccessory: Boolean read GetShowAccessory write SetShowAccessory default True;
     property ShowSelection: Boolean read FShowSelection write SetShowSelection default True;
+    property Size;
     property StickyHeaders: Boolean read FStickyHeaders write FStickyHeaders default True;
     property TabOrder;
     property TabStop;
@@ -1558,15 +1589,14 @@ end;
 constructor TksTableViewItemBaseImage.Create(ATableItem: TksTableViewItem);
 begin
   inherited;
-  ///FBitmap := TBitmap.Create;
-  //FBitmap := nil;
-  //FBitmap.BitmapScale := GetScreenScale;
+  FShadow := TksTableViewShadow.Create;
+  FShadow.Visible := False;
   FOwnsBitmap := False;
 end;
 
 destructor TksTableViewItemBaseImage.Destroy;
 begin
-  //FreeAndNil(FBitmap);
+  FreeAndNil(FShadow);
   if FBitmap <> nil then
     FBitmap.Free;
   inherited;
@@ -1579,27 +1609,31 @@ begin
     Result := FExternalBitmap;
 end;
 
-{
-function TksTableViewItemBaseImage.GetHeight: single;
-begin
-  Result := inherited;
-  if Result = 0 then
-    Result := FBitmap.Height;
-  Result := Result / GetScreenScale;
-end;
-
-function TksTableViewItemBaseImage.GetWidth: single;
-begin
-  Result := inherited;
-  if Result = 0 then
-    Result := FBitmap.Width;
-  Result := Result / GetScreenScale;
-end;   }
-
 procedure TksTableViewItemBaseImage.Render(ACanvas: TCanvas);
+var
+  AShadowRect: TRectF;
+  AShadowBmp: TBitmap;
+
 begin
   if Bitmap <> nil then
+  begin
+    if FShadow.Visible then
+    begin
+      AShadowBmp := TBitmap.Create;
+      try
+        AShadowRect := GetObjectRect;
+        OffsetRect(AShadowRect, FShadow.Offset, FShadow.Offset);
+        AShadowBmp.Assign(Bitmap);
+        AShadowBmp.ReplaceOpaqueColor(FShadow.Color);
+        ACanvas.DrawBitmap(AShadowBmp, RectF(0, 0, AShadowBmp.Width, AShadowBmp.Height), AShadowRect, 1, True);
+       // Bitmap.ReplaceOpaqueColor();
+       // ACanvas.FillRect(AShadowRect, 0, 0, AllCorners, 1);
+      finally
+        AShadowBmp.Free;
+      end;
+    end;
     ACanvas.DrawBitmap(Bitmap, RectF(0, 0, Bitmap.Width, Bitmap.Height), GetObjectRect, 1, True);
+  end;
 end;
 
 
@@ -1619,6 +1653,11 @@ procedure TksTableViewItemBaseImage.SetOwnsBitmap(const Value: Boolean);
 begin
   if FOwnsBitmap <> Value then
     FOwnsBitmap := Value;
+end;
+
+procedure TksTableViewItemBaseImage.SetShadow(const Value: TksTableViewShadow);
+begin
+  FShadow.Assign(Value);
 end;
 
 // ------------------------------------------------------------------------------
@@ -1831,6 +1870,16 @@ end;
 // ------------------------------------------------------------------------------
 
 { TksTableItem }
+
+function TksTableViewItem.AddEdit(AX, AY, AWidth: single; AText: string): TksTableViewItemEmbeddedEdit;
+begin
+  Result := TksTableViewItemEmbeddedEdit.Create(Self);
+  Result.Width := AWidth;
+  Result.PlaceOffset := PointF(AX, AY);
+  Result.VertAlign := TksTableItemAlign.Center;
+  Result.Edit.Text := AText;
+  FObjects.Add(Result);
+end;
 
 function TksTableViewItem.AddSwitch(x: single; AIsChecked: Boolean;
   const AAlign: TksTableItemAlign = TksTableItemAlign.Trailing): TksTableViewItemSwitch;
@@ -2974,8 +3023,10 @@ begin
   FSearchBox.Align := TAlignLayout.Top;
   FSearchBox.OnTyping := DoFilterChanged;
   FSearchBox.OnChange := DoFilterChanged;
-  Width := 200;
-  Height := 300;
+  Size.Width := C_TABLEVIEW_DEFAULT_WIDTH;
+  Size.Height := C_TABLEVIEW_DEFAULT_HEIGHT;
+  //Width := C_TABLEVIEW_DEFAULT_WIDTH;
+  //Height := C_TABLEVIEW_DEFAULT_HEIGHT;
   ClipChildren := True;
 
   FAniCalc := TAniCalculations.Create(nil);
@@ -3460,6 +3511,14 @@ begin
     FPainting := True;
     try
       Canvas.Clear(GetColorOrDefault(FAppearence.Background, claWhite));
+      if (csDesigning in ComponentState) then
+      begin
+        // design-time border
+        Canvas.Stroke.Color := claBlack;
+        Canvas.Stroke.Dash := TStrokeDash.Dash;
+        Canvas.StrokeThickness := 1;
+        Canvas.DrawRect(RectF(0, 0, Width, Height), 0, 0, AllCorners, 1);
+      end;
       if (FPullToRefresh.Enabled) and (ScrollViewPos < 0) then
       begin
         Canvas.Stroke.Thickness := 1/GetScreenScale;
@@ -4168,16 +4227,26 @@ begin
   end;
 end;
 
-{ TksListItemTableShadow }
+{ TksTableViewShadow }
 
-constructor TksListItemTableShadow.Create;
+procedure TksTableViewShadow.Assign(ASource: TPersistent);
+var
+  ASrc: TksTableViewShadow;
 begin
-  FOffset := 3;
+  ASrc := (ASource as TksTableViewShadow);
+  Visible := ASrc.Visible;
+  Color := ASrc.Color;
+  Offset := ASrc.Offset;
+end;
+
+constructor TksTableViewShadow.Create;
+begin
+  FOffset := 2;
   FColor := claSilver;
   FVisible := True;
 end;
 
-procedure TksListItemTableShadow.SetVisible(const Value: Boolean);
+procedure TksTableViewShadow.SetVisible(const Value: Boolean);
 begin
   FVisible := Value;
 end;
@@ -4219,7 +4288,7 @@ begin
   inherited;
 end;
 
-procedure TksListItemRowTableCell.DrawToCanvas(x, y: single; ACanvas: TCanvas; ACol, ARow: integer; AShadow: TksListItemTableShadow; AText: Boolean);
+procedure TksListItemRowTableCell.DrawToCanvas(x, y: single; ACanvas: TCanvas; ACol, ARow: integer; AShadow: TksTableViewShadow; AText: Boolean);
 var
   s: single;
   ARect: TRectF;
@@ -4306,7 +4375,7 @@ begin
   end;
 end;
 
-function TksListItemRowTableCell.GetShadow: TksListItemTableShadow;
+function TksListItemRowTableCell.GetShadow: TksTableViewShadow;
 begin
   Result := FTable.Shadow;
 end;
@@ -4374,7 +4443,7 @@ end;
 constructor TksTableViewItemTable.Create(ARow: TKsTableViewItem);
 begin
   inherited;
-  FShadow := TksListItemTableShadow.Create;
+  FShadow := TksTableViewShadow.Create;
   FBanding := TksListItemRowTableBanding.Create;
   SetLength(FRows, 5, 5);
   FBackground := claWhite;
@@ -4681,7 +4750,7 @@ procedure TksTableViewPullToRefresh.Assign(Source: TPersistent);
 var
   ASrc: TksTableViewPullToRefresh;
 begin
-  if ASrc = nil then
+  if Source = nil then
     Exit;
   ASrc := (Source as TksTableViewPullToRefresh);
   FEnabled := ASrc.Enabled;
@@ -4715,6 +4784,79 @@ end;
 procedure TksTableViewPullToRefresh.SetFont(const Value: TFont);
 begin
   FFont.Assign(Value);
+end;
+
+{ TksTableViewItemEmbeddedControl }
+
+constructor TksTableViewItemEmbeddedControl.Create(ATableItem: TksTableViewItem);
+begin
+  inherited;
+  FCached := TBitmap.Create;
+  FControl := CreateControl;
+  FWidth := FControl.Width;
+  FHeight := FControl.Height;
+  FFocused := False;
+end;
+
+destructor TksTableViewItemEmbeddedControl.Destroy;
+begin
+  FreeAndNil(FCached);
+  FreeAndNil(FControl);
+  inherited;
+end;
+
+procedure TksTableViewItemEmbeddedControl.InitializeControl;
+
+  procedure ApplyStyle(AControl: TFmxObject);
+  var
+    ICount: integer;
+  begin
+    if (AControl is TStyledControl) then
+    begin
+      (AControl as TStyledControl).RecalcSize;
+      (AControl as TStyledControl).UpdateEffects;
+      (AControl as TStyledControl).ApplyStyleLookup;
+
+    end;
+    for ICount := 0 to AControl.ChildrenCount-1 do
+      ApplyStyle(AControl.Children[ICount]);
+  end;
+
+begin
+  FControl.Width := GetObjectRect.Width;
+  FControl.Height := GetObjectRect.Height;
+  FControl.RecalcSize;
+  ApplyStyle(FControl);
+  FControl.UpdateEffects;
+end;
+
+procedure TksTableViewItemEmbeddedControl.Render(ACanvas: TCanvas);
+begin
+  InitializeControl;
+  FCached := FControl.MakeScreenshot;
+  ACanvas.DrawBitmap(FCached, RectF(0, 0, FCached.Width, FCached.Height), GetObjectRect, 1, True);
+  {if FFocused = True then
+    Exit;
+
+  if GetControlBitmap then
+  begin
+    ACanvas.DrawBitmap(FCached, RectF(0, 0, FCached.Width, FCached.Height), Rect, 1, True);
+
+    Result := True;
+    FRow.ListView.Invalidate;
+  end; }
+end;
+
+{ TksTableViewItemEmbeddedEdit }
+
+function TksTableViewItemEmbeddedEdit.CreateControl: TStyledControl;
+begin
+  Result := TEdit.Create(nil);
+end;
+
+function TksTableViewItemEmbeddedEdit.GetEditControl: TEdit;
+begin
+  Result := (FControl as TEdit);
 end;
 
 initialization
