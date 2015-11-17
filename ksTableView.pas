@@ -75,6 +75,8 @@ type
   TksTableViewActionButon = class;
   TksTableViewItemSwitch = class;
   TksTableViewItemTable = class;
+  TksTableViewItemEmbeddedBaseEdit = class;
+  TksTableViewItemEmbeddedEdit = class;
 
   TksTableItemAlign = (Leading, Center, Trailing);
   TksSwipeDirection = (ksSwipeUnknown, ksSwipeLeftToRight, ksSwipeRightToLeft, ksSwipeTopToBottom, ksSwipeBottomToTop);
@@ -105,7 +107,7 @@ type
   TksItemChecMarkChangedEvent = procedure(Sender: TObject; ARow: TksTableViewItem; AChecked: Boolean) of object;
   TksTableViewSelectDateEvent = procedure(Sender: TObject; AItem: TksTableViewItem; ASelectedDate: TDateTime; var AAllow: Boolean) of object;
   TksTableViewSelectPickerItem = procedure(Sender: TObject; AItem: TksTableViewItem; ASelected: string; var AAllow: Boolean) of object;
-
+  TksTableViewEmbeddedEditChange = procedure(Sender: TObject; ARow: TksTableViewItem; AEdit: TksTableViewItemEmbeddedBaseEdit; AText: string) of object;
 
   TksAccessoryType = (atNone, atMore, atCheckmark, atDetail, atBack, atRefresh,
     atAction, atPlay, atRewind, atForward, atPause, atStop, atAdd, atPrior,
@@ -189,29 +191,47 @@ type
     property HitTest: Boolean read FHitTest write SetHitTest default True;
     property ID: string read GetID write SetID;
     property PlaceOffset: TPointF read FPlaceOffset write SetPlaceOffset;
+    property TableItem: TksTableViewItem read FTableItem;
     property VertAlign: TksTableItemAlign read GetVertAlign write SetVertAlign;
     property Width: single read FWidth write SetWidth;
   end;
 
   TksTableViewItemEmbeddedControl = class(TksTableViewItemObject)
   private
-    FCached: TBitmap;
     FFocused: Boolean;
-    procedure InitializeControl;
+    procedure SimulateClick(x, y: single);
+    procedure DoExitControl(Sender: TObject);
   protected
     FControl: TStyledControl;
     function CreateControl: TStyledControl; virtual; abstract;
-    procedure Render(ACanvas: TCanvas); override;
+    procedure InitializeControl; virtual;
+    procedure ShowControl;
+    procedure HideControl;
+    function ConsumesClick: Boolean; override;
   public
     constructor Create(ATableItem: TksTableViewItem); override;
     destructor Destroy; override;
+    procedure MouseDown(x, y: single); override;
   end;
 
-  TksTableViewItemEmbeddedEdit = class(TksTableViewItemEmbeddedControl)
+  TksTableViewItemEmbeddedBaseEdit = class(TksTableViewItemEmbeddedControl)
+  private
+    FText: string;
+    procedure SetText(const Value: string);
+    function GetCustomEdit: TCustomEdit;
+    procedure DoEditChange(Sender: TObject);
+  protected
+    procedure Render(ACanvas: TCanvas); override;
+    property CustomEdit: TCustomEdit read GetCustomEdit;
+    procedure InitializeControl; override;
+  public
+    property Text: string read FText write SetText;
+  end;
+
+  TksTableViewItemEmbeddedEdit = class(TksTableViewItemEmbeddedBaseEdit)
   private
     function GetEditControl: TEdit;
   protected
-
     function CreateControl: TStyledControl; override;
   public
     property Edit: TEdit read GetEditControl;
@@ -810,6 +830,8 @@ type
     FTextDefaults: TksTableViewTextDefaults;
     FStickyHeaders: Boolean;
     FMouseDownObject: TksTableViewItemObject;
+    [weak]FFocusedControl: TksTableViewItemEmbeddedControl;
+
     // events...
     FItemClickEvent: TksTableViewItemClickEvent;
     FOnPullRefresh: TNotifyEvent;
@@ -822,6 +844,7 @@ type
     FOnDeletingItem: TksTableViewDeletingItemEvent;
     FBeforeRowCache: TksTableViewRowCacheEvent;
     FAfterRowCache: TksTableViewRowCacheEvent;
+    FOnEmbeddedEditChange: TksTableViewEmbeddedEditChange;
     FOnItemChecMarkChanged: TksItemChecMarkChangedEvent;
     FOnSelectDate: TksTableViewSelectDateEvent;
     FOnSelectPickerItem: TksTableViewSelectPickerItem;
@@ -866,7 +889,8 @@ type
     procedure ComboClosePopup(Sender: TObject);
     procedure DoSwitchClicked(AItem: TksTableViewItem; ASwitch: TksTableViewItemSwitch);
     procedure SetPullToRefresh(const Value: TksTableViewPullToRefresh);
-
+    procedure HideFocusedControl;
+    procedure DoEmbeddedEditChange(AItem: TksTableViewItem; AEmbeddedEdit: TksTableViewItemEmbeddedBaseEdit);
   protected
     function GetTotalItemHeight: single;
     procedure Paint; override;
@@ -952,6 +976,7 @@ type
     property OnDblClick;
     property OnDeletingItem: TKsTableViewDeletingItemEvent read FOnDeletingItem write FOnDeletingItem;
     property OnDeleteItem: TKsTableViewDeleteItemEvent read FOnDeleteItem write FOnDeleteItem;
+    property OnEmbeddedEditChange: TksTableViewEmbeddedEditChange read FOnEmbeddedEditChange write FOnEmbeddedEditChange;
     property OnItemActionButtonClick: TksItemActionButtonClickEvent read FOnItemActionButtonClick write FOnItemActionButtonClick;
     property OnItemCheckmarkChanged: TksItemChecMarkChangedEvent read FOnItemChecMarkChanged write FOnItemChecMarkChanged;
     property OnItemClick: TksTableViewItemClickEvent read FItemClickEvent write FItemClickEvent;
@@ -1063,7 +1088,7 @@ procedure DrawSwitch(ACanvas: TCanvas; ARect: TRectF; AChecked: Boolean; ASelect
 implementation
 
 uses SysUtils, FMX.Platform, Math, FMX.Forms, FMX.TextLayout, System.Math.Vectors,
-  FMX.Ani, System.Threading, FMX.Dialogs;
+  FMX.Ani, System.Threading;
 
 type
   TksTableViewAccessoryImage = class(TBitmap)
@@ -1133,7 +1158,7 @@ end;
 
 procedure RenderText(ACanvas: TCanvas; x, y, AWidth, AHeight: single;
   AText: string; AFont: TFont; ATextColor: TAlphaColor; AWordWrap: Boolean;
-  AHorzAlign: TTextAlign; AVertAlign: TTextAlign; ATrimming: TTextTrimming);
+  AHorzAlign: TTextAlign; AVertAlign: TTextAlign; ATrimming: TTextTrimming); overload;
 begin
   ATextLayout.BeginUpdate;
   ATextLayout.Text := AText;
@@ -1148,6 +1173,15 @@ begin
   ATextLayout.EndUpdate;
   ATextLayout.RenderLayout(ACanvas);
 end;
+
+procedure RenderText(ACanvas: TCanvas; ARect: TRectF;
+  AText: string; AFont: TFont; ATextColor: TAlphaColor; AWordWrap: Boolean;
+  AHorzAlign: TTextAlign; AVertAlign: TTextAlign; ATrimming: TTextTrimming); overload;
+begin
+  RenderText(ACanvas, ARect.Left, ARect.Top, ARect.Width, ARect.Height, AText, AFont, ATextColor, AWordWrap, AHorzAlign, AVertAlign, ATrimming);
+end;
+
+
 
 function GetTextSizeHtml(AText: string; AFont: TFont;
   const AWidth: single = 0): TPointF;
@@ -1877,7 +1911,7 @@ begin
   Result.Width := AWidth;
   Result.PlaceOffset := PointF(AX, AY);
   Result.VertAlign := TksTableItemAlign.Center;
-  Result.Edit.Text := AText;
+  Result.Text := AText;
   FObjects.Add(Result);
 end;
 
@@ -2077,7 +2111,7 @@ var
   ABtn: TksTableViewActionButon;
   AObj: TksTableViewItemObject;
 begin
-  AObj := ObjectAtPos(x, y);
+  AObj := ObjectAtPos(x, y + ItemRect.Top);
   if AObj <> nil then
   begin
     AObj.MouseDown(x-AObj.ObjectRect.Left, y-AObj.ObjectRect.Top);
@@ -3094,6 +3128,12 @@ begin
   end;
 end;
 
+procedure TksTableView.DoEmbeddedEditChange(AItem: TksTableViewItem; AEmbeddedEdit: TksTableViewItemEmbeddedBaseEdit);
+begin
+  if Assigned(FOnEmbeddedEditChange) then
+    FOnEmbeddedEditChange(Self, AItem, AEmbeddedEdit, AEmbeddedEdit.Text);
+end;
+
 procedure TksTableView.DeselectItem(const ADelay: integer);
 begin
   if ADelay > 0 then
@@ -3365,6 +3405,27 @@ begin
   end;
 end;
 
+procedure TksTableView.HideFocusedControl;
+var
+  AParent: TFmxObject;
+begin
+  if FFocusedControl <> nil then
+  begin
+    FFocusedControl.HideControl;
+    FFocusedControl := nil;
+    AParent := Parent;
+    while AParent <> nil do
+    begin
+      if (AParent is TForm) then
+      begin
+        (AParent as TForm).Focused := nil;
+        Break;
+      end;
+      AParent := AParent.Parent;
+    end;
+  end;
+end;
+
 procedure TksTableView.Invalidate;
 begin
   InvalidateRect(LocalRect);
@@ -3407,6 +3468,9 @@ begin
   if FMouseDownItem <> nil then
   begin
     FMouseDownObject := FMouseDownItem.ObjectAtPos(x, y);
+    if (FMouseDownObject <> FFocusedControl) and (FFocusedControl <> nil) then
+      HideFocusedControl;
+
     if FMouseDownObject <> nil then
     begin
       AConsumesClick := FMouseDownObject.ConsumesClick;
@@ -3724,6 +3788,7 @@ begin
   //if Round(FScrollPos) <> Round(Value) then
 
   begin
+    HideFocusedControl;
     FScrollPos := Value - GetSearchHeight;
     HideAllActionButtons(True);
     Repaint; //Invalidate;
@@ -4788,75 +4853,165 @@ end;
 
 { TksTableViewItemEmbeddedControl }
 
+function TksTableViewItemEmbeddedControl.ConsumesClick: Boolean;
+begin
+  Result := True;
+end;
+
 constructor TksTableViewItemEmbeddedControl.Create(ATableItem: TksTableViewItem);
 begin
   inherited;
-  FCached := TBitmap.Create;
   FControl := CreateControl;
   FWidth := FControl.Width;
   FHeight := FControl.Height;
   FFocused := False;
+  FControl.OnExit := DoExitControl;
 end;
 
 destructor TksTableViewItemEmbeddedControl.Destroy;
 begin
-  FreeAndNil(FCached);
   FreeAndNil(FControl);
   inherited;
 end;
 
-procedure TksTableViewItemEmbeddedControl.InitializeControl;
-
-  procedure ApplyStyle(AControl: TFmxObject);
-  var
-    ICount: integer;
-  begin
-    if (AControl is TStyledControl) then
-    begin
-      (AControl as TStyledControl).RecalcSize;
-      (AControl as TStyledControl).UpdateEffects;
-      (AControl as TStyledControl).ApplyStyleLookup;
-
-    end;
-    for ICount := 0 to AControl.ChildrenCount-1 do
-      ApplyStyle(AControl.Children[ICount]);
-  end;
-
+procedure TksTableViewItemEmbeddedControl.DoExitControl(Sender: TObject);
 begin
-  FControl.Width := GetObjectRect.Width;
-  FControl.Height := GetObjectRect.Height;
-  FControl.RecalcSize;
-  ApplyStyle(FControl);
-  FControl.UpdateEffects;
+  HideControl;
 end;
 
-procedure TksTableViewItemEmbeddedControl.Render(ACanvas: TCanvas);
+procedure TksTableViewItemEmbeddedControl.HideControl;
 begin
-  InitializeControl;
-  FCached := FControl.MakeScreenshot;
-  ACanvas.DrawBitmap(FCached, RectF(0, 0, FCached.Width, FCached.Height), GetObjectRect, 1, True);
-  {if FFocused = True then
+  FTableItem.FTableView.RemoveObject(FControl);
+  FFocused := False;
+  FTableItem.FTableView.Invalidate;
+  FTableItem.CacheItem(True);
+end;
+
+procedure TksTableViewItemEmbeddedControl.InitializeControl;
+begin
+  //
+end;
+
+procedure TksTableViewItemEmbeddedControl.SimulateClick(x, y: single);
+var
+  AParent   : TFmxObject;
+  AForm     : TCommonCustomForm;
+  AFormPoint: TPointF;
+begin
+  AParent := FControl.Parent;
+  if AParent = nil then
     Exit;
+  while not (AParent is TCommonCustomForm) do
+    AParent := AParent.Parent;
 
-  if GetControlBitmap then
+  if (AParent is TCommonCustomForm) then
   begin
-    ACanvas.DrawBitmap(FCached, RectF(0, 0, FCached.Width, FCached.Height), Rect, 1, True);
+    AForm      := TCommonCustomForm(AParent);
+    AFormPoint := FControl.LocalToAbsolute(PointF(X,Y));
 
-    Result := True;
-    FRow.ListView.Invalidate;
-  end; }
+    AForm.MouseDown(TMouseButton.mbLeft, [], AFormPoint.X, AFormPoint.Y);
+    AForm.MouseUp(TMouseButton.mbLeft, [], AFormPoint.X, AFormPoint.Y);
+  end;
+end;
+
+procedure TksTableViewItemEmbeddedControl.MouseDown(x, y: single);
+begin
+  ShowControl;
+  SimulateClick(x, y);
+end;
+
+procedure TksTableViewItemEmbeddedControl.ShowControl;
+var
+  r: TRectF;
+begin
+  inherited;
+  FTableItem.FTableView.HideFocusedControl;
+  r := GetObjectRect;
+  {$IFDEF MSWINDOWS}
+  InflateRect(r, -4, -2 );
+  {$ENDIF}
+  FControl.SetBounds(r.Left, (FTableItem.ItemRect.Top - FTableItem.FTableView.ScrollViewPos) + r.Top, r.width, r.height);
+  InitializeControl;
+  FTableItem.FTableView.AddObject(FControl);
+  FFocused := True;
+  FTableItem.FTableView.FFocusedControl := Self;
+  FTableItem.CacheItem(True);
+  FTableItem.FTableView.Invalidate;
+
+end;
+
+procedure TksTableViewItemEmbeddedBaseEdit.DoEditChange(Sender: TObject);
+begin
+  Text := (Sender as TCustomEdit).Text;
+end;
+
+function TksTableViewItemEmbeddedBaseEdit.GetCustomEdit: TCustomEdit;
+begin
+  Result := (FControl as TCustomEdit);
+end;
+
+procedure TksTableViewItemEmbeddedBaseEdit.InitializeControl;
+begin
+  inherited;
+  CustomEdit.Text := FText;
+  CustomEdit.StyleLookup := 'transparentedit';
+  CustomEdit.OnChange := DoEditChange;
+  CustomEdit.OnTyping := DoEditChange;
+end;
+
+procedure TksTableViewItemEmbeddedBaseEdit.Render(ACanvas: TCanvas);
+var
+  ABmp: TBitmap;
+  ARect: TRectF;
+  ATextRect: TRectF;
+begin
+  ABmp := TBitmap.Create;
+  try
+    ABmp.SetSize(Round(Width * GetScreenScale), Round(Height * GetScreenScale));
+    ABmp.BitmapScale := GetScreenScale;
+    ABmp.Clear(claNull);
+    ABmp.Canvas.BeginScene;
+    try
+      ARect := RectF(0, 0, (ABmp.Width / GetScreenScale), (ABmp.Height / GetScreenScale));
+
+      ABmp.Canvas.Fill.Color := claWhite;
+      ABmp.Canvas.Stroke.Color := claSilver;
+      ABmp.Canvas.StrokeThickness := 1;
+
+      ABmp.Canvas.FillRect(ARect, 0, 0, AllCorners, 1);
+      ABmp.Canvas.DrawRect(ARect, 0, 0, AllCorners, 1);
+    finally
+      ABmp.Canvas.EndScene;
+    end;
+    ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ObjectRect, 1, True);
+    ACanvas.Stroke.Color := clablack;
+  finally
+    ABmp.Free;
+  end;
+  ATextRect := GetObjectRect;
+  InflateRect(ATextRect, -6, 0);
+  if not FFocused then
+    RenderText(ACanvas, ATextRect, FText, nil, claBlack, False, TTextAlign.Leading, TTextAlign.Center, TTextTrimming.None);
 end;
 
 { TksTableViewItemEmbeddedEdit }
 
 function TksTableViewItemEmbeddedEdit.CreateControl: TStyledControl;
 begin
-  Result := TEdit.Create(nil);
+  Result := TEdit.Create(FTableItem.FTableView);
+  (Result as TEdit).StyleLookup := 'transparentedit';
 end;
 
 function TksTableViewItemEmbeddedEdit.GetEditControl: TEdit;
 begin
   Result := (FControl as TEdit);
+end;
+
+procedure TksTableViewItemEmbeddedBaseEdit.SetText(const Value: string);
+begin
+  FText := Value;
+  Changed;
+  TableItem.FTableView.DoEmbeddedEditChange(TableItem, Self);
 end;
 
 initialization
