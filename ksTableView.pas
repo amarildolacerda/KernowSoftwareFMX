@@ -28,8 +28,8 @@ interface
 
 uses Classes, FMX.Controls, FMX.Layouts, FMX.Types, Types, Generics.Collections,
   FMX.Graphics, FMX.Objects, FMX.InertialMovement, System.UITypes,
-  System.UIConsts, System.Rtti, FMX.ListBox, FMX.DateTimeCtrls,
-  FMX.SearchBox, FMX.Styles, FMX.Styles.Objects, FMX.Edit;
+  System.UIConsts, System.Rtti, FMX.DateTimeCtrls,
+  FMX.Styles, FMX.Styles.Objects, FMX.Edit, FMX.SearchBox, FMX.ListBox;
 
 {$IFDEF VER290}
 {$DEFINE XE8_OR_NEWER}
@@ -1087,8 +1087,8 @@ procedure DrawSwitch(ACanvas: TCanvas; ARect: TRectF; AChecked: Boolean; ASelect
 
 implementation
 
-uses SysUtils, FMX.Platform, Math, FMX.Forms, FMX.TextLayout, System.Math.Vectors,
-  FMX.Ani, System.Threading;
+uses SysUtils, FMX.Platform, Math, FMX.TextLayout, System.Math.Vectors,
+  FMX.Ani, System.Threading, FMX.Forms;
 
 type
   TksTableViewAccessoryImage = class(TBitmap)
@@ -1781,8 +1781,8 @@ begin
   Result.Height := FTableView.HeaderHeight;
   Result.Purpose := TksTableViewItemPurpose.Header;
   Add(Result);
-  FTableView.UpdateItemRects;
   UpdateIndexes;
+  FTableView.UpdateItemRects;
   FTableView.UpdateScrollingLimits;
 end;
 
@@ -1799,8 +1799,9 @@ begin
     Result.Accessory.Accessory := atCheckBox;
   Result.Height := FTableView.ItemHeight;
   Add(Result);
-  FTableView.UpdateItemRects;
   UpdateIndexes;
+
+  FTableView.UpdateItemRects;
   FTableView.UpdateScrollingLimits;
 end;
 
@@ -2952,6 +2953,8 @@ var
   AWidth: single;
   AItem: TksTableViewItem;
 begin
+  if FUpdateCount > 0 then
+    Exit;
   UpdateFilteredItems;
   AYPos := 0;
   AWidth := Width;
@@ -2970,6 +2973,8 @@ procedure TksTableView.UpdateScrollingLimits;
 var
   Targets: array of TAniCalculations.TTarget;
 begin
+  if FUpdateCount > 0 then
+    Exit;
   if FAniCalc <> nil then
   begin
     SetLength(Targets, 2);
@@ -3051,16 +3056,14 @@ begin
   FDeleteButton := TksDeleteButton.Create;
   FAppearence := TksTableViewAppearence.Create(Self);
   FSearchBox := TSearchBox.Create(Self);
-  FTextDefaults := TksTableViewTextDefaults.Create;
-  FPullToRefresh := TksTableViewPullToRefresh.Create;
   FSearchBox.Visible := False;
   FSearchBox.Align := TAlignLayout.Top;
   FSearchBox.OnTyping := DoFilterChanged;
   FSearchBox.OnChange := DoFilterChanged;
+  FTextDefaults := TksTableViewTextDefaults.Create;
+  FPullToRefresh := TksTableViewPullToRefresh.Create;
   Size.Width := C_TABLEVIEW_DEFAULT_WIDTH;
   Size.Height := C_TABLEVIEW_DEFAULT_HEIGHT;
-  //Width := C_TABLEVIEW_DEFAULT_WIDTH;
-  //Height := C_TABLEVIEW_DEFAULT_HEIGHT;
   ClipChildren := True;
 
   FAniCalc := TAniCalculations.Create(nil);
@@ -3072,7 +3075,6 @@ begin
   FAniCalc.OnStop := AniCalcStop;
   FAniCalc.BoundsAnimation := True;
   FAniCalc.TouchTracking := [ttVertical];
-  //FAniCalc.DecelerationRate := 1;
 
 
   UpdateScrollingLimits;
@@ -3095,13 +3097,6 @@ begin
   AddObject(FSearchBox);
 end;
 
-function TksTableView.CreateTimer(AInterval: integer; AProc: TTimerProc): TFmxHandle;
-begin
-  Result := 0;
-  if FTimerService <> nil then
-    Result := FTimerService.CreateTimer(AInterval, AProc);
-end;
-
 destructor TksTableView.Destroy;
 begin
   FreeAndNil(FRowIndicators);
@@ -3114,6 +3109,13 @@ begin
   FreeAndNil(FTextDefaults);
   FreeAndNil(FPullToRefresh);
   inherited;
+end;
+
+function TksTableView.CreateTimer(AInterval: integer; AProc: TTimerProc): TFmxHandle;
+begin
+  Result := 0;
+  if FTimerService <> nil then
+    Result := FTimerService.CreateTimer(AInterval, AProc);
 end;
 
 procedure TksTableView.DoDeselectItem;
@@ -3249,6 +3251,8 @@ begin
   FUpdateCount := FUpdateCount - 1;
   if FUpdateCount = 0 then
   begin
+    UpdateItemRects;
+    UpdateScrollingLimits;
     CacheItems(False);
     Invalidate;
   end;
@@ -3319,9 +3323,6 @@ end;
 function TksTableView.GetScrollViewPos: single;
 begin
   Result := FScrollPos + GetSearchHeight;
-
-  // if FSearchVisible then
-  // Result := Result - FSearchBox.Height;
 end;
 
 function TksTableView.GetSearchHeight: single;
@@ -3667,6 +3668,11 @@ end;
 procedure TksTableView.Resize;
 begin
   inherited;
+  if FItems.Count = 0  then
+    Exit;
+
+  if FUpdateCount > 0 then
+    Exit;
   UpdateItemRects;
   CacheItems(True);
 end;
@@ -5022,7 +5028,7 @@ initialization
 
 finalization
 
-FreeAndNil(AccessoryImages);
-FreeAndNil(ATextLayout);
+  FreeAndNil(AccessoryImages);
+  FreeAndNil(ATextLayout);
 
 end.
