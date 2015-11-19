@@ -84,7 +84,7 @@ type
   TksTableViewItemPurpose = (None, Header);
   TksTableViewCheckMarks = (cmNone, cmSingleSelect, cmMultiSelect);
   TksTableViewActionButtonAlignment = (abLeftActionButtons, abRightActionButtons);
-  TksTableViewTextWidth = (ksWidth10Percent,
+  {TksTableViewTextWidth = (ksWidth10Percent,
                            ksWidth20Percent,
                            ksWidth30Percent,
                            ksWidth40Percent,
@@ -92,7 +92,7 @@ type
                            ksWidth60Percent,
                            ksWidth70Percent,
                            ksWidth80Percent,
-                           ksWidth90Percent);
+                           ksWidth90Percent); }
   TksTableItemSelector = (NoSelector, DateSelector, ItemPicker);
 
 
@@ -519,7 +519,7 @@ type
     FTextColor: TAlphaColor;
     FActionButtons: TksTableViewActionButtons;
     FCanSelect: Boolean;
-    FTitleWidth: TksTableViewTextWidth;
+    //FTitleWidth: TksTableViewTextWidth;
     FTagString: string;
     FTagInteger: integer;
     FSelector: TksTableItemSelector;
@@ -555,7 +555,7 @@ type
     function GetIndicatorColor: TAlphaColor;
     procedure SetIndicatorColor(const Value: TAlphaColor);
     procedure DoSwipe(ADirecton: TksSwipeDirection);
-    procedure SetTitleWidth(const Value: TksTableViewTextWidth);
+    //procedure SetTitleWidth(const Value: TksTableViewTextWidth);
     procedure SetPickerItems(const Value: TStrings);
     procedure PickerItemsChanged(Sender: TObject);
     function GetItemData(const AIndex: string): TValue;
@@ -577,7 +577,7 @@ type
 
     // text functions...
     function TextWidth(AText: string; AIsHtml: Boolean): single;
-    function TextHeight(AText: string; AWordWrap, AIsHtml: Boolean; const AMaxWidth: single): single;
+    function TextHeight(AText: string; AWordWrap, AIsHtml: Boolean; ATrimming: TTextTrimming; const AMaxWidth: single): single;
 
     procedure SetItemFontStyle(AFontStyle: TFontStyles);
     procedure SetItemTextColor(AColor: TAlphaColor);
@@ -626,7 +626,7 @@ type
 
     property TagString: string read FTagString write FTagString;
     property TagInteger: integer read FTagInteger write FTagInteger default 0;
-    property TitleWidth: TksTableViewTextWidth read FTitleWidth write SetTitleWidth default ksWidth60Percent;
+    //property TitleWidth: TksTableViewTextWidth read FTitleWidth write SetTitleWidth default ksWidth60Percent;
     //property ActionButtonsWidth: integer read FActionButtonsWidth write SetActionButtonsWidth;
   end;
 
@@ -1167,6 +1167,8 @@ procedure RenderText(ACanvas: TCanvas; x, y, AWidth, AHeight: single;
   AText: string; AFont: TFont; ATextColor: TAlphaColor; AWordWrap: Boolean;
   AHorzAlign: TTextAlign; AVertAlign: TTextAlign; ATrimming: TTextTrimming); overload;
 begin
+  if AText = '' then
+    Exit;
   ATextLayout.BeginUpdate;
   ATextLayout.Text := AText;
   ATextLayout.WordWrap := AWordWrap;
@@ -1175,6 +1177,8 @@ begin
   ATextLayout.HorizontalAlign := AHorzAlign;
   ATextLayout.VerticalAlign := AVertAlign;
   ATextLayout.Trimming := ATrimming;
+  if AWordWrap  then
+    ATextLayout.Trimming := TTextTrimming.None;
   ATextLayout.TopLeft := PointF(x, y);
   ATextLayout.MaxSize := PointF(AWidth, AHeight);
   ATextLayout.EndUpdate;
@@ -1244,11 +1248,15 @@ begin
   Result := ATextLayout.Width;
 end;
 
-function GetTextHeight(AText: string; AFont: TFont; AWordWrap: Boolean;
+function GetTextHeight(AText: string; AFont: TFont; AWordWrap: Boolean; ATrimming: TTextTrimming;
   const AWidth: single = 0): single;
 var
   APoint: TPointF;
 begin
+  Result := 0;
+  if AText = '' then
+    Exit;
+
   ATextLayout.BeginUpdate;
   // Setting the layout MaxSize
   APoint.x := MaxSingle;
@@ -1544,7 +1552,7 @@ end;
 
 procedure TksTableViewItemText.FontChanged(Sender: TObject);
 begin
-  Height := GetTextHeight(FText, FFont, FWordWrap)
+  Height := GetTextHeight(FText, FFont, FWordWrap, FTrimming)
 end;
 
 function TksTableViewItemText.GetFont: TFont;
@@ -1589,14 +1597,15 @@ begin
   end;
   RenderText(ACanvas, r.Left, r.Top, r.Width, r.Height, FText, FFont,
     FTextColor, FWordWrap, FTextAlign, FTextVertAlign, FTrimming);
-
-  //ACanvas.DrawRect(r, 0, 0, AllCorners, 1);
 end;
 
 procedure TksTableViewItemText.SetBackground(const Value: TAlphaColor);
 begin
-  FBackground := Value;
-  Changed;
+  if FBackground <> Value then
+  begin
+    FBackground := Value;
+    Changed;
+  end;
 end;
 
 procedure TksTableViewItemText.SetFont(const Value: TFont);
@@ -1615,27 +1624,47 @@ end;
 
 procedure TksTableViewItemText.SetTextAlign(const Value: TTextAlign);
 begin
-  FTextAlign := Value;
+  if FTextAlign <> Value then
+  begin
+    FTextAlign := Value;
+    Changed;
+  end;
 end;
 
 procedure TksTableViewItemText.SetTextColor(const Value: TAlphaColor);
 begin
-  FTextColor := Value;
+  if FTextColor <> Value then
+  begin
+    FTextColor := Value;
+    Changed;
+  end;
 end;
 
 procedure TksTableViewItemText.SetTextVertAlign(const Value: TTextAlign);
 begin
-  FTextVertAlign := Value;
+  if FTextVertAlign <> Value then
+  begin
+    FTextVertAlign := Value;
+    Changed;
+  end;
 end;
 
 procedure TksTableViewItemText.SetTrimming(const Value: TTextTrimming);
 begin
-  FTrimming := Value;
+  if FTrimming <> Value then
+  begin
+    FTrimming := Value;
+    Changed;
+  end;
 end;
 
 procedure TksTableViewItemText.SetWordWrap(const Value: Boolean);
 begin
-  FWordWrap := Value;
+  if FWordWrap <> Value then
+  begin
+    FWordWrap := Value;
+    Changed;
+  end;
 end;
 
 // ------------------------------------------------------------------------------
@@ -2128,7 +2157,7 @@ begin
   FCaching := False;
   FUpdating := False;
   FCanSelect := True;
-  FTitleWidth := ksWidth60Percent;
+  //FTitleWidth := ksWidth60Percent;
   FTagString := '';
   FTagInteger := 0;
 end;
@@ -2398,13 +2427,13 @@ begin
       FAccessory.FPlaceOffset := Point(-4, 0);
     end;
     FTitle.FPlaceOffset := PointF(ARect.Left, 0);
-    FTitle.Width := ARect.Width * (((Ord(FTitleWidth)+1)*10) / 100);
+    FTitle.Width := ARect.Width;// * (((Ord(FTitleWidth)+1)*10) / 100);
 
-    FTitle.Height := GetTextHeight(FTitle.Text, FTitle.Font,  False, 0);
+    FTitle.Height := GetTextHeight(FTitle.Text, FTitle.Font,  FTitle.WordWrap, FTitle.FTrimming, FTitle.Width);
 
     FSubTitle.FPlaceOffset := PointF(ARect.Left, 0);
-    FSubTitle.Width := ARect.Width * (((Ord(FTitleWidth)+1)*10) / 100);
-    FSubTitle.Height := GetTextHeight(FSubTitle.Text, FSubTitle.Font, False, 0);
+    FSubTitle.Width := ARect.Width;// * (((Ord(FTitleWidth)+1)*10) / 100);
+    FSubTitle.Height := GetTextHeight(FSubTitle.Text, FSubTitle.Font, FSubTitle.WordWrap, FSubTitle.FTrimming, FSubTitle.Width);
     if FSubTitle.Text <> '' then
     begin
       FTitle.FPlaceOffset := PointF(FTitle.FPlaceOffset.x, -9);
@@ -2412,7 +2441,7 @@ begin
     end;
     FDetail.FPlaceOffset := PointF(ARect.Right-(ARect.Width/2), 0);
     FDetail.Width := ARect.Width/2;
-    FDetail.Height := GetTextHeight(FDetail.Text, FDetail.Font, FDetail.WordWrap);
+    FDetail.Height := GetTextHeight(FDetail.Text, FDetail.Font, FDetail.WordWrap, FDetail.FTrimming);
   finally
     FUpdating := False;
   end;
@@ -2506,6 +2535,7 @@ begin
   begin
     FHeight := Value;
     FTableView.UpdateItemRects;
+    CacheItem(True);
   end;
 end;
 
@@ -2582,7 +2612,7 @@ procedure TksTableViewItem.SetTextColor(const Value: TAlphaColor);
 begin
   FTextColor := Value;
 end;
-
+       {
 procedure TksTableViewItem.SetTitleWidth(const Value: TksTableViewTextWidth);
 begin
   if FTitleWidth <> Value then
@@ -2590,7 +2620,7 @@ begin
     FTitleWidth := Value;
     Changed;
   end;
-end;
+end;      }
 
 // ------------------------------------------------------------------------------
 
@@ -2627,13 +2657,13 @@ begin
   Changed;
 end;
 
-function TksTableViewItem.TextHeight(AText: string; AWordWrap, AIsHtml: Boolean;
+function TksTableViewItem.TextHeight(AText: string; AWordWrap, AIsHtml: Boolean; ATrimming: TTextTrimming;
   const AMaxWidth: single): single;
 begin
   if AIsHtml then
     Result := GetTextSizeHtml(AText, FFont, AMaxWidth).y
   else
-    Result := GetTextHeight(AText, FFont, AWordWrap, AMaxWidth);
+    Result := GetTextHeight(AText, FFont, AWordWrap, ATrimming, AMaxWidth);
 end;
 
 function TksTableViewItem.TextOut(AText: string; x: single;
@@ -2657,7 +2687,7 @@ begin
   Result.Font.Assign(Font);
   Result.FPlaceOffset := PointF(x, y);
 
-  AHeight := GetTextHeight(AText, FFont, AWordWrap, AWidth);
+  AHeight := GetTextHeight(AText, FFont, AWordWrap, Result.Trimming, AWidth);
   if AWidth = 0 then
     AWidth := GetTextWidth(AText, Font);
 
@@ -3268,9 +3298,11 @@ begin
   FUpdateCount := FUpdateCount - 1;
   if FUpdateCount = 0 then
   begin
+  UpdateItemRects;
+
     UpdateItemRects;
     UpdateScrollingLimits;
-    CacheItems(False);
+    CacheItems(True);
     Invalidate;
   end;
 end;
