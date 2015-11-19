@@ -677,24 +677,25 @@ type
   private
     [weak]FListView: TksTableView;
     FBackground: TAlphaColor;
-    FItemBackground: TAlphaColor;
+    FItemBackground: TBrush;
     FAlternatingItemBackground: TAlphaColor;
     FSeparatorColor: TAlphaColor;
     FHeaderColor: TAlphaColor;
     FSelectedColor: TAlphaColor;
     procedure SetBackground(const Value: TAlphaColor);
-    procedure SetItemBackground(const Value: TAlphaColor);
+    procedure SetItemBackground(const Value: TBrush);
     procedure SetAlternatingItemBackground(const Value: TAlphaColor);
     procedure SetSeparatorBackground(const Value: TAlphaColor);
     procedure SetHeaderColor(const Value: TAlphaColor);
     procedure SetSelectedColor(const Value: TAlphaColor);
   public
     constructor Create(AListView: TksTableView);
+    destructor Destroy; override;
   published
     property Background: TAlphaColor read FBackground write SetBackground default claWhite;
     property HeaderColor: TAlphaColor read FHeaderColor write SetHeaderColor default claNull;
     property SeparatorColor: TAlphaColor read FSeparatorColor write SetSeparatorBackground default $FFF0F0F0;
-    property ItemBackground: TAlphaColor read FItemBackground write SetItemBackground default claWhite;
+    property ItemBackground: TBrush read FItemBackground write SetItemBackground;
     property SelectedColor: TAlphaColor read FSelectedColor write SetSelectedColor default C_TABLEVIEW_DEFAULT_SELECTED_COLOR;
     property AlternatingItemBackground: TAlphaColor read FAlternatingItemBackground write SetAlternatingItemBackground default claNull;
   end;
@@ -1973,7 +1974,10 @@ begin
 
   FBitmap.BitmapScale := GetScreenScale;
 
-  FBitmap.Clear(claWhite);
+  FBitmap.Clear(FTableView.Appearence.ItemBackground.Color);
+
+  //if FTableView.Appearence.ItemBackground. then
+  //FBitmap.
 
   if FTableView.Appearence.AlternatingItemBackground <> claNull then
   begin
@@ -1995,6 +1999,13 @@ begin
 
   FBitmap.Canvas.BeginScene;
   try
+    if (FTableView.Appearence.ItemBackground.Kind <> TBrushKind.Solid) and
+       (FPurpose = None) and
+       (FTableView.ItemIndex <> FIndex) then
+    begin
+      FBitmap.Canvas.Fill.Assign(FTableView.Appearence.ItemBackground);
+      FBitmap.Canvas.FillRect(ARect, 0, 0, AllCorners, 1);
+    end;
     if Assigned(FTableView.BeforeRowCache) then
       FTableView.BeforeRowCache(FTableView, FBitmap.Canvas, Self, ARect);
 
@@ -2714,10 +2725,16 @@ begin
   inherited Create;
   FListView := AListView;
   FBackground := claWhite;
-  FItemBackground := claWhite;
+  FItemBackground := TBrush.Create(TBrushKind.Solid, claWhite);
   FSeparatorColor := $FFF0F0F0;
   FSelectedColor := C_TABLEVIEW_DEFAULT_SELECTED_COLOR;
   FAlternatingItemBackground := claNull;
+end;
+
+destructor TksTableViewAppearence.Destroy;
+begin
+  FreeAndNil(FItemBackground);
+  inherited;
 end;
 
 procedure TksTableViewAppearence.SetAlternatingItemBackground
@@ -2736,9 +2753,9 @@ begin
   FHeaderColor := Value;
 end;
 
-procedure TksTableViewAppearence.SetItemBackground(const Value: TAlphaColor);
+procedure TksTableViewAppearence.SetItemBackground(const Value: TBrush);
 begin
-  FItemBackground := Value;
+  FItemBackground.Assign(Value);
 end;
 
 procedure TksTableViewAppearence.SetSelectedColor(const Value: TAlphaColor);
@@ -3055,11 +3072,22 @@ begin
   FRowIndicators := TksListViewRowIndicators.Create;
   FDeleteButton := TksDeleteButton.Create;
   FAppearence := TksTableViewAppearence.Create(Self);
+
+  {FSearchBox := TSearchBox.Create(nil);
+  FSearchBox.Visible := False;
+  FSearchBox.Align := TAlignLayout.Top;
+  FSearchBox.OnTyping := DoFilterChanged;
+  FSearchBox.OnChange := DoFilterChanged;}
+
   FSearchBox := TSearchBox.Create(Self);
+  FSearchBox.Stored := False;
+  FSearchBox.Locked := True;
   FSearchBox.Visible := False;
   FSearchBox.Align := TAlignLayout.Top;
   FSearchBox.OnTyping := DoFilterChanged;
   FSearchBox.OnChange := DoFilterChanged;
+  FSearchBox.Parent := Self;
+
   FTextDefaults := TksTableViewTextDefaults.Create;
   FPullToRefresh := TksTableViewPullToRefresh.Create;
   Size.Width := C_TABLEVIEW_DEFAULT_WIDTH;
@@ -3099,6 +3127,12 @@ end;
 
 destructor TksTableView.Destroy;
 begin
+  if FSearchBox <> nil then
+  begin
+    FSearchBox.Parent := nil;
+    FreeAndNil(FSearchBox);
+  end;
+
   FreeAndNil(FRowIndicators);
   FreeAndNil(FBackgroundText);
   FreeAndNil(FFilteredItems);
