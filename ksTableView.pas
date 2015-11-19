@@ -164,11 +164,15 @@ type
     FHeight: single;
     FPlaceOffset: TPointF;
     FHitTest: Boolean;
+    FOffsetX: single;
+    FOffsetY: single;
     // FPadding: TRectF;
     procedure SetHeight(const Value: single);
     procedure SetWidth(const Value: single);
     procedure SetPlaceOffset(const Value: TPointF);
     procedure SetHitTest(const Value: Boolean);
+    procedure SetOffsetX(const Value: single);
+    procedure SetOffsetY(const Value: single);
   protected
     function ConsumesClick: Boolean; virtual;
     function GetAlign: TksTableItemAlign;
@@ -190,7 +194,9 @@ type
     property Height: single read FHeight write SetHeight;
     property HitTest: Boolean read FHitTest write SetHitTest default True;
     property ID: string read GetID write SetID;
-    property PlaceOffset: TPointF read FPlaceOffset write SetPlaceOffset;
+    //property PlaceOffset: TPointF read FPlaceOffset write SetPlaceOffset;
+    property OffsetX: single read FOffsetX write SetOffsetX;
+    property OffsetY: single read FOffsetY write SetOffsetY;
     property TableItem: TksTableViewItem read FTableItem;
     property VertAlign: TksTableItemAlign read GetVertAlign write SetVertAlign;
     property Width: single read FWidth write SetWidth;
@@ -262,6 +268,7 @@ type
     procedure SetWordWrap(const Value: Boolean);
     procedure SetTrimming(const Value: TTextTrimming);
     procedure SetBackground(const Value: TAlphaColor);
+    procedure FontChanged(Sender: TObject);
   protected
     procedure Render(ACanvas: TCanvas); override;
   public
@@ -1383,6 +1390,8 @@ begin
   inherited Create;
   FTableItem := ATableItem;
   FHitText := True;
+  FOffsetX := 0;
+  FOffsetY := 0;
 end;
 
 procedure TksTableViewItemObject.MouseDown(x, y: single);
@@ -1442,7 +1451,7 @@ begin
     TksTableItemAlign.Trailing: OffsetRect(Result, 0, (ARowRect.Height - Result.Height));
   end;
 
-  OffsetRect(Result, FPlaceOffset.x, FPlaceOffset.y);
+  OffsetRect(Result, FPlaceOffset.x + FOffsetX, FPlaceOffset.y + FOffsetY);
 end;
 
 function TksTableViewItemObject.GetVertAlign: TksTableItemAlign;
@@ -1475,6 +1484,24 @@ begin
   FID := Value;
 end;
 
+procedure TksTableViewItemObject.SetOffsetX(const Value: single);
+begin
+  if FOffsetX <> Value then
+  begin
+    FOffsetX := Value;
+    Changed;
+  end;
+end;
+
+procedure TksTableViewItemObject.SetOffsetY(const Value: single);
+begin
+  if FOffsetY <> Value then
+  begin
+    FOffsetY := Value;
+    Changed;
+  end;
+end;
+
 procedure TksTableViewItemObject.SetPlaceOffset(const Value: TPointF);
 begin
   FPlaceOffset := Value;
@@ -1504,6 +1531,7 @@ begin
   inherited;
   FFont := TFont.Create;
   FFont.Size := C_TABLEVIEW_DEFAULT_FONT_SIZE;
+  FFont.OnChanged := FontChanged;
   FText := '';
   FTextColor := claBlack;
   FVertAlign := TksTableItemAlign.Center;
@@ -1519,6 +1547,11 @@ destructor TksTableViewItemText.Destroy;
 begin
   FreeAndNil(FFont);
   inherited;
+end;
+
+procedure TksTableViewItemText.FontChanged(Sender: TObject);
+begin
+  Height := GetTextHeight(FText, FFont, FWordWrap)
 end;
 
 function TksTableViewItemText.GetFont: TFont;
@@ -1556,6 +1589,11 @@ var
   r: TRectF;
 begin
   r := GetObjectRect;
+  if FBackground <> claNull then
+  begin
+    ACanvas.Fill.Color := FBackground;
+    ACanvas.FillRect(r, 0, 0, AllCorners, 1);
+  end;
   RenderText(ACanvas, r.Left, r.Top, r.Width, r.Height, FText, FFont,
     FTextColor, FWordWrap, FTextAlign, FTextVertAlign, FTrimming);
 
@@ -1911,7 +1949,7 @@ function TksTableViewItem.AddEdit(AX, AY, AWidth: single; AText: string): TksTab
 begin
   Result := TksTableViewItemEmbeddedEdit.Create(Self);
   Result.Width := AWidth;
-  Result.PlaceOffset := PointF(AX, AY);
+  Result.FPlaceOffset := PointF(AX, AY);
   Result.VertAlign := TksTableItemAlign.Center;
   Result.Text := AText;
   FObjects.Add(Result);
@@ -1923,7 +1961,7 @@ begin
   Result := TksTableViewItemSwitch.Create(Self);
   Result.Width := 50;
   Result.Height := 30;
-  Result.PlaceOffset := PointF(-8, 0);
+  Result.FPlaceOffset := PointF(-8, 0);
   Result.SelectedColor := C_TABLEIEW_DEFAULT_SWITCH_COLOR;
   Result.Checked := AIsChecked;
   Result.Align := AAlign;
@@ -1938,7 +1976,7 @@ begin
   Result.DefaultColWidth := AColWidth;
   Result.ColCount := AColCount;
   Result.RowCount := ARowCount;
-  Result.PlaceOffset := PointF(AX, AY);
+  Result.FPlaceOffset := PointF(AX, AY);
   Result.ResizeTable;
 
   FObjects.Add(Result);
@@ -2220,7 +2258,7 @@ begin
   Result := TksTableViewItemImage.Create(Self);
   Result.Width := AWidth;
   Result.Height := AHeight;
-  Result.PlaceOffset := PointF(x, y);
+  Result.FPlaceOffset := PointF(x, y);
   Result.VertAlign := TksTableItemAlign.Center;
   Result.Bitmap := ABmp;
   FObjects.Add(Result);
@@ -2232,7 +2270,7 @@ begin
   Result := TksTableViewItemShape.Create(Self);
   Result.Width := AWidth;
   Result.Height := AHeight;
-  Result.PlaceOffset := PointF(x, y);
+  Result.FPlaceOffset := PointF(x, y);
   Result.Stroke.Color := AStroke;
   Result.Fill.Color := AFill;
   Result.VertAlign := TksTableItemAlign.Center;
@@ -2345,94 +2383,42 @@ begin
   FUpdating := True;
   try
     ARect := GetInternalRect;
-
     if (FPurpose = None) and (FTableView.RowIndicators.Visible) then
     begin
-      FIndicator.PlaceOffset := PointF(ARect.Left, 0);
+      FIndicator.FPlaceOffset := PointF(ARect.Left, 0);
       FIndicator.Width := FTableView.RowIndicators.Width;
       FIndicator.Height := FTableView.RowIndicators.Height;
       if FIndicator.Height = 0 then
         FIndicator.Height := ItemRect.Height - 16;
       ARect.Left := ARect.Left + FTableView.RowIndicators.Width+4;
     end;
-
     if FImage.Bitmap <> nil then
     begin
       FImage.Width := FTableView.ItemImageSize;
       FImage.Height := FTableView.ItemImageSize;
-      FImage.PlaceOffset := PointF(ARect.Left, 0);
+      FImage.FPlaceOffset := PointF(ARect.Left, 0);
       ARect.Left := ARect.Left + FTableView.ItemImageSize + 4;
     end;
-
     if FAccessory.Accessory <> atNone then
     begin
       ARect.Right := ARect.Right-4;
-      FAccessory.PlaceOffset := Point(-4, 0);
+      FAccessory.FPlaceOffset := Point(-4, 0);
     end;
-
-    FTitle.PlaceOffset := PointF(ARect.Left, 0);
+    FTitle.FPlaceOffset := PointF(ARect.Left, 0);
     FTitle.Width := ARect.Width * (((Ord(FTitleWidth)+1)*10) / 100);
     FTitle.Height := TextHeight(FTitle.Text, False, False, 0);
 
-    FSubTitle.PlaceOffset := PointF(ARect.Left, 0);
+    FSubTitle.FPlaceOffset := PointF(ARect.Left, 0);
     FSubTitle.Width := ARect.Width * (((Ord(FTitleWidth)+1)*10) / 100);
     FSubTitle.Height := TextHeight(FSubTitle.Text, False, False, 0);
-
     if FSubTitle.Text <> '' then
     begin
-      FTitle.PlaceOffset := PointF(FTitle.PlaceOffset.x, -9);
-      FSubTitle.PlaceOffset := PointF(FSubTitle.PlaceOffset.x, 9);
+      FTitle.FPlaceOffset := PointF(FTitle.FPlaceOffset.x, -9);
+      FSubTitle.FPlaceOffset := PointF(FSubTitle.FPlaceOffset.x, 9);
     end;
-
-
-
-    FDetail.PlaceOffset := PointF(ARect.Right-(ARect.Width/2), 0);
+    FDetail.FPlaceOffset := PointF(ARect.Right-(ARect.Width/2), 0);
     FDetail.Width := ARect.Width/2;
     FDetail.Height := GetTextHeight(FDetail.Text, FDetail.Font, FDetail.WordWrap);
-
-     //PointF(ARect.Right-(FAccessory.Width+4), 0);
-    (*ALeftMargin := ARect.Left;
-
-    [if (FPurpose = None) and (FTableView.RowIndicators.Visible) then
-    begin
-      FIndicator.PlaceOffset := PointF(ALeftMargin, 0);
-      FIndicator.Width := FTableView.RowIndicators.Width;
-      FIndicator.Height := FTableView.RowIndicators.Height;
-      if FIndicator.Height = 0 then
-        FIndicator.Height := ItemRect.Height - 16;
-      ALeftMargin := ALeftMargin + FTableView.RowIndicators.Width+4;
-    end;
-
-    if FImage.Bitmap <> nil then
-    begin
-      FImage.Width := FTableView.ItemImageSize;
-      FImage.Height := FTableView.ItemImageSize;
-      FImage.PlaceOffset := PointF(4, 0);
-      ALeftMargin := ALeftMargin + FTableView.ItemImageSize {+ 4};
-    end;
-
-    ATitleWidth := ((Ord(FTitleWidth)+1)*10) / 100;
-
-    FTitle.PlaceOffset := PointF(ALeftMargin, 0);
-
-    FTitle.Width := (ARect.Width * ATitleWidth) - ALeftMargin;
-    FTitle.Height := TextHeight(FTitle.Text, False, False, 0);
-
-    FSubTitle.PlaceOffset := PointF(ALeftMargin, 0);
-    FSubTitle.Width := (ARect.Width * ATitleWidth) - ALeftMargin;
-    FSubTitle.Height := TextHeight(FSubTitle.Text, False, False, 0);
-
-    if FSubTitle.Text <> '' then
-    begin
-      FTitle.PlaceOffset := PointF(FTitle.PlaceOffset.x, -9);
-      FSubTitle.PlaceOffset := PointF(FSubTitle.PlaceOffset.x, 9);
-    end;
-
-    FDetail.PlaceOffset := PointF(FTitle.GetObjectRect.Right, 0);
-    FDetail.Width := (ARect.Width * (1-ATitleWidth));
-    FDetail.Height := GetTextHeight(FDetail.Text, FDetail.Font,
-      FDetail.WordWrap);
-           *)
   finally
     FUpdating := False;
   end;
@@ -2485,7 +2471,7 @@ begin
   end;
   ASeperatorMargin := 0;
   if (FTableView.FullWidthSeparator = False) and (FPurpose = TksTableViewItemPurpose.None) then
-    ASeperatorMargin := FTitle.PlaceOffset.X;
+    ASeperatorMargin := FTitle.FPlaceOffset.X;
   ACanvas.DrawLine(PointF(ASeperatorMargin, ARect.Top), PointF(ARect.Right, ARect.Top), 1);
   if (IsLastItem) or (FPurpose = TksTableViewItemPurpose.Header) then
     ACanvas.DrawLine(PointF(0, ARect.Bottom),
@@ -2522,7 +2508,11 @@ end;
 
 procedure TksTableViewItem.SetHeight(const Value: single);
 begin
-  FHeight := Value;
+  if Value <> FHeight then
+  begin
+    FHeight := Value;
+    FTableView.UpdateItemRects;
+  end;
 end;
 
 procedure TksTableViewItem.SetIndex(const Value: integer);
@@ -2674,7 +2664,6 @@ begin
   Result.FPlaceOffset := PointF(x, y);
 
   AHeight := GetTextHeight(AText, FFont, AWordWrap, AWidth);
-
   if AWidth = 0 then
     AWidth := GetTextWidth(AText, Font);
 
