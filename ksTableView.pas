@@ -169,7 +169,6 @@ type
     // FPadding: TRectF;
     procedure SetHeight(const Value: single);
     procedure SetWidth(const Value: single);
-    procedure SetPlaceOffset(const Value: TPointF);
     procedure SetHitTest(const Value: Boolean);
     procedure SetOffsetX(const Value: single);
     procedure SetOffsetY(const Value: single);
@@ -1257,10 +1256,10 @@ begin
     APoint.x := AWidth;
   APoint.y := 100;
 
+  ATextLayout.Font.Assign(AFont);
   ATextLayout.MaxSize := APoint;
   ATextLayout.Text := AText;
   ATextLayout.WordWrap := AWordWrap;
-  ATextLayout.Font.Assign(AFont);
   ATextLayout.HorizontalAlign := TTextAlign.Leading;
   ATextLayout.VerticalAlign := TTextAlign.Leading;
   ATextLayout.EndUpdate;
@@ -1500,12 +1499,6 @@ begin
     FOffsetY := Value;
     Changed;
   end;
-end;
-
-procedure TksTableViewItemObject.SetPlaceOffset(const Value: TPointF);
-begin
-  FPlaceOffset := Value;
-  Changed;
 end;
 
 procedure TksTableViewItemObject.SetVertAlign(Value: TksTableItemAlign);
@@ -2406,11 +2399,12 @@ begin
     end;
     FTitle.FPlaceOffset := PointF(ARect.Left, 0);
     FTitle.Width := ARect.Width * (((Ord(FTitleWidth)+1)*10) / 100);
-    FTitle.Height := TextHeight(FTitle.Text, False, False, 0);
+
+    FTitle.Height := GetTextHeight(FTitle.Text, FTitle.Font,  False, 0);
 
     FSubTitle.FPlaceOffset := PointF(ARect.Left, 0);
     FSubTitle.Width := ARect.Width * (((Ord(FTitleWidth)+1)*10) / 100);
-    FSubTitle.Height := TextHeight(FSubTitle.Text, False, False, 0);
+    FSubTitle.Height := GetTextHeight(FSubTitle.Text, FSubTitle.Font, False, 0);
     if FSubTitle.Text <> '' then
     begin
       FTitle.FPlaceOffset := PointF(FTitle.FPlaceOffset.x, -9);
