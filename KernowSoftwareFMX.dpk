@@ -1,6 +1,30 @@
 package KernowSoftwareFMX;
 
 {$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS ON}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION ON}
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+{$REFERENCEINFO ON}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES OFF}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$ENDIF IMPLICITBUILDING}
+{$IMPLICITBUILD OFF}
 
 requires
   rtl,
@@ -11,6 +35,7 @@ contains
   ksSlideMenu in 'ksSlideMenu.pas',
   ksSegmentButtons in 'ksSegmentButtons.pas',
   ksDrawFunctions in 'ksDrawFunctions.pas',
-  ksTableView in 'ksTableView.pas';
+  ksTableView in 'ksTableView.pas',
+  ksMainMenu in 'ksMainMenu.pas';
 
 end.

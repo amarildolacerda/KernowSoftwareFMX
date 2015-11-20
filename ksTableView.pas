@@ -1,3 +1,4 @@
+
 {*******************************************************************************
 *                                                                              *
 *  TksTableView - High-Performance Mobile Scrolling List Component             *
@@ -26,7 +27,7 @@ unit ksTableView;
 
 interface
 
-uses Classes, FMX.Controls, FMX.Layouts, FMX.Types, Types, Generics.Collections,
+uses Classes, FMX.Controls, FMX.Layouts, FMX.Types, System.Types, Generics.Collections,
   FMX.Graphics, FMX.Objects, FMX.InertialMovement, System.UITypes,
   System.UIConsts, System.Rtti, FMX.DateTimeCtrls,
   FMX.Styles, FMX.Styles.Objects, FMX.Edit, FMX.SearchBox, FMX.ListBox;
@@ -84,6 +85,7 @@ type
   TksTableViewItemPurpose = (None, Header);
   TksTableViewCheckMarks = (cmNone, cmSingleSelect, cmMultiSelect);
   TksTableViewActionButtonAlignment = (abLeftActionButtons, abRightActionButtons);
+  TksImageDrawMode = (ksDrawModeStretch, ksDrawModeFit);
   {TksTableViewTextWidth = (ksWidth10Percent,
                            ksWidth20Percent,
                            ksWidth30Percent,
@@ -409,6 +411,7 @@ type
   TksTableViewItemBaseImage = class(TksTableViewItemObject)
   strict private
     FBitmap: TBitmap;
+    FDrawMode: TksImageDrawMode;
     FShadow: TksTableViewShadow;
     [weak]FExternalBitmap: TBitmap;
   private
@@ -417,11 +420,13 @@ type
     function GetBitmap: TBitmap;
     procedure SetOwnsBitmap(const Value: Boolean);
     procedure SetShadow(const Value: TksTableViewShadow);
+    procedure SetDrawMode(const Value: TksImageDrawMode);
   protected
     procedure Render(ACanvas: TCanvas); override;
     property Bitmap: TBitmap read GetBitmap write SetBitmap;
     property Shadow: TksTableViewShadow read FShadow write SetShadow;
     property OwnsBitmap: Boolean read FOwnsBitmap write SetOwnsBitmap default False;
+    property DrawMode: TksImageDrawMode read FDrawMode write SetDrawMode;
   public
     constructor Create(ATableItem: TksTableViewItem); override;
     destructor Destroy; override;
@@ -431,6 +436,7 @@ type
   public
     property Bitmap;
     property Shadow;
+    property DrawMode;
   end;
 
   TksTableViewItemShape = class(TksTableViewItemObject)
@@ -572,6 +578,7 @@ type
     function IsLastItem: Boolean;
 
     // image functions...
+    function DrawBitmap(ABmp: TBitmap; ARect: TRectF): TksTableViewItemImage; overload;
     function DrawBitmap(ABmp: TBitmap; x, AWidth, AHeight: single): TksTableViewItemImage; overload;
     function DrawBitmap(ABmp: TBitmap; x, y, AWidth, AHeight: single): TksTableViewItemImage overload;
 
@@ -590,7 +597,8 @@ type
     function TextOutRight(AText: string; y, AWidth: single; AXOffset: single; const AVertAlign: TksTableItemAlign = TksTableItemAlign.Center): TksTableViewItemText; overload;
 
     // shape functions...
-    function DrawRect(x, y, AWidth, AHeight: single; AStroke, AFill: TAlphaColor): TksTableViewItemShape;
+    function DrawRect(x, y, AWidth, AHeight: single; AStroke, AFill: TAlphaColor): TksTableViewItemShape; overload;
+    function DrawRect(ARect: TRectF; AStroke, AFill: TAlphaColor): TksTableViewItemShape; overload;
 
 
     function AddEdit(AX, AY, AWidth: single; AText: string): TksTableViewItemEmbeddedEdit;
@@ -1708,18 +1716,37 @@ procedure TksTableViewItemBaseImage.Render(ACanvas: TCanvas);
 var
   AShadowRect: TRectF;
   AShadowBmp: TBitmap;
-
+  ARect: TRectF;
+  AScaleX, AScaleY: single;
+  AScaledBmp: TBitmap;
+  AOriginalRect: TRectF;
 begin
   if Bitmap <> nil then
   begin
+    ARect := GetObjectRect;
+    AOriginalRect := ARect;
+
+    if FDrawMode = ksDrawModeFit then
+    begin
+      ARect := RectF(ARect.Left, ARect.Top, ARect.Left+Bitmap.Width, ARect.Top+Bitmap.Height);
+      AScaleX := GetObjectRect.Width / ARect.Width;
+      AScaleY := GetObjectRect.Height / ARect.Height;
+      ARect.Height := ARect.Height * Min(AScaleX, AScaleY);
+      ARect.Width := ARect.Width * Min(AScaleX, AScaleY);
+      OffsetRect(ARect, (AOriginalRect.Width - ARect.Width)/2, (AOriginalRect.Height - ARect.Height)/2) ;
+
+    end;
+
     if FShadow.Visible then
     begin
       AShadowBmp := TBitmap.Create;
       try
-        AShadowRect := GetObjectRect;
+        AShadowRect := ARect;
         OffsetRect(AShadowRect, FShadow.Offset, FShadow.Offset);
         AShadowBmp.Assign(Bitmap);
         AShadowBmp.ReplaceOpaqueColor(FShadow.Color);
+
+
         ACanvas.DrawBitmap(AShadowBmp, RectF(0, 0, AShadowBmp.Width, AShadowBmp.Height), AShadowRect, 1, True);
        // Bitmap.ReplaceOpaqueColor();
        // ACanvas.FillRect(AShadowRect, 0, 0, AllCorners, 1);
@@ -1727,7 +1754,7 @@ begin
         AShadowBmp.Free;
       end;
     end;
-    ACanvas.DrawBitmap(Bitmap, RectF(0, 0, Bitmap.Width, Bitmap.Height), GetObjectRect, 1, True);
+    ACanvas.DrawBitmap(Bitmap, RectF(0, 0, Bitmap.Width, Bitmap.Height), ARect, 1, True);
   end;
 end;
 
@@ -1742,6 +1769,15 @@ begin
   end
   else
     FExternalBitmap := Value;
+end;
+
+procedure TksTableViewItemBaseImage.SetDrawMode(const Value: TksImageDrawMode);
+begin
+  if FDrawMode <> Value then
+  begin
+    FDrawMode := Value;
+    Changed;
+  end;
 end;
 
 procedure TksTableViewItemBaseImage.SetOwnsBitmap(const Value: Boolean);
@@ -2268,8 +2304,12 @@ begin
 
 end;
 
-function TksTableViewItem.DrawBitmap(ABmp: TBitmap; x, AWidth, AHeight: single)
-  : TksTableViewItemImage;
+function TksTableViewItem.DrawBitmap(ABmp: TBitmap; ARect: TRectF): TksTableViewItemImage;
+begin
+  Result := DrawBitmap(ABmp, ARect.Left, ARect.Top, ARect.Width, ARect.Height);
+end;
+
+function TksTableViewItem.DrawBitmap(ABmp: TBitmap; x, AWidth, AHeight: single): TksTableViewItemImage;
 begin
   Result := DrawBitmap(ABmp, x, 0, AWidth, AHeight);
 end;
@@ -2297,6 +2337,11 @@ begin
   Result.Fill.Color := AFill;
   Result.VertAlign := TksTableItemAlign.Center;
   FObjects.Add(Result);
+end;
+
+function TksTableViewItem.DrawRect(ARect: TRectF; AStroke, AFill: TAlphaColor): TksTableViewItemShape;
+begin
+  Result := DrawRect(ARect.Left, ARect.Top, ARect.Width, ARect.Height, AStroke, AFill);
 end;
 
 function TksTableViewItem.GetAbsoluteIndex: integer;
@@ -2487,6 +2532,7 @@ begin
   ACanvas.Stroke.Color := FTableView.Appearence.SeparatorColor;
   ACanvas.StrokeThickness := 1;
   ACanvas.Stroke.Kind := TBrushKind.Solid;
+  ACanvas.Stroke.Dash := TStrokeDash.Solid;
   if FPurpose = Header then
   begin
     ACanvas.Stroke.Color := $FFD2D2D2;
@@ -3961,11 +4007,13 @@ begin
   try
     AShadowWidth := 0;
 
-    if FTableItem.FTableView.RowIndicators.Shadow then
+    if (FTableItem.FTableView.RowIndicators.Shadow) and (Self = FTableItem.FIndicator) then
       AShadowWidth := 1;
 
     ABmp.SetSize(Round(Width * GetScreenScale), Round(Height * GetScreenScale));
     ABmp.BitmapScale := GetScreenScale;
+
+
     ABmp.Clear(claNull);
     ABmp.Canvas.BeginScene;
     try
@@ -3981,21 +4029,24 @@ begin
       ABmp.Canvas.Fill.Assign(FFill);
       ABmp.Canvas.Stroke.Assign(FStroke);
       ABmp.Canvas.StrokeThickness := 1;
-      FFill.Color := GetColorOrDefault(FFill.Color, claWhite);
+      FFill.Color := FFill.Color;
       if FShape in [ksRectangle, ksRoundRect] then
       begin
-        ABmp.Canvas.FillRect(ARect, FCornerRadius, FCornerRadius, AllCorners, 1);
+        if FFill.Color <> claNull  then
+          ABmp.Canvas.FillRect(ARect, FCornerRadius, FCornerRadius, AllCorners, 1);
+
         ABmp.Canvas.DrawRect(ARect, FCornerRadius, FCornerRadius, AllCorners, 1);
       end;
       if FShape = ksEllipse then
       begin
-        ABmp.Canvas.FillEllipse(ARect, 1);
+        if FFill.Color <> claNull  then
+          ABmp.Canvas.FillEllipse(ARect, 1);
         ABmp.Canvas.DrawEllipse(ARect, 1);
       end;
     finally
       ABmp.Canvas.EndScene;
     end;
-    ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ObjectRect, 1, True);
+    ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ObjectRect, 1, False);
     ACanvas.Stroke.Color := clablack;
     //ACanvas.DrawRect(ObjectRect, 0, 0, AllCorners, 1);
   finally
