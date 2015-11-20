@@ -288,6 +288,7 @@ begin
         AImage.VertAlign := TksTableItemAlign.Leading;
         AImage.DrawMode := ksDrawModeFit;
         AImage.Shadow.Visible := True;
+        AImage.Shadow.Offset := 3;
         FTableView.OnItemClick := ClickTile;
 
         AText := AItem.TextOut(FItems[ICount-1].Text, r3.Left, r3.Top, r3.Width, TksTableItemAlign.Leading);
