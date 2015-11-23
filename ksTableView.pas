@@ -1,4 +1,3 @@
-
 {*******************************************************************************
 *                                                                              *
 *  TksTableView - High-Performance Mobile Scrolling List Component             *
@@ -151,7 +150,7 @@ type
     [weak]FTableItem: TksTableViewItem;
     FAlign: TksTableItemAlign;
     FVertAlign: TksTableItemAlign;
-    FHitText: Boolean;
+    //FHitText: Boolean;
     FID: string;
 
     FWidth: single;
@@ -852,6 +851,7 @@ type
     FMouseDownObject: TksTableViewItemObject;
     [weak]FFocusedControl: TksTableViewItemEmbeddedControl;
     FColCount: integer;  // SF - Addded support multiple columns
+    FMouseEventsEnabled: Boolean;
 
     // events...
     FItemClickEvent: TksTableViewItemClickEvent;
@@ -914,6 +914,8 @@ type
     procedure SetPullToRefresh(const Value: TksTableViewPullToRefresh);
     procedure HideFocusedControl;
     procedure DoEmbeddedEditChange(AItem: TksTableViewItem; AEmbeddedEdit: TksTableViewItemEmbeddedBaseEdit);
+    procedure EnableMouseEvents;
+    procedure DisableMouseEvents;
   protected
     function GetTotalItemHeight: single;
     procedure Paint; override;
@@ -1407,7 +1409,7 @@ end;
 procedure TksTableViewItemObject.Changed;
 begin
   FTableItem.Cached := False;
-  FTableItem.CacheItem(True);
+  FTableItem.CacheItem(False);
   FTableItem.FTableView.Invalidate;
 end;
 
@@ -1416,7 +1418,7 @@ begin
   inherited Create;
   FMargins := TBounds.Create(TRectF.Empty); // SF
   FTableItem := ATableItem;
-  FHitText := True;
+  FHitTest := True;
   FOffsetX := 0;
   FOffsetY := 0;
   FShowSelection := False;
@@ -1440,7 +1442,7 @@ end;
 
 procedure TksTableViewItemObject.MouseDown(x, y: single);
 begin
-  if FMouseDown = False then
+  if (FMouseDown = False) and (FHitTest) then
   begin
     FMouseDown := True;
     Changed;
@@ -2121,14 +2123,16 @@ var
   ARect: TRectF;
   ICount: integer;
   ColumnOffset : Single;  // SF
+  w,h: integer;
 begin
   if (FUpdating) or (FTableView.UpdateCount > 0) then
     Exit;
   if (FItemRect.Height = 0) or (FItemRect.Width = 0) then
     Exit;
+
   if AForceCache then
   begin
-    FreeAndNil(FBitmap);
+    //FreeAndNil(FBitmap);
     FCached := False;
   end;
 
@@ -2144,13 +2148,26 @@ begin
 
   RealignStandardObjects;
 
-  if FBitmap = nil then
-    FBitmap := TBitmap.Create(Round(FItemRect.Width * GetScreenScale), Round(FItemRect.Height * GetScreenScale))
-  else
-    FBitmap.SetSize(Round(FItemRect.Width * GetScreenScale), Round(FItemRect.Height * GetScreenScale));
+  w := Round(FItemRect.Width * GetScreenScale);
+  h := Round(FItemRect.Height * GetScreenScale);
 
+  FBitmap.SetSize(w, h);
+  //FreeAndNil(FBitmap);
 
-  FBitmap.BitmapScale := GetScreenScale;
+   //FBitmap := TBitmap.Create(w, h);
+  //if w <> 720 then
+  //  beep;
+  //if h <> 120 then
+  //  beep;
+
+  //if FBitmap = nil then
+  //  FBitmap := TBitmap.Create(w, h)
+  //else
+  //begin
+  //  FreeAndNil(FBitmap);
+    //FBitmap.SetSize(Round(FItemRect.Width * GetScreenScale), Round(FItemRect.Height * GetScreenScale));
+
+  //end;
 
   FBitmap.Clear(FTableView.Appearence.ItemBackground.Color);
 
@@ -2240,7 +2257,8 @@ constructor TksTableViewItem.Create(ATableView: TksTableView);
 begin
   inherited Create(nil);
   FTableView := ATableView;
-
+  FBitmap := TBitmap.Create;
+  FBitmap.BitmapScale := GetScreenScale;
   FObjects := TksTableViewItemObjects.Create(FTableView);
   FFont := TFont.Create;
   FFont.Size := C_TABLEVIEW_DEFAULT_FONT_SIZE;
@@ -2318,7 +2336,8 @@ begin
   if AObj <> nil then
   begin
     DeselectObjects;
-    AObj.MouseDown(x-AObj.ObjectRect.Left, y-AObj.ObjectRect.Top);
+    if AObj.HitTest then
+      AObj.MouseDown(x-AObj.ObjectRect.Left, y-AObj.ObjectRect.Top);
     if AObj.ConsumesClick then
       Exit;
   end;
@@ -2383,17 +2402,19 @@ begin
       FTableView.FOnItemSwipe(FTableView, Self, ADirecton, Self.fActionButtons);
    // FActionButtons.Add(nil);
 
-   if (FTableView.DeleteButton.Enabled) and (ADirecton = TksSwipeDirection.ksSwipeRightToLeft) then
-   begin
+    if (FTableView.DeleteButton.Enabled) and (ADirecton = TksSwipeDirection.ksSwipeRightToLeft) then
+    begin
       FActionButtons.AddButton(FTableView.DeleteButton.Text,
                                FTableView.DeleteButton.Color,
                                FTableView.DeleteButton.TextColor,
                                FTableView.DeleteButton.Width).FIsDeleteButton := True;
-   end;
+    end;
+    if FActionButtons.Count = 0 then
+      Exit;
 
     if ADirecton = ksSwipeRightToLeft then FActionButtons.FAlignment := TksTableViewActionButtonAlignment.abRightActionButtons;
     if ADirecton = ksSwipeLeftToRight then FActionButtons.FAlignment := TksTableViewActionButtonAlignment.abLeftActionButtons;
-    Self.fActionButtons.ShowButtons;
+      fActionButtons.ShowButtons;
   finally
     AIsSwiping := False;
   end;
@@ -3428,6 +3449,7 @@ begin
   FStickyHeaders := True;
   FFullWidthSeparator := True;
 
+  FMouseEventsEnabled := True;
   FUpdateCount := 0;
   AddObject(FSearchBox);
 end;
@@ -3450,6 +3472,11 @@ begin
   FreeAndNil(FTextDefaults);
   FreeAndNil(FPullToRefresh);
   inherited;
+end;
+
+procedure TksTableView.DisableMouseEvents;
+begin
+  FMouseEventsEnabled := False;
 end;
 
 function TksTableView.CreateTimer(AInterval: integer; AProc: TTimerProc): TFmxHandle;
@@ -3587,6 +3614,11 @@ procedure TksTableView.DoSwitchClicked(AItem: TksTableViewItem; ASwitch: TksTabl
 begin
   if Assigned(FOnSwitchClicked) then
     FOnSwitchClicked(Self, AItem, ASwitch, AItem.ID);
+end;
+
+procedure TksTableView.EnableMouseEvents;
+begin
+  FMouseEventsEnabled := True;
 end;
 
 procedure TksTableView.EndUpdate;
@@ -3817,10 +3849,13 @@ procedure TksTableView.MouseDown(Button: TMouseButton; Shift: TShiftState;
 //var
 //  AConsumesClick: Boolean;
 begin
-  if UpdateCount > 0 then Exit;
+  if (UpdateCount > 0) or (FMouseEventsEnabled = False) then
+    Exit;
   inherited;
   if (FUpdateCount > 0) or (AIsSwiping) then
     Exit;
+
+  Capture;
 
   FMouseDownObject := nil;
   FMouseDown := True;
@@ -3862,7 +3897,10 @@ procedure TksTableView.MouseMove(Shift: TShiftState; x, y: single);
 var
   AMouseDownRect: TRectF;
 begin
-  if UpdateCount > 0 then Exit;
+
+
+  if (UpdateCount > 0) or (FMouseEventsEnabled = False) then
+    Exit;
   FMouseCurrentPos := PointF(x, y);
   inherited;
 
@@ -3907,7 +3945,8 @@ end;
 procedure TksTableView.MouseUp(Button: TMouseButton; Shift: TShiftState;
   x, y: single);
 begin
-  if UpdateCount > 0 then Exit;
+  if (UpdateCount > 0) or (FMouseEventsEnabled = False) then
+    Exit;
   inherited;
   if PtInRect(GetMouseDownBox, PointF(x,y)) then
   begin
@@ -3919,8 +3958,9 @@ begin
     end;
   end;
 
-  if FScrolling then
+  //if FScrolling then
     FAniCalc.MouseUp(x, y);
+
   FMouseDown := False;
   if (FItemIndex > -1) and (FKeepSelection = False) then
     DeselectItem(200);
@@ -4174,8 +4214,6 @@ procedure TksTableView.SetScrollViewPos(const Value: single);
 begin
 
   if not SameValue(FScrollPos, Value, 1/GetScreenScale) then
-  //if Round(FScrollPos) <> Round(Value) then
-
   begin
     HideFocusedControl;
     FScrollPos := Value - GetSearchHeight;
@@ -4187,7 +4225,6 @@ begin
       DoPullToRefresh;
     end;
   end;
- // frmMain.lblHeader.Text := FloatToStr(Value);
 end;
 
 procedure TksTableView.SetSearchVisible(const Value: Boolean);
@@ -4430,17 +4467,20 @@ var
   ICount: integer;
   ATask: ITask;
 begin
-  if Visible = False then
+  if (Visible = False) or (Count = 0) then
     Exit;
   if FAnimating then
     Exit;
+
   FAnimating := True;
+
   if ASync then
   begin
     ATask := TTask.Create (procedure ()
     var
       i: integer;
     begin
+
       for i := 100 downto 0 do
       begin
         FPercentWidth := i;
@@ -4448,13 +4488,17 @@ begin
         Sleep(1);
         Application.ProcessMessages;
         if i = 0 then
+        begin
           FAnimating := False;
+          FTableItem.FTableView.EnableMouseEvents;
+        end;
       end;
     end);
     ATask.Start;
     Exit;
   end;
 
+  FAnimating := True;
   try
     for ICount := 100 downto 0 do
     begin
@@ -4510,8 +4554,9 @@ procedure TksTableViewActionButtons.ShowButtons;
 var
   ICount: integer;
 begin
-  if FAnimating then
+  if (FAnimating) or (Count = 0) then
     Exit;
+  FTableItem.FTableView.DisableMouseEvents;
   FAnimating := True;
   try
     for ICount := 1 to 100 do
@@ -4529,6 +4574,7 @@ begin
     Application.ProcessMessages;
   finally
     FAnimating := False;
+    FTableItem.FTableView.EnableMouseEvents;
   end;
 end;
 
