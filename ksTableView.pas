@@ -79,22 +79,14 @@ type
   TksTableViewItemEmbeddedBaseEdit = class;
   TksTableViewItemEmbeddedEdit = class;
 
-  TksTableItemAlign = (Leading, Center, Trailing);
+  TksTableItemAlign = (Leading, Center, Trailing, Fit); // SF - Added support for Fitting width/height
   TksSwipeDirection = (ksSwipeUnknown, ksSwipeLeftToRight, ksSwipeRightToLeft, ksSwipeTopToBottom, ksSwipeBottomToTop);
   TksTableViewShape = (ksRectangle, ksRoundRect, ksEllipse);
   TksTableViewItemPurpose = (None, Header);
   TksTableViewCheckMarks = (cmNone, cmSingleSelect, cmMultiSelect);
   TksTableViewActionButtonAlignment = (abLeftActionButtons, abRightActionButtons);
   TksImageDrawMode = (ksDrawModeStretch, ksDrawModeFit);
-  {TksTableViewTextWidth = (ksWidth10Percent,
-                           ksWidth20Percent,
-                           ksWidth30Percent,
-                           ksWidth40Percent,
-                           ksWidth50Percent,
-                           ksWidth60Percent,
-                           ksWidth70Percent,
-                           ksWidth80Percent,
-                           ksWidth90Percent); }
+
   TksTableItemSelector = (NoSelector, DateSelector, ItemPicker);
 
 
@@ -168,12 +160,15 @@ type
     FHitTest: Boolean;
     FOffsetX: single;
     FOffsetY: single;
-    // FPadding: TRectF;
+    FShowSelection: Boolean;
+    FMouseDown: Boolean;
+    FMargins: TBounds; // SF
     procedure SetHeight(const Value: single);
     procedure SetWidth(const Value: single);
     procedure SetHitTest(const Value: Boolean);
     procedure SetOffsetX(const Value: single);
     procedure SetOffsetY(const Value: single);
+    procedure SetShowSelection(const Value: Boolean);
   protected
     function ConsumesClick: Boolean; virtual;
     function GetAlign: TksTableItemAlign;
@@ -182,25 +177,30 @@ type
     function GetItemRect: TRectF;
     function GetObjectRect: TRectF; virtual;
     procedure Changed;
-    procedure Render(ACanvas: TCanvas); virtual; abstract;
+    procedure Render(ACanvas: TCanvas); virtual;
     procedure SetAlign(Value: TksTableItemAlign);
     procedure SetVertAlign(Value: TksTableItemAlign);
     procedure SetID(Value: string);
     property ObjectRect: TRectF read GetObjectRect;
+    procedure Deselect;
   public
     constructor Create(ATableItem: TksTableViewItem); virtual;
+    destructor Destroy; override;
     procedure MouseDown(x, y: single); virtual;
     procedure MouseUp(x, y: single); virtual;
     property Align: TksTableItemAlign read GetAlign write SetAlign;
     property Height: single read FHeight write SetHeight;
     property HitTest: Boolean read FHitTest write SetHitTest default True;
     property ID: string read GetID write SetID;
+    property Margins: TBounds read FMargins write FMargins;
     //property PlaceOffset: TPointF read FPlaceOffset write SetPlaceOffset;
     property OffsetX: single read FOffsetX write SetOffsetX;
     property OffsetY: single read FOffsetY write SetOffsetY;
     property TableItem: TksTableViewItem read FTableItem;
     property VertAlign: TksTableItemAlign read GetVertAlign write SetVertAlign;
     property Width: single read FWidth write SetWidth;
+    property ShowSelection: Boolean read FShowSelection write SetShowSelection default False;
+
   end;
 
   TksTableViewItemEmbeddedControl = class(TksTableViewItemObject)
@@ -510,6 +510,7 @@ type
     FDetail: TksTableViewItemText;
     FAccessory: TksTableViewItemAccessory;
     FHeight: single;
+    FHeightPercentage: single;  // SF - Addded support for a Row to be a percentage of the height
     FItemRect: TRectF;
     FCached: Boolean;
     FCaching: Boolean;
@@ -530,11 +531,12 @@ type
     FTagInteger: integer;
     FSelector: TksTableItemSelector;
     FPickerItems: TStrings;
+    FColCount: integer;  // SF - Addded support to override col count per row (used with headers)
 
     function MatchesSearch(AFilter: string): Boolean;
     function IsVisible(AViewport: TRectF): Boolean;
     function GetHeight: single;
-
+    function GetHeightPercentage: single;  // SF
     function GetItemRect: TRectF;
     function GetInternalRect: TRectF;
 
@@ -549,7 +551,7 @@ type
     procedure Changed;
     procedure RealignStandardObjects;
     procedure SetHeight(const Value: single);
-
+    procedure SetHeightPercentage(const Value: single); // SF
     procedure SetCached(const Value: Boolean);
     function GetPurpose: TksTableViewItemPurpose;
     procedure SetPurpose(const Value: TksTableViewItemPurpose);
@@ -567,6 +569,7 @@ type
     function GetItemData(const AIndex: string): TValue;
     procedure SetItemData(const AIndex: string; const Value: TValue);
     function GetHasData(const AIndex: string): Boolean;
+    procedure DeselectObjects;
   protected
     procedure Render(ACanvas: TCanvas; AScrollPos: single);
     procedure CacheItem(const AForceCache: Boolean = False);
@@ -615,6 +618,7 @@ type
     property HasData[const AIndex: string]: Boolean read GetHasData;
 
     property Height: single read GetHeight write SetHeight;
+    property HeightPercentage: single read GetHeightPercentage write SetHeightPercentage; // SF
     property ItemRect: TRectF read GetItemRect write SetItemRect;
     property IndicatorColor: TAlphaColor read GetIndicatorColor write SetIndicatorColor;
     // property InternalRect: TRectF read GetInternalRect;
@@ -634,6 +638,7 @@ type
 
     property TagString: string read FTagString write FTagString;
     property TagInteger: integer read FTagInteger write FTagInteger default 0;
+    property ColCount: integer read FColCount write FColCount default 0;  // SF
     //property TitleWidth: TksTableViewTextWidth read FTitleWidth write SetTitleWidth default ksWidth60Percent;
     //property ActionButtonsWidth: integer read FActionButtonsWidth write SetActionButtonsWidth;
   end;
@@ -690,13 +695,13 @@ type
   TksTableViewAppearence = class(TPersistent)
   private
     [weak]FListView: TksTableView;
-    FBackground: TAlphaColor;
+    FBackground: TBrush;
     FItemBackground: TBrush;
     FAlternatingItemBackground: TAlphaColor;
     FSeparatorColor: TAlphaColor;
     FHeaderColor: TAlphaColor;
     FSelectedColor: TAlphaColor;
-    procedure SetBackground(const Value: TAlphaColor);
+    procedure SetBackground(const Value: TBrush);
     procedure SetItemBackground(const Value: TBrush);
     procedure SetAlternatingItemBackground(const Value: TAlphaColor);
     procedure SetSeparatorBackground(const Value: TAlphaColor);
@@ -706,7 +711,7 @@ type
     constructor Create(AListView: TksTableView);
     destructor Destroy; override;
   published
-    property Background: TAlphaColor read FBackground write SetBackground default claWhite;
+    property Background: TBrush read FBackground write SetBackground;
     property HeaderColor: TAlphaColor read FHeaderColor write SetHeaderColor default claNull;
     property SeparatorColor: TAlphaColor read FSeparatorColor write SetSeparatorBackground default $FFF0F0F0;
     property ItemBackground: TBrush read FItemBackground write SetItemBackground;
@@ -846,6 +851,7 @@ type
     FStickyHeaders: Boolean;
     FMouseDownObject: TksTableViewItemObject;
     [weak]FFocusedControl: TksTableViewItemEmbeddedControl;
+    FColCount: integer;  // SF - Addded support multiple columns
 
     // events...
     FItemClickEvent: TksTableViewItemClickEvent;
@@ -875,6 +881,7 @@ type
     function GetVisibleItems: TList<TksTableViewItem>;
     procedure SetHeaderHeight(const Value: integer);
     procedure SetItemImageSize(const Value: integer);
+    procedure SetColCount(const Value: integer);  // SF
     procedure SetKsItemHeight(const Value: integer);
     procedure SetSearchVisible(const Value: Boolean);
     procedure SetShowSelection(const Value: Boolean);
@@ -890,7 +897,8 @@ type
     procedure DeselectItem(const ADelay: integer = 0);
     procedure DoDeselectItem;
     procedure SetKeepSelection(const Value: Boolean);
-    function GetItemFromYPos(AYPos: single): TksTableViewItem;
+    function GetItemFromPos(AXPos,AYPos: single): TksTableViewItem;  // SF
+    //function GetItemFromYPos(AYPos: single): TksTableViewItem;
     procedure DoPullToRefresh;
     procedure UpdateFilteredItems;
     procedure DoSelectItem;
@@ -955,6 +963,8 @@ type
     property FullWidthSeparator: Boolean read FFullWidthSeparator write SetFullWidthSeparator default True;
 
     property HeaderHeight: integer read FHeaderHeight write SetHeaderHeight default C_TABLEVIEW_DEFAULT_HEADER_HEIGHT;
+    property ColCount: integer read FColCount write SetColCount default 0;  // SF
+
 
     property ItemHeight: integer read FItemHeight write SetKsItemHeight default C_TABLEVIEW_DEFAULT_ITEM_HEIGHT;
     property ItemImageSize: integer read FItemImageSize write SetItemImageSize default C_TABLEVIEW_DEFAULT_IMAGE_SIZE;
@@ -1397,26 +1407,63 @@ end;
 procedure TksTableViewItemObject.Changed;
 begin
   FTableItem.Cached := False;
+  FTableItem.CacheItem(True);
   FTableItem.FTableView.Invalidate;
 end;
 
 constructor TksTableViewItemObject.Create(ATableItem: TksTableViewItem);
 begin
   inherited Create;
+  FMargins := TBounds.Create(TRectF.Empty); // SF
   FTableItem := ATableItem;
   FHitText := True;
   FOffsetX := 0;
   FOffsetY := 0;
+  FShowSelection := False;
+  FMouseDown := False;
+end;
+
+destructor TksTableViewItemObject.Destroy;
+begin
+  FreeAndNil(FMargins);
+  inherited;
+end;
+
+procedure TksTableViewItemObject.Deselect;
+begin
+  if FMouseDown then
+  begin
+    FMouseDown := False;
+    Changed;
+  end;
 end;
 
 procedure TksTableViewItemObject.MouseDown(x, y: single);
 begin
-  //
+  if FMouseDown = False then
+  begin
+    FMouseDown := True;
+    Changed;
+  end;
 end;
 
 procedure TksTableViewItemObject.MouseUp(x, y: single);
 begin
   //
+end;
+
+procedure TksTableViewItemObject.Render(ACanvas: TCanvas);
+var
+  ARect: TRectF;
+begin
+  if (FMouseDown) and (FShowSelection) then
+  begin
+    ARect := GetObjectRect;
+    ACanvas.Fill.Color := FTableItem.FTableView.Appearence.SelectedColor;
+    ACanvas.Stroke.Color := claSilver;
+    ACanvas.FillRect(ARect, 0, 0, AllCorners, 1);
+    ACanvas.DrawRect(ARect, 0, 0, AllCorners, 1);
+  end;
 end;
 
 function TksTableViewItemObject.ConsumesClick: Boolean;
@@ -1439,21 +1486,12 @@ begin
   Result := FTableItem.ItemRect;
 end;
 
+{
 function TksTableViewItemObject.GetObjectRect: TRectF;
 var
   ARowRect: TRectF;
 begin
   ARowRect := GetItemRect;
-  //ARowRect.Left := GetScreenScale*4;
-  //ARowRect.Width := GetItemRect.Width-(GetScreenScale*8);
-  //ARowRect.Right := ARowRect.Right - (GetScreenScale*8);
-
-  {if Self <> FTableItem.Accessory then
-  begin
-    if (FTableItem.Accessory.Accessory <> atNone) then
-      ARowRect.Right := ARowRect.Right - (8 + FTableItem.Accessory.Width);
-  end;}
-
   Result := RectF(ARowRect.Left, 0, FWidth, FHeight);
 
   case FAlign of
@@ -1464,6 +1502,37 @@ begin
   case FVertAlign of
     TksTableItemAlign.Center: OffsetRect(Result, 0, (ARowRect.Height - Result.Height) / 2);
     TksTableItemAlign.Trailing: OffsetRect(Result, 0, (ARowRect.Height - Result.Height));
+  end;
+
+  OffsetRect(Result, FPlaceOffset.x + FOffsetX, FPlaceOffset.y + FOffsetY);
+end;  }
+
+function TksTableViewItemObject.GetObjectRect: TRectF;
+var
+  ARowRect: TRectF;
+begin
+  ARowRect := GetItemRect;
+
+  Result := RectF(ARowRect.Left + FMargins.Left, FMargins.Top, FWidth, FHeight); // SF
+
+  case FAlign of
+    TksTableItemAlign.Center: OffsetRect(Result, ((ARowRect.Width - Result.Width) / 2), 0);
+    TksTableItemAlign.Trailing: OffsetRect(Result, (ARowRect.Width - Result.Width) - FMargins.Right, 0); // SF
+    TksTableItemAlign.Fit:                                                      // SF
+      begin                                                                     // SF
+        Result.Left  := FMargins.Left;                                          // SF
+        Result.Width := ARowRect.Width - FMargins.Left - FMargins.Right;        // SF
+      end;                                                                      // SF
+  end;
+
+  case FVertAlign of
+    TksTableItemAlign.Center: OffsetRect(Result, 0, (ARowRect.Height - Result.Height) / 2);
+    TksTableItemAlign.Trailing: OffsetRect(Result, 0, (ARowRect.Height - Result.Height) - FMargins.Bottom); // SF
+    TksTableItemAlign.Fit:                                                      // SF
+      begin                                                                     // SF
+        Result.Top   := FMargins.Top;                                           // SF
+        Result.Height := ARowRect.Height - FMargins.Top - FMargins.Bottom;      // SF
+      end;                                                                      // SF
   end;
 
   OffsetRect(Result, FPlaceOffset.x + FOffsetX, FPlaceOffset.y + FOffsetY);
@@ -1515,6 +1584,11 @@ begin
     FOffsetY := Value;
     Changed;
   end;
+end;
+
+procedure TksTableViewItemObject.SetShowSelection(const Value: Boolean);
+begin
+  FShowSelection := Value;
 end;
 
 procedure TksTableViewItemObject.SetVertAlign(Value: TksTableItemAlign);
@@ -1597,6 +1671,7 @@ procedure TksTableViewItemText.Render(ACanvas: TCanvas);
 var
   r: TRectF;
 begin
+  inherited;
   r := GetObjectRect;
   if FBackground <> claNull then
   begin
@@ -1718,9 +1793,9 @@ var
   AShadowBmp: TBitmap;
   ARect: TRectF;
   AScaleX, AScaleY: single;
-  AScaledBmp: TBitmap;
   AOriginalRect: TRectF;
 begin
+  inherited;
   if Bitmap <> nil then
   begin
     ARect := GetObjectRect;
@@ -1987,7 +2062,8 @@ begin
   Result := 0;
   for ICount := 0 to Count - 1 do
   begin
-    Result := Result + Items[ICount].Height;
+    if (Items[ICount].ItemRect.Left = 0) then     // SF - only add up items in first column
+      Result := Result + Items[ICount].Height;
   end;
 end;
 
@@ -2044,6 +2120,7 @@ procedure TksTableViewItem.CacheItem(const AForceCache: Boolean = False);
 var
   ARect: TRectF;
   ICount: integer;
+  ColumnOffset : Single;  // SF
 begin
   if (FUpdating) or (FTableView.UpdateCount > 0) then
     Exit;
@@ -2059,6 +2136,11 @@ begin
     Exit;
 
   FCaching := True;
+
+  ColumnOffset := ItemRect.Left;          // SF
+
+  OffsetRect(FItemRect,-ColumnOffset,0);  // SF - Offset so columns 2+ draw properly
+
 
   RealignStandardObjects;
 
@@ -2136,6 +2218,7 @@ begin
     FBitmap.Canvas.EndScene;
     FCached := True;
   end;
+  OffsetRect(FItemRect,ColumnOffset,0);          // SF
   FCaching := False;
 end;
 
@@ -2190,12 +2273,24 @@ begin
   FTextColor := claBlack;
   FChecked := False;
   Height := C_TABLEVIEW_DEFAULT_ITEM_HEIGHT;
+  FHeightPercentage := 0; // SF
   FCaching := False;
   FUpdating := False;
   FCanSelect := True;
   //FTitleWidth := ksWidth60Percent;
   FTagString := '';
   FTagInteger := 0;
+  FColCount := 0;          // SF
+end;
+
+procedure TksTableViewItem.DeselectObjects;
+var
+  ICount: integer;
+begin
+  for ICount := 0 to FObjects.Count-1 do
+  begin
+    FObjects[ICount].Deselect;
+  end;
 end;
 
 destructor TksTableViewItem.Destroy;
@@ -2222,6 +2317,7 @@ begin
   AObj := ObjectAtPos(x, y + ItemRect.Top);
   if AObj <> nil then
   begin
+    DeselectObjects;
     AObj.MouseDown(x-AObj.ObjectRect.Left, y-AObj.ObjectRect.Top);
     if AObj.ConsumesClick then
       Exit;
@@ -2370,6 +2466,11 @@ begin
   Result := FHeight;
 end;
 
+function TksTableViewItem.GetHeightPercentage: single;  // SF
+begin
+  Result := FHeightPercentage;
+end;
+
 function TksTableViewItem.GetIndex: integer;
 begin
   Result := FIndex;
@@ -2435,7 +2536,7 @@ begin
   for ICount := 0 to FObjects.Count-1 do
   begin
     AObj := FObjects[ICount];
-    if PtInRect(AObj.ObjectRect, PointF(x, y-ItemRect.Top)) then
+    if PtInRect(AObj.ObjectRect, PointF(x, (y-ItemRect.Top))) then
     begin
       Result := AObj;
       Exit;
@@ -2492,6 +2593,7 @@ begin
   end;
 end;
 
+{
 procedure TksTableViewItem.Render(ACanvas: TCanvas; AScrollPos: single);
 var
   ARect: TRectF;
@@ -2545,6 +2647,69 @@ begin
   if (IsLastItem) or (FPurpose = TksTableViewItemPurpose.Header) then
     ACanvas.DrawLine(PointF(0, ARect.Bottom),
       PointF(ARect.Right, ARect.Bottom), 1);
+end;   }
+
+procedure TksTableViewItem.Render(ACanvas: TCanvas; AScrollPos: single);
+var
+  ARect: TRectF;
+  AButtonRect: TRectF;
+  AWidth: single;
+  ASeperatorMargin: single;
+  ASrcRect: TRectF;  // SF
+begin
+  CacheItem;
+  if FBitmap = nil then
+    Exit;
+  ARect := FItemRect;
+  OffsetRect(ARect, 0, 0 - AScrollPos);
+  if FActionButtons.Visible = False then
+    ACanvas.DrawBitmap(FBitmap, RectF(0, 0, FBitmap.Width, FBitmap.Height), ARect, 1, True)
+  else
+  begin
+    AWidth   := (FActionButtons.TotalWidth / 100) * FActionButtons.PercentWidth;
+    ASrcRect := RectF(0, 0, FBitmap.Width, FBitmap.Height);     // SF
+
+    case FActionButtons.FAlignment of
+      abLeftActionButtons:
+      begin
+        ARect.Left     := ARect.Left + AWidth;                                       // SF
+        ASrcRect.Right := ASrcRect.Right - AWidth;                                   // SF
+        AButtonRect := RectF(FItemRect.Left, ARect.Top, ARect.Left, ARect.Bottom);   // SF
+        FActionButtons.Render(ACanvas, AButtonRect);
+      end;
+      abRightActionButtons:
+      begin
+        ARect.Right   := ARect.Right - AWidth;                                       // SF
+        ASrcRect.Left := ASrcRect.Left + AWidth;                                     // SF
+        AButtonRect := RectF(ARect.Right, ARect.Top, FItemRect.Right, ARect.Bottom);
+        FActionButtons.Render(ACanvas, AButtonRect);
+      end;
+    end;
+
+    ACanvas.DrawBitmap(FBitmap, ASrcRect, ARect, 1, True);  // SF
+  end;
+
+  // seperator...
+  ACanvas.Stroke.Color := FTableView.Appearence.SeparatorColor;
+  ACanvas.StrokeThickness := 1;
+  ACanvas.Stroke.Kind := TBrushKind.Solid;
+  ACanvas.Stroke.Dash := TStrokeDash.Solid;
+  if FPurpose = Header then
+  begin
+    ACanvas.Stroke.Color := $FFD2D2D2;
+    ACanvas.StrokeThickness := 0.5;
+  end;
+  ASeperatorMargin := 0;
+  if (FTableView.FullWidthSeparator = False) and (FPurpose = TksTableViewItemPurpose.None) then
+    ASeperatorMargin := FTitle.FPlaceOffset.X;
+  if (ARect.Left=0) then                                                                                        // SF
+  begin                                                                                                         // SF
+    ACanvas.DrawLine(PointF(ARect.Left + ASeperatorMargin, ARect.Top), PointF(FTableView.Width, ARect.Top), 1); // SF
+    if (IsLastItem) or (FPurpose = TksTableViewItemPurpose.Header) then                                         // SF
+      ACanvas.DrawLine(PointF(0, ARect.Bottom), PointF(FTableView.Width, ARect.Bottom), 1);                     // SF
+  end;                                                                                                          // SF
+  if FPurpose <> Header then                                                                                    // SF
+    ACanvas.DrawLine(PointF(ARect.Right, ARect.Top), PointF(ARect.Right, ARect.Bottom), 1);                     // SF
 end;
 
 procedure TksTableViewItem.SetCached(const Value: Boolean);
@@ -2580,6 +2745,16 @@ begin
   if Value <> FHeight then
   begin
     FHeight := Value;
+    FTableView.UpdateItemRects;
+    CacheItem(True);
+  end;
+end;
+
+procedure TksTableViewItem.SetHeightPercentage(const Value: single);  // SF
+begin
+  if Value <> FHeight then
+  begin
+    FHeightPercentage := Value;
     FTableView.UpdateItemRects;
     CacheItem(True);
   end;
@@ -2783,8 +2958,8 @@ constructor TksTableViewAppearence.Create(AListView: TksTableView);
 begin
   inherited Create;
   FListView := AListView;
-  FBackground := claWhite;
   FItemBackground := TBrush.Create(TBrushKind.Solid, claWhite);
+  FBackground := TBrush.Create(TBrushKind.Solid, claWhite);
   FSeparatorColor := $FFF0F0F0;
   FSelectedColor := C_TABLEVIEW_DEFAULT_SELECTED_COLOR;
   FAlternatingItemBackground := claNull;
@@ -2793,6 +2968,7 @@ end;
 destructor TksTableViewAppearence.Destroy;
 begin
   FreeAndNil(FItemBackground);
+  FreeAndNil(FBackground);
   inherited;
 end;
 
@@ -2802,9 +2978,9 @@ begin
   FAlternatingItemBackground := Value;
 end;
 
-procedure TksTableViewAppearence.SetBackground(const Value: TAlphaColor);
+procedure TksTableViewAppearence.SetBackground(const Value: TBrush);
 begin
-  FBackground := Value;
+  FBackground.Assign(Value);
 end;
 
 procedure TksTableViewAppearence.SetHeaderColor(const Value: TAlphaColor);
@@ -3022,7 +3198,7 @@ begin
   FScrolling := True;
 end;
 
-procedure TksTableView.UpdateItemRects;
+{procedure TksTableView.UpdateItemRects;
 var
   ICount: integer;
   AYPos: single;
@@ -3038,11 +3214,81 @@ begin
   begin
     AItem := FFilteredItems[ICount];
     AItem.ItemRect := RectF(0, AYPos, AWidth, AYPos + AItem.Height);
-
     AItem.Index := ICount;
     AYPos := AYPos + AItem.Height;
   end;
 
+end; }
+
+procedure TksTableView.UpdateItemRects;
+var
+  ICount: integer;
+  AYPos: single;
+  AXPos: single;            // SF
+  ANoCols: integer;         // SF
+  ACol: Integer;            // SF
+  AHeight: single;          // SF
+  AClientHeight: single;    // SF
+  AWidth: single;
+  AItem: TksTableViewItem;
+begin
+  if FUpdateCount > 0 then
+    Exit;
+  UpdateFilteredItems;
+
+  AHeight       := 0;
+  ANoCols       := Max(1,ColCount);                                                // SF
+  AWidth        := Width / ANoCols;                                                // SF
+  AXPos         := 0;                                                              // SF
+  AYPos         := 0;                                                              // SF
+  ACol          := 0;                                                              // SF
+  AClientHeight := Height - GetSearchHeight();                                     // SF
+                                                                                   // SF
+  for ICount := 0 to FFilteredItems.Count - 1 do                                   // SF
+  begin                                                                            // SF
+    AItem := FFilteredItems[ICount];                                               // SF
+                                                                                   // SF
+    if (AItem.HeightPercentage>0) then                                             // SF
+       AItem.FHeight := AClientHeight * AItem.HeightPercentage / 100.0;            // SF
+                                                                                   // SF
+    if (AItem.Purpose=TksTableViewItemPurpose.Header) then                         // SF
+    begin                                                                          // SF
+      if (ACol>0) then                                                             // SF
+      begin                                                                        // SF
+        ACol  := 0;                                                                // SF
+        AYPos := AYPos + AHeight;                                                  // SF
+      end;                                                                         // SF
+                                                                                   // SF
+      AItem.ItemRect := RectF(0, AYPos, Width, AYPos + AItem.Height);              // SF
+                                                                                   // SF
+      if (AItem.ColCount>0) then                                                   // SF
+        ANoCols := AItem.ColCount                                                  // SF
+      else                                                                         // SF
+        ANoCols := Max(1,AItem.ColCount);                                          // SF
+                                                                                   // SF
+      AWidth := Width / ANoCols;                                                   // SF
+    end                                                                            // SF
+    else                                                                           // SF
+      AItem.ItemRect := RectF(AXPos, AYPos, AXPos + AWidth, AYPos + AItem.Height); // SF
+                                                                                   // SF
+    AItem.Index := ICount;                                                         // SF
+                                                                                   // SF
+    // First column item sets row height                                           // SF
+    if (ACol=0) then                                                               // SF
+      AHeight := AItem.Height;                                                     // SF
+                                                                                   // SF
+    if (AItem.Purpose<>TksTableViewItemPurpose.Header) and (ACol<ANoCols-1) then   // SF
+    begin                                                                          // SF
+      Inc(ACol);                                                                   // SF
+      AXPos := AXPos + AWidth;                                                     // SF
+    end                                                                            // SF
+    else                                                                           // SF
+    begin                                                                          // SF
+      AYPos := AYPos + AHeight;                                                    // SF
+      ACol  := 0;                                                                  // SF
+      AXPos := 0;                                                                  // SF
+    end;                                                                           // SF
+  end;                                                                             // SF
 end;
 
 procedure TksTableView.UpdateScrollingLimits;
@@ -3097,6 +3343,8 @@ begin
   AItems := FFilteredItems;
 
   AStartPos := Max(ATopItem.Index, 0);
+  if Items.Count < C_TABLEVIEW_PAGE_SIZE then
+    AStartPos := 0;
   for ICount := AStartPos to (AStartPos + C_TABLEVIEW_PAGE_SIZE) do
   begin
     if ICount > AItems.Count - 1 then
@@ -3213,11 +3461,15 @@ end;
 
 procedure TksTableView.DoDeselectItem;
 begin
+  //if FMouseDownObject <> nil then
+  //  FMouseDownObject.DeselectObjects;
+  
   if FTimerService = nil then
     Exit;
   KillTimer(FDeselectTimer);
   if ItemIndex <> -1 then
   begin
+    FItems[ItemIndex].DeselectObjects;
     ItemIndex := -1;
     Invalidate;
   end;
@@ -3243,8 +3495,8 @@ end;
 procedure TksTableView.DoFilterChanged(Sender: TObject);
 begin
   UpdateFilteredItems;
-  UpdateScrollingLimits;
-  UpdateItemRects;
+  UpdateItemRects;            // SF
+  UpdateScrollingLimits;      // SF
   Repaint;
 end;
 
@@ -3285,13 +3537,12 @@ end;
 procedure TksTableView.DoSelectItem;
 begin
   KillTimer(FSelectTimer);
-  MouseUp(TMouseButton.mbLeft, [], FMouseCurrentPos.x, FMouseCurrentPos.y);
+  //MouseUp(TMouseButton.mbLeft, [], FMouseCurrentPos.x, FMouseCurrentPos.y);
   if FMouseDownItem = nil then
     Exit;
   if FMouseDownItem.FActionButtons.Visible then
   begin
     FMouseDownItem.DoClick(FMouseDownPoint.x, (FMouseDownPoint.y - FMouseDownItem.ItemRect.Top) + ScrollViewPos);
-
     Exit;
   end;
 
@@ -3300,13 +3551,14 @@ begin
   begin
     UncheckAll;
     ItemIndex := FMouseDownItem.Index;
-
   end;
 
   FMouseDownItem.DoClick(FMouseDownPoint.x, (FMouseDownPoint.y - FMouseDownItem.ItemRect.Top) + ScrollViewPos);
+
   if Assigned(FItemClickEvent) then
     FItemClickEvent(Self, FMouseDownPoint.x, FMouseDownPoint.y, FMouseDownItem,
       FMouseDownItem.ID, FMouseDownObject);
+
   HideAllActionButtons(False);
 end;
 
@@ -3344,8 +3596,6 @@ begin
   FUpdateCount := FUpdateCount - 1;
   if FUpdateCount = 0 then
   begin
-  UpdateItemRects;
-
     UpdateItemRects;
     UpdateScrollingLimits;
     CacheItems(True);
@@ -3357,12 +3607,12 @@ procedure TksTableView.UncheckAll;
 var
   ICount: integer;
 begin
-  BeginUpdate;
+  //BeginUpdate;
   for ICount := 0 to FItems.Count - 1 do
   begin
     Items[ICount].Checked := False;
   end;
-  EndUpdate;
+  //EndUpdate;
 end;
 
 procedure TksTableView.UpdateFilteredItems;
@@ -3382,6 +3632,7 @@ begin
   end;
 end;
 
+{
 function TksTableView.GetItemFromYPos(AYPos: single): TksTableViewItem;
 var
   ICount: integer;
@@ -3398,6 +3649,25 @@ begin
       Exit;
     end;
   end;
+end;  }
+
+
+function TksTableView.GetItemFromPos(AXPos,AYPos: single): TksTableViewItem;          // SF
+var                                                                                   // SF
+  ICount: integer;                                                                    // SF
+  AFiltered: TksTableViewItems;                                                       // SF
+begin                                                                                 // SF
+  Result := nil;                                                                      // SF
+  AFiltered := FFilteredItems;                                                        // SF
+  for ICount := 0 to AFiltered.Count - 1 do                                           // SF
+  begin                                                                               // SF
+    if PtInRect(AFiltered[ICount].ItemRect, PointF(AXPos, AYPos + GetScrollViewPos))  // SF
+    then                                                                              // SF
+    begin                                                                             // SF
+      Result := AFiltered[ICount];                                                    // SF
+      Exit;                                                                           // SF
+    end;                                                                              // SF
+  end;                                                                                // SF
 end;
 
 function TksTableView.GetItemIndex: integer;
@@ -3538,13 +3808,14 @@ begin
   if FTimerService <> nil then
   begin
     FTimerService.DestroyTimer(ATimer);
+    //ATimer := 0;
   end;
 end;
 
 procedure TksTableView.MouseDown(Button: TMouseButton; Shift: TShiftState;
   x, y: single);
-var
-  AConsumesClick: Boolean;
+//var
+//  AConsumesClick: Boolean;
 begin
   if UpdateCount > 0 then Exit;
   inherited;
@@ -3560,20 +3831,21 @@ begin
 
   FAniCalc.MouseDown(x, y);
 
-  FMouseDownItem := GetItemFromYPos(y);
+  FMouseDownItem := GetItemFromPos(x,y);  // SF
   if FMouseDownItem <> nil then
   begin
-    FMouseDownObject := FMouseDownItem.ObjectAtPos(x, y);
+    FMouseDownObject := FMouseDownItem.ObjectAtPos(x, y + ScrollViewPos);
+
     if (FMouseDownObject <> FFocusedControl) and (FFocusedControl <> nil) then
       HideFocusedControl;
 
-    if FMouseDownObject <> nil then
+    {if FMouseDownObject <> nil then
     begin
       AConsumesClick := FMouseDownObject.ConsumesClick;
       FMouseDownItem.DoClick(FMouseDownPoint.x, (FMouseDownPoint.y - FMouseDownItem.ItemRect.Top) + ScrollViewPos);
       if AConsumesClick then
         Exit;
-    end;
+    end;  }
 
     if FMouseDownItem = nil then
       Exit;
@@ -3641,8 +3913,8 @@ begin
   begin
     if FSelectTimer <> 0 then
     begin
-      KillTimer(FSelectTimer);
-      FSelectTimer := 0;
+      //KillTimer(FSelectTimer);
+      //FSelectTimer := 0;
       DoSelectItem;
     end;
   end;
@@ -3653,7 +3925,7 @@ begin
   if (FItemIndex > -1) and (FKeepSelection = False) then
     DeselectItem(200);
 
-  if FMouseDownObject <> nil then
+  if (FMouseDownObject <> nil) and (FScrolling = False) then
     FMouseDownObject.MouseUp(x, y);
 end;
 
@@ -3670,7 +3942,9 @@ begin
   begin
     FPainting := True;
     try
-      Canvas.Clear(GetColorOrDefault(FAppearence.Background, claWhite));
+      Canvas.Fill.Assign(FAppearence.Background);
+      Canvas.FillRect(RectF(0, 0, Width, Height), 0, 0, AllCorners, 1);
+
       if (csDesigning in ComponentState) then
       begin
         // design-time border
@@ -3698,7 +3972,8 @@ begin
         end
         else
           Canvas.FillText(RectF(0, 0, Width, 50), FPullToRefresh.FPullText, False, 1, [], TTextAlign.Center);
-        Canvas.Fill.Color := GetColorOrDefault(FAppearence.Background, claWhite);
+        //Canvas.Fill.Color := GetColorOrDefault(FAppearence.Background, claWhite);
+        Canvas.Fill.Assign(FAppearence.Background);
         Canvas.FillRect(RectF(0, 0-ScrollViewPos, Width, Height), 0, 0, AllCorners, 1);
       end;
 
@@ -3853,14 +4128,19 @@ begin
     ASelected := SelectedItem;
     FItemIndex := Value;
     ANewSelected := SelectedItem;
-    if ASelected <> nil then
-      ASelected.CacheItem(True);
-    if ANewSelected <> nil then
-      ANewSelected.CacheItem(True);
+    if ShowSelection then
+    begin
+      if ASelected <> nil then
+      begin
+        ASelected.CacheItem(True);
+      end;
+      if ANewSelected <> nil then
+        ANewSelected.CacheItem(True);
+    end;
     Invalidate;
     if FMouseDown = False then
     begin
-      if (FKeepSelection = False) and (FItemIndex > -1) then
+      if (FKeepSelection = False) and  (FItemIndex > -1) then
         DeselectItem(250);
     end;
   end;
@@ -3870,6 +4150,14 @@ procedure TksTableView.SetKeepSelection(const Value: Boolean);
 begin
   FKeepSelection := Value;
 end;
+
+procedure TksTableView.SetColCount(const Value: integer);       // SF
+begin                                                           // SF
+  FColCount := Value;                                           // SF
+  UpdateItemRects;                                              // SF
+  Invalidate;                                                   // SF
+end;                                                            // SF
+
 
 procedure TksTableView.SetKsItemHeight(const Value: integer);
 begin
@@ -4000,6 +4288,7 @@ var
   AShadowWidth: single;
   ABmp: TBitmap;
 begin
+  inherited;
   if (Width = 0) or (Height = 0) then
     Exit;
 
@@ -4377,6 +4666,7 @@ end;
 
 procedure TksTableViewItemSwitch.Render(ACanvas: TCanvas);
 begin
+  inherited;
   DrawSwitch(ACanvas, ObjectRect, FChecked, FSelectedColor);
 end;
 
@@ -4685,6 +4975,7 @@ end;
 
 procedure TksTableViewItemTable.Render(ACanvas: TCanvas);
 begin
+  inherited;
   RenderTableContents(ACanvas, False); // render the grid.
   RenderTableContents(ACanvas, True);  // render the cell text
 end;
@@ -5071,6 +5362,7 @@ var
   ARect: TRectF;
   ATextRect: TRectF;
 begin
+  inherited;
   ABmp := TBitmap.Create;
   try
     ABmp.SetSize(Round(Width * GetScreenScale), Round(Height * GetScreenScale));

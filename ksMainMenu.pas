@@ -4,7 +4,7 @@ interface
 
 uses
   System.SysUtils, System.Classes, FMX.Types, FMX.Controls, ksTableView, FMX.Graphics,
-  System.Types, System.Generics.Collections;
+  System.Types, System.Generics.Collections, FMX.ImgList;
 
 type
   TksMainMenu = class;
@@ -34,7 +34,8 @@ type
     FMainMenu: TksMainMenu;
   public
     constructor Create(AMainMenu: TksMainMenu);
-    procedure AddOption(AText, AId: string; AImage: TBitmap);
+    procedure AddOption(AText, AId: string; AImage: TBitmap); overload;
+    procedure AddOption(AText, AId: string; AImageIndex: integer); overload;
   end;
 
 
@@ -45,11 +46,13 @@ type
     FTileColumns: integer;
     FTilePadding: integer;
     FShowCaptions: Boolean;
+    FShadows: Boolean;
     procedure SetShowCaptions(const Value: Boolean);
     procedure SetTileColumns(const Value: integer);
     procedure SetTilePadding(const Value: integer);
     procedure SetTileRows(const Value: integer);
     procedure RecreateMenu;
+    procedure SetShadows(const Value: Boolean);
   public
     constructor Create(AMainMenu: TksMainMenu);
 
@@ -58,6 +61,7 @@ type
     property TileColumns: integer read FTileColumns write SetTileColumns default 2;
     property TilePadding: integer read FTilePadding write SetTilePadding default 10;
     property ShowCaptions: Boolean read FShowCaptions write SetShowCaptions default True;
+    property Shadows: Boolean read FShadows write SetShadows default True;
 
   end;
 
@@ -66,11 +70,9 @@ type
     FTableView: TksTableView;
     FLayout: TksMenuLayout;
     FPainting: Boolean;
-    FTilePadding: integer;
-    FTileRows: integer;
-    FTileColumns: integer;
     FTileOptions: TksMainMenuTileOptions;
     FItems: TksMainMenuOptionItemList;
+    FImages: TImageList;
     FOnOptionClicked: TksMenuOptionClickEvent;
     procedure SetLatout(const Value: TksMenuLayout);
     procedure RecreateMenu;
@@ -79,6 +81,9 @@ type
     procedure GetTileRects(ACol, ARow: integer; var ATile, AGraphic, AText: TRectF);
     procedure ClickTile(Sender: TObject; x, y: single; AItem: TksTableViewItem; AId: string; ARowObj: TksTableViewItemObject);
     procedure ClickItem(Sender: TObject; x, y: single; AItem: TksTableViewItem; AId: string; ARowObj: TksTableViewItemObject);
+    procedure SetImages(const Value: TImageList);
+    procedure SetBackground(const Value: TBrush);
+    function GetBackground: TBrush;
     { Private declarations }
   protected
     procedure Resize; override;
@@ -94,6 +99,8 @@ type
     { Public declarations }
   published
     property Align;
+    property Background: TBrush read GetBackground write SetBackground;
+    property Images: TImageList read FImages write SetImages;
     property Layout: TksMenuLayout read FLayout write SetLatout default mlTiles;
     property TileOptions: TksMainMenuTileOptions read FTileOptions write SetTileOptions;
     property Position;
@@ -106,7 +113,7 @@ procedure Register;
 
 implementation
 
-uses System.UIConsts, Math;
+uses System.UIConsts, Math, FMX.MultiResBitmap;
 
 procedure Register;
 begin
@@ -124,8 +131,6 @@ begin
 end;
 
 procedure TksMainMenu.ClickTile(Sender: TObject; x, y: single; AItem: TksTableViewItem; AId: string; ARowObj: TksTableViewItemObject);
-var
-  AImg: TksTableViewItemImage;
 begin
   if (ARowObj is TksTableViewItemImage)  then
   begin
@@ -156,6 +161,11 @@ begin
   FreeAndNil(FTileOptions);
   FreeAndNil(FItems);
   inherited;
+end;
+
+function TksMainMenu.GetBackground: TBrush;
+begin
+  Result := FTableView.Appearence.Background;
 end;
 
 function TksMainMenu.GetColWidth: single;
@@ -191,7 +201,7 @@ end;
 
 function TksMainMenu.GetTileRowCount: integer;
 begin
-  Result := Round((FItems.Count / 2) + 0.5);
+  Result := Round((FItems.Count / FTileOptions.TileColumns) + 0.5);
 end;
 
 procedure TksMainMenu.DrawTileOutline(ACanvas: TCanvas; ACol, ARow: integer);
@@ -210,44 +220,38 @@ end;
 
 procedure TksMainMenu.Paint;
 var
-  ICount: integer;
-  AItems: TksTableViewItems;
-  AViewport: TRectF;
-  AItem: TksTableViewItem;
-  AItemsDrawn: Boolean;
-  ARect: TRectF;
-  AColWidth: single;
-  ARowHeight: single;
   ICountX, ICountY: integer;
 begin
-  if not FPainting then
+  if (csDesigning in ComponentState) then
   begin
-    FPainting := True;
-    try
-     // if (csDesigning in ComponentState) then
-      begin
+    if not FPainting then
+    begin
+      FPainting := True;
+      try
+
         // design-time border
         Canvas.Stroke.Color := claBlack;
         Canvas.Stroke.Dash := TStrokeDash.Dash;
         Canvas.StrokeThickness := 1;
         Canvas.DrawRect(RectF(0, 0, Width, Height), 0, 0, AllCorners, 1);
-      end;
 
-      Canvas.Fill.Color := claWhite;
-      Canvas.FillRect(RectF(0, 0, Width, Height), 0, 0, AllCorners, 1);
 
-      if FLayout = mlTiles then
-      begin
-        for ICountY := 1 to FTileOptions.TileRows do
+        //Canvas.Fill.Assign(FBackground);
+        Canvas.FillRect(RectF(0, 0, Width, Height), 0, 0, AllCorners, 1);
+
+        if FLayout = mlTiles then
         begin
-          for ICountX := 1 to FTileOptions.TileColumns do
+          for ICountY := 1 to FTileOptions.TileRows do
           begin
-            DrawTileOutline(Canvas, ICountX, ICountY);
+            for ICountX := 1 to FTileOptions.TileColumns do
+            begin
+              DrawTileOutline(Canvas, ICountX, ICountY);
+            end;
           end;
         end;
+      finally
+        FPainting := False;
       end;
-    finally
-      FPainting := False;
     end;
   end;
 end;
@@ -258,7 +262,6 @@ var
   AItem: TksTableViewItem;
   r1, r2, r3: TRectF;
   ACol, ARow: integer;
-  ATile: TksTableViewItemShape;
   AText: TksTableViewItemText;
   AImage: TksTableViewItemImage;
 begin
@@ -272,7 +275,9 @@ begin
 
     if FLayout = mlTiles then
     begin
+      //AItem := FTableView.Items.AddItem('');
       FTableView.ItemHeight := Round(Max(GetTileRowCount * GetRowHeight, Height));
+      FTableView.ShowSelection := False;
       AItem := FTableView.Items.AddItem('');
       AItem.CanSelect := False;
       ACol := 1;
@@ -284,6 +289,7 @@ begin
         GetTileRects(ACol, ARow, r1, r2, r3);
 
         AImage := AItem.DrawBitmap(FItems[ICount-1].Bitmap, r2);
+        AImage.ShowSelection := True;
         AImage.ID := FItems[ICount-1].ID;
         AImage.VertAlign := TksTableItemAlign.Leading;
         AImage.DrawMode := ksDrawModeFit;
@@ -302,12 +308,13 @@ begin
         end
         else
           Inc(ACol);
-        //AItem.
       end;
     end
     else
     begin
+      FTableView.ShowSelection := True;
       FTableView.ItemHeight := 50;
+
       FTableView.ItemImageSize := 32;
       FTableView.ShowAccessory := True;
       FTableView.Appearence.SeparatorColor := $FFF0F0F0;
@@ -329,6 +336,16 @@ procedure TksMainMenu.Resize;
 begin
   inherited;
   RecreateMenu;
+end;
+
+procedure TksMainMenu.SetBackground(const Value: TBrush);
+begin
+  FTableView.Appearence.Background := Value;
+end;
+
+procedure TksMainMenu.SetImages(const Value: TImageList);
+begin
+  FImages := Value;
 end;
 
 procedure TksMainMenu.SetLatout(const Value: TksMenuLayout);
@@ -355,11 +372,21 @@ begin
   FTileRows := 3;
   FTilePadding := 10;
   FShowCaptions := True;
+  FShadows := True;
 end;
 
 procedure TksMainMenuTileOptions.RecreateMenu;
 begin
   FMainMenu.RecreateMenu;
+end;
+
+procedure TksMainMenuTileOptions.SetShadows(const Value: Boolean);
+begin
+  if FShadows <> Value then
+  begin
+    FShadows := Value;
+    RecreateMenu;
+  end;
 end;
 
 procedure TksMainMenuTileOptions.SetShowCaptions(const Value: Boolean);
@@ -437,6 +464,14 @@ begin
   AItem.ID := AID;
   Add(AItem);
   FMainMenu.RecreateMenu;
+end;
+
+procedure TksMainMenuOptionItemList.AddOption(AText, AId: string; AImageIndex: integer);
+var
+  ABmp: TCustomBitmapItem;
+begin
+  ABmp := FMainMenu.Images.Source[AImageIndex].MultiResBitmap.ItemByScale(1, False, False);
+  AddOption(AText, AId, ABmp.Bitmap);
 end;
 
 constructor TksMainMenuOptionItemList.Create(AMainMenu: TksMainMenu);
