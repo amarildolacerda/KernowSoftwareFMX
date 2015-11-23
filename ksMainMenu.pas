@@ -239,7 +239,7 @@ begin
         Canvas.DrawRect(RectF(0, 0, Width, Height), 0, 0, AllCorners, 1);
 
 
-        //Canvas.Fill.Assign(FBackground);
+        Canvas.Fill.Assign(FTableView.Appearence.Background);
         Canvas.FillRect(RectF(0, 0, Width, Height), 0, 0, AllCorners, 1);
 
         if FLayout = mlTiles then
