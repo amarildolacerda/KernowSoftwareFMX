@@ -59,12 +59,19 @@ const
 
   C_TABlEVIEW_SCROLL_THRESHOLD = 10;
 
-  C_TABLEVIEW_PAGE_SIZE = 50;
+
+  {$IFDEF MSWINDOWS}
+  C_SCROLL_BAR_WIDTH = 8;
+  {$ELSE}
+  C_SCROLL_BAR_WIDTH = 8;
+  {$ENDIF}
 
   {$IFDEF ANDROID}
   C_TABLEIEW_DEFAULT_SWITCH_COLOR = claDodgerBlue;
+  C_TABLEVIEW_PAGE_SIZE = 50;
   {$ELSE}
   C_TABLEIEW_DEFAULT_SWITCH_COLOR = claLimeGreen;
+  C_TABLEVIEW_PAGE_SIZE = 200;
   {$ENDIF}
 
 type
@@ -77,6 +84,7 @@ type
   TksTableViewItemTable = class;
   TksTableViewItemEmbeddedBaseEdit = class;
   TksTableViewItemEmbeddedEdit = class;
+  TksTableViewItemButton = class;
 
   TksTableItemAlign = (Leading, Center, Trailing, Fit); // SF - Added support for Fitting width/height
   TksSwipeDirection = (ksSwipeUnknown, ksSwipeLeftToRight, ksSwipeRightToLeft, ksSwipeTopToBottom, ksSwipeBottomToTop);
@@ -85,6 +93,8 @@ type
   TksTableViewCheckMarks = (cmNone, cmSingleSelect, cmMultiSelect);
   TksTableViewActionButtonAlignment = (abLeftActionButtons, abRightActionButtons);
   TksImageDrawMode = (ksDrawModeStretch, ksDrawModeFit);
+  TksTableViewButtonStyle = (ksButtonDefault, ksButtonSegmentLeft, ksButtonSegmentMiddle, ksButtonSegmentRight);
+  TksTableViewButtonState = (ksPressed, ksUnpressed);
 
   TksTableItemSelector = (NoSelector, DateSelector, ItemPicker);
 
@@ -96,11 +106,14 @@ type
   TksItemSwipeEvent = procedure(Sender: TObject; ARow: TksTableViewItem; ASwipeDirection: TksSwipeDirection; AButtons: TksTableViewActionButtons) of object;
   TksItemActionButtonClickEvent = procedure(Sender: TObject; ARow: TksTableViewItem; AButton: TksTableViewActionButon) of object;
   TksTableViewItemSwitchEvent = procedure(Sender: TObject; AItem: TksTableViewItem; ASwitch: TksTableViewItemSwitch; ARowID: string) of object;
-
+  TksTableViewItemButtonEvent = procedure(Sender: TObject; AItem: TksTableViewItem; AButton: TksTableViewItemButton; ARowID: string) of object;
+  
   TksItemChecMarkChangedEvent = procedure(Sender: TObject; ARow: TksTableViewItem; AChecked: Boolean) of object;
   TksTableViewSelectDateEvent = procedure(Sender: TObject; AItem: TksTableViewItem; ASelectedDate: TDateTime; var AAllow: Boolean) of object;
   TksTableViewSelectPickerItem = procedure(Sender: TObject; AItem: TksTableViewItem; ASelected: string; var AAllow: Boolean) of object;
   TksTableViewEmbeddedEditChange = procedure(Sender: TObject; ARow: TksTableViewItem; AEdit: TksTableViewItemEmbeddedBaseEdit; AText: string) of object;
+
+  TksTableViewScrollChangeEvent = procedure(Sender: TObject; AScrollPos, AMaxScrollLimit: single) of object;
 
   TksAccessoryType = (atNone, atMore, atCheckmark, atDetail, atBack, atRefresh,
     atAction, atPlay, atRewind, atForward, atPause, atStop, atAdd, atPrior,
@@ -459,6 +472,24 @@ type
     property CornerRadius: single read FCornerRadius write SetCornerRadius;
   end;
 
+  TksTableViewItemButton = class(TksTableViewItemObject)
+  private
+    FText: string;
+    FState: TksTableViewButtonState;
+    FTintColor: TAlphaColor;
+    procedure SetText(const Value: string);
+    procedure SetTintColor(const Value: TAlphaColor);
+  protected
+    function ConsumesClick: Boolean; override;
+    procedure Render(ACanvas: TCanvas); override;
+  public
+    constructor Create(ATableItem: TksTableViewItem); override;
+    procedure MouseDown(x, y: single); override;
+    procedure MouseUp(x, y: single); override;
+    property Text: string read FText write SetText;
+    property TintColor: TAlphaColor read FTintColor write SetTintColor;
+  end;
+
   TksTableViewItemSwitch = class(TksTableViewItemObject)
   private
     FChecked: Boolean;
@@ -603,10 +634,17 @@ type
     function DrawRect(ARect: TRectF; AStroke, AFill: TAlphaColor): TksTableViewItemShape; overload;
 
 
-    function AddEdit(AX, AY, AWidth: single; AText: string): TksTableViewItemEmbeddedEdit;
-    function AddSwitch(x: single; AIsChecked: Boolean; const AAlign: TksTableItemAlign = TksTableItemAlign.Trailing): TksTableViewItemSwitch;
-    function AddTable(AX, AY, AColWidth, ARowHeight: single; AColCount, ARowCount: integer): TksTableViewItemTable;
+    function AddButton(AWidth: integer; AText: string;
+                       const ATintColor: TAlphaColor = claNull;
+                       const AVertAlign: TksTableItemAlign = TksTableItemAlign.Center;
+                       const AYPos: integer = 0): TksTableViewItemButton; overload;
+    function AddButton(AStyle: TksTableViewButtonStyle; const ATintColor: TAlphaColor = claNull): TksTableViewItemButton; overload;
 
+    function AddEdit(AX, AY, AWidth: single; AText: string): TksTableViewItemEmbeddedEdit;
+
+    function AddSwitch(x: single; AIsChecked: Boolean; const AAlign: TksTableItemAlign = TksTableItemAlign.Trailing): TksTableViewItemSwitch;
+
+    function AddTable(AX, AY, AColWidth, ARowHeight: single; AColCount, ARowCount: integer): TksTableViewItemTable;
 
     property AbsoluteIndex: integer read GetAbsoluteIndex;
     property Accessory: TksTableViewItemAccessory read FAccessory;
@@ -852,6 +890,7 @@ type
     [weak]FFocusedControl: TksTableViewItemEmbeddedControl;
     FColCount: integer;  // SF - Addded support multiple columns
     FMouseEventsEnabled: Boolean;
+    FMaxScrollPos: single;
 
     // events...
     FItemClickEvent: TksTableViewItemClickEvent;
@@ -870,6 +909,8 @@ type
     FOnSelectDate: TksTableViewSelectDateEvent;
     FOnSelectPickerItem: TksTableViewSelectPickerItem;
     FOnSwitchClicked: TksTableViewItemSwitchEvent;
+    FOnButtonClicked: TksTableViewItemButtonEvent;
+    FOnScrollViewChange: TksTableViewScrollChangeEvent;
 
     function GetViewPort: TRectF;
     procedure SetScrollViewPos(const Value: single);
@@ -911,6 +952,7 @@ type
     procedure SetFullWidthSeparator(const Value: Boolean);
     procedure ComboClosePopup(Sender: TObject);
     procedure DoSwitchClicked(AItem: TksTableViewItem; ASwitch: TksTableViewItemSwitch);
+    procedure DoButtonClicked(AItem: TksTableViewItem; AButton: TksTableViewItemButton);
     procedure SetPullToRefresh(const Value: TksTableViewPullToRefresh);
     procedure HideFocusedControl;
     procedure DoEmbeddedEditChange(AItem: TksTableViewItem; AEmbeddedEdit: TksTableViewItemEmbeddedBaseEdit);
@@ -999,6 +1041,7 @@ type
     // events...
     property AfterRowCache: TksTableViewRowCacheEvent read FAfterRowCache write FAfterRowCache;
     property BeforeRowCache: TksTableViewRowCacheEvent read FBeforeRowCache write FBeforeRowCache;
+    property OnButtonClick: TksTableViewItemButtonEvent read FOnButtonClicked write FOnButtonClicked;
 
     property OnDblClick;
     property OnDeletingItem: TKsTableViewDeletingItemEvent read FOnDeletingItem write FOnDeletingItem;
@@ -1031,6 +1074,7 @@ type
     property OnMouseWheel;
     property OnMouseEnter;
     property OnMouseLeave;
+    property OnScrollViewChange: TksTableViewScrollChangeEvent read FOnScrollViewChange write FOnScrollViewChange;
     property OnSelectDate: TksTableViewSelectDateEvent read FOnSelectDate write FOnSelectDate;
     property OnSelectPickerItem: TksTableViewSelectPickerItem read FOnSelectPickerItem write FOnSelectPickerItem;
     property OnSwitchClick: TksTableViewItemSwitchEvent read FOnSwitchClicked write FOnSwitchClicked;
@@ -1109,7 +1153,7 @@ type
 
 procedure Register;
 
-procedure DrawSwitch(ACanvas: TCanvas; ARect: TRectF; AChecked: Boolean; ASelectedColor: TAlphaColor);
+//procedure DrawSwitch(ACanvas: TCanvas; ARect: TRectF; AChecked: Boolean; ASelectedColor: TAlphaColor);
 
 
 implementation
@@ -1363,11 +1407,6 @@ begin
     ABmp.Canvas.FillEllipse(r, 1, ABmp.Canvas.Fill);
     ABmp.Canvas.DrawEllipse(r, 1, ABmp.Canvas.Stroke);
 
-    //if AChecked then
-    //  Abmp.Canvas.Stroke.Color := ABmp.Canvas.Fill.Color;
-
-    //ABmp.Canvas.FillRect(RectF(0  + (r.Width/2), 0, ABmp.Width - (r.Width/2), ABmp.Height), 0, 0,  AllCorners, 1, ABmp.Canvas.Fill);
-
     r := RectF(ABmp.Height/2, 0, ABmp.Width-(ABmp.Height/2), ABmp.Height);
 
     //
@@ -1383,22 +1422,80 @@ begin
 
     ABmp.Canvas.Fill.Color := claWhite;
 
-    //if AChecked then
-    //begin
+    ABmp.Canvas.Stroke.Color := claSilver;
+    ABmp.Canvas.FillEllipse(ASwitchRect, 1);
+    ABmp.Canvas.DrawEllipse(ASwitchRect, 1);
 
-      //InflateRect(ASwitchRect, s/2, s/2);
-    //  ABmp.Canvas.FillEllipse(ASwitchRect, 1);
-    //end
-    //else
-    begin
-      //InflateRect(ASwitchRect, s/2, s/2);
-      //ABmp.Canvas.fil.Color := claWhite;
-      ABmp.Canvas.Stroke.Color := claSilver;
-      ABmp.Canvas.FillEllipse(ASwitchRect, 1);
-      ABmp.Canvas.DrawEllipse(ASwitchRect, 1);
-    end;
     ABmp.Canvas.EndScene;
     ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ARect, 1, False);
+  finally
+    FreeAndNil(ABmp);
+  end;
+end;
+
+procedure DrawButton(ACanvas: TCanvas; ARect: TRectF; AText: string; ASelected: Boolean; AColor: TAlphaColor; AStyle: TksTableViewButtonStyle);
+var
+  ABmp: TBitmap;
+  r: TRectF;
+  ARadius: single;
+  AFill, AOutline, AFontColor: TAlphaColor;
+  AScale: single;
+begin
+  AScale := GetScreenScale;
+
+  ARadius := 5*AScale;
+
+  ABmp := TBitmap.Create(Round(ARect.Width * AScale), Round(ARect.Height * AScale));
+  try
+    if AColor = claNull then
+      AColor := claDodgerblue;
+
+    ABmp.Clear(claNull);
+    ABmp.BitmapScale := AScale;
+    r := RectF(0, 0, ABmp.Width, ABmp.Height);
+    ABmp.Canvas.BeginScene;
+    ABmp.Canvas.StrokeThickness := AScale;
+    ABmp.Canvas.Stroke.Color := claSilver;
+    ABmp.Canvas.Font.Size := (13 * AScale);
+
+    if ASelected then
+    begin
+      AFill := AColor;
+      AOutline := AColor;
+      AFontColor := claWhite;
+    end
+    else
+    begin
+      AFill := claWhite;
+      AOutline := AColor;
+      AFontColor := AColor;
+    end;
+    ABmp.Canvas.Blending := True;
+    ABmp.Canvas.Fill.Color := AFill;
+    ABmp.Canvas.Stroke.Color := AOutline;
+    if AStyle = ksButtonSegmentLeft then
+    begin
+      ABmp.Canvas.FillRect(r, ARadius, ARadius, [TCorner.TopLeft, TCorner.BottomLeft], 1, ABmp.Canvas.Fill);
+      ABmp.Canvas.DrawRect(r, ARadius, ARadius, [TCorner.TopLeft, TCorner.BottomLeft], 1, ABmp.Canvas.Stroke);
+    end
+    else
+    if AStyle = ksButtonSegmentRight then
+    begin
+      ABmp.Canvas.FillRect(r, ARadius, ARadius, [TCorner.TopRight, TCorner.BottomRight], 1, ABmp.Canvas.Fill);
+      ABmp.Canvas.DrawRect(r, ARadius, ARadius, [TCorner.TopRight, TCorner.BottomRight], 1, ABmp.Canvas.Stroke);
+    end
+    else
+    begin
+      ABmp.Canvas.FillRect(r, 0, 0, AllCorners, 1, ABmp.Canvas.Fill);
+      ABmp.Canvas.DrawRect(r, 0, 0, AllCorners, 1, ABmp.Canvas.Stroke);
+    end;
+
+    ABmp.Canvas.Fill.Color := AFontColor;
+    ABmp.Canvas.FillText(r, AText, False, 1, [], TTextAlign.Center);
+
+    ABmp.Canvas.EndScene;
+
+    ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ARect, 1, True);
   finally
     FreeAndNil(ABmp);
   end;
@@ -1519,7 +1616,7 @@ begin
 
   case FAlign of
     TksTableItemAlign.Center: OffsetRect(Result, ((ARowRect.Width - Result.Width) / 2), 0);
-    TksTableItemAlign.Trailing: OffsetRect(Result, (ARowRect.Width - Result.Width) - FMargins.Right, 0); // SF
+    TksTableItemAlign.Trailing: OffsetRect(Result, ((ARowRect.Width - Result.Width) - C_SCROLL_BAR_WIDTH) - FMargins.Right, 0); // SF
     TksTableItemAlign.Fit:                                                      // SF
       begin                                                                     // SF
         Result.Left  := FMargins.Left;                                          // SF
@@ -2081,6 +2178,33 @@ end;
 
 { TksTableItem }
 
+function TksTableViewItem.AddButton(AWidth: integer; AText: string;
+                                    const ATintColor: TAlphaColor = claNull;
+                                    const AVertAlign: TksTableItemAlign = TksTableItemAlign.Center;
+                                    const AYPos: integer = 0): TksTableViewItemButton;
+begin
+  Result := TksTableViewItemButton.Create(Self);
+  Result.Align := TksTableItemAlign.Trailing;
+  Result.VertAlign := AVertAlign;
+  Result.OffsetY := AYPos;
+  Result.Width := AWidth;
+  Result.Height := 32;
+  if ATintColor <> claNull then
+  begin
+    Result.TintColor := ATintColor;
+  end;
+  Result.Text := AText;
+  FObjects.Add(Result);
+  Changed;
+end;
+
+function TksTableViewItem.AddButton(AStyle: TksTableViewButtonStyle; const ATintColor: TAlphaColor): TksTableViewItemButton;
+begin
+  Result := AddButton(44, '', ATintColor);
+  Result.Width := 44;
+  Result.Height := 44;
+end;
+
 function TksTableViewItem.AddEdit(AX, AY, AWidth: single; AText: string): TksTableViewItemEmbeddedEdit;
 begin
   Result := TksTableViewItemEmbeddedEdit.Create(Self);
@@ -2132,7 +2256,10 @@ begin
 
   if AForceCache then
   begin
-    //FreeAndNil(FBitmap);
+    FBitmap.DisposeOf;
+    FBitmap := nil;
+    FBitmap := TBitmap.Create;
+    FBitmap.BitmapScale := GetScreenScale;
     FCached := False;
   end;
 
@@ -2198,6 +2325,7 @@ begin
        (FPurpose = None) and
        (FTableView.ItemIndex <> FIndex) then
     begin
+
       FBitmap.Canvas.Fill.Assign(FTableView.Appearence.ItemBackground);
       FBitmap.Canvas.FillRect(ARect, 0, 0, AllCorners, 1);
     end;
@@ -2332,10 +2460,11 @@ var
   ABtn: TksTableViewActionButon;
   AObj: TksTableViewItemObject;
 begin
+  DeselectObjects;
   AObj := ObjectAtPos(x, y + ItemRect.Top);
   if AObj <> nil then
   begin
-    DeselectObjects;
+    
     if AObj.HitTest then
       AObj.MouseDown(x-AObj.ObjectRect.Left, y-AObj.ObjectRect.Top);
     if AObj.ConsumesClick then
@@ -2507,7 +2636,7 @@ begin
   Result := GetItemRect;
 
   Result.Left := Result.Left + 8;
-  Result.Right := Result.Right - 4
+  Result.Right := Result.Right - C_SCROLL_BAR_WIDTH;
   ;
 
   if FAccessory.Accessory <> atNone then
@@ -3001,7 +3130,8 @@ end;
 
 procedure TksTableViewAppearence.SetBackground(const Value: TBrush);
 begin
-  FBackground.Assign(Value);
+  if Value <> nil then
+    FBackground.Assign(Value);
 end;
 
 procedure TksTableViewAppearence.SetHeaderColor(const Value: TAlphaColor);
@@ -3011,7 +3141,8 @@ end;
 
 procedure TksTableViewAppearence.SetItemBackground(const Value: TBrush);
 begin
-  FItemBackground.Assign(Value);
+  if Value <> nil then
+    FItemBackground.Assign(Value);
 end;
 
 procedure TksTableViewAppearence.SetSelectedColor(const Value: TAlphaColor);
@@ -3261,7 +3392,7 @@ begin
   ANoCols       := Max(1,ColCount);                                                // SF
   AWidth        := Width / ANoCols;                                                // SF
   AXPos         := 0;                                                              // SF
-  AYPos         := 0;                                                              // SF
+  AYPos         := GetSearchHeight;                                                 // SF
   ACol          := 0;                                                              // SF
   AClientHeight := Height - GetSearchHeight();                                     // SF
                                                                                    // SF
@@ -3315,6 +3446,7 @@ end;
 procedure TksTableView.UpdateScrollingLimits;
 var
   Targets: array of TAniCalculations.TTarget;
+
 begin
   if FUpdateCount > 0 then
     Exit;
@@ -3324,9 +3456,13 @@ begin
     Targets[0].TargetType := TAniCalculations.TTargetType.Min;
     Targets[0].Point := TPointD.Create(0, 0);
     Targets[1].TargetType := TAniCalculations.TTargetType.Max;
+
+
+    FMaxScrollPos := Max((GetTotalItemHeight - Height) + GetSearchHeight, 0);
     Targets[1].Point := TPointD.Create(0,
-      Max((GetTotalItemHeight - Height) + GetSearchHeight, 0));
+                                       FMaxScrollPos);
     FAniCalc.SetTargets(Targets);
+
   end;
 end;
 
@@ -3484,6 +3620,12 @@ begin
   Result := 0;
   if FTimerService <> nil then
     Result := FTimerService.CreateTimer(AInterval, AProc);
+end;
+
+procedure TksTableView.DoButtonClicked(AItem: TksTableViewItem; AButton: TksTableViewItemButton);
+begin
+  if Assigned(FOnSwitchClicked) then
+    FOnButtonClicked(Self, AItem, AButton, AItem.ID);
 end;
 
 procedure TksTableView.DoDeselectItem;
@@ -3693,7 +3835,7 @@ begin                                                                           
   AFiltered := FFilteredItems;                                                        // SF
   for ICount := 0 to AFiltered.Count - 1 do                                           // SF
   begin                                                                               // SF
-    if PtInRect(AFiltered[ICount].ItemRect, PointF(AXPos, AYPos + GetScrollViewPos))  // SF
+    if PtInRect(AFiltered[ICount].ItemRect, PointF(AXPos, (AYPos + GetScrollViewPos) - GetSearchHeight))  // SF
     then                                                                              // SF
     begin                                                                             // SF
       Result := AFiltered[ICount];                                                    // SF
@@ -3846,8 +3988,8 @@ end;
 
 procedure TksTableView.MouseDown(Button: TMouseButton; Shift: TShiftState;
   x, y: single);
-//var
-//  AConsumesClick: Boolean;
+var
+  AConsumesClick: Boolean;
 begin
   if (UpdateCount > 0) or (FMouseEventsEnabled = False) then
     Exit;
@@ -3874,16 +4016,17 @@ begin
     if (FMouseDownObject <> FFocusedControl) and (FFocusedControl <> nil) then
       HideFocusedControl;
 
-    {if FMouseDownObject <> nil then
+    if FMouseDownObject <> nil then
     begin
       AConsumesClick := FMouseDownObject.ConsumesClick;
       FMouseDownItem.DoClick(FMouseDownPoint.x, (FMouseDownPoint.y - FMouseDownItem.ItemRect.Top) + ScrollViewPos);
       if AConsumesClick then
         Exit;
-    end;  }
+    end;  
 
     if FMouseDownItem = nil then
       Exit;
+
     if FMouseDownItem.Purpose = None then
     begin
       KillTimer(FSelectTimer);
@@ -3945,6 +4088,9 @@ end;
 procedure TksTableView.MouseUp(Button: TMouseButton; Shift: TShiftState;
   x, y: single);
 begin
+  if FMouseDownObject <> nil then
+    FMouseDownObject.MouseUp(0, 0);
+  
   if (UpdateCount > 0) or (FMouseEventsEnabled = False) then
     Exit;
   inherited;
@@ -3954,7 +4100,8 @@ begin
     begin
       //KillTimer(FSelectTimer);
       //FSelectTimer := 0;
-      DoSelectItem;
+      if (FMouseDownObject = nil) or (FMouseDownObject.ConsumesClick = False) then
+        DoSelectItem;
     end;
   end;
 
@@ -3982,7 +4129,8 @@ begin
   begin
     FPainting := True;
     try
-      Canvas.Fill.Assign(FAppearence.Background);
+      if FAppearence.Background <> nil then
+        Canvas.Fill.Assign(FAppearence.Background);
       Canvas.FillRect(RectF(0, 0, Width, Height), 0, 0, AllCorners, 1);
 
       if (csDesigning in ComponentState) then
@@ -4013,7 +4161,8 @@ begin
         else
           Canvas.FillText(RectF(0, 0, Width, 50), FPullToRefresh.FPullText, False, 1, [], TTextAlign.Center);
         //Canvas.Fill.Color := GetColorOrDefault(FAppearence.Background, claWhite);
-        Canvas.Fill.Assign(FAppearence.Background);
+        if FAppearence.Background <> nil then
+          Canvas.Fill.Assign(FAppearence.Background);
         Canvas.FillRect(RectF(0, 0-ScrollViewPos, Width, Height), 0, 0, AllCorners, 1);
       end;
 
@@ -4216,7 +4365,7 @@ begin
   if not SameValue(FScrollPos, Value, 1/GetScreenScale) then
   begin
     HideFocusedControl;
-    FScrollPos := Value - GetSearchHeight;
+    FScrollPos := Value {- GetSearchHeight};
     HideAllActionButtons(True);
     Repaint; //Invalidate;
     if (Round(FScrollPos) = 0) and (FNeedsRefresh) then
@@ -4224,6 +4373,8 @@ begin
       FNeedsRefresh := False;
       DoPullToRefresh;
     end;
+    if Assigned(FOnScrollViewChange) then
+      FOnScrollViewChange(Self, FScrollPos, FMaxScrollPos);
   end;
 end;
 
@@ -4238,6 +4389,7 @@ begin
     FSearchBox.Visible := FSearchVisible;
     UpdateScrollingLimits;
     TAnimator.AnimateFloatWait(Self, 'ScrollPos', AScrollPos);
+
     UpdateItemRects;
     Invalidate;
   end;
@@ -5456,6 +5608,61 @@ begin
   FText := Value;
   Changed;
   TableItem.FTableView.DoEmbeddedEditChange(TableItem, Self);
+end;
+
+{ TksTableViewItemButton }
+
+function TksTableViewItemButton.ConsumesClick: Boolean;
+begin
+  Result := True;
+end;
+
+constructor TksTableViewItemButton.Create(ATableItem: TksTableViewItem);
+begin
+  inherited;
+  FTintColor := claNull;
+  FText := '';
+  FState := ksUnpressed;
+  
+end;
+
+procedure TksTableViewItemButton.MouseDown(x, y: single);
+begin
+  if FHitTest = False then
+    Exit;
+  inherited;
+  if FState <> ksPressed then
+  begin
+    FState := ksPressed;
+    Changed;
+  end;
+end;
+
+procedure TksTableViewItemButton.MouseUp(x, y: single);
+begin
+  inherited;
+  if FState <> ksUnpressed then
+  begin
+    FState := ksUnpressed;
+    Changed;
+    FTableItem.FTableView.DoButtonClicked(FTableItem, Self);
+  end;
+end;
+
+procedure TksTableViewItemButton.Render(ACanvas: TCanvas);
+begin
+  inherited Render(ACanvas);
+  DrawButton(ACanvas, GetObjectRect, FText, FState = ksPressed, FTintColor, ksButtonDefault);
+end;
+
+procedure TksTableViewItemButton.SetText(const Value: string);
+begin
+  FText := Value;
+end;
+
+procedure TksTableViewItemButton.SetTintColor(const Value: TAlphaColor);
+begin
+  FTintColor := Value;
 end;
 
 initialization

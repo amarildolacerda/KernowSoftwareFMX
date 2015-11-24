@@ -30,6 +30,14 @@ uses
   Classes, FMX.Types, FMX.Controls, FMX.Graphics, Types, System.UITypes,
   FMX.StdCtrls, System.Generics.Collections;
 
+{$IFDEF VER290}
+{$DEFINE XE8_OR_NEWER}
+{$ENDIF}
+{$IFDEF VER300}
+{$DEFINE XE8_OR_NEWER}
+{$DEFINE XE10_OR_NEWER}
+{$ENDIF}
+
 type
   TKsSegmentButton = class(TSpeedButton)
   private

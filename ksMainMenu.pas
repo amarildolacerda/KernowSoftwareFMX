@@ -6,6 +6,14 @@ uses
   System.SysUtils, System.Classes, FMX.Types, FMX.Controls, ksTableView, FMX.Graphics,
   System.Types, System.Generics.Collections, FMX.ImgList;
 
+{$IFDEF VER290}
+{$DEFINE XE8_OR_NEWER}
+{$ENDIF}
+{$IFDEF VER300}
+{$DEFINE XE8_OR_NEWER}
+{$DEFINE XE10_OR_NEWER}
+{$ENDIF}
+
 type
   TksMainMenu = class;
 
@@ -116,7 +124,7 @@ procedure Register;
 
 implementation
 
-uses System.UIConsts, Math, FMX.MultiResBitmap;
+uses System.UIConsts, Math, FMX.MultiResBitmap, FMX.Forms;
 
 procedure Register;
 begin
@@ -137,8 +145,11 @@ procedure TksMainMenu.ClickTile(Sender: TObject; x, y: single; AItem: TksTableVi
 begin
   if (ARowObj is TksTableViewItemImage)  then
   begin
+    Application.ProcessMessages;
+    Sleep(100);
     if Assigned(FOnOptionClicked) then
     begin
+
       FOnOptionClicked(Self, AItem.Index, ARowObj.ID);
     end;
   end;
