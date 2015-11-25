@@ -5937,11 +5937,15 @@ end;
 procedure TksDragDropOptions.SetOpacity(const Value: single);
 begin
   FOpacity := Value;
+  if FOpacity < 0 then
+    FShadow := False;
 end;
 
 procedure TksDragDropOptions.SetShadow(const Value: Boolean);
 begin
   FShadow := Value;
+  if FShadow = False then
+    FOpacity := 1;
 end;
 
 { TksDragImage }
