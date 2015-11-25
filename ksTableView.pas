@@ -29,7 +29,7 @@ interface
 uses Classes, FMX.Controls, FMX.Layouts, FMX.Types, System.Types, Generics.Collections,
   FMX.Graphics, FMX.Objects, FMX.InertialMovement, System.UITypes,
   System.UIConsts, System.Rtti, FMX.DateTimeCtrls,
-  FMX.Styles, FMX.Styles.Objects, FMX.Edit, FMX.SearchBox, FMX.ListBox;
+  FMX.Styles, FMX.Styles.Objects, FMX.Edit, FMX.SearchBox, FMX.ListBox, FMX.Effects;
 
 {$IFDEF VER290}
 {$DEFINE XE8_OR_NEWER}
@@ -115,9 +115,9 @@ type
 
   TksTableViewScrollChangeEvent = procedure(Sender: TObject; AScrollPos, AMaxScrollLimit: single) of object;
 
-  TksTableViewCanDragItemEvent = function(Sender: TObject; ADragRow: TksTableViewItem) : Boolean of object;             // SF - DD
-  TksTableViewCanDropItemEvent = function(Sender: TObject; ADragRow,ADropRow: TksTableViewItem) : Boolean  of object;   // SF - DD
-  TksTableViewDropItemEvent    = procedure(Sender: TObject; ADragRow,ADropRow: TksTableViewItem) of object;             // SF - DD
+  TksTableViewCanDragItemEvent = procedure(Sender: TObject; ADragRow: TksTableViewItem; var AllowDrag: Boolean) of object;             // SF - DD
+  TksTableViewCanDropItemEvent = procedure(Sender: TObject; ADragRow, ADropRow: TksTableViewItem; var AllowDrop: Boolean)  of object;   // SF - DD
+  TksTableViewDropItemEvent    = procedure(Sender: TObject; ADragRow, ADropRow: TksTableViewItem; var AllowMove: Boolean) of object;             // SF - DD
 
 
 
@@ -181,8 +181,14 @@ type
     FShowSelection: Boolean;
     FMouseDown: Boolean;
     FMargins: TBounds; // SF
+    FHeightPercentange : Single;                 // SF - Pos
+    FWidthPercentange : Single;                  // SF - Pos
+    [weak]FPositionRelativeTo : TksTableViewItemObject; // SF - Pos
     procedure SetHeight(const Value: single);
     procedure SetWidth(const Value: single);
+    procedure SetHeightPercentange(const Value: single);                  // SF - Pos
+    procedure SetWidthPercentange(const Value: single);                   // SF - Pos
+    procedure SetPositionRelativeTo(const Value: TksTableViewItemObject);  // SF - Pos
     procedure SetHitTest(const Value: Boolean);
     procedure SetOffsetX(const Value: single);
     procedure SetOffsetY(const Value: single);
@@ -218,6 +224,9 @@ type
     property VertAlign: TksTableItemAlign read GetVertAlign write SetVertAlign;
     property Width: single read FWidth write SetWidth;
     property ShowSelection: Boolean read FShowSelection write SetShowSelection default False;
+    property HeightPercentange: single read FHeightPercentange write SetHeightPercentange;                  // SF - Pos
+    property WidthPercentange: single read FWidthPercentange write SetWidthPercentange;                     // SF - Pos
+    property PositionRelativeTo: TksTableViewItemObject read FPositionRelativeTo write SetPositionRelativeTo;  // SF - Pos
 
   end;
 
@@ -853,6 +862,33 @@ type
     property TextColor: TAlphaColor read FTextColor write FTextColor default claSilver;
   end;
 
+  TksDragImage = class(TRectangle)
+  private
+    FShadow: TShadowEffect;
+    FMouseDownOffset: TPointF;
+    property MouseDownOffset: TPointF read FMouseDownOffset write FMouseDownOffset;
+  public
+    constructor Create(AOwner: TComponent); override;
+    destructor Destroy; override;
+    property Shadow: TShadowEffect read FShadow;
+  end;
+
+  TksDragDropOptions = class(TPersistent)
+  private
+    FEnabled: Boolean;
+    FShadow: Boolean;
+    FOpacity: single;
+    procedure SetOpacity(const Value: single);
+    procedure SetShadow(const Value: Boolean);
+  public
+    constructor Create; virtual;
+  published
+    property Enabled: Boolean read FEnabled write FEnabled default False;
+    property Shadow: Boolean read FShadow write SetShadow default True;
+    property Opacity: single read FOpacity write SetOpacity;
+  end;
+
+
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
     {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
     {$ELSE} pidiOSDevice {$ENDIF} or pidAndroid)]
@@ -897,11 +933,9 @@ type
     FColCount: integer;  // SF - Addded support multiple columns
     FMouseEventsEnabled: Boolean;
     FMaxScrollPos: single;
-    FDragDropImage : TRectangle;                                                // SF - DD
+    FDragDropImage : TksDragImage;                                                // SF - DD
     FDragDropScrollTimer: TFmxHandle;                                           // SF - DD
-    FOnCanDragItem : TksTableViewCanDragItemEvent;                              // SF - DD
-    FOnCanDropItem : TksTableViewCanDropItemEvent;                              // SF - DD
-    FOnDropItem : TksTableViewDropItemEvent;                                    // SF - DD
+    FDragging: Boolean;
 
 
     // events...
@@ -923,6 +957,10 @@ type
     FOnSwitchClicked: TksTableViewItemSwitchEvent;
     FOnButtonClicked: TksTableViewItemButtonEvent;
     FOnScrollViewChange: TksTableViewScrollChangeEvent;
+    FOnCanDragItem : TksTableViewCanDragItemEvent;                              // SF - DD
+    FOnCanDropItem : TksTableViewCanDropItemEvent;                              // SF - DD
+    FOnDropItem : TksTableViewDropItemEvent;
+    FDragDropOptions: TksDragDropOptions;                                    // SF - DD
 
     function GetViewPort: TRectF;
     procedure SetScrollViewPos(const Value: single);
@@ -955,7 +993,7 @@ type
     procedure DoPullToRefresh;
     procedure UpdateFilteredItems;
     procedure DoSelectTimer;                                                    // SF - DD
-    procedure UpdateDropImage(MousePos : TPointF);                              // SF - DD
+    procedure UpdateDropImage(x, y: single);                              // SF - DD
     procedure DoDropScroll;                                                     // SF - DD
     procedure DoSelectItem;
 
@@ -1021,6 +1059,7 @@ type
     property Cursor default crDefault;
 
     property DeleteButton: TksDeleteButton read FDeleteButton write FDeleteButton;
+    property DragDropOptions: TksDragDropOptions read FDragDropOptions write FDragDropOptions;
     property FullWidthSeparator: Boolean read FFullWidthSeparator write SetFullWidthSeparator default True;
 
     property HeaderHeight: integer read FHeaderHeight write SetHeaderHeight default C_TABLEVIEW_DEFAULT_HEADER_HEIGHT;
@@ -1540,6 +1579,7 @@ begin
   FOffsetY := 0;
   FShowSelection := False;
   FMouseDown := False;
+  FPositionRelativeTo := nil; // SF - Pos
 end;
 
 destructor TksTableViewItemObject.Destroy;
@@ -1629,29 +1669,51 @@ end;  }
 function TksTableViewItemObject.GetObjectRect: TRectF;
 var
   ARowRect: TRectF;
+  RelativeOffset : TPointF;                                                     // SF - Pos
 begin
   ARowRect := GetItemRect;
 
+  RelativeOffset := PointF(0, 0);
+
+  if (FPositionRelativeTo <> nil) then                                          // SF - Pos
+  begin                                                                         // SF - Pos
+    RelativeOffset.X := FPositionRelativeTo.GetObjectRect.Left;                 // SF - Pos
+    RelativeOffset.Y := FPositionRelativeTo.GetObjectRect.Top;                  // SF - Pos
+  end;
+
+  if (WidthPercentange > 0) then                                                // SF - Pos
+    FWidth := ARowRect.Width * WidthPercentange / 100;                          // SF - Pos
+
+  if (HeightPercentange > 0) then                                               // SF - Pos
+    FHeight := ARowRect.Height * HeightPercentange / 100;                       // SF - Pos
+
   Result := RectF(ARowRect.Left + FMargins.Left, FMargins.Top, FWidth, FHeight); // SF
+
+  Result := RectF(RelativeOffset.X + FMargins.Left, RelativeOffset.Y + FMargins.Top,
+                  RelativeOffset.X + FMargins.Left + FWidth, RelativeOffset.Y + FMargins.Top + FHeight); // SF - Pos
+
+
 
   case FAlign of
     TksTableItemAlign.Center: OffsetRect(Result, ((ARowRect.Width - Result.Width) / 2), 0);
     TksTableItemAlign.Trailing: OffsetRect(Result, ((ARowRect.Width - Result.Width) - C_SCROLL_BAR_WIDTH) - FMargins.Right, 0); // SF
-    TksTableItemAlign.Fit:                                                      // SF
+    TksTableItemAlign.Fit: Result.Width := ARowRect.Width - FMargins.Left - FMargins.Right;                                     // SF  - Pos                                                    // SF
+    {TksTableItemAlign.Fit:                                                      // SF
       begin                                                                     // SF
         Result.Left  := FMargins.Left;                                          // SF
         Result.Width := ARowRect.Width - FMargins.Left - FMargins.Right;        // SF
-      end;                                                                      // SF
+      end;  }                                                                    // SF
   end;
 
   case FVertAlign of
     TksTableItemAlign.Center: OffsetRect(Result, 0, (ARowRect.Height - Result.Height) / 2);
     TksTableItemAlign.Trailing: OffsetRect(Result, 0, (ARowRect.Height - Result.Height) - FMargins.Bottom); // SF
-    TksTableItemAlign.Fit:                                                      // SF
+    TksTableItemAlign.Fit: Result.Height := ARowRect.Height - FMargins.Top - FMargins.Bottom;               // SF  - Pos                                                    // SF
+{    TksTableItemAlign.Fit:                                                      // SF
       begin                                                                     // SF
         Result.Top   := FMargins.Top;                                           // SF
         Result.Height := ARowRect.Height - FMargins.Top - FMargins.Bottom;      // SF
-      end;                                                                      // SF
+      end; }                                                                     // SF
   end;
 
   OffsetRect(Result, FPlaceOffset.x + FOffsetX, FPlaceOffset.y + FOffsetY);
@@ -1675,6 +1737,33 @@ begin
     FHeight := Value;
     Changed;
   end;
+end;
+
+procedure TksTableViewItemObject.SetHeightPercentange(const Value: single);     // SF - Pos
+begin                                                                           // SF - Pos
+  if FHeightPercentange <> Value then                                           // SF - Pos
+  begin                                                                         // SF - Pos
+    FHeightPercentange := Value;                                                // SF - Pos
+    Changed;                                                                    // SF - Pos
+  end;                                                                          // SF - Pos
+end;                                                                            // SF - Pos
+
+procedure TksTableViewItemObject.SetWidthPercentange(const Value: single);      // SF - Pos
+begin                                                                           // SF - Pos
+  if FWidthPercentange <> Value then                                            // SF - Pos
+  begin                                                                         // SF - Pos
+    FWidthPercentange := Value;                                                 // SF - Pos
+    Changed;                                                                    // SF - Pos
+  end;                                                                          // SF - Pos
+end;                                                                            // SF - Pos
+
+procedure TksTableViewItemObject.SetPositionRelativeTo(const Value: TksTableViewItemObject);  // SF - Pos
+begin                                                                                         // SF - Pos
+  if FPositionRelativeTo <> Value then                                                        // SF - Pos
+  begin                                                                                       // SF - Pos
+    FPositionRelativeTo := Value;                                                             // SF - Pos
+    Changed;                                                                                // SF - Pos
+  end;                                                                                      // SF - Pos
 end;
 
 procedure TksTableViewItemObject.SetHitTest(const Value: Boolean);
@@ -2703,7 +2792,7 @@ var
   AObj: TksTableViewItemObject;
 begin
   Result := nil;
-  for ICount := 0 to FObjects.Count-1 do
+  for ICount := FObjects.Count-1 downto 0 do
   begin
     AObj := FObjects[ICount];
     if PtInRect(AObj.ObjectRect, PointF(x, (y-ItemRect.Top))) then
@@ -3556,7 +3645,7 @@ begin
   FRowIndicators := TksListViewRowIndicators.Create;
   FDeleteButton := TksDeleteButton.Create;
   FAppearence := TksTableViewAppearence.Create(Self);
-
+  FDragDropOptions := TksDragDropOptions.Create;
   {FSearchBox := TSearchBox.Create(nil);
   FSearchBox.Visible := False;
   FSearchBox.Align := TAlignLayout.Top;
@@ -3607,6 +3696,7 @@ begin
 
   FMouseEventsEnabled := True;
   FUpdateCount := 0;
+  FDragging := False;
   AddObject(FSearchBox);
 end;
 
@@ -3624,6 +3714,7 @@ begin
   FreeAndNil(FItems);
   FreeAndNil(FAniCalc);
   FreeAndNil(FAppearence);
+  FreeAndNil(FDragDropOptions);
   FreeAndNil(FDeleteButton);
   FreeAndNil(FTextDefaults);
   FreeAndNil(FPullToRefresh);
@@ -3829,56 +3920,79 @@ end;
 procedure TksTableView.DoSelectTimer;                                           // SF - DD
 var
   Form : TCustomForm;
-  ScreenMousePos : TPointF;
-  FormMousePos : TPointF;
+  //ScreenMousePos : TPointF;
+  //FormMousePos : TPointF;
+  AAllowDrag: Boolean;
 begin
   if FMouseDownItem = nil then
     Exit;
 
-  if (Assigned(FOnCanDragItem)) and (FOnCanDragItem(Self,FMouseDownItem)) then
+  AAllowDrag := False;
+  if (Assigned(FOnCanDragItem)) and (FDragDropOptions.Enabled = True) then
+    FOnCanDragItem(Self, FMouseDownItem, AAllowDrag);
+
+  if AAllowDrag then
   begin
     KillTimer(FSelectTimer);
-
+    FMouseDownItem.FActionButtons.HideButtons(True);
     if (Root.GetObject() is TCustomForm) then
     begin
       Form := TCustomForm(Root.GetObject());
 
-      FDragDropImage                    := TRectangle.Create(Form);
+      FDragDropImage                    := TksDragImage.Create(Form);
+      FDragDropImage.FShadow.Enabled := FDragDropOptions.Shadow;
+
       FDragDropImage.Parent             := Form;
       FDragDropImage.Width              := FMouseDownItem.FBitmap.Width;
       FDragDropImage.Height             := FMouseDownItem.FBitmap.Height;
       FDragDropImage.Fill.Bitmap.Bitmap := FMouseDownItem.FBitmap;
-      FDragDropImage.Fill.Kind          := TBrushKind.Bitmap;
-      FDragDropImage.Stroke.Thickness   := GetScreenScale() * 2;
-      FDragDropImage.Opacity            := 0.5;
 
+      FDragDropImage.Fill.Kind          := TBrushKind.Bitmap;
+      FDragDropImage.Stroke.Thickness   := GetScreenScale() / 2;
+      FDragDropImage.Opacity            := FDragDropOptions.Opacity;
+
+      FDragging := True;
       FDragDropScrollTimer := CreateTimer(100,DoDropScroll);
 
       Capture();
-
-      UpdateDropImage(FMouseDownPoint);
+      FDragDropImage.MouseDownOffset := PointF(FMouseDownPoint.X - FMouseDownItem.ItemRect.Left,
+                                               FMouseDownPoint.Y - FMouseDownItem.ItemRect.Top);
+      if FDragDropImage.MouseDownOffset.Y < 8 then
+        FDragDropImage.MouseDownOffset := PointF(FDragDropImage.MouseDownOffset.X, FDragDropImage.MouseDownOffset.y + 8);
+      UpdateDropImage(FMouseDownPoint.X+8, FMouseDownPoint.Y+8);
+      FDragging := True;
     end;
   end
   else
     DoSelectItem;
 end;
 
-procedure TksTableView.UpdateDropImage(MousePos : TPointF);                     // SF - DD
+procedure TksTableView.UpdateDropImage(x, y: single);                     // SF - DD
 var
-  Form           : TCustomForm;
+  //Form           : TCustomForm;
   ScreenMousePos : TPointF;
   FormMousePos   : TPointF;
+  AAllowDrop: Boolean;
 begin
+  if FDragDropImage = nil then
+    Exit;
   FDragDropImage.Stroke.Color := claRed;
 
+  AAllowDrop := False;
+
   if (Assigned(FOnCanDropItem)) then
-    if (FOnCanDropItem(Self,FMouseDownItem,GetItemFromPos(MousePos.x,MousePos.y))) then
+  begin
+    FOnCanDropItem(Self, FMouseDownItem, GetItemFromPos(x, y), AAllowDrop);
+    if AAllowDrop then
       FDragDropImage.Stroke.Color := claBlack;
+  end;
 
-  ScreenMousePos := LocalToScreen(PointF(MousePos.x,MousePos.y));
+  ScreenMousePos := LocalToScreen(PointF(x, y));
   FormMousePos   := TForm(FDragDropImage.Parent).ScreenToClient(ScreenMousePos);
-
-  FDragDropImage.SetBounds(FormMousePos.X - 20,FormMousePos.Y - (FDragDropImage.Height / 2),FDragDropImage.Width,FMouseDownItem.FBitmap.Height);
+  FDragDropImage.SetBounds(FormMousePos.X - FDragDropImage.MouseDownOffset.X,
+                           FormMousePos.Y - FDragDropImage.MouseDownOffset.Y,
+                           FDragDropImage.Width,FMouseDownItem.FBitmap.Height);
+  //FDragDropImage.SetBounds(FormMousePos.X,FormMousePos.Y - (FDragDropImage.Height / 2),FDragDropImage.Width,FMouseDownItem.FBitmap.Height);
 end;
 
 procedure TksTableView.DoDropScroll;                                            // SF - DD
@@ -4154,9 +4268,10 @@ begin
   FMouseCurrentPos := PointF(x, y);
   inherited;
 
-  if (Assigned(FDragDropImage)) then                                            // SF - DD
+  //if (Assigned(FDragDropImage)) then                                            // SF - DD
+  if FDragging then
   begin                                                                         // SF - DD
-    UpdateDropImage(FMouseCurrentPos);                                          // SF - DD
+    UpdateDropImage(FMouseCurrentPos.X+8, FMouseCurrentPos.Y+8);                                          // SF - DD
     exit;                                                                       // SF - DD
   end;                                                                          // SF - DD
 
@@ -4202,24 +4317,40 @@ end;
 procedure TksTableView.MouseUp(Button: TMouseButton; Shift: TShiftState;
   x, y: single);
 var                                                                             // SF - DD
-  MouseDropItem :  TksTableViewItem;
+  //MouseDropItem :  TksTableViewItem;
+  AAllowMove: Boolean;
+  ADragOverItem: TksTableViewItem;
 begin
+  AAllowMove := False;
   if FMouseDownObject <> nil then
     FMouseDownObject.MouseUp(0, 0);
-  
+
   if (UpdateCount > 0) or (FMouseEventsEnabled = False) then
     Exit;
   inherited;
 
-  if (Assigned(FDragDropImage)) then                                            // SF - DD
+  if (FDragging) then                                            // SF - DD
   begin                                                                         // SF - DD
+
     FreeAndNil(FDragDropImage);                                                 // SF - DD
+    FDragDropImage := nil;
     KillTimer(FDragDropScrollTimer);                                            // SF - DD
     ReleaseCapture();                                                           // SF - DD
-                                                                                // SF - DD
-    if (Assigned(FOnDropItem)) then                                             // SF - DD
-      FOnDropItem(Self,FMouseDownItem,GetItemFromPos(x,y));                     // SF - DD                                                                                // SF - DD
-    exit;                                                                       // SF - DD
+    ADragOverItem := GetItemFromPos(x, y);
+                                                                            // SF - DD
+    if (Assigned(FOnDropItem)) and (ADragOverItem <> nil) then
+    begin
+      FOnDropItem(Self,FMouseDownItem, ADragOverItem, AAllowMove);         // SF - DD                                                                                // SF - DD
+      if AAllowMove then
+      begin
+        // move the drag row to the new position...
+        FItems.Move(FItems.IndexOf(FMouseDownItem), FItems.IndexOf(ADragOverItem));
+        UpdateItemRects;
+        Invalidate;
+      end;
+      FDragging := False;
+      Exit;                                                                     // SF - DD
+    end;
   end;                                                                          // SF - DD
 
   if PtInRect(GetMouseDownBox, PointF(x,y)) then
@@ -5791,6 +5922,42 @@ end;
 procedure TksTableViewItemButton.SetTintColor(const Value: TAlphaColor);
 begin
   FTintColor := Value;
+end;
+
+{ TksDragDropOptions }
+
+constructor TksDragDropOptions.Create;
+begin
+  inherited Create;
+  FShadow := True;
+  FOpacity := 1;
+  FEnabled := False;
+end;
+
+procedure TksDragDropOptions.SetOpacity(const Value: single);
+begin
+  FOpacity := Value;
+end;
+
+procedure TksDragDropOptions.SetShadow(const Value: Boolean);
+begin
+  FShadow := Value;
+end;
+
+{ TksDragImage }
+
+constructor TksDragImage.Create(AOwner: TComponent);
+begin
+  inherited Create(AOwner);
+  FShadow := TShadowEffect.Create(Self);
+  FShadow.Direction := 90;
+  AddObject(FShadow);
+end;
+
+destructor TksDragImage.Destroy;
+begin
+  FreeAndNil(FShadow);
+  inherited;
 end;
 
 initialization
