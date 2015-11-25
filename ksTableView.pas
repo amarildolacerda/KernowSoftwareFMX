@@ -115,6 +115,12 @@ type
 
   TksTableViewScrollChangeEvent = procedure(Sender: TObject; AScrollPos, AMaxScrollLimit: single) of object;
 
+  TksTableViewCanDragItemEvent = function(Sender: TObject; ADragRow: TksTableViewItem) : Boolean of object;             // SF - DD
+  TksTableViewCanDropItemEvent = function(Sender: TObject; ADragRow,ADropRow: TksTableViewItem) : Boolean  of object;   // SF - DD
+  TksTableViewDropItemEvent    = procedure(Sender: TObject; ADragRow,ADropRow: TksTableViewItem) of object;             // SF - DD
+
+
+
   TksAccessoryType = (atNone, atMore, atCheckmark, atDetail, atBack, atRefresh,
     atAction, atPlay, atRewind, atForward, atPause, atStop, atAdd, atPrior,
     atNext, atArrowUp, atArrowDown, atArrowLeft, atArrowRight, atReply,
@@ -891,6 +897,12 @@ type
     FColCount: integer;  // SF - Addded support multiple columns
     FMouseEventsEnabled: Boolean;
     FMaxScrollPos: single;
+    FDragDropImage : TRectangle;                                                // SF - DD
+    FDragDropScrollTimer: TFmxHandle;                                           // SF - DD
+    FOnCanDragItem : TksTableViewCanDragItemEvent;                              // SF - DD
+    FOnCanDropItem : TksTableViewCanDropItemEvent;                              // SF - DD
+    FOnDropItem : TksTableViewDropItemEvent;                                    // SF - DD
+
 
     // events...
     FItemClickEvent: TksTableViewItemClickEvent;
@@ -942,12 +954,17 @@ type
     //function GetItemFromYPos(AYPos: single): TksTableViewItem;
     procedure DoPullToRefresh;
     procedure UpdateFilteredItems;
+    procedure DoSelectTimer;                                                    // SF - DD
+    procedure UpdateDropImage(MousePos : TPointF);                              // SF - DD
+    procedure DoDropScroll;                                                     // SF - DD
     procedure DoSelectItem;
+
+
     procedure SetCheckMarks(const Value: TksTableViewCheckMarks);
     procedure HideAllActionButtons(ASync: Boolean);
     procedure SetTextDefaults(const Value: TksTableViewTextDefaults);
     function CreateTimer(AInterval: integer; AProc: TTimerProc): TFmxHandle;
-    procedure KillTimer(ATimer: TFmxHandle);
+    procedure KillTimer(var ATimer: TFmxHandle);
     procedure KillAllTimers;
     procedure SetFullWidthSeparator(const Value: Boolean);
     procedure ComboClosePopup(Sender: TObject);
@@ -1078,6 +1095,9 @@ type
     property OnSelectDate: TksTableViewSelectDateEvent read FOnSelectDate write FOnSelectDate;
     property OnSelectPickerItem: TksTableViewSelectPickerItem read FOnSelectPickerItem write FOnSelectPickerItem;
     property OnSwitchClick: TksTableViewItemSwitchEvent read FOnSwitchClicked write FOnSwitchClicked;
+    property OnCanDragItem: TksTableViewCanDragItemEvent read FOnCanDragItem write FOnCanDragItem;       // SF - DD
+    property OnCanDropItem: TksTableViewCanDropItemEvent read FOnCanDropItem write FOnCanDropItem;       // SF - DD
+    property OnDropItem: TksTableViewDropItemEvent read FOnDropItem write FOnDropItem;                   // SF - DD
 
     (*
       property Transparent default False;
@@ -3806,6 +3826,90 @@ begin
   end;
 end;
 
+procedure TksTableView.DoSelectTimer;                                           // SF - DD
+var
+  Form : TCustomForm;
+  ScreenMousePos : TPointF;
+  FormMousePos : TPointF;
+begin
+  if FMouseDownItem = nil then
+    Exit;
+
+  if (Assigned(FOnCanDragItem)) and (FOnCanDragItem(Self,FMouseDownItem)) then
+  begin
+    KillTimer(FSelectTimer);
+
+    if (Root.GetObject() is TCustomForm) then
+    begin
+      Form := TCustomForm(Root.GetObject());
+
+      FDragDropImage                    := TRectangle.Create(Form);
+      FDragDropImage.Parent             := Form;
+      FDragDropImage.Width              := FMouseDownItem.FBitmap.Width;
+      FDragDropImage.Height             := FMouseDownItem.FBitmap.Height;
+      FDragDropImage.Fill.Bitmap.Bitmap := FMouseDownItem.FBitmap;
+      FDragDropImage.Fill.Kind          := TBrushKind.Bitmap;
+      FDragDropImage.Stroke.Thickness   := GetScreenScale() * 2;
+      FDragDropImage.Opacity            := 0.5;
+
+      FDragDropScrollTimer := CreateTimer(100,DoDropScroll);
+
+      Capture();
+
+      UpdateDropImage(FMouseDownPoint);
+    end;
+  end
+  else
+    DoSelectItem;
+end;
+
+procedure TksTableView.UpdateDropImage(MousePos : TPointF);                     // SF - DD
+var
+  Form           : TCustomForm;
+  ScreenMousePos : TPointF;
+  FormMousePos   : TPointF;
+begin
+  FDragDropImage.Stroke.Color := claRed;
+
+  if (Assigned(FOnCanDropItem)) then
+    if (FOnCanDropItem(Self,FMouseDownItem,GetItemFromPos(MousePos.x,MousePos.y))) then
+      FDragDropImage.Stroke.Color := claBlack;
+
+  ScreenMousePos := LocalToScreen(PointF(MousePos.x,MousePos.y));
+  FormMousePos   := TForm(FDragDropImage.Parent).ScreenToClient(ScreenMousePos);
+
+  FDragDropImage.SetBounds(FormMousePos.X - 20,FormMousePos.Y - (FDragDropImage.Height / 2),FDragDropImage.Width,FMouseDownItem.FBitmap.Height);
+end;
+
+procedure TksTableView.DoDropScroll;                                            // SF - DD
+var
+  MinHeight : Single;
+  MaxHeight : Single;
+begin
+  if (FMouseCurrentPos.Y<0) then
+  begin
+    FScrolling   := false;
+    FScrollPos   := FScrollPos - (GetScreenScale() * (0-FMouseCurrentPos.Y));
+    MinHeight    := GetSearchHeight;
+
+    if (FScrollPos<MinHeight) then
+      FScrollPos := MinHeight;
+
+    Repaint();
+  end
+  else if (FMouseCurrentPos.Y>Height) then
+  begin
+    FScrolling := false;
+    FScrollPos := FScrollPos + (GetScreenScale() * (FMouseCurrentPos.Y-Height));
+    MaxHeight  := Max((GetTotalItemHeight - Height) + GetSearchHeight, 0);
+
+    if (FScrollPos>MaxHeight) then
+      FScrollPos := MaxHeight;
+
+    Repaint();
+  end;
+end;
+
 {
 function TksTableView.GetItemFromYPos(AYPos: single): TksTableViewItem;
 var
@@ -3977,12 +4081,15 @@ begin
   KillTimer(FDeselectTimer);
 end;
 
-procedure TksTableView.KillTimer(ATimer: TFmxHandle);
+procedure TksTableView.KillTimer(var ATimer: TFmxHandle);
 begin
   if FTimerService <> nil then
   begin
-    FTimerService.DestroyTimer(ATimer);
-    //ATimer := 0;
+    if (ATimer<>0) then
+    begin
+      FTimerService.DestroyTimer(ATimer);
+      ATimer := 0;
+    end;
   end;
 end;
 
@@ -4030,7 +4137,7 @@ begin
     if FMouseDownItem.Purpose = None then
     begin
       KillTimer(FSelectTimer);
-      FSelectTimer := CreateTimer(400, DoSelectItem);
+      FSelectTimer := CreateTimer(400, DoSelectTimer);                          // SF - DD
     end;
 
   end;
@@ -4046,6 +4153,13 @@ begin
     Exit;
   FMouseCurrentPos := PointF(x, y);
   inherited;
+
+  if (Assigned(FDragDropImage)) then                                            // SF - DD
+  begin                                                                         // SF - DD
+    UpdateDropImage(FMouseCurrentPos);                                          // SF - DD
+    exit;                                                                       // SF - DD
+  end;                                                                          // SF - DD
+
 
   //if not (ssLeft in Shift) then
   //  FMouseDownItem := nil;
@@ -4087,6 +4201,8 @@ end;
 
 procedure TksTableView.MouseUp(Button: TMouseButton; Shift: TShiftState;
   x, y: single);
+var                                                                             // SF - DD
+  MouseDropItem :  TksTableViewItem;
 begin
   if FMouseDownObject <> nil then
     FMouseDownObject.MouseUp(0, 0);
@@ -4094,6 +4210,18 @@ begin
   if (UpdateCount > 0) or (FMouseEventsEnabled = False) then
     Exit;
   inherited;
+
+  if (Assigned(FDragDropImage)) then                                            // SF - DD
+  begin                                                                         // SF - DD
+    FreeAndNil(FDragDropImage);                                                 // SF - DD
+    KillTimer(FDragDropScrollTimer);                                            // SF - DD
+    ReleaseCapture();                                                           // SF - DD
+                                                                                // SF - DD
+    if (Assigned(FOnDropItem)) then                                             // SF - DD
+      FOnDropItem(Self,FMouseDownItem,GetItemFromPos(x,y));                     // SF - DD                                                                                // SF - DD
+    exit;                                                                       // SF - DD
+  end;                                                                          // SF - DD
+
   if PtInRect(GetMouseDownBox, PointF(x,y)) then
   begin
     if FSelectTimer <> 0 then
