@@ -36,6 +36,7 @@ contains
   ksSegmentButtons in 'ksSegmentButtons.pas',
   ksDrawFunctions in 'ksDrawFunctions.pas',
   ksTableView in 'ksTableView.pas',
-  ksMainMenu in 'ksMainMenu.pas';
+  ksMainMenu in 'ksMainMenu.pas',
+  ksListViewHelper in 'ksListViewHelper.pas';
 
 end.

@@ -95,6 +95,7 @@ type
   TksImageDrawMode = (ksDrawModeStretch, ksDrawModeFit);
   TksTableViewButtonStyle = (ksButtonDefault, ksButtonSegmentLeft, ksButtonSegmentMiddle, ksButtonSegmentRight);
   TksTableViewButtonState = (ksPressed, ksUnpressed);
+  TksTableViewItemAppearance = ( iaNormal, iaTile_Image, iaTile_TitleImage, iaTile_ImageTitle, iaTile_TitleImageSubTitle, iaTile_SubTitleImageTitle ); // SF - Tile
 
   TksTableItemSelector = (NoSelector, DateSelector, ItemPicker);
 
@@ -487,6 +488,17 @@ type
     property CornerRadius: single read FCornerRadius write SetCornerRadius;
   end;
 
+  TksTableViewItemTileBackground = class(TksTableViewItemShape)                 // SF - Tile
+  private                                                                       // SF - Tile
+    FPadding: TBounds;                                                          // SF - Tile
+  public                                                                        // SF - Tile
+    constructor Create(ATableItem: TksTableViewItem); override;                 // SF - Tile
+    destructor Destroy; override;                                               // SF - Tile
+                                                                                // SF - Tile
+    property Padding: TBounds read FPadding write FPadding;                     // SF - Tile
+  end;                                                                          // SF - Tile
+
+
   TksTableViewItemButton = class(TksTableViewItemObject)
   private
     FText: string;
@@ -549,6 +561,7 @@ type
     FID: string;
     FAbsoluteIndex: integer;
     FIndicator: TksTableViewItemShape;
+    FTileBackground: TksTableViewItemTileBackground; // SF - Tile
     FImage: TksTableViewItemImage;
     FTitle: TksTableViewItemText;
     FSubTitle: TksTableViewItemText;
@@ -577,6 +590,11 @@ type
     FSelector: TksTableItemSelector;
     FPickerItems: TStrings;
     FColCount: integer;  // SF - Addded support to override col count per row (used with headers)
+    FIsFirstCol : Boolean;                    // SF - Tile
+    FIsLastCol : Boolean;                     // SF - Tile
+    FIsFirstRow : Boolean;                    // SF - Tile
+    FIsLastRow : Boolean;                     // SF - Tile
+    FAppearance : TksTableViewItemAppearance; // SF - Tile
 
     function MatchesSearch(AFilter: string): Boolean;
     function IsVisible(AViewport: TRectF): Boolean;
@@ -592,6 +610,7 @@ type
     procedure SetSearchIndex(const Value: string);
     procedure SetItemRect(const Value: TRectF);
     procedure SetIndex(const Value: integer);
+    procedure SetAppearance(const Value: TksTableViewItemAppearance); // SF - Tile
 
     procedure Changed;
     procedure RealignStandardObjects;
@@ -675,6 +694,7 @@ type
     property IndicatorColor: TAlphaColor read GetIndicatorColor write SetIndicatorColor;
     // property InternalRect: TRectF read GetInternalRect;
     property ID: string read FID write FID;
+    property TileBackground : TksTableViewItemTileBackground read FTileBackground;                      // SF - Tile
     property Image: TksTableViewItemImage read FImage;
     property Title: TksTableViewItemText read FTitle;
     property SubTitle: TksTableViewItemText read FSubTitle;
@@ -691,6 +711,11 @@ type
     property TagString: string read FTagString write FTagString;
     property TagInteger: integer read FTagInteger write FTagInteger default 0;
     property ColCount: integer read FColCount write FColCount default 0;  // SF
+    property IsFirstCol: Boolean read FIsFirstCol;                                                          // SF - Tile
+    property IsLastCol: Boolean read FIsLastCol;                                                            // SF - Tile
+    property IsFirstRow: Boolean read FIsFirstRow;                                                          // SF - Tile
+    property IsLastRow: Boolean read FIsLastRow;                                                            // SF - Tile
+    property Appearance: TksTableViewItemAppearance read FAppearance write SetAppearance default iaNormal;  // SF - Tile
     //property TitleWidth: TksTableViewTextWidth read FTitleWidth write SetTitleWidth default ksWidth60Percent;
     //property ActionButtonsWidth: integer read FActionButtonsWidth write SetActionButtonsWidth;
   end;
@@ -886,6 +911,7 @@ type
     property Enabled: Boolean read FEnabled write FEnabled default False;
     property Shadow: Boolean read FShadow write SetShadow default True;
     property Opacity: single read FOpacity write SetOpacity;
+
   end;
 
 
@@ -1640,9 +1666,17 @@ begin
   Result := FID;
 end;
 
-function TksTableViewItemObject.GetItemRect: TRectF;
+{function TksTableViewItemObject.GetItemRect: TRectF;
 begin
   Result := FTableItem.ItemRect;
+end;  }
+
+function TksTableViewItemObject.GetItemRect: TRectF;
+begin
+  if (FPositionRelativeTo<>Nil) then                                            // SF - PosFIX
+    Result := FPositionRelativeTo.GetObjectRect                                 // SF - PosFIX
+  else                                                                          // SF - PosFIX
+    Result := FTableItem.ItemRect;
 end;
 
 {
@@ -1671,6 +1705,15 @@ var
   ARowRect: TRectF;
   RelativeOffset : TPointF;                                                     // SF - Pos
 begin
+  if (FTableItem.Appearance<>iaNormal) then                                     // SF - Tile
+  begin                                                                         // SF - Tile
+    Result := RectF(FPlaceOffset.X,FPlaceOffset.Y,                              // SF - Tile
+                    FPlaceOffset.X+FWidth,FPlaceOffset.Y+FHeight);              // SF - Tile
+    exit;                                                                       // SF - Tile
+  end;                                                                          // SF - Tile
+
+
+
   ARowRect := GetItemRect;
 
   RelativeOffset := PointF(0, 0);
@@ -2270,7 +2313,8 @@ begin
   Result := 0;
   for ICount := 0 to Count - 1 do
   begin
-    if (Items[ICount].ItemRect.Left = 0) then     // SF - only add up items in first column
+    //if (Items[ICount].ItemRect.Left = 0) then     // SF - only add up items in first column
+    if (Items[ICount].FIsFirstCol) then     // SF - Tile
       Result := Result + Items[ICount].Height;
   end;
 end;
@@ -2446,6 +2490,7 @@ begin
       True: FIndicator.Stroke.Kind := TBrushKind.Solid;
     end;
     FIndicator.Render(FBitmap.Canvas);
+    FTileBackground.Render(FBitmap.Canvas);                                     // SF - Tile
     FImage.Render(FBitmap.Canvas);
     FTitle.Render(FBitmap.Canvas);
     FSubTitle.Render(FBitmap.Canvas);
@@ -2501,6 +2546,9 @@ begin
   FFont.Size := C_TABLEVIEW_DEFAULT_FONT_SIZE;
   FIndicator := TksTableViewItemShape.Create(Self);
   FIndicator.VertAlign := TksTableItemAlign.Center;
+
+  FTileBackground := TksTableViewItemTileBackground.Create(Self);               // SF - Tile
+
   FActionButtons := TksTableViewActionButtons.Create(Self);
 
   FPickerItems := TStringList.Create;
@@ -2536,6 +2584,7 @@ begin
   FTagString := '';
   FTagInteger := 0;
   FColCount := 0;          // SF
+  FAppearance := iaNormal; // SF - Tile
 end;
 
 procedure TksTableViewItem.DeselectObjects;
@@ -2551,6 +2600,7 @@ end;
 destructor TksTableViewItem.Destroy;
 begin
   FreeAndNil(FIndicator);
+  FreeAndNil(FTileBackground);                                                  // SF - Tile
   FreeAndNil(FAccessory);
   FreeAndNil(FTitle);
   FreeAndNil(FSubTitle);
@@ -2803,9 +2853,12 @@ begin
   end;
 end;
 
-procedure TksTableViewItem.RealignStandardObjects;
+{procedure TksTableViewItem.RealignStandardObjects;
 var
   ARect: TRectF;
+  TileImageOffsetT : Single;                                                    // SF - Tile
+  TileImageOffsetB : Single;                                                    // SF - Tile
+  Margins          : TRectF;                                                    // SF - Tile
 begin
   FUpdating := True;
   try
@@ -2850,7 +2903,143 @@ begin
   finally
     FUpdating := False;
   end;
+end;      }
+
+procedure TksTableViewItem.RealignStandardObjects;
+var
+  ARect: TRectF;
+  TileImageOffsetT : Single;                                                    // SF - Tile
+  TileImageOffsetB : Single;                                                    // SF - Tile
+  Margins          : TRectF;                                                    // SF - Tile
+begin
+  FUpdating := True;
+  try
+    if (FAppearance=TksTableViewItemAppearance.iaNormal) then                   // SF - Tile
+    begin                                                                       // SF - Tile
+      ARect := GetInternalRect;
+
+      if (FPurpose = None) and (FTableView.RowIndicators.Visible) then
+      begin
+        FIndicator.FPlaceOffset := PointF(ARect.Left, 0);
+        FIndicator.Width := FTableView.RowIndicators.Width;
+        FIndicator.Height := FTableView.RowIndicators.Height;
+        if FIndicator.Height = 0 then
+          FIndicator.Height := ItemRect.Height - 16;
+        ARect.Left := ARect.Left + FTableView.RowIndicators.Width+4;
+      end;
+      FTileBackground.Width:=0;                                                 // SF - Tile
+      FTileBackground.Height:=0;                                                // SF - Tile
+      if FImage.Bitmap <> nil then
+      begin
+        FImage.Width := FTableView.ItemImageSize;
+        FImage.Height := FTableView.ItemImageSize;
+        FImage.FPlaceOffset := PointF(ARect.Left, 0);
+        ARect.Left := ARect.Left + FTableView.ItemImageSize + 4;
+      end;
+      if FAccessory.Accessory <> atNone then
+      begin
+        ARect.Right := ARect.Right-4;
+        FAccessory.FPlaceOffset := Point(-4, 0);
+      end;
+      FTitle.FPlaceOffset := PointF(ARect.Left, 0);
+      FTitle.Width := ARect.Width;// * (((Ord(FTitleWidth)+1)*10) / 100);
+
+      FTitle.Height := GetTextHeight(FTitle.Text, FTitle.Font,  FTitle.WordWrap, FTitle.FTrimming, FTitle.Width);
+
+      FSubTitle.FPlaceOffset := PointF(ARect.Left, 0);
+      FSubTitle.Width := ARect.Width;// * (((Ord(FTitleWidth)+1)*10) / 100);
+      FSubTitle.Height := GetTextHeight(FSubTitle.Text, FSubTitle.Font, FSubTitle.WordWrap, FSubTitle.FTrimming, FSubTitle.Width);
+      if FSubTitle.Text <> '' then
+      begin
+        FTitle.FPlaceOffset := PointF(FTitle.FPlaceOffset.x, -9);
+        FSubTitle.FPlaceOffset := PointF(FSubTitle.FPlaceOffset.x, 9);
+      end;
+      FDetail.FPlaceOffset := PointF(ARect.Right-(ARect.Width/2), 0);
+      FDetail.Width := ARect.Width/2;
+      FDetail.Height := GetTextHeight(FDetail.Text, FDetail.Font, FDetail.WordWrap, FDetail.FTrimming);
+    end
+    else if (FAppearance>=iaTile_Image) and (FAppearance<=iaTile_SubTitleImageTitle) then                                                   // SF - Tile
+    begin                                                                                                                                   // SF - Tile
+      FIndicator.Width := 0;                                                                                                                // SF - Tile
+      FTitle.Width     := 0;                                                                                                                // SF - Tile
+      FSubTitle.Width  := 0;                                                                                                                // SF - Tile
+      FDetail.Width    := 0;                                                                                                                // SF - Tile
+      FAccessory.Width := 0;                                                                                                                // SF - Tile
+      TileImageOffsetT := 0;                                                                                                                // SF - Tile
+      TileImageOffsetB := 0;                                                                                                                // SF - Tile
+                                                                                                                                            // SF - Tile
+      Margins.Left   := FTileBackground.Margins.Left;                                                                                       // SF - Tile
+      Margins.Top    := FTileBackground.Margins.Top;                                                                                        // SF - Tile
+      Margins.Right  := FTileBackground.Margins.Right;                                                                                      // SF - Tile
+      Margins.Bottom := FTileBackground.Margins.Bottom;                                                                                     // SF - Tile
+                                                                                                                                            // SF - Tile
+      if (not FIsFirstCol) then Margins.Left   := Round(Margins.Left   / 2);                                                                // SF - Tile
+      if (not FIsFirstRow) then Margins.Top    := Round(Margins.Top    / 2);                                                                // SF - Tile
+      if (not FIsLastCol ) then Margins.Right  := Round(Margins.Right  / 2);                                                                // SF - Tile
+      if (not FIsLastRow ) then Margins.Bottom := Round(Margins.Bottom / 2);                                                                // SF - Tile
+                                                                                                                                            // SF - Tile
+      ARect.Left   := FItemRect.Left   + Margins.Left;                                                                                      // SF - Tile
+      ARect.Top    := Margins.Top;                                                                                                          // SF - Tile
+      ARect.Width  := FItemRect.Width  - Margins.Left - Margins.Right;                                                                      // SF - Tile
+      ARect.Height := FItemRect.Height - Margins.Top  - Margins.Bottom;                                                                     // SF - Tile
+                                                                                                                                            // SF - Tile
+      FTileBackground.FPlaceOffset := PointF(ARect.Left, ARect.Top);                                                                        // SF - Tile
+      FTileBackground.Width        := ARect.Width;                                                                                          // SF - Tile
+      FTileBackground.Height       := ARect.Height;                                                                                         // SF - Tile
+                                                                                                                                            // SF - Tile
+      ARect.Left   := ARect.Left   + FTileBackground.Padding.Left;                                                                          // SF - Tile
+      ARect.Top    := ARect.Top    + FTileBackground.Padding.Top;                                                                           // SF - Tile
+      ARect.Right  := ARect.Right  - FTileBackground.Padding.Right;                                                                         // SF - Tile
+      ARect.Bottom := ARect.Bottom - FTileBackground.Padding.Bottom;                                                                        // SF - Tile
+                                                                                                                                            // SF - Tile
+      if (FAppearance=iaTile_TitleImage) or (FAppearance=iaTile_TitleImageSubTitle) then                                                    // SF - Tile
+      begin                                                                                                                                 // SF - Tile
+        FTitle.Width        := GetTextWidth(FTitle.Text, FTitle.Font);                                                                      // SF - Tile
+        FTitle.Height       := GetTextHeight(FTitle.Text, FTitle.Font,  FTitle.WordWrap, FTitle.FTrimming, FTitle.Width);                   // SF - Tile
+        FTitle.FPlaceOffset := PointF(ARect.Left + ((ARect.Width - FTitle.Width) / 2), ARect.Top);                                          // SF - Tile
+                                                                                                                                            // SF - Tile
+        TileImageOffsetT := FTitle.Height;                                                                                                  // SF - Tile
+      end                                                                                                                                   // SF - Tile
+      else if (FAppearance=iaTile_SubTitleImageTitle) then                                                                                  // SF - Tile
+      begin                                                                                                                                 // SF - Tile
+        FSubTitle.Width        := GetTextWidth(FSubTitle.Text, FSubTitle.Font);                                                             // SF - Tile
+        FSubTitle.Height       := GetTextHeight(FSubTitle.Text, FSubTitle.Font, FSubTitle.WordWrap, FSubTitle.FTrimming, FSubTitle.Width);  // SF - Tile
+        FSubTitle.FPlaceOffset := PointF(ARect.Left + ((ARect.Width - FSubTitle.Width) / 2), ARect.Top);                                    // SF - Tile
+                                                                                                                                            // SF - Tile
+        TileImageOffsetT := FSubTitle.Height;                                                                                               // SF - Tile
+      end;                                                                                                                                  // SF - Tile
+                                                                                                                                            // SF - Tile
+      if (FAppearance=iaTile_ImageTitle) or (FAppearance=iaTile_SubTitleImageTitle) then                                                    // SF - Tile
+      begin                                                                                                                                 // SF - Tile
+        FTitle.Width        := GetTextWidth(FTitle.Text, FTitle.Font);                                                                      // SF - Tile
+        FTitle.Height       := GetTextHeight(FTitle.Text, FTitle.Font,  FTitle.WordWrap, FTitle.FTrimming, FTitle.Width);                   // SF - Tile
+        FTitle.FPlaceOffset := PointF(ARect.Left + ((ARect.Width - FTitle.Width) / 2), ARect.Bottom - FTitle.Height);                       // SF - Tile
+                                                                                                                                            // SF - Tile
+        TileImageOffsetB := FTitle.Height;                                                                                                  // SF - Tile
+      end                                                                                                                                   // SF - Tile
+      else if (FAppearance=iaTile_TitleImageSubTitle) then                                                                                  // SF - Tile
+      begin                                                                                                                                 // SF - Tile
+        FSubTitle.Width        := GetTextWidth(FSubTitle.Text, FSubTitle.Font);                                                             // SF - Tile
+        FSubTitle.Height       := GetTextHeight(FSubTitle.Text, FSubTitle.Font, FSubTitle.WordWrap, FSubTitle.FTrimming, FSubTitle.Width);  // SF - Tile
+        FSubTitle.FPlaceOffset := PointF(ARect.Left + ((ARect.Width - FSubTitle.Width) / 2), ARect.Bottom - FSubTitle.Height);              // SF - Tile
+                                                                                                                                            // SF - Tile
+        TileImageOffsetB := FSubTitle.Height;                                                                                               // SF - Tile
+      end;                                                                                                                                  // SF - Tile
+                                                                                                                                            // SF - Tile
+      if FImage.Bitmap <> nil then                                                                                                          // SF - Tile
+      begin                                                                                                                                 // SF - Tile
+        FImage.Width := ARect.Width;                                                                                                        // SF - Tile
+        FImage.Height := ARect.Height - TileImageOffsetT - TileImageOffsetB;                                                                // SF - Tile
+        FImage.FPlaceOffset := PointF(ARect.Left, ARect.Top + TileImageOffsetT);                                                            // SF - Tile
+        ARect.Left := ARect.Left + FTableView.ItemImageSize + 4;                                                                            // SF - Tile
+      end;                                                                                                                                  // SF - Tile
+    end;                                                                                                                                    // SF - Tile
+
+  finally
+    FUpdating := False;
+  end;
 end;
+
 
 {
 procedure TksTableViewItem.Render(ACanvas: TCanvas; AScrollPos: single);
@@ -2948,27 +3137,30 @@ begin
     ACanvas.DrawBitmap(FBitmap, ASrcRect, ARect, 1, True);  // SF
   end;
 
-  // seperator...
-  ACanvas.Stroke.Color := FTableView.Appearence.SeparatorColor;
-  ACanvas.StrokeThickness := 1;
-  ACanvas.Stroke.Kind := TBrushKind.Solid;
-  ACanvas.Stroke.Dash := TStrokeDash.Solid;
-  if FPurpose = Header then
-  begin
-    ACanvas.Stroke.Color := $FFD2D2D2;
-    ACanvas.StrokeThickness := 0.5;
+  if (FPurpose = TksTableViewItemPurpose.Header) or (FAppearance=iaNormal) then                                   // SF - Tile
+  begin                                                                                                           // SF - Tile
+    // seperator...
+    ACanvas.Stroke.Color := FTableView.Appearence.SeparatorColor;
+    ACanvas.StrokeThickness := 1;
+    ACanvas.Stroke.Kind := TBrushKind.Solid;
+    ACanvas.Stroke.Dash := TStrokeDash.Solid;
+    if FPurpose = Header then
+    begin
+      ACanvas.Stroke.Color := $FFD2D2D2;
+      ACanvas.StrokeThickness := 0.5;
+    end;
+    ASeperatorMargin := 0;
+    if (FTableView.FullWidthSeparator = False) and (FPurpose = TksTableViewItemPurpose.None) then
+      ASeperatorMargin := FTitle.FPlaceOffset.X;
+    if (ARect.Left=0) then                                                                                        // SF
+    begin                                                                                                         // SF
+      ACanvas.DrawLine(PointF(ARect.Left + ASeperatorMargin, ARect.Top), PointF(FTableView.Width, ARect.Top), 1); // SF
+      if (IsLastItem) or (FPurpose = TksTableViewItemPurpose.Header) then                                         // SF
+        ACanvas.DrawLine(PointF(0, ARect.Bottom), PointF(FTableView.Width, ARect.Bottom), 1);                     // SF
+    end;                                                                                                          // SF
+    if FPurpose <> Header then                                                                                    // SF
+      ACanvas.DrawLine(PointF(ARect.Right, ARect.Top), PointF(ARect.Right, ARect.Bottom), 1);                     // SF
   end;
-  ASeperatorMargin := 0;
-  if (FTableView.FullWidthSeparator = False) and (FPurpose = TksTableViewItemPurpose.None) then
-    ASeperatorMargin := FTitle.FPlaceOffset.X;
-  if (ARect.Left=0) then                                                                                        // SF
-  begin                                                                                                         // SF
-    ACanvas.DrawLine(PointF(ARect.Left + ASeperatorMargin, ARect.Top), PointF(FTableView.Width, ARect.Top), 1); // SF
-    if (IsLastItem) or (FPurpose = TksTableViewItemPurpose.Header) then                                         // SF
-      ACanvas.DrawLine(PointF(0, ARect.Bottom), PointF(FTableView.Width, ARect.Bottom), 1);                     // SF
-  end;                                                                                                          // SF
-  if FPurpose <> Header then                                                                                    // SF
-    ACanvas.DrawLine(PointF(ARect.Right, ARect.Top), PointF(ARect.Right, ARect.Bottom), 1);                     // SF
 end;
 
 procedure TksTableViewItem.SetCached(const Value: Boolean);
@@ -3023,6 +3215,16 @@ procedure TksTableViewItem.SetIndex(const Value: integer);
 begin
   FIndex := Value;
 end;
+
+procedure TksTableViewItem.SetAppearance(const Value: TksTableViewItemAppearance); // SF - Tile
+begin                                                                              // SF - Tile
+  if (FAppearance<>Value) then                                                     // SF - Tile
+  begin                                                                            // SF - Tile
+    FAppearance := Value;                                                          // SF - Tile
+    FCached := False;                                                              // SF - Tile
+    CacheItem;                                                                     // SF - Tile
+  end;                                                                             // SF - Tile
+end;                                                                               // SF - Tile
 
 procedure TksTableViewItem.SetIndicatorColor(const Value: TAlphaColor);
 begin
@@ -3488,10 +3690,12 @@ var
   AXPos: single;            // SF
   ANoCols: integer;         // SF
   ACol: Integer;            // SF
+  ARow: Integer;            // SF - Tile
   AHeight: single;          // SF
   AClientHeight: single;    // SF
   AWidth: single;
   AItem: TksTableViewItem;
+  AIsLastRow: Boolean;      // SF - Tile
 begin
   if FUpdateCount > 0 then
     Exit;
@@ -3503,6 +3707,7 @@ begin
   AXPos         := 0;                                                              // SF
   AYPos         := GetSearchHeight;                                                 // SF
   ACol          := 0;                                                              // SF
+  ARow          := 0;                                                              // SF - Tile
   AClientHeight := Height - GetSearchHeight();                                     // SF
                                                                                    // SF
   for ICount := 0 to FFilteredItems.Count - 1 do                                   // SF
@@ -3514,6 +3719,7 @@ begin
                                                                                    // SF
     if (AItem.Purpose=TksTableViewItemPurpose.Header) then                         // SF
     begin                                                                          // SF
+      ARow := 0;                                                                   // SF - Tile
       if (ACol>0) then                                                             // SF
       begin                                                                        // SF
         ACol  := 0;                                                                // SF
@@ -3532,6 +3738,10 @@ begin
     else                                                                           // SF
       AItem.ItemRect := RectF(AXPos, AYPos, AXPos + AWidth, AYPos + AItem.Height); // SF
                                                                                    // SF
+    AItem.FIsFirstCol := (ACol=0);                                                 // SF - Tile
+    AItem.FIsLastCol  := (ACol=ANoCols-1);                                         // SF - Tile
+    AItem.FIsFirstRow := (ARow=0);                                                 // SF - Tile
+    AItem.FIsLastRow  := false;                                                    // SF - Tile
     AItem.Index := ICount;                                                         // SF
                                                                                    // SF
     // First column item sets row height                                           // SF
@@ -3548,8 +3758,24 @@ begin
       AYPos := AYPos + AHeight;                                                    // SF
       ACol  := 0;                                                                  // SF
       AXPos := 0;                                                                  // SF
+      if (AItem.Purpose<>TksTableViewItemPurpose.Header) then                      // SF - Tile
+        Inc(ARow);                                                                 // SF - Tile
     end;                                                                           // SF
-  end;                                                                             // SF
+  end;
+  AIsLastRow := true;                                                              // SF - Tile
+  for ICount := FFilteredItems.Count - 1 downto 0 do                               // SF - Tile
+  begin                                                                            // SF - Tile
+    AItem := FFilteredItems[ICount];                                               // SF - Tile
+                                                                                   // SF - Tile
+    if (FFilteredItems[ICount].Purpose=TksTableViewItemPurpose.Header) then        // SF - Tile
+      AIsLastRow := true                                                           // SF - Tile
+    else                                                                           // SF - Tile
+    begin                                                                          // SF - Tile
+      AItem.FIsLastRow  := AIsLastRow;                                             // SF - Tile
+      if (AItem.FIsFirstCol) then                                                  // SF - Tile
+        AIsLastRow := false;                                                       // SF - Tile
+    end;                                                                           // SF - Tile
+  end;                                                                             // SF - Tile                                                                            // SF
 end;
 
 procedure TksTableView.UpdateScrollingLimits;
@@ -3943,11 +4169,13 @@ begin
       FDragDropImage.FShadow.Enabled := FDragDropOptions.Shadow;
 
       FDragDropImage.Parent             := Form;
-      FDragDropImage.Width              := FMouseDownItem.FBitmap.Width;
-      FDragDropImage.Height             := FMouseDownItem.FBitmap.Height;
+      FDragDropImage.HitTest := False;
+      FDragDropImage.Width              := FMouseDownItem.FBitmap.Width / GetScreenScale;
+      FDragDropImage.Height             := FMouseDownItem.FBitmap.Height  / GetScreenScale;
       FDragDropImage.Fill.Bitmap.Bitmap := FMouseDownItem.FBitmap;
 
       FDragDropImage.Fill.Kind          := TBrushKind.Bitmap;
+      FDragDropImage.Fill.Bitmap.WrapMode := TWrapMode.TileStretch;
       FDragDropImage.Stroke.Thickness   := GetScreenScale() / 2;
       FDragDropImage.Opacity            := FDragDropOptions.Opacity;
 
@@ -3956,7 +4184,7 @@ begin
 
       Capture();
       FDragDropImage.MouseDownOffset := PointF(FMouseDownPoint.X - FMouseDownItem.ItemRect.Left,
-                                               FMouseDownPoint.Y - FMouseDownItem.ItemRect.Top);
+                                               FMouseDownPoint.Y - FMouseDownItem.ItemRect.Top + GetScrollViewPos); // SF - DDFIX
       if FDragDropImage.MouseDownOffset.Y < 8 then
         FDragDropImage.MouseDownOffset := PointF(FDragDropImage.MouseDownOffset.X, FDragDropImage.MouseDownOffset.y + 8);
       UpdateDropImage(FMouseDownPoint.X+8, FMouseDownPoint.Y+8);
@@ -3991,7 +4219,8 @@ begin
   FormMousePos   := TForm(FDragDropImage.Parent).ScreenToClient(ScreenMousePos);
   FDragDropImage.SetBounds(FormMousePos.X - FDragDropImage.MouseDownOffset.X,
                            FormMousePos.Y - FDragDropImage.MouseDownOffset.Y,
-                           FDragDropImage.Width,FMouseDownItem.FBitmap.Height);
+                           FDragDropImage.Width, FDragDropImage.Height);
+                           //FDragDropImage.Width / GetScreenScale,FMouseDownItem.FBitmap.Height / GetScreenScale);
   //FDragDropImage.SetBounds(FormMousePos.X,FormMousePos.Y - (FDragDropImage.Height / 2),FDragDropImage.Width,FMouseDownItem.FBitmap.Height);
 end;
 
@@ -4320,6 +4549,7 @@ var                                                                             
   //MouseDropItem :  TksTableViewItem;
   AAllowMove: Boolean;
   ADragOverItem: TksTableViewItem;
+  Form: TCustomForm;
 begin
   AAllowMove := False;
   if FMouseDownObject <> nil then
@@ -4331,7 +4561,8 @@ begin
 
   if (FDragging) then                                            // SF - DD
   begin                                                                         // SF - DD
-
+    Form := TCustomForm(Root.GetObject());
+    Form.RemoveObject(FDragDropImage);
     FreeAndNil(FDragDropImage);                                                 // SF - DD
     FDragDropImage := nil;
     KillTimer(FDragDropScrollTimer);                                            // SF - DD
@@ -4811,6 +5042,28 @@ procedure TksTableViewItemShape.SetStroke(const Value: TStrokeBrush);
 begin
   FStroke.Assign(Value);
 end;
+
+{ TksTableViewItemTileBackground }                                                       // SF - Tile
+
+constructor TksTableViewItemTileBackground.Create(ATableItem: TksTableViewItem);// SF - Tile
+begin                                                                           // SF - Tile
+  inherited;                                                                    // SF - Tile
+  FPadding := TBounds.Create(RectF(5,5,5,5));                                   // SF - Tile
+  CornerRadius := 5;                                                            // SF - Tile
+  Width := 0;                                                                   // SF - Tile
+  Height := 0;                                                                  // SF - Tile
+  Margins.Left := 5;                                                            // SF - Tile
+  Margins.Top := 5;                                                             // SF - Tile
+  Margins.Right := 5;                                                           // SF - Tile
+  Margins.Bottom := 5;                                                          // SF - Tile
+end;
+                                                                                // SF - Tile
+destructor TksTableViewItemTileBackground.Destroy;                              // SF - Tile
+begin                                                                           // SF - Tile
+  FreeAndNil(FPadding);                                                         // SF - Tile
+  inherited;                                                                    // SF - Tile
+end;
+
 
 { TksListViewRowIndicators }
 
