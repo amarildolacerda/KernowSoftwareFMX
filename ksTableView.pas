@@ -1096,6 +1096,7 @@ type
     procedure UpdateItemRects;
     procedure UncheckAll;
     procedure UpdateScrollingLimits;
+    procedure RedrawAllIVisibleItems;
     property UpdateCount: integer read FUpdateCount;
     property TopItem: TksTableViewItem read GetTopItem;
     property VisibleItems: TList<TksTableViewItem> read GetVisibleItems;
@@ -4833,6 +4834,21 @@ begin
   end;
 end;
 
+
+procedure TksTableView.RedrawAllIVisibleItems;
+var
+  AList: TList<TksTableViewItem>;
+  ICount: integer;
+begin
+  AList := GetVisibleItems;
+  try
+    for ICount := 0 to AList.Count-1 do
+      AList[ICount].RecreateCache;
+    Invalidate;
+  finally
+    AList.Free;
+  end;
+end;
 
 procedure TksTableView.Resize;
 begin
