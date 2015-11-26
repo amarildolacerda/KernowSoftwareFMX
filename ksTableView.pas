@@ -108,7 +108,7 @@ type
   TksItemActionButtonClickEvent = procedure(Sender: TObject; ARow: TksTableViewItem; AButton: TksTableViewActionButon) of object;
   TksTableViewItemSwitchEvent = procedure(Sender: TObject; AItem: TksTableViewItem; ASwitch: TksTableViewItemSwitch; ARowID: string) of object;
   TksTableViewItemButtonEvent = procedure(Sender: TObject; AItem: TksTableViewItem; AButton: TksTableViewItemButton; ARowID: string) of object;
-  
+
   TksItemChecMarkChangedEvent = procedure(Sender: TObject; ARow: TksTableViewItem; AChecked: Boolean) of object;
   TksTableViewSelectDateEvent = procedure(Sender: TObject; AItem: TksTableViewItem; ASelectedDate: TDateTime; var AAllow: Boolean) of object;
   TksTableViewSelectPickerItem = procedure(Sender: TObject; AItem: TksTableViewItem; ASelected: string; var AAllow: Boolean) of object;
@@ -596,6 +596,8 @@ type
     FIsLastRow : Boolean;                     // SF - Tile
     FAppearance : TksTableViewItemAppearance; // SF - Tile
 
+    FDragging: Boolean;
+    FFill : TBrush;                           // SF - BK
     function MatchesSearch(AFilter: string): Boolean;
     function IsVisible(AViewport: TRectF): Boolean;
     function GetHeight: single;
@@ -634,6 +636,7 @@ type
     procedure SetItemData(const AIndex: string; const Value: TValue);
     function GetHasData(const AIndex: string): Boolean;
     procedure DeselectObjects;
+    procedure SetFill(const Value: TBrush);
   protected
     procedure Render(ACanvas: TCanvas; AScrollPos: single);
     procedure CacheItem(const AForceCache: Boolean = False);
@@ -716,6 +719,8 @@ type
     property IsFirstRow: Boolean read FIsFirstRow;                                                          // SF - Tile
     property IsLastRow: Boolean read FIsLastRow;                                                            // SF - Tile
     property Appearance: TksTableViewItemAppearance read FAppearance write SetAppearance default iaNormal;  // SF - Tile
+    property Fill: TBrush read FFill write SetFill;                                                         // SF - BK
+
     //property TitleWidth: TksTableViewTextWidth read FTitleWidth write SetTitleWidth default ksWidth60Percent;
     //property ActionButtonsWidth: integer read FActionButtonsWidth write SetActionButtonsWidth;
   end;
@@ -889,13 +894,30 @@ type
 
   TksDragImage = class(TRectangle)
   private
+    FBorder: TRectangle;
     FShadow: TShadowEffect;
     FMouseDownOffset: TPointF;
+    procedure SetAllowDropColor(const Value: TAlphaColor);
+    function GetAllowDropColor: TAlphaColor;
     property MouseDownOffset: TPointF read FMouseDownOffset write FMouseDownOffset;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     property Shadow: TShadowEffect read FShadow;
+    property AllowDropColor: TAlphaColor read GetAllowDropColor write SetAllowDropColor default claNull;
+  end;
+
+  TksDragHighlightOptions = class(TPersistent)
+  private
+    FAllowDropStroke: TAlphaColor;
+    FDisallowDropStroke: TAlphaColor;
+    FEnabled: Boolean;
+  public
+    constructor Create;
+  published
+    property AllowDropColor: TAlphaColor read FAllowDropStroke write FAllowDropStroke default claLimegreen;
+    property DisallowDropColor: TAlphaColor read FDisallowDropStroke write FDisallowDropStroke default claRed;
+    property Enabled: Boolean read FEnabled write FEnabled default True;
   end;
 
   TksDragDropOptions = class(TPersistent)
@@ -903,11 +925,17 @@ type
     FEnabled: Boolean;
     FShadow: Boolean;
     FOpacity: single;
+    FDragSpaceColor: TAlphaColor;
+    FDragHighlightOptions: TksDragHighlightOptions;
     procedure SetOpacity(const Value: single);
     procedure SetShadow(const Value: Boolean);
+    procedure SetDragHighlightOptions(const Value: TksDragHighlightOptions);
   public
     constructor Create; virtual;
+    destructor Destroy; override;
   published
+    property DragHighlight: TksDragHighlightOptions read FDragHighlightOptions write SetDragHighlightOptions;
+    property DragSpaceColor: TAlphaColor read FDragSpaceColor write FDragSpaceColor default $FFECECEC;
     property Enabled: Boolean read FEnabled write FEnabled default False;
     property Shadow: Boolean read FShadow write SetShadow default True;
     property Opacity: single read FOpacity write SetOpacity;
@@ -962,6 +990,8 @@ type
     FDragDropImage : TksDragImage;                                                // SF - DD
     FDragDropScrollTimer: TFmxHandle;                                           // SF - DD
     FDragging: Boolean;
+    FOnBeforePaint : TPaintEvent;                                               // SF - BK
+    FOnAfterPaint : TPaintEvent;                                                // SF - BK
 
 
     // events...
@@ -1163,6 +1193,8 @@ type
     property OnCanDragItem: TksTableViewCanDragItemEvent read FOnCanDragItem write FOnCanDragItem;       // SF - DD
     property OnCanDropItem: TksTableViewCanDropItemEvent read FOnCanDropItem write FOnCanDropItem;       // SF - DD
     property OnDropItem: TksTableViewDropItemEvent read FOnDropItem write FOnDropItem;                   // SF - DD
+    property OnBeforePaint: TPaintEvent read FOnBeforePaint write FOnBeforePaint;                        // SF - BK
+    property OnAfterPaint: TPaintEvent read FOnAfterPaint write FOnAfterPaint;                           // SF - BK
 
     (*
       property Transparent default False;
@@ -2401,6 +2433,7 @@ var
   ICount: integer;
   ColumnOffset : Single;  // SF
   w,h: integer;
+  DrawnSelection : Boolean;  // SF - BK
 begin
   if (FUpdating) or (FTableView.UpdateCount > 0) then
     Exit;
@@ -2449,39 +2482,61 @@ begin
 
   //end;
 
-  FBitmap.Clear(FTableView.Appearence.ItemBackground.Color);
+ {                                                                               // SF - BK
+  FBitmap.Clear(FTableView.Appearence.ItemBackground.Color);                    // SF - BK
+                                                                                // SF - BK
+  //if FTableView.Appearence.ItemBackground. then                               // SF - BK
+  //FBitmap.                                                                    // SF - BK
+                                                                                // SF - BK
+  if FTableView.Appearence.AlternatingItemBackground <> claNull then            // SF - BK
+  begin                                                                         // SF - BK
+    if FIndex mod 2 = 0 then                                                    // SF - BK
+      FBitmap.Clear(FTableView.Appearence.AlternatingItemBackground);           // SF - BK
+  end;                                                                          // SF - BK
+}                                                                               // SF - BK
 
-  //if FTableView.Appearence.ItemBackground. then
-  //FBitmap.
-
-  if FTableView.Appearence.AlternatingItemBackground <> claNull then
-  begin
-    if FIndex mod 2 = 0 then
-      FBitmap.Clear(FTableView.Appearence.AlternatingItemBackground);
-  end;
-
+  DrawnSelection := false;                                                      // SF - BK
   if (FTableView.ShowSelection) and (FCanSelect) then
   begin
     if (FIndex = FTableView.ItemIndex) or (Checked)  then
-      FBitmap.Clear(GetColorOrDefault(FTableView.Appearence.SelectedColor, C_TABLEVIEW_DEFAULT_HEADER_COLOR));
-  end;
-
-  if (FPurpose <> None) then
-    FBitmap.Clear(GetColorOrDefault(FTableView.Appearence.HeaderColor,
-      C_TABLEVIEW_DEFAULT_HEADER_COLOR));
-
+    begin                                                                       // SF - BK
+      FBitmap.Clear(GetColorOrDefault(FTableView.Appearence.SelectedColor,      // SF - BK
+                                      C_TABLEVIEW_DEFAULT_SELECTED_COLOR));     // SF - BK
+      DrawnSelection := true;                                                   // SF - BK
+    end;                                                                        // SF - BK
+  end;                                                                          // SF - BK
+{                                                                               // SF - BK
+  if (FPurpose <> None) then                                                    // SF - BK
+    FBitmap.Clear(GetColorOrDefault(FTableView.Appearence.HeaderColor,          // SF - BK
+      C_TABLEVIEW_DEFAULT_HEADER_COLOR));                                       // SF - BK
+}                                                                               // SF - BK
   ARect := RectF(0, 0, FBitmap.Width, FBitmap.Height);
 
   FBitmap.Canvas.BeginScene;
   try
-    if (FTableView.Appearence.ItemBackground.Kind <> TBrushKind.Solid) and
-       (FPurpose = None) and
-       (FTableView.ItemIndex <> FIndex) then
-    begin
-
-      FBitmap.Canvas.Fill.Assign(FTableView.Appearence.ItemBackground);
-      FBitmap.Canvas.FillRect(ARect, 0, 0, AllCorners, 1);
+    if not (DrawnSelection) then                                                                    // SF - BK
+    begin                                                                                           // SF - BK
+      if (FFill.Kind<>TBrushKind.None) then                                                         // SF - BK
+        FBitmap.Canvas.Fill.Assign(FFill)                                                           // SF - BK
+      else if (FPurpose<>None) then                                                                 // SF - BK
+      begin                                                                                         // SF - BK
+        FBitmap.Canvas.Fill.Kind  := TBrushKind.Solid;                                              // SF - BK
+        FBitmap.Canvas.Fill.Color := GetColorOrDefault(FTableView.Appearence.HeaderColor,           // SF - BK
+                                     C_TABLEVIEW_DEFAULT_HEADER_COLOR)                              // SF - BK
+      end                                                                                           // SF - BK
+      else                                                                                          // SF - BK
+      begin                                                                                         // SF - BK
+        if (FTableView.Appearence.AlternatingItemBackground <> claNull) and (FIndex mod 2 = 0) then // SF - BK
+        begin                                                                                       // SF - BK
+          FBitmap.Canvas.Fill.Kind  := TBrushKind.Solid;                                            // SF - BK
+          FBitmap.Canvas.Fill.Color := FTableView.Appearence.AlternatingItemBackground;             // SF - BK
+        end                                                                                         // SF - BK
+        else                                                                                        // SF - BK
+          FBitmap.Canvas.Fill.Assign(FTableView.Appearence.ItemBackground);                         // SF - BK
+      end;                                                                                          // SF - BK
+      FBitmap.Canvas.FillRect(ARect, 0, 0, AllCorners, 1);                                          // SF - BK
     end;
+
     if Assigned(FTableView.BeforeRowCache) then
       FTableView.BeforeRowCache(FTableView, FBitmap.Canvas, Self, ARect);
 
@@ -2544,6 +2599,7 @@ begin
   FObjects := TksTableViewItemObjects.Create(FTableView);
   FFont := TFont.Create;
   FFont.Size := C_TABLEVIEW_DEFAULT_FONT_SIZE;
+  FFill := TBrush.Create(TBrushKind.None, claNull); // SF - BK
   FIndicator := TksTableViewItemShape.Create(Self);
   FIndicator.VertAlign := TksTableItemAlign.Center;
 
@@ -2585,6 +2641,7 @@ begin
   FTagInteger := 0;
   FColCount := 0;          // SF
   FAppearance := iaNormal; // SF - Tile
+  FDragging := False;
 end;
 
 procedure TksTableViewItem.DeselectObjects;
@@ -2611,6 +2668,7 @@ begin
   FreeAndNil(FImage);
   FreeAndNil(FActionButtons);
   FreeAndNil(FPickerItems);
+  FreeAndNil(FFill);
   inherited;
 end;
 
@@ -2623,7 +2681,7 @@ begin
   AObj := ObjectAtPos(x, y + ItemRect.Top);
   if AObj <> nil then
   begin
-    
+
     if AObj.HitTest then
       AObj.MouseDown(x-AObj.ObjectRect.Left, y-AObj.ObjectRect.Top);
     if AObj.ConsumesClick then
@@ -3105,11 +3163,19 @@ var
   ASeperatorMargin: single;
   ASrcRect: TRectF;  // SF
 begin
+  ARect := FItemRect;
+  OffsetRect(ARect, 0, 0 - AScrollPos);
+
+  if (FDragging) and (FTableView.DragDropOptions.DragSpaceColor <> claNull) then
+  begin
+    ACanvas.Fill.Color := FTableView.DragDropOptions.DragSpaceColor;
+    ACanvas.FillRect(ARect, 0, 0, AllCorners, 1);
+    Exit;
+  end;
+
   CacheItem;
   if FBitmap = nil then
     Exit;
-  ARect := FItemRect;
-  OffsetRect(ARect, 0, 0 - AScrollPos);
   if FActionButtons.Visible = False then
     ACanvas.DrawBitmap(FBitmap, RectF(0, 0, FBitmap.Width, FBitmap.Height), ARect, 1, True)
   else
@@ -3184,6 +3250,12 @@ begin
   if FData = nil then
     FData := TDictionary<string, TValue>.Create;
   FData.AddOrSetValue(AIndex, Value);
+end;
+
+procedure TksTableViewItem.SetFill(const Value: TBrush);
+begin
+  if Value <> nil then
+    FFill.Assign(Value)
 end;
 
 procedure TksTableViewItem.SetFont(const Value: TFont);
@@ -3969,7 +4041,7 @@ procedure TksTableView.DoDeselectItem;
 begin
   //if FMouseDownObject <> nil then
   //  FMouseDownObject.DeselectObjects;
-  
+
   if FTimerService = nil then
     Exit;
   KillTimer(FDeselectTimer);
@@ -4176,10 +4248,10 @@ begin
 
       FDragDropImage.Fill.Kind          := TBrushKind.Bitmap;
       FDragDropImage.Fill.Bitmap.WrapMode := TWrapMode.TileStretch;
-      FDragDropImage.Stroke.Thickness   := GetScreenScale() / 2;
+      //FDragDropImage.Stroke.Thickness   := GetScreenScale() / 2;
       FDragDropImage.Opacity            := FDragDropOptions.Opacity;
 
-      FDragging := True;
+      //FDragging := True;
       FDragDropScrollTimer := CreateTimer(100,DoDropScroll);
 
       Capture();
@@ -4189,6 +4261,7 @@ begin
         FDragDropImage.MouseDownOffset := PointF(FDragDropImage.MouseDownOffset.X, FDragDropImage.MouseDownOffset.y + 8);
       UpdateDropImage(FMouseDownPoint.X+8, FMouseDownPoint.Y+8);
       FDragging := True;
+      FMouseDownItem.FDragging := True;
     end;
   end
   else
@@ -4201,18 +4274,27 @@ var
   ScreenMousePos : TPointF;
   FormMousePos   : TPointF;
   AAllowDrop: Boolean;
+  ADragOverItem: TksTableViewItem;
 begin
   if FDragDropImage = nil then
     Exit;
-  FDragDropImage.Stroke.Color := claRed;
+  //FDragDropImage.Stroke.Color := claRed;
 
   AAllowDrop := False;
 
-  if (Assigned(FOnCanDropItem)) then
+  ADragOverItem := GetItemFromPos(x, y);
+  if (Assigned(FOnCanDropItem)) and (ADragOverItem <> nil) then
   begin
-    FOnCanDropItem(Self, FMouseDownItem, GetItemFromPos(x, y), AAllowDrop);
-    if AAllowDrop then
-      FDragDropImage.Stroke.Color := claBlack;
+    FOnCanDropItem(Self, FMouseDownItem, ADragOverItem, AAllowDrop);
+    if FDragDropOptions.DragHighlight.Enabled then
+    begin
+      case AAllowDrop of
+        True: FDragDropImage.AllowDropColor := GetColorOrDefault(FDragDropOptions.DragHighlight.AllowDropColor, claBlack);
+        False: FDragDropImage.AllowDropColor := GetColorOrDefault(FDragDropOptions.DragHighlight.DisallowDropColor, claBlack);
+      end;
+    end
+    else
+      FDragDropImage.Stroke.Color := claNull;
   end;
 
   ScreenMousePos := LocalToScreen(PointF(x, y));
@@ -4221,6 +4303,7 @@ begin
                            FormMousePos.Y - FDragDropImage.MouseDownOffset.Y,
                            FDragDropImage.Width, FDragDropImage.Height);
                            //FDragDropImage.Width / GetScreenScale,FMouseDownItem.FBitmap.Height / GetScreenScale);
+  Invalidate;
   //FDragDropImage.SetBounds(FormMousePos.X,FormMousePos.Y - (FDragDropImage.Height / 2),FDragDropImage.Width,FMouseDownItem.FBitmap.Height);
 end;
 
@@ -4472,7 +4555,7 @@ begin
       FMouseDownItem.DoClick(FMouseDownPoint.x, (FMouseDownPoint.y - FMouseDownItem.ItemRect.Top) + ScrollViewPos);
       if AConsumesClick then
         Exit;
-    end;  
+    end;
 
     if FMouseDownItem = nil then
       Exit;
@@ -4547,6 +4630,7 @@ procedure TksTableView.MouseUp(Button: TMouseButton; Shift: TShiftState;
   x, y: single);
 var                                                                             // SF - DD
   //MouseDropItem :  TksTableViewItem;
+  ACanDrop: Boolean;
   AAllowMove: Boolean;
   ADragOverItem: TksTableViewItem;
   Form: TCustomForm;
@@ -4571,18 +4655,29 @@ begin
                                                                             // SF - DD
     if (Assigned(FOnDropItem)) and (ADragOverItem <> nil) then
     begin
-      FOnDropItem(Self,FMouseDownItem, ADragOverItem, AAllowMove);         // SF - DD                                                                                // SF - DD
-      if AAllowMove then
+      ACanDrop := True;
+      if Assigned(FOnCanDropItem) then
+         FOnCanDropItem(Self, FMouseDownItem, ADragOverItem, ACanDrop);
+
+      if ACanDrop then
       begin
-        // move the drag row to the new position...
-        FItems.Move(FItems.IndexOf(FMouseDownItem), FItems.IndexOf(ADragOverItem));
-        UpdateItemRects;
-        Invalidate;
+        FOnDropItem(Self,FMouseDownItem, ADragOverItem, AAllowMove);         // SF - DD                                                                                // SF - DD
+        if AAllowMove then
+        begin
+          // move the drag row to the new position...
+          FItems.Move(FItems.IndexOf(FMouseDownItem), FItems.IndexOf(ADragOverItem));
+          UpdateItemRects;
+        end;
       end;
-      FDragging := False;
-      Exit;                                                                     // SF - DD
+                                                                        // SF - DD
+
     end;
-  end;                                                                          // SF - DD
+   FDragging := False;
+    if FMouseDownItem <> nil then
+      FMouseDownItem.FDragging := False;
+    Invalidate;
+    Exit;                                                                     // SF - DD
+  end;
 
   if PtInRect(GetMouseDownBox, PointF(x,y)) then
   begin
@@ -4619,6 +4714,9 @@ begin
   begin
     FPainting := True;
     try
+      if (Assigned(OnBeforePaint)) then                                         // SF - BK
+        OnBeforePaint(Self,Canvas);                                             // SF - BK
+
       if FAppearence.Background <> nil then
         Canvas.Fill.Assign(FAppearence.Background);
       Canvas.FillRect(RectF(0, 0, Width, Height), 0, 0, AllCorners, 1);
@@ -4707,6 +4805,8 @@ begin
           Canvas.FillText(ARect, FBackgroundText.Text, False, 1, [], TTextAlign.Center);
         end;
       end;
+      if (Assigned(OnAfterPaint)) then                                          // SF - BK
+        OnAfterPaint(Self,Canvas);                                              // SF - BK
     finally
       FPainting := False;
     end;
@@ -6135,7 +6235,7 @@ begin
   FTintColor := claNull;
   FText := '';
   FState := ksUnpressed;
-  
+
 end;
 
 procedure TksTableViewItemButton.MouseDown(x, y: single);
@@ -6182,9 +6282,22 @@ end;
 constructor TksDragDropOptions.Create;
 begin
   inherited Create;
+  FDragHighlightOptions := TksDragHighlightOptions.Create;
   FShadow := True;
   FOpacity := 1;
   FEnabled := False;
+  FDragSpaceColor := $FFECECEC;
+end;
+
+destructor TksDragDropOptions.Destroy;
+begin
+  FreeAndNil(FDragHighlightOptions);
+  inherited;
+end;
+
+procedure TksDragDropOptions.SetDragHighlightOptions(const Value: TksDragHighlightOptions);
+begin
+  FDragHighlightOptions := Value;
 end;
 
 procedure TksDragDropOptions.SetOpacity(const Value: single);
@@ -6206,15 +6319,43 @@ end;
 constructor TksDragImage.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
+  FBorder := TRectangle.Create(Self);
+  FBorder.Stroke.Color := claBlack;
+  FBorder.Fill.Color := claNull;
+  FBorder.Align := TAlignLayout.Client;
+  Stroke.Thickness := 3;
   FShadow := TShadowEffect.Create(Self);
-  FShadow.Direction := 90;
+  FShadow.Direction := 45;
+  FShadow.Distance := 4;
+  FShadow.Softness := 0.1;
+  Stroke.Color := claBlack;
   AddObject(FShadow);
+  AddObject(FBorder);
 end;
 
 destructor TksDragImage.Destroy;
 begin
   FreeAndNil(FShadow);
   inherited;
+end;
+
+function TksDragImage.GetAllowDropColor: TAlphaColor;
+begin
+  Result := Stroke.Color;
+end;
+
+procedure TksDragImage.SetAllowDropColor(const Value: TAlphaColor);
+begin
+  Stroke.Color := Value;
+end;
+
+{ TksDragHighlightOptions }
+
+constructor TksDragHighlightOptions.Create;
+begin
+  FAllowDropStroke := claLimegreen;
+  FDisallowDropStroke := claRed;
+  FEnabled := True;
 end;
 
 initialization
