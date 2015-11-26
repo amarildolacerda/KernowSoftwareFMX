@@ -3,7 +3,7 @@ object Form24: TForm24
   Top = 0
   Caption = 'Form24'
   ClientHeight = 480
-  ClientWidth = 292
+  ClientWidth = 640
   FormFactor.Width = 320
   FormFactor.Height = 480
   FormFactor.Devices = [Desktop]
@@ -21,7 +21,7 @@ object Form24: TForm24
     PullToRefresh.Font.Size = 16.000000000000000000
     PullToRefresh.PullText = 'pull to refresh'
     PullToRefresh.ReleaseText = 'release to refresh'
-    Size.Width = 292.000000000000000000
+    Size.Width = 640.000000000000000000
     Size.Height = 392.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 0
@@ -33,33 +33,30 @@ object Form24: TForm24
     TextDefaults.Detail.TextColor = claDodgerblue
     TextDefaults.Header.Font.Size = 13.000000000000000000
     TextDefaults.Header.TextColor = claBlack
-    OnCanDragItem = ksTableView1CanDragItem
-    OnCanDropItem = ksTableView1CanDropItem
-    OnDropItem = ksTableView1DropItem
   end
   object ToolBar2: TToolBar
     Align = Bottom
     Position.Y = 436.000000000000000000
-    Size.Width = 292.000000000000000000
+    Size.Width = 640.000000000000000000
     Size.Height = 44.000000000000000000
     Size.PlatformDefault = False
     StyleLookup = 'bottomtoolbar'
     TabOrder = 2
   end
   object ToolBar1: TToolBar
-    Size.Width = 292.000000000000000000
+    Size.Width = 640.000000000000000000
     Size.Height = 44.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 1
     object Label1: TLabel
       Align = Client
       StyledSettings = [Family, Style, FontColor]
-      Size.Width = 292.000000000000000000
+      Size.Width = 640.000000000000000000
       Size.Height = 44.000000000000000000
       Size.PlatformDefault = False
       TextSettings.Font.Size = 16.000000000000000000
       TextSettings.HorzAlign = Center
-      Text = 'Long tap item to start drag'
+      Text = 'Swipe to use Action Buttons'
     end
   end
 end

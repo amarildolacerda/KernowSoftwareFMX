@@ -108,17 +108,15 @@ type
   TksItemActionButtonClickEvent = procedure(Sender: TObject; ARow: TksTableViewItem; AButton: TksTableViewActionButton) of object;
   TksTableViewItemSwitchEvent = procedure(Sender: TObject; AItem: TksTableViewItem; ASwitch: TksTableViewItemSwitch; ARowID: string) of object;
   TksTableViewItemButtonEvent = procedure(Sender: TObject; AItem: TksTableViewItem; AButton: TksTableViewItemButton; ARowID: string) of object;
-
   TksItemChecMarkChangedEvent = procedure(Sender: TObject; ARow: TksTableViewItem; AChecked: Boolean) of object;
   TksTableViewSelectDateEvent = procedure(Sender: TObject; AItem: TksTableViewItem; ASelectedDate: TDateTime; var AAllow: Boolean) of object;
   TksTableViewSelectPickerItem = procedure(Sender: TObject; AItem: TksTableViewItem; ASelected: string; var AAllow: Boolean) of object;
   TksTableViewEmbeddedEditChange = procedure(Sender: TObject; ARow: TksTableViewItem; AEdit: TksTableViewItemEmbeddedBaseEdit; AText: string) of object;
-
   TksTableViewScrollChangeEvent = procedure(Sender: TObject; AScrollPos, AMaxScrollLimit: single) of object;
-
   TksTableViewCanDragItemEvent = procedure(Sender: TObject; ADragRow: TksTableViewItem; var AllowDrag: Boolean) of object;             // SF - DD
   TksTableViewCanDropItemEvent = procedure(Sender: TObject; ADragRow, ADropRow: TksTableViewItem; var AllowDrop: Boolean)  of object;   // SF - DD
   TksTableViewDropItemEvent    = procedure(Sender: TObject; ADragRow, ADropRow: TksTableViewItem; var AllowMove: Boolean) of object;             // SF - DD
+  TksTableViewSearchFilterChange = procedure(Sender: TObject; ASearchText: string) of object;
 
 
 
@@ -1021,6 +1019,7 @@ type
     FOnCanDropItem : TksTableViewCanDropItemEvent;                              // SF - DD
     FOnDropItem : TksTableViewDropItemEvent;
     FDragDropOptions: TksDragDropOptions;                                    // SF - DD
+    FOnSearchFilterChanged: TksTableViewSearchFilterChange;
 
     function GetViewPort: TRectF;
     procedure SetScrollViewPos(const Value: single);
@@ -1193,6 +1192,7 @@ type
     property OnScrollViewChange: TksTableViewScrollChangeEvent read FOnScrollViewChange write FOnScrollViewChange;
     property OnSelectDate: TksTableViewSelectDateEvent read FOnSelectDate write FOnSelectDate;
     property OnSelectPickerItem: TksTableViewSelectPickerItem read FOnSelectPickerItem write FOnSelectPickerItem;
+    property OnSearchFilterChanged: TksTableViewSearchFilterChange read FOnSearchFilterChanged write FOnSearchFilterChanged;
     property OnSwitchClick: TksTableViewItemSwitchEvent read FOnSwitchClicked write FOnSwitchClicked;
     property OnCanDragItem: TksTableViewCanDragItemEvent read FOnCanDragItem write FOnCanDragItem;       // SF - DD
     property OnCanDropItem: TksTableViewCanDropItemEvent read FOnCanDropItem write FOnCanDropItem;       // SF - DD
@@ -2907,7 +2907,7 @@ begin
   for ICount := FObjects.Count-1 downto 0 do
   begin
     AObj := FObjects[ICount];
-    if PtInRect(AObj.ObjectRect, PointF(x, (y-ItemRect.Top))) then
+    if PtInRect(AObj.ObjectRect, PointF(x, (y-ItemRect.Top)-FTableView.GetSearchHeight)) then
     begin
       Result := AObj;
       Exit;
@@ -4080,6 +4080,8 @@ begin
   UpdateItemRects;            // SF
   UpdateScrollingLimits;      // SF
   Repaint;
+  if Assigned(FOnSearchFilterChanged) then
+    FOnSearchFilterChanged(Self, FSearchBox.Text);
 end;
 
 procedure TksTableView.DoMouseLeave;
@@ -4525,7 +4527,6 @@ procedure TksTableView.MouseDown(Button: TMouseButton; Shift: TShiftState;
   x, y: single);
 var
   AConsumesClick: Boolean;
-  AActionBtn: TksTableViewActionButton;
 begin
   if (UpdateCount > 0) or (FMouseEventsEnabled = False) then
     Exit;
@@ -4650,8 +4651,8 @@ var                                                                             
   Form: TCustomForm;
 begin
   AAllowMove := False;
-  if FMouseDownObject <> nil then
-    FMouseDownObject.MouseUp(0, 0);
+  //if FMouseDownObject <> nil then
+  // FMouseDownObject.MouseUp(0, 0);
 
   if (UpdateCount > 0) or (FMouseEventsEnabled = False) then
     Exit;
