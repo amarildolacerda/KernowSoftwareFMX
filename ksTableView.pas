@@ -4289,8 +4289,8 @@ begin
     if FDragDropOptions.DragHighlight.Enabled then
     begin
       case AAllowDrop of
-        True: FDragDropImage.AllowDropColor := GetColorOrDefault(FDragDropOptions.DragHighlight.AllowDropColor, claBlack);
-        False: FDragDropImage.AllowDropColor := GetColorOrDefault(FDragDropOptions.DragHighlight.DisallowDropColor, claBlack);
+        True: FDragDropImage.AllowDropColor := GetColorOrDefault(FDragDropOptions.DragHighlight.AllowDropColor, claDimgray);
+        False: FDragDropImage.AllowDropColor := GetColorOrDefault(FDragDropOptions.DragHighlight.DisallowDropColor, claDimgray);
       end;
     end
     else
@@ -6320,14 +6320,14 @@ constructor TksDragImage.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
   FBorder := TRectangle.Create(Self);
-  FBorder.Stroke.Color := claBlack;
+  FBorder.Stroke.Color := claDimgray;
   FBorder.Fill.Color := claNull;
   FBorder.Align := TAlignLayout.Client;
   Stroke.Thickness := 3;
   FShadow := TShadowEffect.Create(Self);
   FShadow.Direction := 45;
-  FShadow.Distance := 4;
-  FShadow.Softness := 0.1;
+  FShadow.Distance := 5;
+  FShadow.Softness := 0.2;
   Stroke.Color := claBlack;
   AddObject(FShadow);
   AddObject(FBorder);
