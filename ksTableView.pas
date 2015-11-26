@@ -79,7 +79,7 @@ type
   TksTableViewItemObject = class;
   TksTableView = class;
   TksTableViewActionButtons = class;
-  TksTableViewActionButon = class;
+  TksTableViewActionButton = class;
   TksTableViewItemSwitch = class;
   TksTableViewItemTable = class;
   TksTableViewItemEmbeddedBaseEdit = class;
@@ -105,7 +105,7 @@ type
   TksTableViewDeleteItemEvent = procedure(Sender: TObject; AItem: TksTableViewItem) of object;
   TksTableViewItemClickEvent = procedure(Sender: TObject; x, y: single; AItem: TksTableViewItem; AId: string; ARowObj: TksTableViewItemObject) of object;
   TksItemSwipeEvent = procedure(Sender: TObject; ARow: TksTableViewItem; ASwipeDirection: TksSwipeDirection; AButtons: TksTableViewActionButtons) of object;
-  TksItemActionButtonClickEvent = procedure(Sender: TObject; ARow: TksTableViewItem; AButton: TksTableViewActionButon) of object;
+  TksItemActionButtonClickEvent = procedure(Sender: TObject; ARow: TksTableViewItem; AButton: TksTableViewActionButton) of object;
   TksTableViewItemSwitchEvent = procedure(Sender: TObject; AItem: TksTableViewItem; ASwitch: TksTableViewItemSwitch; ARowID: string) of object;
   TksTableViewItemButtonEvent = procedure(Sender: TObject; AItem: TksTableViewItem; AButton: TksTableViewItemButton; ARowID: string) of object;
 
@@ -129,7 +129,7 @@ type
     atPagecurl, atDetails, atRadioButton, atRadioButtonChecked, atCheckBox,
     atCheckBoxChecked, atUserDefined1, atUserDefined2, atUserDefined3);
 
-  TksTableViewActionButon = class
+  TksTableViewActionButton = class
   private
     FWidth: integer;
     FTextColor: TAlphaColor;
@@ -145,7 +145,7 @@ type
     property IsDeleteButton: Boolean read FIsDeleteButton;
   end;
 
-  TksTableViewActionButtons = class(TObjectList<TksTableViewActionButon>)
+  TksTableViewActionButtons = class(TObjectList<TksTableViewActionButton>)
   private
     [weak]FTableItem: TksTableviewItem;
     FPercentWidth: integer;
@@ -159,10 +159,10 @@ type
     property PercentWidth: integer read FPercentWidth write SetPercentWidth;
     property Visible: Boolean read GetVisible;
     procedure Render(ACanvas: TCanvas; ARect: TRectF);
-    function ButtonFromXY(x, y: single): TksTableViewActionButon;
+    function ButtonFromXY(x, y: single): TksTableViewActionButton;
   public
     constructor Create(AOwner: TksTableViewItem);
-    function AddButton(AText: string; AColor, ATextColor: TAlphaColor; AWidth: integer): TksTableViewActionButon;
+    function AddButton(AText: string; AColor, ATextColor: TAlphaColor; AWidth: integer): TksTableViewActionButton;
   end;
 
   TksTableViewItemObject = class
@@ -897,26 +897,30 @@ type
     FBorder: TRectangle;
     FShadow: TShadowEffect;
     FMouseDownOffset: TPointF;
-    procedure SetAllowDropColor(const Value: TAlphaColor);
-    function GetAllowDropColor: TAlphaColor;
+    procedure SetAllowDropColor(const Value: TStrokeBrush);
+    function GetAllowDropColor: TStrokeBrush;
     property MouseDownOffset: TPointF read FMouseDownOffset write FMouseDownOffset;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     property Shadow: TShadowEffect read FShadow;
-    property AllowDropColor: TAlphaColor read GetAllowDropColor write SetAllowDropColor default claNull;
+    property AllowDropStroke: TStrokeBrush read GetAllowDropColor write SetAllowDropColor;
   end;
 
   TksDragHighlightOptions = class(TPersistent)
   private
-    FAllowDropStroke: TAlphaColor;
-    FDisallowDropStroke: TAlphaColor;
+    FAllowDropStroke: TStrokeBrush;
+    FDisallowDropStroke: TStrokeBrush;
     FEnabled: Boolean;
+    procedure SetAllowDropStroke(const Value: TStrokeBrush);
+    procedure SetDisallowDropStroke(const Value: TStrokeBrush);
   public
-    constructor Create;
+    constructor Create; virtual;
+    destructor Destroy; override;
+
   published
-    property AllowDropColor: TAlphaColor read FAllowDropStroke write FAllowDropStroke default claLimegreen;
-    property DisallowDropColor: TAlphaColor read FDisallowDropStroke write FDisallowDropStroke default claRed;
+    property AllowDropStroke: TStrokeBrush read FAllowDropStroke write SetAllowDropStroke;
+    property DisallowDropStroke: TStrokeBrush read FDisallowDropStroke write SetDisallowDropStroke;
     property Enabled: Boolean read FEnabled write FEnabled default True;
   end;
 
@@ -2674,7 +2678,7 @@ end;
 
 procedure TksTableViewItem.DoClick(x, y: single);
 var
-  ABtn: TksTableViewActionButon;
+  ABtn: TksTableViewActionButton;
   AObj: TksTableViewItemObject;
 begin
   DeselectObjects;
@@ -2714,10 +2718,10 @@ begin
         //FActionButtons.HideButtons(False);
         Exit;
       end;
-      FActionButtons.HideButtons(False);
       // custom button...
       if Assigned(FTableView.OnItemActionButtonClick) then
         FTableView.OnItemActionButtonClick(FTableView, Self, ABtn);
+      FActionButtons.HideButtons(True);
       Exit;
     end;
     FActionButtons.HideButtons(False);
@@ -4268,9 +4272,8 @@ begin
     DoSelectItem;
 end;
 
-procedure TksTableView.UpdateDropImage(x, y: single);                     // SF - DD
+procedure TksTableView.UpdateDropImage(x, y: single);
 var
-  //Form           : TCustomForm;
   ScreenMousePos : TPointF;
   FormMousePos   : TPointF;
   AAllowDrop: Boolean;
@@ -4278,7 +4281,6 @@ var
 begin
   if FDragDropImage = nil then
     Exit;
-  //FDragDropImage.Stroke.Color := claRed;
 
   AAllowDrop := False;
 
@@ -4289,9 +4291,11 @@ begin
     if FDragDropOptions.DragHighlight.Enabled then
     begin
       case AAllowDrop of
-        True: FDragDropImage.AllowDropColor := GetColorOrDefault(FDragDropOptions.DragHighlight.AllowDropColor, claDimgray);
-        False: FDragDropImage.AllowDropColor := GetColorOrDefault(FDragDropOptions.DragHighlight.DisallowDropColor, claDimgray);
+        True: FDragDropImage.AllowDropStroke := FDragDropOptions.DragHighlight.AllowDropStroke; //GetColorOrDefault(FDragDropOptions.DragHighlight.AllowDropColor, claDimgray);
+        False: FDragDropImage.AllowDropStroke := FDragDropOptions.DragHighlight.DisallowDropStroke; //GetColorOrDefault(FDragDropOptions.DragHighlight.DisallowDropColor, claDimgray);
       end;
+      // add 1 to the thickness so it shows inside the existing dark gray border...
+      FDragDropImage.Stroke.Thickness := FDragDropImage.Stroke.Thickness + 1;
     end
     else
       FDragDropImage.Stroke.Color := claNull;
@@ -4302,9 +4306,7 @@ begin
   FDragDropImage.SetBounds(FormMousePos.X - FDragDropImage.MouseDownOffset.X,
                            FormMousePos.Y - FDragDropImage.MouseDownOffset.Y,
                            FDragDropImage.Width, FDragDropImage.Height);
-                           //FDragDropImage.Width / GetScreenScale,FMouseDownItem.FBitmap.Height / GetScreenScale);
   Invalidate;
-  //FDragDropImage.SetBounds(FormMousePos.X,FormMousePos.Y - (FDragDropImage.Height / 2),FDragDropImage.Width,FMouseDownItem.FBitmap.Height);
 end;
 
 procedure TksTableView.DoDropScroll;                                            // SF - DD
@@ -4523,6 +4525,7 @@ procedure TksTableView.MouseDown(Button: TMouseButton; Shift: TShiftState;
   x, y: single);
 var
   AConsumesClick: Boolean;
+  AActionBtn: TksTableViewActionButton;
 begin
   if (UpdateCount > 0) or (FMouseEventsEnabled = False) then
     Exit;
@@ -4539,11 +4542,22 @@ begin
   FMouseDownPoint := PointF(x, y);
   FMouseCurrentPos := FMouseDownPoint;
 
+
   FAniCalc.MouseDown(x, y);
 
   FMouseDownItem := GetItemFromPos(x,y);  // SF
   if FMouseDownItem <> nil then
   begin
+    {if FMouseDownItem.FActionButtons.Visible then
+    begin
+      AActionBtn := FMouseDownItem.FActionButtons.ButtonFromXY(x, y);
+      if AActionBtn <> nil then
+      begin
+        if Assigned(FOnItemActionButtonClick) then
+          FOnItemActionButtonClick(Self, FMouseDownItem, AActionBtn);
+      end;
+    end; }
+
     FMouseDownObject := FMouseDownItem.ObjectAtPos(x, y + ScrollViewPos);
 
     if (FMouseDownObject <> FFocusedControl) and (FFocusedControl <> nil) then
@@ -5178,9 +5192,9 @@ end;
 
 { TksTableViewActionButtons }
 
-function TksTableViewActionButtons.AddButton(AText: string; AColor, ATextColor: TAlphaColor; AWidth: integer): TksTableViewActionButon;
+function TksTableViewActionButtons.AddButton(AText: string; AColor, ATextColor: TAlphaColor; AWidth: integer): TksTableViewActionButton;
 begin
-  Result := TksTableViewActionButon.Create(False);
+  Result := TksTableViewActionButton.Create(False);
   Result.Text := AText;
   Result.Color := AColor;
   Result.Width := AWidth;
@@ -5188,7 +5202,7 @@ begin
   Add(Result);
 end;
 
-function TksTableViewActionButtons.ButtonFromXY(x, y: single): TksTableViewActionButon;
+function TksTableViewActionButtons.ButtonFromXY(x, y: single): TksTableViewActionButton;
 var
   ARect: TRectF;
   ICount: integer;
@@ -5250,6 +5264,7 @@ begin
         FPercentWidth := i;
         FTableItem.FTableView.Repaint;
         Sleep(1);
+
         Application.ProcessMessages;
         if i = 0 then
         begin
@@ -5353,9 +5368,9 @@ begin
     Result := Result + Items[Icount].Width;
 end;
 
-{ TksTableViewActionButon }
+{ TksTableViewActionButton }
 
-constructor TksTableViewActionButon.Create(AIsDelete: Boolean);
+constructor TksTableViewActionButton.Create(AIsDelete: Boolean);
 begin
   FWidth := 80;
   FTextColor := claWhite;
@@ -6339,23 +6354,40 @@ begin
   inherited;
 end;
 
-function TksDragImage.GetAllowDropColor: TAlphaColor;
+function TksDragImage.GetAllowDropColor: TStrokeBrush;
 begin
-  Result := Stroke.Color;
+  Result := Stroke;
 end;
 
-procedure TksDragImage.SetAllowDropColor(const Value: TAlphaColor);
+procedure TksDragImage.SetAllowDropColor(const Value: TStrokeBrush);
 begin
-  Stroke.Color := Value;
+  Stroke.Assign(Value);
 end;
 
 { TksDragHighlightOptions }
 
 constructor TksDragHighlightOptions.Create;
 begin
-  FAllowDropStroke := claLimegreen;
-  FDisallowDropStroke := claRed;
+  FAllowDropStroke := TStrokeBrush.Create(TBrushKind.Solid, claLimegreen);
+  FDisallowDropStroke := TStrokeBrush.Create(TBrushKind.Solid, claRed);
   FEnabled := True;
+end;
+
+destructor TksDragHighlightOptions.Destroy;
+begin
+  FreeAndNil(FAllowDropStroke);
+  FreeAndNil(FDisallowDropStroke);
+  inherited;
+end;
+
+procedure TksDragHighlightOptions.SetAllowDropStroke(const Value: TStrokeBrush);
+begin
+  FAllowDropStroke.Assign(Value);
+end;
+
+procedure TksDragHighlightOptions.SetDisallowDropStroke(const Value: TStrokeBrush);
+begin
+  FDisallowDropStroke.Assign(Value);
 end;
 
 initialization
