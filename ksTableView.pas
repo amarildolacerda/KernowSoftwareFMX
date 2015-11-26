@@ -929,9 +929,12 @@ type
     FOpacity: single;
     FDragSpaceColor: TAlphaColor;
     FDragHighlightOptions: TksDragHighlightOptions;
+    FLiveMoving : Boolean; // SF - LiveDD
+
     procedure SetOpacity(const Value: single);
     procedure SetShadow(const Value: Boolean);
     procedure SetDragHighlightOptions(const Value: TksDragHighlightOptions);
+    procedure SetLiveMoving(const Value: Boolean);    // SF - LiveDD
   public
     constructor Create; virtual;
     destructor Destroy; override;
@@ -941,7 +944,7 @@ type
     property Enabled: Boolean read FEnabled write FEnabled default False;
     property Shadow: Boolean read FShadow write SetShadow default True;
     property Opacity: single read FOpacity write SetOpacity;
-
+    property LiveMoving: Boolean read FLiveMoving write SetLiveMoving;  // SF - LiveDD
   end;
 
 
@@ -2152,6 +2155,11 @@ end;
 procedure TksTableViewItemBaseImage.SetShadow(const Value: TksTableViewShadow);
 begin
   FShadow.Assign(Value);
+end;
+
+procedure TksDragDropOptions.SetLiveMoving(const Value: Boolean);               // SF - LiveDD
+begin                                                                           // SF - LiveDD
+  FLiveMoving := Value;                                                         // SF - LiveDD
 end;
 
 // ------------------------------------------------------------------------------
@@ -4287,10 +4295,11 @@ var
   AAllowDrop: Boolean;
   ADragOverItem: TksTableViewItem;
 begin
+
   if FDragDropImage = nil then
     Exit;
 
-  AAllowDrop := False;
+  AAllowDrop := True;  // SF - LiveDD
 
   ADragOverItem := GetItemFromPos(x, y);
   if (Assigned(FOnCanDropItem)) and (ADragOverItem <> nil) then
@@ -4308,6 +4317,17 @@ begin
     else
       FDragDropImage.Stroke.Color := claNull;
   end;
+
+  FDragDropImage.Fill.Bitmap.Bitmap := FMouseDownItem.FBitmap;                                                     // SF - LiveDD
+  FDragDropImage.Width              := FMouseDownItem.FBitmap.Width / GetScreenScale;                              // SF - LiveDD
+  FDragDropImage.Height             := FMouseDownItem.FBitmap.Height  / GetScreenScale;                            // SF - LiveDD
+                                                                                                                   // SF - LiveDD
+  if (FDragDropImage.MouseDownOffset.X>FDragDropImage.Width) then                                                  // SF - LiveDD
+    FDragDropImage.MouseDownOffset := PointF((FDragDropImage.Width / 2)+8,FDragDropImage.MouseDownOffset.Y);       // SF - LiveDD
+                                                                                                                   // SF - LiveDD
+  if (FDragDropImage.MouseDownOffset.Y>FDragDropImage.Height) then                                                 // SF - LiveDD
+    FDragDropImage.MouseDownOffset := PointF(FDragDropImage.MouseDownOffset.X,(FDragDropImage.Height / 2)+8);      // SF - LiveDD
+
 
   ScreenMousePos := LocalToScreen(PointF(x, y));
   FormMousePos   := TForm(FDragDropImage.Parent).ScreenToClient(ScreenMousePos);
@@ -4593,6 +4613,9 @@ end;
 procedure TksTableView.MouseMove(Shift: TShiftState; x, y: single);
 var
   AMouseDownRect: TRectF;
+  ADragOverItem : TksTableViewItem;                                                     // SF - LiveDD
+  AAllowDrop    : Boolean;                                                              // SF - LiveDD
+  I             : Integer;                                                              // SF - LiveDD
 begin
 
 
@@ -4601,12 +4624,40 @@ begin
   FMouseCurrentPos := PointF(x, y);
   inherited;
 
-  //if (Assigned(FDragDropImage)) then                                            // SF - DD
+  //if (Assigned(FDragDropImage)) then                                                  // SF - DD
   if FDragging then
-  begin                                                                         // SF - DD
-    UpdateDropImage(FMouseCurrentPos.X+8, FMouseCurrentPos.Y+8);                                          // SF - DD
-    exit;                                                                       // SF - DD
-  end;                                                                          // SF - DD
+  begin
+    ADragOverItem := GetItemFromPos(x, y);                                                            // SF - DD
+    if (FDragDropOptions.FLiveMoving) and (ADragOverItem<>Nil) and (ADragOverItem<>FMouseDownItem) then                // SF - LiveDD
+    begin                                                                                             // SF - LiveDD
+                                                               // SF - LiveDD
+      for I:=FItems.IndexOf(ADragOverItem) downto 1 do                                                // SF - LiveDD
+      begin                                                                                           // SF - LiveDD
+        if (Items[I].Purpose<>TksTableViewItemPurpose.Header) then                                    // SF - LiveDD
+          break;                                                                                      // SF - LiveDD
+        ADragOverItem := Items[I-1];                                                                  // SF - LiveDD
+      end;                                                                                            // SF - LiveDD
+                                                                                                      // SF - LiveDD
+      AAllowDrop := (ADragOverItem=Nil) or (ADragOverItem.Purpose<>TksTableViewItemPurpose.Header);   // SF - LiveDD
+      if (Assigned(FOnCanDropItem)) then                                                              // SF - LiveDD
+        FOnCanDropItem(Self, FMouseDownItem, ADragOverItem, AAllowDrop);                              // SF - LiveDD
+                                                                                                      // SF - LiveDD
+      if (AAllowDrop) and (ADragOverItem<>Nil) then                                                   // SF - LiveDD
+      begin                                                                                           // SF - LiveDD
+        FMouseDownItem.Appearance := ADragOverItem.Appearance;                                        // SF - LiveDD
+        FMouseDownItem.Height     := ADragOverItem.Height;                                            // SF - LiveDD
+                                                                                                      // SF - LiveDD
+        FItems.Move(FItems.IndexOf(FMouseDownItem), FItems.IndexOf(ADragOverItem));                   // SF - LiveDD
+                                                                                                      // SF - LiveDD
+        UpdateItemRects;                                                                              // SF - LiveDD
+                                                                                                      // SF - LiveDD
+        RedrawAllVisibleItems();                                                                      // SF - LiveDD
+      end;                                                                                            // SF - LiveDD
+    end;                                                                                              // SF - LiveDD
+
+    UpdateDropImage(FMouseCurrentPos.X+8, FMouseCurrentPos.Y+8);                        // SF - DD
+    exit;                                                                               // SF - DD
+  end;
 
 
   //if not (ssLeft in Shift) then
