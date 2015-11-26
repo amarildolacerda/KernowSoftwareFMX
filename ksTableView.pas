@@ -1096,7 +1096,7 @@ type
     procedure UpdateItemRects;
     procedure UncheckAll;
     procedure UpdateScrollingLimits;
-    procedure RedrawAllIVisibleItems;
+    procedure RedrawAllVisibleItems;
     property UpdateCount: integer read FUpdateCount;
     property TopItem: TksTableViewItem read GetTopItem;
     property VisibleItems: TList<TksTableViewItem> read GetVisibleItems;
@@ -4835,7 +4835,7 @@ begin
 end;
 
 
-procedure TksTableView.RedrawAllIVisibleItems;
+procedure TksTableView.RedrawAllVisibleItems;
 var
   AList: TList<TksTableViewItem>;
   ICount: integer;
