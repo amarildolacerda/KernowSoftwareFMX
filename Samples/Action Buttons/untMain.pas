@@ -33,13 +33,12 @@ uses System.UIConsts;
 procedure TForm24.FormCreate(Sender: TObject);
 var
   ICount: integer;
-  AItem: TksTableViewItem;
 begin
   // add 50 items to the ksTableView...
   ksTableView1.BeginUpdate;
   try
     for ICount := 1 to 50 do
-      AItem := ksTableView1.Items.AddItem('Item: '+IntToStr(ICount),'sub title', 'some detail', atMore);
+      ksTableView1.Items.AddItem('Item: '+IntToStr(ICount),'sub title', 'some detail', atMore);
   finally
     ksTableView1.EndUpdate;
   end;

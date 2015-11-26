@@ -644,7 +644,7 @@ type
     destructor Destroy; override;
     function ObjectAtPos(x, y: single): TksTableViewItemObject;
     function IsLastItem: Boolean;
-
+    procedure RecreateCache;
     // image functions...
     function DrawBitmap(ABmp: TBitmap; ARect: TRectF): TksTableViewItemImage; overload;
     function DrawBitmap(ABmp: TBitmap; x, AWidth, AHeight: single): TksTableViewItemImage; overload;
@@ -3102,6 +3102,11 @@ begin
   end;
 end;
 
+
+procedure TksTableViewItem.RecreateCache;
+begin
+  CacheItem(True);
+end;
 
 {
 procedure TksTableViewItem.Render(ACanvas: TCanvas; AScrollPos: single);
