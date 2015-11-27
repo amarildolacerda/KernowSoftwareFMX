@@ -6568,6 +6568,7 @@ begin
   FStroke := TStrokeBrush.Create(TBrushKind.Solid, claBlack);
   FPosition := ksSelectorRight;
   FBackgroundColor := claWhite;
+  FStyle := ksArrow;
   FStroke.OnChanged := DoStrokeChanged;
 end;
 
