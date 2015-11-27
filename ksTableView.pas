@@ -4884,10 +4884,11 @@ begin
           if Position = ksSelectorLeft then
           begin
             Canvas.Stroke.Assign(FSelectionOptions.SelectionOverlay.Stroke);
-            //Canvas.DrawLine(PointF(0, 0), PointF(0, Height), 1);
+            Canvas.DrawLine(PointF(0, 0), PointF(0, Height), 1);
             if SelectedItem <> nil then
             begin
               ASelectedRect := SelectedItem.GetItemRect;
+              OffsetRect(ASelectedRect, 0, 0-ScrollViewPos);
               FSelectionOptions.SelectionOverlay.DrawToCanvas(Canvas, ASelectedRect);
             end;
           end
@@ -4903,40 +4904,7 @@ begin
             end;
           end
         end;
-
       end;
-
-
-
-
-
-      {if (FSelectionOptions.FSelectionOverlay.Enabled) and (LastY<Height) then  // SF - TC
-      begin                                                                        // SF - TC
-        Canvas.Stroke.Color := Appearence.SeparatorColor;                          // SF - TC
-        Canvas.StrokeThickness := 1;                                               // SF - TC
-        Canvas.Stroke.Kind := TBrushKind.Solid;                                    // SF - TC
-        Canvas.Stroke.Dash := TStrokeDash.Solid;                                   // SF - TC
-                                                                                   // SF - TC
-        if (FSelectionOptions.FSelectionOverlay.Position = ksSelectorLeft) then                 // SF - TC
-        begin                                                                      // SF - TC
-          if (AViewport.Top<0) then                                                // SF - TC
-            Canvas.DrawLine(PointF(Round(Width) - 0.5, 0),                         // SF - TC
-                            PointF(Round(Width) - 0.5, -AViewport.Top), 1);        // SF - TC
-                                                                                   // SF - TC
-          Canvas.DrawLine(PointF(Round(Width) - 0.5, LastY),                       // SF - TC
-                          PointF(Round(Width) - 0.5, Height), 1);                  // SF - TC
-        end                                                                        // SF - TC
-        else if (FSelectionOptions.FSelectionOverlay.Position = ksSelectorRight) then           // SF - TC
-        begin                                                                      // SF - TC
-          if (AViewport.Top<0) then                                                // SF - TC
-            Canvas.DrawLine(PointF(0.5, 0),                                        // SF - TC
-                            PointF(0.5, -AViewport.Top), 1);                       // SF - TC
-                                                                                   // SF - TC
-          Canvas.DrawLine(PointF(0.5, LastY),                                      // SF - TC
-                          PointF(0.5, Height), 1);                                 // SF - TC
-        end;                                                                       // SF - TC
-      end;   }                                                                      // SF - TC
-
 
       if (Assigned(OnAfterPaint)) then                                          // SF - BK
         OnAfterPaint(Self,Canvas);                                              // SF - BK
@@ -6586,7 +6554,7 @@ begin
   case FPosition of
     ksSelectorLeft: ACanvas.DrawBitmap(FBitmap,
                                        RectF(0, 0, FBitmap.Width, FBitmap.Height),
-                                       RectF(ARect.Left, ARect.Top, ARect.Left+FBitmap.Width, ARect.Bottom-1),
+                                       RectF(ARect.Left - (FBitmap.Width/2), ARect.Top, ARect.Left + (FBitmap.Width/2), ARect.Bottom-1),
                                        1,
                                        True);
     ksSelectorRight: ACanvas.DrawBitmap(FBitmap,
@@ -6614,11 +6582,12 @@ begin
     ASize := 20 + (3*FSize);
     AOffset := (AHeight - ASize) / 2;
 
+
     AIndicatorRect := RectF(AOffset, AOffset, FBitmap.Width-AOffset, FBitmap.Height-AOffset);
 
     if FStyle = ksBlankSpace then
     begin
-      FBitmap.Canvas.Stroke.Thickness := 2;
+      FBitmap.Canvas.Stroke.Thickness := 3;
       FBitmap.Canvas.Stroke.Color := FBackgroundColor;
       FBitmap.Canvas.DrawLine(PointF(FBitmap.Width/2, 0), PointF(PointF(FBitmap.Width/2, FBitmap.Height-1)), 1);
     end;
