@@ -291,7 +291,9 @@ begin
     begin
       //AItem := FTableView.Items.AddItem('');
       FTableView.ItemHeight := Round(Max(GetTileRowCount * GetRowHeight, Height));
-      FTableView.ShowSelection := False;
+
+      FTableView.SelectionOptions.ShowSelection := False;
+
       AItem := FTableView.Items.AddItem('');
       AItem.CanSelect := False;
       ACol := 1;
@@ -326,7 +328,7 @@ begin
     end
     else
     begin
-      FTableView.ShowSelection := True;
+      FTableView.SelectionOptions.ShowSelection := True;
       FTableView.ItemHeight := 50;
 
       FTableView.ItemImageSize := 32;

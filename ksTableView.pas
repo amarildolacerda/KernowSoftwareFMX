@@ -17,7 +17,7 @@
 *  Unless required by applicable law or agreed to in writing, software         *
 *  distributed under the License is distributed on an "AS IS" BASIS,           *
 *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.    *
-*  See the License forthe specific language governing permissions and         *
+*  See the License forthe specific language governing permissions and          *
 *  limitations under the License.                                              *
 *                                                                              *
 *******************************************************************************}
@@ -85,6 +85,7 @@ type
   TksTableViewItemEmbeddedBaseEdit = class;
   TksTableViewItemEmbeddedEdit = class;
   TksTableViewItemButton = class;
+  TksTableViewSelectionOptions = class;
 
   TksTableItemAlign = (Leading, Center, Trailing, Fit); // SF - Added support for Fitting width/height
   TksSwipeDirection = (ksSwipeUnknown, ksSwipeLeftToRight, ksSwipeRightToLeft, ksSwipeTopToBottom, ksSwipeBottomToTop);
@@ -96,9 +97,9 @@ type
   TksTableViewButtonStyle = (ksButtonDefault, ksButtonSegmentLeft, ksButtonSegmentMiddle, ksButtonSegmentRight);
   TksTableViewButtonState = (ksPressed, ksUnpressed);
   TksTableViewItemAppearance = ( iaNormal, iaTile_Image, iaTile_TitleImage, iaTile_ImageTitle, iaTile_TitleImageSubTitle, iaTile_SubTitleImageTitle ); // SF - Tile
-
   TksTableItemSelector = (NoSelector, DateSelector, ItemPicker);
-
+  TksTableViewOverlaySelectorPosition = (ksSelectorLeft, ksSelectorRight ); // SF - TC
+  TksTableViewOverlaySelectorStyle = (ksArrow, ksSemiCircle);
 
   TksTableViewRowCacheEvent = procedure(Sender: TObject; ACanvas: TCanvas; ARow: TksTableViewItem; ARect: TRectF) of object;
   TksTableViewDeletingItemEvent = procedure(Sender: TObject; AItem: TksTableViewItem; var ACanDelete: Boolean) of object;
@@ -948,6 +949,55 @@ type
   end;
 
 
+  TksTableViewSelectionOverlayOptions = class(TPersistent)
+  private
+    [weak]FParent: TksTableViewSelectionOptions;
+    FPosition: TksTableViewOverlaySelectorPosition;
+    FStyle: TksTableViewOverlaySelectorStyle;
+    FEnabled: Boolean;
+    FStroke: TStrokeBrush;
+    FBackgroundColor: TAlphaColor;
+    FBitmap: TBitmap;
+    FSize: integer;
+    procedure SetPosition(const Value: TksTableViewOverlaySelectorPosition);
+    procedure SetEnabled(const Value: Boolean);
+    procedure SetStrokeBrush(const Value: TStrokeBrush);
+    procedure RecreateIndicator(AHeight: single);
+    procedure SetStyle(const Value: TksTableViewOverlaySelectorStyle);
+    procedure SetSize(const Value: integer);
+  public
+    constructor Create(AParent: TksTableViewSelectionOptions);
+    destructor Destroy; override;
+    procedure DrawToCanvas(ACanvas: TCanvas; ARect: TRectF);
+  published
+    property Enabled: Boolean read FEnabled write SetEnabled default False;
+    property BackgroundColor: TAlphaColor read FBackgroundColor write FBackgroundColor default claWhite;
+    property Position: TksTableViewOverlaySelectorPosition read FPosition write SetPosition default ksSelectorRight;
+    property Stroke: TStrokeBrush read FStroke write SetStrokeBrush;
+    property Style: TksTableViewOverlaySelectorStyle read FStyle write SetStyle default ksArrow;
+    property Size: integer read FSize write SetSize default 1;
+  end;
+
+
+  TksTableViewSelectionOptions = class(TPersistent)
+  private
+    [weak]FTableView: TksTableView;
+    FSelectionOverlay: TksTableViewSelectionOverlayOptions;
+    FShowSelection: Boolean;
+    FKeepSelection: Boolean;
+    procedure SetKeepSelection(const Value: Boolean);
+    procedure SetShowSelection(const Value: Boolean);
+    procedure SetSelectionOverlay(const Value: TksTableViewSelectionOverlayOptions);
+  public
+    constructor Create(ATableView: TKsTableView);
+    destructor Destroy; override;
+  published
+    property ShowSelection: Boolean read FShowSelection write SetShowSelection default True;
+    property KeepSelection: Boolean read FKeepSelection write SetKeepSelection default False;
+    property SelectionOverlay: TksTableViewSelectionOverlayOptions read FSelectionOverlay write SetSelectionOverlay;
+  end;
+
+
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
     {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
     {$ELSE} pidiOSDevice {$ENDIF} or pidAndroid)]
@@ -970,7 +1020,7 @@ type
     FItemHeight: integer;
     FItemImageSize: integer;
     FSearchVisible: Boolean;
-    FShowSelection: Boolean;
+    //FShowSelection: Boolean;
     FItemIndex: integer;
     FMouseDownPoint: TPointF;
     FMouseCurrentPos: TPointF;
@@ -978,7 +1028,7 @@ type
     FShowAccessory: Boolean;
     FSelectTimer: TFmxHandle;
     FDeselectTimer: TFmxHandle;
-    FKeepSelection: Boolean;
+    //FKeepSelection: Boolean;
     FSwipeDirection: TksSwipeDirection;
     FMouseDownItem: TksTableViewItem;
     FMouseDown: Boolean;
@@ -997,7 +1047,8 @@ type
     FDragging: Boolean;
     FOnBeforePaint : TPaintEvent;                                               // SF - BK
     FOnAfterPaint : TPaintEvent;                                                // SF - BK
-
+    FSelectionOptions: TksTableViewSelectionOptions;
+    //FSelectorType : TksTableViewSelectorType;                                   // SF - TC (To be replaced)
 
     // events...
     FItemClickEvent: TksTableViewItemClickEvent;
@@ -1037,7 +1088,7 @@ type
     procedure SetColCount(const Value: integer);  // SF
     procedure SetKsItemHeight(const Value: integer);
     procedure SetSearchVisible(const Value: Boolean);
-    procedure SetShowSelection(const Value: Boolean);
+    //procedure SetShowSelection(const Value: Boolean);
     procedure SetItemIndex(const Value: integer);
     procedure DoFilterChanged(Sender: TObject);
     function GetScrollViewPos: single;
@@ -1049,7 +1100,7 @@ type
     function GetItemIndex: integer;
     procedure DeselectItem(const ADelay: integer = 0);
     procedure DoDeselectItem;
-    procedure SetKeepSelection(const Value: Boolean);
+    //procedure SetKeepSelection(const Value: Boolean);
     function GetItemFromPos(AXPos,AYPos: single): TksTableViewItem;  // SF
     //function GetItemFromYPos(AYPos: single): TksTableViewItem;
     procedure DoPullToRefresh;
@@ -1075,6 +1126,9 @@ type
     procedure DoEmbeddedEditChange(AItem: TksTableViewItem; AEmbeddedEdit: TksTableViewItemEmbeddedBaseEdit);
     procedure EnableMouseEvents;
     procedure DisableMouseEvents;
+    //procedure SetKeepSelection(const Value: Boolean);
+    procedure SetSelectionOptions(const Value: TksTableViewSelectionOptions);
+    //procedure SetShowSelection(const Value: Boolean);
   protected
     function GetTotalItemHeight: single;
     procedure Paint; override;
@@ -1128,11 +1182,11 @@ type
 
     property HeaderHeight: integer read FHeaderHeight write SetHeaderHeight default C_TABLEVIEW_DEFAULT_HEADER_HEIGHT;
     property ColCount: integer read FColCount write SetColCount default 0;  // SF
-
+   // property SelectorType: TksTableViewSelectorType read FSelectorType write FSelectorType;  // SF - TC (To be replaced)
 
     property ItemHeight: integer read FItemHeight write SetKsItemHeight default C_TABLEVIEW_DEFAULT_ITEM_HEIGHT;
     property ItemImageSize: integer read FItemImageSize write SetItemImageSize default C_TABLEVIEW_DEFAULT_IMAGE_SIZE;
-    property KeepSelection: Boolean read FKeepSelection write SetKeepSelection default False;
+    //property KeepSelection: Boolean read FKeepSelection write SetKeepSelection default False;
     property Locked default False;
     property Height;
 
@@ -1148,8 +1202,9 @@ type
     property RowIndicators: TksListViewRowIndicators read FRowIndicators write FRowIndicators;
     property Scale;
     property SearchVisible: Boolean read FSearchVisible write SetSearchVisible default False;
+    property SelectionOptions: TksTableViewSelectionOptions read FSelectionOptions write SetSelectionOptions;
     property ShowAccessory: Boolean read GetShowAccessory write SetShowAccessory default True;
-    property ShowSelection: Boolean read FShowSelection write SetShowSelection default True;
+    //property ShowSelection: Boolean read FShowSelection write SetShowSelection default True;
     property Size;
     property StickyHeaders: Boolean read FStickyHeaders write FStickyHeaders default True;
     property TabOrder;
@@ -1204,77 +1259,6 @@ type
     property OnDropItem: TksTableViewDropItemEvent read FOnDropItem write FOnDropItem;                   // SF - DD
     property OnBeforePaint: TPaintEvent read FOnBeforePaint write FOnBeforePaint;                        // SF - BK
     property OnAfterPaint: TPaintEvent read FOnAfterPaint write FOnAfterPaint;                           // SF - BK
-
-    (*
-      property Transparent default False;
-      property AllowSelection;
-      property AlternatingColors;
-
-      property OnItemClickRight: TksListViewRowClickEvent read FOnItemRightClick write FOnItemRightClick;
-      property CheckMarks: TksListViewCheckMarks read FCheckMarks write SetCheckMarks default ksCmNone;
-      property CheckMarkStyle: TksListViewCheckStyle read FCheckMarkStyle write SetCheckMarkStyle default ksCmsDefault;
-      property DeleteButton: TksDeleteButton read FDeleteButton write FDeleteButton;
-      property DisableFocusEffect default True;
-      property DragMode default TDragMode.dmManual;
-      property EnableDragHighlight default True;
-      property Enabled default True;
-      property FullWidthSeparator: Boolean read FFullWidthSeparator write FFullWidthSeparator default True;
-      property SelectOnRightClick: Boolean read FSelectOnRightClick write FSelectOnRightClick default False;
-      property Size;
-      property RowIndicators: TksListViewRowIndicators read FRowIndicators write FRowIndicators;
-
-
-      property OnSelectOption: TksOptionSelectionEvent read FOnOptionSelection write FOnOptionSelection;
-      property OnEmbeddedEditChange: TksEmbeddedEditChange read FOnEmbeddedEditChange write FOnEmbeddedEditChange;
-      property OnEmbeddedListBoxChange: TksEmbeddedListBoxChange read FOnEmbeddedListBoxChange write FOnEmbeddedListBoxChange;
-
-      property OnSelectDate: TksListViewSelectDateEvent read FOnSelectDate write FOnSelectDate;
-      property OnSelectPickerItem: TksListViewSelectPickerItem read FOnSelectPickerItem write FOnSelectPickerItem;
-      property OnSearchFilterChanged: TksSearchFilterChange read FOnSearchFilterChanged write FOnSearchFilterChanged;
-      { events }
-      property OnApplyStyleLookup;
-      { Drag and Drop events }
-      property PageCaching: TksPageCaching read FPageCaching write FPageCaching;
-
-      property StyleLookup;
-      property TouchTargetExpansion;
-
-
-      { ListView selection events }
-      property OnChange;
-      property OnChangeRepainted;
-      {$IFDEF XE8_OR_NEWER}
-      property OnItemsChange;
-      property OnScrollViewChange;
-      property OnFilter;
-      property PullRefreshWait;
-      {$ENDIF}
-
-      property OnDeletingItem;
-      property OnDeleteItem: TKsDeleteItemEvent read FOnDeleteItem write FOnDeleteItem;
-      property OnDeleteChangeVisible;
-      property OnSearchChange;
-
-
-      property AutoTapScroll;
-      property AutoTapTreshold;
-      //property ShowSelection: Boolean read FShowSelection write SetShowSelection default True;
-      property ShowSelection: Boolean read FShowSelection write SetShowSelection;
-      property DisableMouseWheel;
-
-
-      property SearchAlwaysOnTop;
-      property SelectionCrossfade;
-      property KeepSelection: Boolean read FKeepSelection write FKeepSelection default False;
-      property OnLongClick: TksListViewRowClickEvent read FOnLongClick write FOnLongClick;
-      property OnSwitchClick: TksListViewClickSwitchEvent read FOnSwitchClicked write FOnSwitchClicked;
-      property OnButtonClicked: TksListViewClickButtonEvent read FOnButtonClicked write FOnButtonClicked;
-      property OnSegmentButtonClicked: TksListViewClickSegmentButtonEvent read FOnSegmentButtonClicked write FOnSegmentButtonClicked;
-      property OnScrollFinish: TksListViewFinishScrollingEvent read FOnFinishScrolling write FOnFinishScrolling;
-      property OnScrollLastItem: TNo
-      tifyEvent read FOnScrollLastItem write FOnScrollLastItem;
-      property OnItemSwipe: TksItemSwipeEvent read FOnItemSwipe write FOnItemSwipe;
-      property OnItemActionButtonClick: TksItemActionButtonClickEvent read FOnItemActionButtonClick write FOnItemActionButtonClick; *)
   end;
 
 procedure Register;
@@ -2510,7 +2494,7 @@ begin
 }                                                                               // SF - BK
 
   DrawnSelection := false;                                                      // SF - BK
-  if (FTableView.ShowSelection) and (FCanSelect) then
+  if (FTableView.FSelectionOptions.ShowSelection) and (FCanSelect) then
   begin
     if (FIndex = FTableView.ItemIndex) or (Checked)  then
     begin                                                                       // SF - BK
@@ -3118,62 +3102,6 @@ begin
   CacheItem(True);
 end;
 
-{
-procedure TksTableViewItem.Render(ACanvas: TCanvas; AScrollPos: single);
-var
-  ARect: TRectF;
-  AButtonRect: TRectF;
-  AWidth: single;
-  ASeperatorMargin: single;
-begin
-  CacheItem;
-  if FBitmap = nil then
-    Exit;
-  ARect := FItemRect;
-  OffsetRect(ARect, 0, 0 - AScrollPos);
-  if FActionButtons.Visible = False then
-    ACanvas.DrawBitmap(FBitmap, RectF(0, 0, FBitmap.Width, FBitmap.Height), ARect, 1, True)
-  else
-  begin
-    AWidth := (FActionButtons.TotalWidth / 100) * FActionButtons.PercentWidth;
-
-    case FActionButtons.FAlignment of
-      abLeftActionButtons:
-      begin
-
-        OffsetRect(ARect, AWidth, 0);
-        AButtonRect := RectF(0, ARect.Top, AWidth, ARect.Bottom);
-        FActionButtons.Render(ACanvas, AButtonRect);
-      end;
-      abRightActionButtons:
-      begin
-        OffsetRect(ARect, 0-AWidth, 0);
-        AButtonRect := RectF(ARect.Right, ARect.Top, FItemRect.Right, ARect.Bottom);
-        FActionButtons.Render(ACanvas, AButtonRect);
-      end;
-    end;
-    ACanvas.DrawBitmap(FBitmap, RectF(0, 0, FBitmap.Width, FBitmap.Height), ARect, 1, True);
-  end;
-
-  // seperator...
-  ACanvas.Stroke.Color := FTableView.Appearence.SeparatorColor;
-  ACanvas.StrokeThickness := 1;
-  ACanvas.Stroke.Kind := TBrushKind.Solid;
-  ACanvas.Stroke.Dash := TStrokeDash.Solid;
-  if FPurpose = Header then
-  begin
-    ACanvas.Stroke.Color := $FFD2D2D2;
-    ACanvas.StrokeThickness := 0.5;
-  end;
-  ASeperatorMargin := 0;
-  if (FTableView.FullWidthSeparator = False) and (FPurpose = TksTableViewItemPurpose.None) then
-    ASeperatorMargin := FTitle.FPlaceOffset.X;
-  ACanvas.DrawLine(PointF(ASeperatorMargin, ARect.Top), PointF(ARect.Right, ARect.Top), 1);
-  if (IsLastItem) or (FPurpose = TksTableViewItemPurpose.Header) then
-    ACanvas.DrawLine(PointF(0, ARect.Bottom),
-      PointF(ARect.Right, ARect.Bottom), 1);
-end;   }
-
 procedure TksTableViewItem.Render(ACanvas: TCanvas; AScrollPos: single);
 var
   ARect: TRectF;
@@ -3237,16 +3165,57 @@ begin
     ASeperatorMargin := 0;
     if (FTableView.FullWidthSeparator = False) and (FPurpose = TksTableViewItemPurpose.None) then
       ASeperatorMargin := FTitle.FPlaceOffset.X;
-    if (ARect.Left=0) then                                                                                        // SF
-    begin                                                                                                         // SF
-      ACanvas.DrawLine(PointF(ARect.Left + ASeperatorMargin, ARect.Top), PointF(FTableView.Width, ARect.Top), 1); // SF
-      if (IsLastItem) or (FPurpose = TksTableViewItemPurpose.Header) then                                         // SF
-        ACanvas.DrawLine(PointF(0, ARect.Bottom), PointF(FTableView.Width, ARect.Bottom), 1);                     // SF
-    end;                                                                                                          // SF
-    if FPurpose <> Header then                                                                                    // SF
-      ACanvas.DrawLine(PointF(ARect.Right, ARect.Top), PointF(ARect.Right, ARect.Bottom), 1);                     // SF
+
+
+    if (ARect.Left=0) then                                                                      // SF - TC
+    begin                                                                                       // SF - TC
+      ACanvas.DrawLine(PointF(ARect.Left + ASeperatorMargin, Round(ARect.Top) - 0.5),           // SF - TC
+                       PointF(FTableView.Width             , Round(ARect.Top) - 0.5), 1);       // SF - TC
+                                                                                                // SF - TC
+      if (IsLastItem) or (FPurpose = TksTableViewItemPurpose.Header) then                       // SF - TC
+        ACanvas.DrawLine(PointF(0               , Round(ARect.Bottom) - 0.5),                   // SF - TC
+                         PointF(FTableView.Width, Round(ARect.Bottom) - 0.5), 1);               // SF - TC
+    end;                                                                                        // SF - TC
+                                                                                                // SF - TC
+    if (FPurpose <> Header) and not (FIsLastCol) then                                           // SF - TC
+      ACanvas.DrawLine(PointF(Round(ARect.Right) - 0.5, ARect.Top),                             // SF - TC
+                       PointF(Round(ARect.Right) - 0.5, ARect.Bottom), 1);                      // SF - TC
+                                                                                                // SF - TC
+
+
+   (* AOverlay := FTableView.FSelectionOptions.SelectionOverlay;
+    if AOverlay.Enabled then
+    begin
+      ACanvas.Stroke.Assign(AOverlay.Stroke);
+      if (Self = FTableView.SelectedItem) then
+      begin
+        ACanvas.Stroke.Kind := TBrushKind.None;
+
+      end;
+      if (AOverlay.FPosition = ksSelectorRight) then
+      begin
+        {ACanvas.DrawLine(PointF(Round(ARect.Right), ARect.Top),
+                         PointF(Round(ARect.Right) , ARect.Bottom), 1);}
+        ACanvas.Stroke.Assign(AOverlay.Stroke);
+        ACanvas.Stroke.Thickness := ACanvas.Stroke.Thickness -0.25;
+        if Self = FTableView.SelectedItem then
+        begin
+          ACanvas.DrawLine(PointF(Round(ARect.Right) , ARect.Top),
+                           PointF(Round(ARect.Right - (ARect.Height / 2)), ARect.Top + (ARect.Height / 2)), 1);
+          ACanvas.DrawLine(PointF(Round(ARect.Right - (ARect.Height / 2)), ARect.Top + (ARect.Height / 2)),
+                           PointF(Round(ARect.Right) , ARect.Bottom), 1);
+        end;
+      end
+      else if (AOverlay.FPosition = ksSelectorLeft) then
+      begin                                                                                                                                                                           // SF - TC
+        ACanvas.DrawLine(PointF(Round(ARect.Left) + 0.5, ARect.Top),
+                         PointF(Round(ARect.Left) + 0.5, ARect.Bottom), 1);
+      end;
+    end;    *)
   end;
 end;
+
+
 
 procedure TksTableViewItem.SetCached(const Value: Boolean);
 begin
@@ -3963,11 +3932,7 @@ begin
   FDeleteButton := TksDeleteButton.Create;
   FAppearence := TksTableViewAppearence.Create(Self);
   FDragDropOptions := TksDragDropOptions.Create;
-  {FSearchBox := TSearchBox.Create(nil);
-  FSearchBox.Visible := False;
-  FSearchBox.Align := TAlignLayout.Top;
-  FSearchBox.OnTyping := DoFilterChanged;
-  FSearchBox.OnChange := DoFilterChanged;}
+  FSelectionOptions := TksTableViewSelectionOptions.Create(Self);
 
   FSearchBox := TSearchBox.Create(Self);
   FSearchBox.Stored := False;
@@ -4002,12 +3967,12 @@ begin
   FItemHeight := C_TABLEVIEW_DEFAULT_ITEM_HEIGHT;
   FHeaderHeight := C_TABLEVIEW_DEFAULT_HEADER_HEIGHT;
   FItemImageSize := C_TABLEVIEW_DEFAULT_IMAGE_SIZE;
-  FKeepSelection := False;
+  //FKeepSelection := False;
 
   FNeedsRefresh := False;
   FMouseDown := False;
   FCheckMarks := TksTableViewCheckMarks.cmNone;
-  FShowSelection := True;
+  //FShowSelection := True;
   FStickyHeaders := True;
   FFullWidthSeparator := True;
 
@@ -4035,6 +4000,7 @@ begin
   FreeAndNil(FDeleteButton);
   FreeAndNil(FTextDefaults);
   FreeAndNil(FPullToRefresh);
+  FreeAndNil(FSelectionOptions);
   inherited;
 end;
 
@@ -4767,7 +4733,7 @@ begin
     FAniCalc.MouseUp(x, y);
 
   FMouseDown := False;
-  if (FItemIndex > -1) and (FKeepSelection = False) then
+  if (FItemIndex > -1) and (FSelectionOptions.FKeepSelection = False) then
     DeselectItem(200);
 
   if (FMouseDownObject <> nil) and (FScrolling = False) then
@@ -4779,6 +4745,8 @@ var
   Offset: Single;
 begin
   inherited;
+  if (csDesigning in ComponentState) then
+    Exit;
   if (not Handled) then
   begin
     if ssHorizontal in Shift then
@@ -4803,9 +4771,12 @@ var
   AItem: TksTableViewItem;
   AItemsDrawn: Boolean;
   ARect: TRectF;
+  ASelectedRect: TRectF;
+  //LastY : Single; // SF - TC
 begin
   if not FPainting then
   begin
+    //LastY := 0;
     FPainting := True;
     try
       if (Assigned(OnBeforePaint)) then                                         // SF - BK
@@ -4852,6 +4823,8 @@ begin
       AItems := FilteredItems;
       AViewport := ViewPort;
 
+
+
       for ICount := 0 to AItems.Count - 1 do
       begin
         AItem := AItems[ICount];
@@ -4861,6 +4834,8 @@ begin
         begin
           AItemsDrawn := True;
           AItems[ICount].Render(Canvas, AViewport.Top);
+
+          //LastY := AItems[ICount].ItemRect.Bottom - AViewport.Top;  // SF - TC
         end
         else
         begin
@@ -4899,6 +4874,69 @@ begin
           Canvas.FillText(ARect, FBackgroundText.Text, False, 1, [], TTextAlign.Center);
         end;
       end;
+
+      if FSelectionOptions.SelectionOverlay.Enabled then
+      begin
+        with FSelectionOptions.SelectionOverlay do
+        begin
+
+          if Position = ksSelectorLeft then
+          begin
+            Canvas.Stroke.Assign(FSelectionOptions.SelectionOverlay.Stroke);
+            //Canvas.DrawLine(PointF(0, 0), PointF(0, Height), 1);
+            if SelectedItem <> nil then
+            begin
+              ASelectedRect := SelectedItem.GetItemRect;
+              FSelectionOptions.SelectionOverlay.DrawToCanvas(Canvas, ASelectedRect);
+            end;
+          end
+          else
+          begin
+            Canvas.Stroke.Assign(FSelectionOptions.SelectionOverlay.Stroke);
+            Canvas.DrawLine(PointF(Width, 0), PointF(Width, Height), 1);
+            if SelectedItem <> nil then
+            begin
+              ASelectedRect := SelectedItem.GetItemRect;
+              OffsetRect(ASelectedRect, 0, 0-ScrollViewPos);
+              FSelectionOptions.SelectionOverlay.DrawToCanvas(Canvas, ASelectedRect);
+            end;
+          end
+        end;
+
+      end;
+
+
+
+
+
+      {if (FSelectionOptions.FSelectionOverlay.Enabled) and (LastY<Height) then  // SF - TC
+      begin                                                                        // SF - TC
+        Canvas.Stroke.Color := Appearence.SeparatorColor;                          // SF - TC
+        Canvas.StrokeThickness := 1;                                               // SF - TC
+        Canvas.Stroke.Kind := TBrushKind.Solid;                                    // SF - TC
+        Canvas.Stroke.Dash := TStrokeDash.Solid;                                   // SF - TC
+                                                                                   // SF - TC
+        if (FSelectionOptions.FSelectionOverlay.Position = ksSelectorLeft) then                 // SF - TC
+        begin                                                                      // SF - TC
+          if (AViewport.Top<0) then                                                // SF - TC
+            Canvas.DrawLine(PointF(Round(Width) - 0.5, 0),                         // SF - TC
+                            PointF(Round(Width) - 0.5, -AViewport.Top), 1);        // SF - TC
+                                                                                   // SF - TC
+          Canvas.DrawLine(PointF(Round(Width) - 0.5, LastY),                       // SF - TC
+                          PointF(Round(Width) - 0.5, Height), 1);                  // SF - TC
+        end                                                                        // SF - TC
+        else if (FSelectionOptions.FSelectionOverlay.Position = ksSelectorRight) then           // SF - TC
+        begin                                                                      // SF - TC
+          if (AViewport.Top<0) then                                                // SF - TC
+            Canvas.DrawLine(PointF(0.5, 0),                                        // SF - TC
+                            PointF(0.5, -AViewport.Top), 1);                       // SF - TC
+                                                                                   // SF - TC
+          Canvas.DrawLine(PointF(0.5, LastY),                                      // SF - TC
+                          PointF(0.5, Height), 1);                                 // SF - TC
+        end;                                                                       // SF - TC
+      end;   }                                                                      // SF - TC
+
+
       if (Assigned(OnAfterPaint)) then                                          // SF - BK
         OnAfterPaint(Self,Canvas);                                              // SF - BK
     finally
@@ -5016,7 +5054,7 @@ begin
     ASelected := SelectedItem;
     FItemIndex := Value;
     ANewSelected := SelectedItem;
-    if ShowSelection then
+    if FSelectionOptions.ShowSelection then
     begin
       if ASelected <> nil then
       begin
@@ -5028,15 +5066,10 @@ begin
     Invalidate;
     if FMouseDown = False then
     begin
-      if (FKeepSelection = False) and  (FItemIndex > -1) then
+      if (FSelectionOptions.KeepSelection = False) and  (FItemIndex > -1) then
         DeselectItem(250);
     end;
   end;
-end;
-
-procedure TksTableView.SetKeepSelection(const Value: Boolean);
-begin
-  FKeepSelection := Value;
 end;
 
 procedure TksTableView.SetColCount(const Value: integer);       // SF
@@ -5094,18 +5127,14 @@ begin
   end;
 end;
 
+procedure TksTableView.SetSelectionOptions(const Value: TksTableViewSelectionOptions);
+begin
+  FSelectionOptions := Value;
+end;
+
 procedure TksTableView.SetShowAccessory(const Value: Boolean);
 begin
 
-end;
-
-procedure TksTableView.SetShowSelection(const Value: Boolean);
-begin
-  if FShowSelection <> Value then
-  begin
-    FShowSelection := Value;
-    Invalidate;
-  end;
 end;
 
 procedure TksTableView.SetTextDefaults(const Value: TksTableViewTextDefaults);
@@ -6483,6 +6512,182 @@ end;
 procedure TksDragHighlightOptions.SetDisallowDropStroke(const Value: TStrokeBrush);
 begin
   FDisallowDropStroke.Assign(Value);
+end;
+
+{ TksTableViewSelectionOptions }
+
+constructor TksTableViewSelectionOptions.Create(ATableView: TKsTableView);
+begin
+  inherited Create;
+  FTableView := ATableView;
+  FSelectionOverlay := TksTableViewSelectionOverlayOptions.Create(Self);
+  FShowSelection := True;
+  FKeepSelection := False;
+end;
+
+destructor TksTableViewSelectionOptions.Destroy;
+begin
+  FreeAndNil(FSelectionOverlay);
+  inherited;
+end;
+
+
+procedure TksTableViewSelectionOptions.SetKeepSelection(const Value: Boolean);
+begin
+  if FKeepSelection <> Value then
+  begin
+    FKeepSelection := Value;
+    FTableView.Invalidate;
+  end;
+end;
+
+procedure TksTableViewSelectionOptions.SetSelectionOverlay(const Value: TksTableViewSelectionOverlayOptions);
+begin
+  FSelectionOverlay := Value;
+end;
+
+
+procedure TksTableViewSelectionOptions.SetShowSelection(const Value: Boolean);
+begin
+  if FShowSelection <> Value then
+  begin
+    FShowSelection := Value;
+
+    FTableView.Invalidate;
+  end;
+end;
+
+{ TksTableViewSelectionOverlayOptions }
+
+constructor TksTableViewSelectionOverlayOptions.Create(AParent: TksTableViewSelectionOptions);
+begin
+  inherited Create;
+  FParent := AParent;
+  FBitmap := TBitmap.Create;
+  FStroke := TStrokeBrush.Create(TBrushKind.Solid, claBlack);
+  FPosition := ksSelectorRight;
+  FBackgroundColor := claWhite;
+end;
+
+destructor TksTableViewSelectionOverlayOptions.Destroy;
+begin
+  FreeAndNil(FStroke);
+  FreeAndNil(FBitmap);
+  inherited;
+end;
+
+procedure TksTableViewSelectionOverlayOptions.DrawToCanvas(ACanvas: TCanvas; ARect: TRectF);
+begin
+  if FBitmap.Height <> ARect.Height then
+    RecreateIndicator(ARect.Height);
+  case FPosition of
+    ksSelectorLeft: ACanvas.DrawBitmap(FBitmap,
+                                       RectF(0, 0, FBitmap.Width, FBitmap.Height),
+                                       RectF(ARect.Left, ARect.Top, ARect.Left+FBitmap.Width, ARect.Bottom),
+                                       1,
+                                       True);
+    ksSelectorRight: ACanvas.DrawBitmap(FBitmap,
+                                        RectF(0, 0, FBitmap.Width, FBitmap.Height),
+                                        RectF(ARect.Right - FBitmap.Width, ARect.Top, ARect.Right, ARect.Bottom),
+                                        1,
+                                        True);
+  end;
+end;
+
+procedure TksTableViewSelectionOverlayOptions.RecreateIndicator(AHeight: single);
+var
+  AYPos: single;
+  APath: TPathData;
+begin
+  FBitmap.SetSize(20, Round(AHeight));
+  FBitmap.Clear(claNull);
+  FBitmap.Canvas.BeginScene;
+  try
+    FBitmap.Canvas.Stroke.Assign(FStroke);
+    FBitmap.Canvas.Fill.Color := FBackgroundColor;
+
+    AYPos := (AHeight - 20) / 2;
+    FBitmap.Canvas.Stroke.Thickness := FBitmap.Canvas.Stroke.Thickness - 0.5;
+    if FStyle = ksSemiCircle then
+    begin
+      FBitmap.Canvas.FillEllipse(RectF(10, AYPos, 30, AYPos+20), 1);
+      FBitmap.Canvas.DrawEllipse(RectF(10, AYPos, 30, AYPos+20), 1);
+    end;
+
+    if FStyle = ksArrow then
+    begin
+      APath := TPathData.Create;
+      try
+        APath.MoveTo(PointF(10, AYPos+10));
+        APath.LineTo(PointF(20, AYPos));
+        APath.LineTo(PointF(30, AYPos+10));
+        APath.LineTo(PointF(20, AYPos+20));
+        APath.LineTo(PointF(10, AYPos+10));
+        APath.ClosePath;
+        FBitmap.Canvas.FillPath(APath, 1);
+        FBitmap.Canvas.DrawPath(APath, 1);
+
+      finally
+        FreeAndNil(APath);
+      end;
+      //FBitmap.Canvas.DrawPath();
+    end;
+
+
+  finally
+    FBitmap.Canvas.EndScene;
+  end;
+end;
+
+procedure TksTableViewSelectionOverlayOptions.SetEnabled(const Value: Boolean);
+begin
+  if FEnabled <> Value then
+  begin
+    FEnabled := Value;
+    if FEnabled then
+    begin
+      //FParent.FShowSelection := False;
+     // FParent.FKeepSelection := True;
+    end;
+    FParent.FTableView.Invalidate;
+  end;
+end;
+
+procedure TksTableViewSelectionOverlayOptions.SetPosition(const Value: TksTableViewOverlaySelectorPosition);
+begin
+  if FPosition <> Value then
+  begin
+    FPosition := Value;
+    FParent.FTableView.Invalidate;
+  end;
+end;
+
+procedure TksTableViewSelectionOverlayOptions.SetSize(const Value: integer);
+begin
+  if FSize <> Value then
+  begin
+    FSize := Value;
+    FParent.FTableView.Invalidate;
+  end;
+end;
+
+procedure TksTableViewSelectionOverlayOptions.SetStrokeBrush(const Value: TStrokeBrush);
+begin
+  if Value <> nil then
+  begin
+    FStroke.Assign(Value);
+    FParent.FTableView.Invalidate;
+  end;
+end;
+
+procedure TksTableViewSelectionOverlayOptions.SetStyle(const Value: TksTableViewOverlaySelectorStyle);
+begin
+  if FStyle <> Value then
+  begin
+    FStyle := Value;
+    FBitmap.SetSize(0, 0);
+    FParent.FTableView.Invalidate;
+  end;
 end;
 
 initialization
