@@ -1082,6 +1082,7 @@ type
     procedure MouseMove(Shift: TShiftState; x, y: single); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; x, y: single); override;
     procedure DoMouseLeave; override;
+    procedure MouseWheel(Shift: TShiftState; WheelDelta: Integer; var Handled: Boolean); override;
     procedure Resize; override;
     function GetMouseDownBox: TRectF;
     procedure SelectDate(ARow: TksTableViewItem; ASelected: TDateTime; AOnSelectDate: TNotifyEvent);
@@ -4771,6 +4772,27 @@ begin
 
   if (FMouseDownObject <> nil) and (FScrolling = False) then
     FMouseDownObject.MouseUp(x, y);
+end;
+
+procedure TksTableView.MouseWheel(Shift: TShiftState; WheelDelta: Integer; var Handled: Boolean);
+var
+  Offset: Single;
+begin
+  inherited;
+  if (not Handled) then
+  begin
+    if ssHorizontal in Shift then
+    begin
+      // Ignore horizontal
+    end
+    else
+    begin
+      Offset := Height / 5;
+      Offset := Offset * -1 * (WheelDelta / 120);
+      SetScrollViewPos(ScrollViewPos + Offset);
+      Handled := True;
+    end
+  end;
 end;
 
 procedure TksTableView.Paint;
