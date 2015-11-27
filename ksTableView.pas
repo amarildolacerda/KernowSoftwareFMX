@@ -99,7 +99,7 @@ type
   TksTableViewItemAppearance = ( iaNormal, iaTile_Image, iaTile_TitleImage, iaTile_ImageTitle, iaTile_TitleImageSubTitle, iaTile_SubTitleImageTitle ); // SF - Tile
   TksTableItemSelector = (NoSelector, DateSelector, ItemPicker);
   TksTableViewOverlaySelectorPosition = (ksSelectorLeft, ksSelectorRight ); // SF - TC
-  TksTableViewOverlaySelectorStyle = (ksArrow, ksSemiCircle);
+  TksTableViewOverlaySelectorStyle = (ksBlankSpace, ksArrow, ksSemiCircle);
 
   TksTableViewRowCacheEvent = procedure(Sender: TObject; ACanvas: TCanvas; ARow: TksTableViewItem; ARect: TRectF) of object;
   TksTableViewDeletingItemEvent = procedure(Sender: TObject; AItem: TksTableViewItem; var ACanDelete: Boolean) of object;
@@ -540,9 +540,9 @@ type
     function GetObjectRect: TRectF; override;
     function GetAccessory: TksAccessoryType;
     procedure SetAccessory(const Value: TksAccessoryType);
-    property Accessory: TksAccessoryType read GetAccessory write SetAccessory;
   public
     constructor Create(ATableItem: TksTableViewItem); override;
+    property Accessory: TksAccessoryType read GetAccessory write SetAccessory;
   end;
 
   TksTableViewItemObjects = class(TObjectList<TksTableViewItemObject>)
@@ -965,6 +965,7 @@ type
     procedure RecreateIndicator(AHeight: single);
     procedure SetStyle(const Value: TksTableViewOverlaySelectorStyle);
     procedure SetSize(const Value: integer);
+    procedure DoStrokeChanged(Sender: TObject);
   public
     constructor Create(AParent: TksTableViewSelectionOptions);
     destructor Destroy; override;
@@ -6567,6 +6568,7 @@ begin
   FStroke := TStrokeBrush.Create(TBrushKind.Solid, claBlack);
   FPosition := ksSelectorRight;
   FBackgroundColor := claWhite;
+  FStroke.OnChanged := DoStrokeChanged;
 end;
 
 destructor TksTableViewSelectionOverlayOptions.Destroy;
@@ -6579,16 +6581,16 @@ end;
 procedure TksTableViewSelectionOverlayOptions.DrawToCanvas(ACanvas: TCanvas; ARect: TRectF);
 begin
   if FBitmap.Height <> ARect.Height then
-    RecreateIndicator(ARect.Height);
+    RecreateIndicator(ARect.Height-1);
   case FPosition of
     ksSelectorLeft: ACanvas.DrawBitmap(FBitmap,
                                        RectF(0, 0, FBitmap.Width, FBitmap.Height),
-                                       RectF(ARect.Left, ARect.Top, ARect.Left+FBitmap.Width, ARect.Bottom),
+                                       RectF(ARect.Left, ARect.Top, ARect.Left+FBitmap.Width, ARect.Bottom-1),
                                        1,
                                        True);
     ksSelectorRight: ACanvas.DrawBitmap(FBitmap,
                                         RectF(0, 0, FBitmap.Width, FBitmap.Height),
-                                        RectF(ARect.Right - FBitmap.Width, ARect.Top, ARect.Right, ARect.Bottom),
+                                        RectF(ARect.Right - (FBitmap.Width/2), ARect.Top, ARect.Right + (FBitmap.Width/2), ARect.Bottom-1),
                                         1,
                                         True);
   end;
@@ -6596,33 +6598,47 @@ end;
 
 procedure TksTableViewSelectionOverlayOptions.RecreateIndicator(AHeight: single);
 var
-  AYPos: single;
   APath: TPathData;
+  ASize: single;
+  AOffset: single;
+  AIndicatorRect: TRectF;
 begin
-  FBitmap.SetSize(20, Round(AHeight));
+  FBitmap.SetSize(Round(AHeight), Round(AHeight));
   FBitmap.Clear(claNull);
   FBitmap.Canvas.BeginScene;
   try
     FBitmap.Canvas.Stroke.Assign(FStroke);
     FBitmap.Canvas.Fill.Color := FBackgroundColor;
 
-    AYPos := (AHeight - 20) / 2;
-    FBitmap.Canvas.Stroke.Thickness := FBitmap.Canvas.Stroke.Thickness - 0.5;
+    ASize := 20 + (3*FSize);
+    AOffset := (AHeight - ASize) / 2;
+
+    AIndicatorRect := RectF(AOffset, AOffset, FBitmap.Width-AOffset, FBitmap.Height-AOffset);
+
+    if FStyle = ksBlankSpace then
+    begin
+      FBitmap.Canvas.Stroke.Thickness := 2;
+      FBitmap.Canvas.Stroke.Color := FBackgroundColor;
+      FBitmap.Canvas.DrawLine(PointF(FBitmap.Width/2, 0), PointF(PointF(FBitmap.Width/2, FBitmap.Height-1)), 1);
+    end;
+
     if FStyle = ksSemiCircle then
     begin
-      FBitmap.Canvas.FillEllipse(RectF(10, AYPos, 30, AYPos+20), 1);
-      FBitmap.Canvas.DrawEllipse(RectF(10, AYPos, 30, AYPos+20), 1);
+      FBitmap.Canvas.Stroke.Thickness := FBitmap.Canvas.Stroke.Thickness /2;
+      FBitmap.Canvas.FillEllipse(AIndicatorRect, 1);
+      FBitmap.Canvas.DrawEllipse(AIndicatorRect, 1);
     end;
 
     if FStyle = ksArrow then
     begin
+      FBitmap.Canvas.Stroke.Thickness := FBitmap.Canvas.Stroke.Thickness /2;
       APath := TPathData.Create;
       try
-        APath.MoveTo(PointF(10, AYPos+10));
-        APath.LineTo(PointF(20, AYPos));
-        APath.LineTo(PointF(30, AYPos+10));
-        APath.LineTo(PointF(20, AYPos+20));
-        APath.LineTo(PointF(10, AYPos+10));
+        APath.MoveTo(PointF(AIndicatorRect.Left, AIndicatorRect.CenterPoint.Y));
+        APath.LineTo(PointF(AIndicatorRect.CenterPoint.X, AIndicatorRect.Top));
+        APath.LineTo(PointF(AIndicatorRect.Right, AIndicatorRect.CenterPoint.Y));
+        APath.LineTo(PointF(AIndicatorRect.CenterPoint.X, AIndicatorRect.Bottom));
+        APath.LineTo(PointF(AIndicatorRect.Left, AIndicatorRect.CenterPoint.Y));
         APath.ClosePath;
         FBitmap.Canvas.FillPath(APath, 1);
         FBitmap.Canvas.DrawPath(APath, 1);
@@ -6630,9 +6646,7 @@ begin
       finally
         FreeAndNil(APath);
       end;
-      //FBitmap.Canvas.DrawPath();
     end;
-
 
   finally
     FBitmap.Canvas.EndScene;
@@ -6644,11 +6658,6 @@ begin
   if FEnabled <> Value then
   begin
     FEnabled := Value;
-    if FEnabled then
-    begin
-      //FParent.FShowSelection := False;
-     // FParent.FKeepSelection := True;
-    end;
     FParent.FTableView.Invalidate;
   end;
 end;
@@ -6688,6 +6697,11 @@ begin
     FBitmap.SetSize(0, 0);
     FParent.FTableView.Invalidate;
   end;
+end;
+
+procedure TksTableViewSelectionOverlayOptions.DoStrokeChanged(Sender: TObject);
+begin
+  FParent.FTableView.Invalidate;
 end;
 
 initialization
