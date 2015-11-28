@@ -56,7 +56,7 @@ const
   // default which stretches to row height
 
   C_TABLEVIEW_DEFAULT_IMAGE_SIZE = 24;
-
+  C_TABLEVIEW_DEFAULT_SELECT_DURATION = 200;
   C_TABlEVIEW_SCROLL_THRESHOLD = 10;
 
 
@@ -440,6 +440,7 @@ type
     FBitmap: TBitmap;
     FDrawMode: TksImageDrawMode;
     FShadow: TksTableViewShadow;
+    FHighQuality: Boolean;
     [weak]FExternalBitmap: TBitmap;
   private
     FOwnsBitmap: Boolean;
@@ -448,12 +449,14 @@ type
     procedure SetOwnsBitmap(const Value: Boolean);
     procedure SetShadow(const Value: TksTableViewShadow);
     procedure SetDrawMode(const Value: TksImageDrawMode);
+    procedure SetHighQuality(const Value: Boolean);
   protected
     procedure Render(ACanvas: TCanvas); override;
     property Bitmap: TBitmap read GetBitmap write SetBitmap;
     property Shadow: TksTableViewShadow read FShadow write SetShadow;
     property OwnsBitmap: Boolean read FOwnsBitmap write SetOwnsBitmap default False;
     property DrawMode: TksImageDrawMode read FDrawMode write SetDrawMode;
+    property HighQuality: Boolean read FHighQuality write SetHighQuality;
   public
     constructor Create(ATableItem: TksTableViewItem); override;
     destructor Destroy; override;
@@ -464,6 +467,8 @@ type
     property Bitmap;
     property Shadow;
     property DrawMode;
+    property OwnsBitmap;
+    property HighQuality;
   end;
 
   TksTableViewItemShape = class(TksTableViewItemObject)
@@ -637,11 +642,11 @@ type
     procedure DeselectObjects;
     procedure SetFill(const Value: TBrush);
   protected
-    procedure Render(ACanvas: TCanvas; AScrollPos: single);
+    function Render(ACanvas: TCanvas; AScrollPos: single): TRectF;
     procedure CacheItem(const AForceCache: Boolean = False);
 
   public
-    constructor Create(ATableView: TksTableView); reintroduce;
+    constructor Create(ATableView: TksTableView); reintroduce; virtual;
     destructor Destroy; override;
     function ObjectAtPos(x, y: single): TksTableViewItemObject;
     function IsLastItem: Boolean;
@@ -872,6 +877,7 @@ type
 
   TksTableViewPullToRefresh = class(TPersistent)
   private
+    [weak]FTableView: TksTableView;
     FEnabled: Boolean;
     FPullText: string;
     FReleaseText: string;
@@ -880,7 +886,7 @@ type
     procedure SetEnabled(const Value: Boolean);
     procedure SetFont(const Value: TFont);
   public
-    constructor Create; virtual;
+    constructor Create(ATableView: TksTableView); virtual;
     destructor Destroy; override;
     procedure Assign(Source: TPersistent); override;
   published
@@ -986,6 +992,7 @@ type
     FSelectionOverlay: TksTableViewSelectionOverlayOptions;
     FShowSelection: Boolean;
     FKeepSelection: Boolean;
+    FSelectDuration: integer;
     procedure SetKeepSelection(const Value: Boolean);
     procedure SetShowSelection(const Value: Boolean);
     procedure SetSelectionOverlay(const Value: TksTableViewSelectionOverlayOptions);
@@ -996,6 +1003,7 @@ type
     property ShowSelection: Boolean read FShowSelection write SetShowSelection default True;
     property KeepSelection: Boolean read FKeepSelection write SetKeepSelection default False;
     property SelectionOverlay: TksTableViewSelectionOverlayOptions read FSelectionOverlay write SetSelectionOverlay;
+    property SelectDuration: integer read FSelectDuration write FSelectDuration default C_TABLEVIEW_DEFAULT_SELECT_DURATION;
   end;
 
 
@@ -1102,7 +1110,6 @@ type
     procedure DeselectItem(const ADelay: integer = 0);
     procedure DoDeselectItem;
     //procedure SetKeepSelection(const Value: Boolean);
-    function GetItemFromPos(AXPos,AYPos: single): TksTableViewItem;  // SF
     //function GetItemFromYPos(AYPos: single): TksTableViewItem;
     procedure DoPullToRefresh;
     procedure UpdateFilteredItems;
@@ -1148,6 +1155,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
+    function GetItemFromPos(AXPos,AYPos: single): TksTableViewItem;  // SF
     procedure ClearItems;
     procedure BeginUpdate; {$IFDEF XE8_OR_NEWER} override; {$ENDIF}
     procedure EndUpdate;   {$IFDEF XE8_OR_NEWER} override; {$ENDIF}
@@ -2047,6 +2055,7 @@ begin
   FShadow := TksTableViewShadow.Create;
   FShadow.Visible := False;
   FOwnsBitmap := False;
+  FHighQuality := False;
 end;
 
 destructor TksTableViewItemBaseImage.Destroy;
@@ -2059,10 +2068,15 @@ end;
 function TksTableViewItemBaseImage.GetBitmap: TBitmap;
 begin
   if FOwnsBitmap then
+  begin
+    if (FBitmap=Nil) then
+      FBitmap := TBitmap.Create;
     Result := FBitmap
+  end
   else
     Result := FExternalBitmap;
 end;
+
 
 procedure TksTableViewItemBaseImage.Render(ACanvas: TCanvas);
 var
@@ -2106,7 +2120,7 @@ begin
         AShadowBmp.Free;
       end;
     end;
-    ACanvas.DrawBitmap(Bitmap, RectF(0, 0, Bitmap.Width, Bitmap.Height), ARect, 1, True);
+    ACanvas.DrawBitmap(Bitmap, RectF(0, 0, Bitmap.Width, Bitmap.Height), ARect, 1, FHighQuality);
   end;
 end;
 
@@ -2132,10 +2146,23 @@ begin
   end;
 end;
 
+procedure TksTableViewItemBaseImage.SetHighQuality(const Value: Boolean);
+begin
+  if FHighQuality <> Value then
+  begin
+    FHighQuality := Value;
+    Changed;
+  end;
+end;
+
 procedure TksTableViewItemBaseImage.SetOwnsBitmap(const Value: Boolean);
 begin
   if FOwnsBitmap <> Value then
+  begin
     FOwnsBitmap := Value;
+    if (FOwnsBitmap) and (FExternalBitmap <> nil) then
+      Bitmap.Assign(FExternalBitmap)
+  end;
 end;
 
 procedure TksTableViewItemBaseImage.SetShadow(const Value: TksTableViewShadow);
@@ -3103,7 +3130,7 @@ begin
   CacheItem(True);
 end;
 
-procedure TksTableViewItem.Render(ACanvas: TCanvas; AScrollPos: single);
+function TksTableViewItem.Render(ACanvas: TCanvas; AScrollPos: single): TRectF;
 var
   ARect: TRectF;
   AButtonRect: TRectF;
@@ -3183,7 +3210,7 @@ begin
                        PointF(Round(ARect.Right) - 0.5, ARect.Bottom), 1);                      // SF - TC
                                                                                                 // SF - TC
 
-
+    Result := ARect;
    (* AOverlay := FTableView.FSelectionOptions.SelectionOverlay;
     if AOverlay.Enabled then
     begin
@@ -3911,6 +3938,7 @@ end;
 procedure TksTableView.ClearItems;
 begin
   FItems.Clear;
+  FItemIndex := -1;
   FFilteredItems.Clear;
   Invalidate;
 end;
@@ -3945,7 +3973,7 @@ begin
   FSearchBox.Parent := Self;
 
   FTextDefaults := TksTableViewTextDefaults.Create;
-  FPullToRefresh := TksTableViewPullToRefresh.Create;
+  FPullToRefresh := TksTableViewPullToRefresh.Create(Self);
   Size.Width := C_TABLEVIEW_DEFAULT_WIDTH;
   Size.Height := C_TABLEVIEW_DEFAULT_HEIGHT;
   ClipChildren := True;
@@ -3957,7 +3985,8 @@ begin
   FAniCalc.Interval := 8;
   FAniCalc.OnStart := AniCalcStart;
   FAniCalc.OnStop := AniCalcStop;
-  FAniCalc.BoundsAnimation := True;
+  //FAniCalc.BoundsAnimation := True;
+  FAniCalc.BoundsAnimation := True; //FPullToRefresh.Enabled;
   FAniCalc.TouchTracking := [ttVertical];
 
 
@@ -4537,7 +4566,7 @@ begin
   FMouseDownPoint := PointF(x, y);
   FMouseCurrentPos := FMouseDownPoint;
 
-
+  FAniCalc.BoundsAnimation := FPullToRefresh.Enabled;
   FAniCalc.MouseDown(x, y);
 
   FMouseDownItem := GetItemFromPos(x,y);  // SF
@@ -4585,8 +4614,6 @@ var
   AAllowDrop    : Boolean;                                                              // SF - LiveDD
   I             : Integer;                                                              // SF - LiveDD
 begin
-
-
   if (UpdateCount > 0) or (FMouseEventsEnabled = False) then
     Exit;
   FMouseCurrentPos := PointF(x, y);
@@ -4663,7 +4690,10 @@ begin
     x := FMouseDownPoint.x;
 
   if (FScrolling) and (ssLeft in Shift) then
-    FAniCalc.MouseMove(x, y);
+  begin
+    //if (FPullToRefresh.Enabled) or (ScrollViewPos > 0)  then
+      FAniCalc.MouseMove(x, y);
+  end;
 end;
 
 procedure TksTableView.MouseUp(Button: TMouseButton; Shift: TShiftState;
@@ -4682,6 +4712,7 @@ begin
   if (UpdateCount > 0) or (FMouseEventsEnabled = False) then
     Exit;
   inherited;
+
 
   if (FDragging) then                                            // SF - DD
   begin                                                                         // SF - DD
@@ -4730,12 +4761,14 @@ begin
     end;
   end;
 
-  //if FScrolling then
+  if FScrolling then
     FAniCalc.MouseUp(x, y);
+
+  FAniCalc.BoundsAnimation := True;
 
   FMouseDown := False;
   if (FItemIndex > -1) and (FSelectionOptions.FKeepSelection = False) then
-    DeselectItem(200);
+    DeselectItem(FSelectionOptions.SelectDuration);
 
   if (FMouseDownObject <> nil) and (FScrolling = False) then
     FMouseDownObject.MouseUp(x, y);
@@ -4773,6 +4806,7 @@ var
   AItemsDrawn: Boolean;
   ARect: TRectF;
   ASelectedRect: TRectF;
+  ATop: single;
   //LastY : Single; // SF - TC
 begin
   if not FPainting then
@@ -4845,37 +4879,6 @@ begin
         end;
       end;
 
-      if FStickyHeaders then
-      begin
-        for ICount := 0 to AItems.Count - 1 do
-        begin
-          AItem := AItems[ICount];
-          if (AItem.Purpose = Header) then
-          begin
-            if AItem.ItemRect.Top < AViewport.Top then
-
-              AItem.Render(Canvas, Max(0, Round(AItem.ItemRect.Top)))
-            else
-              AItem.Render(Canvas, AViewport.Top);
-          end;
-        end;
-      end;
-
-      if (FBackgroundText.Enabled) and (AItems.Count = 0) then
-      begin
-        if FBackgroundText.Text <> '' then
-        begin
-          Canvas.Font.Assign(FBackgroundText.Font);
-          Canvas.Fill.Color := FBackgroundText.TextColor;
-          Canvas.Fill.Kind := TBrushKind.Solid;
-
-          ARect := LocalRect;
-          if ScrollViewPos < 0  then
-            OffsetRect(ARect, 0, 0-ScrollViewPos);
-          Canvas.FillText(ARect, FBackgroundText.Text, False, 1, [], TTextAlign.Center);
-        end;
-      end;
-
       if FSelectionOptions.SelectionOverlay.Enabled then
       begin
         with FSelectionOptions.SelectionOverlay do
@@ -4903,6 +4906,51 @@ begin
               FSelectionOptions.SelectionOverlay.DrawToCanvas(Canvas, ASelectedRect);
             end;
           end
+        end;
+      end;
+
+      if (FStickyHeaders) and (ScrollViewPos >= 0) then
+      begin
+        for ICount := 0 to AItems.Count - 1 do
+        begin
+          AItem := AItems[ICount];
+          if (AItem.Purpose = Header) then
+          begin
+            if AItem.ItemRect.Top < AViewport.Top then
+              ATop := Round(AItem.ItemRect.Top)
+            else
+              ATop := AViewport.Top;
+
+
+            ARect := AItem.Render(Canvas, Max(0, ATop));
+
+            if FSelectionOptions.SelectionOverlay.Enabled then
+            begin
+              with FSelectionOptions.SelectionOverlay do
+              begin
+                Canvas.Stroke.Assign(FSelectionOptions.SelectionOverlay.Stroke);
+                case Position of
+                  ksSelectorLeft: Canvas.DrawLine(PointF(0, ARect.Top), PointF(0, ARect.Bottom), 1);
+                  ksSelectorRight: Canvas.DrawLine(PointF(Width, ARect.Top), PointF(Width, ARect.Bottom), 1);
+                end;
+              end;
+            end;
+          end;
+        end;
+      end;
+
+      if (FBackgroundText.Enabled) and (AItems.Count = 0) then
+      begin
+        if FBackgroundText.Text <> '' then
+        begin
+          Canvas.Font.Assign(FBackgroundText.Font);
+          Canvas.Fill.Color := FBackgroundText.TextColor;
+          Canvas.Fill.Kind := TBrushKind.Solid;
+
+          ARect := LocalRect;
+          if ScrollViewPos < 0  then
+            OffsetRect(ARect, 0, 0-ScrollViewPos);
+          Canvas.FillText(ARect, FBackgroundText.Text, False, 1, [], TTextAlign.Center);
         end;
       end;
 
@@ -6140,8 +6188,9 @@ begin
   FTextColor := ASrc.TextColor;
 end;
 
-constructor TksTableViewPullToRefresh.Create;
+constructor TksTableViewPullToRefresh.Create(ATableView: TksTableView);
 begin
+  FTableView := ATableView;
   FFont := TFont.Create;
   FEnabled := True;
   FPullText := 'pull to refresh';
@@ -6159,6 +6208,8 @@ end;
 procedure TksTableViewPullToRefresh.SetEnabled(const Value: Boolean);
 begin
   FEnabled := Value;
+  FTableView.FAniCalc.BoundsAnimation := FEnabled;
+
 end;
 
 procedure TksTableViewPullToRefresh.SetFont(const Value: TFont);
@@ -6492,6 +6543,7 @@ begin
   FSelectionOverlay := TksTableViewSelectionOverlayOptions.Create(Self);
   FShowSelection := True;
   FKeepSelection := False;
+  FSelectDuration := C_TABLEVIEW_DEFAULT_SELECT_DURATION;
 end;
 
 destructor TksTableViewSelectionOptions.Destroy;
