@@ -316,7 +316,24 @@ type
   public
     property TintColor: TAlphaColor read GetTintColor write SetTintColor;
     property Text: string read GetText write SetText;
+  end;
 
+  TksTableViewItemTrackBar = class(TksTableViewItemEmbeddedControl)
+  private
+    function GetTrackBar: TTrackBar;
+    procedure DoChanged(Sender: TObject);
+    function GetMax: single;
+    function GetMin: single;
+    function GetValue: single;
+    procedure SetMax(const Value: single);
+    procedure SetMin(const Value: single);
+    procedure SetValue(const Value: single);
+  protected
+    function CreateControl: TStyledControl; override;
+  public
+    property Min: single read GetMin write SetMin;
+    property Max: single read GetMax write SetMax;
+    property Value: single read GetValue write SetValue;
   end;
 
   TksTableViewItemText = class(TksTableViewItemObject)
@@ -731,7 +748,7 @@ type
     function AddEdit(AX, AY, AWidth: single; AText: string; const AStyle: TksEmbeddedEditStyle = TksEmbeddedEditStyle.ksEditNormal): TksTableViewItemEmbeddedEdit;
     function AddDateEdit(AX, AY, AWidth: single; ADate: TDateTime): TksTableViewItemEmbeddedDateEdit;
     function AddSwitch(x: single; AIsChecked: Boolean; const AAlign: TksTableItemAlign = TksTableItemAlign.Trailing): TksTableViewItemSwitch;
-
+    function AddTrackBar(AX, AWidth, AMin, AMax, AValue: single; const AAlign: TksTableItemAlign = TksTableItemAlign.Trailing): TksTableViewItemTrackBar;
     function AddTable(AX, AY, AColWidth, ARowHeight: single; AColCount, ARowCount: integer): TksTableViewItemTable;
 
     property AbsoluteIndex: integer read GetAbsoluteIndex;
@@ -1616,7 +1633,7 @@ begin
   end;
 end;
 
-procedure DrawButton(ACanvas: TCanvas; ARect: TRectF; AText: string; ASelected: Boolean; AColor: TAlphaColor; AStyle: TksTableViewButtonStyle);
+{procedure DrawButton(ACanvas: TCanvas; ARect: TRectF; AText: string; ASelected: Boolean; AColor: TAlphaColor; AStyle: TksTableViewButtonStyle);
 var
   ABmp: TBitmap;
   r: TRectF;
@@ -1682,7 +1699,7 @@ begin
   finally
     FreeAndNil(ABmp);
   end;
-end;
+end;     }
 
 // ------------------------------------------------------------------------------
 
@@ -1813,7 +1830,11 @@ begin
 
 
   ARowRect := GetItemRect;
-
+  if (Self <> FTableItem.Accessory) then
+  begin
+    if (FTableItem.Accessory.Accessory <> atNone) then
+      ARowRect.Right := ARowRect.Right - (FTableItem.Accessory.Width+8);
+  end;
   RelativeOffset := PointF(0, 0);
 
   if (FPositionRelativeTo <> nil) then                                          // SF - Pos
@@ -2548,6 +2569,19 @@ begin
   Result.FPlaceOffset := PointF(AX, AY);
   Result.ResizeTable;
 
+  FObjects.Add(Result);
+end;
+
+function TksTableViewItem.AddTrackBar(AX, AWidth, AMin, AMax, AValue: single;
+  const AAlign: TksTableItemAlign): TksTableViewItemTrackBar;
+begin
+  Result := TksTableViewItemTrackBar.Create(Self);
+  Result.Width := AWidth;
+  Result.Min := AMin;
+  Result.Max := AMax;
+  Result.Value := AValue;
+  Result.Align := AAlign;
+  Result.VertAlign := TksTableItemAlign.Center;
   FObjects.Add(Result);
 end;
 
@@ -4124,6 +4158,7 @@ begin
   FUpdateCount := 0;
   FDragging := False;
   AddObject(FSearchBox);
+  SetAcceptsControls(False);
 end;
 
 destructor TksTableView.Destroy;
@@ -5081,6 +5116,15 @@ begin
         end;
       end;
 
+      {$IFDEF ANDROID}
+      if GetSearchHeight > 0 then
+      begin
+        Canvas.Fill.Kind := TBrushKind.Solid;
+        Canvas.Fill.Color := GetColorOrDefault(FAppearence.Background, claWhite);
+        Canvas.FillRect(RectF(0, 0, Width, GetSearchHeight), 0, 0, AllCorners, 1);
+      end;
+      {$ENDIF}
+
       if (Assigned(OnAfterPaint)) then                                          // SF - BK
         OnAfterPaint(Self,Canvas);                                              // SF - BK
     finally
@@ -5238,8 +5282,6 @@ end;
 
 procedure TksTableView.SetScrollViewPos(const Value: single);
 begin
-//  if Value < FMaxScrollPos then
-//    Exit;
   if not SameValue(FScrollPos, Value, 1/GetScreenScale) then
   begin
     HideFocusedControl;
@@ -6385,7 +6427,11 @@ function TksTableViewItemEmbeddedControl.GetControlBitmap(AForceRecreate: Boolea
 var
   r: TRectF;
 begin
-  FControl.Root.SetFocused(nil);
+  if FControl.IsFocused then
+  begin
+    FCached.Clear(claNull);
+    Exit;
+  end;
   r := GetObjectRect;
   if (FCached = nil) or (IsBlankBitmap(FCached)) or (AForceRecreate) then
   begin
@@ -6395,11 +6441,13 @@ begin
   end;
 
   Result := FCached;
+  if FControl.IsFocused then
+     FCached.Clear(claNull);
 end;
 
 procedure TksTableViewItemEmbeddedControl.HideControl;
 begin
-
+  FControl.Root.SetFocused(nil);
   GetControlBitmap(True);
   FControl.Visible := False;
   FFocused := False;
@@ -6456,6 +6504,8 @@ end;
 
 procedure TksTableViewItemEmbeddedControl.MouseDown(x, y: single);
 begin
+  if FControl.IsFocused then
+    Exit;
   FocusControl;
   SimulateClick(x, y);
 end;
@@ -6465,6 +6515,8 @@ var
   ABmp: TBitmap;
 begin
   ABmp := GetControlBitmap(False);
+  if ABmp = nil then
+    Exit;
   ACanvas.DrawBitmap(ABmp,
                      RectF(0, 0, ABmp.Width, ABmp.Height),
                      ObjectRect,
@@ -6478,19 +6530,25 @@ var
 begin
   inherited;
  // FTableItem.TableView.KillAllTimers;
+  if FControl.IsFocused then
+    Exit;
   if FTableItem.FTableView.FFocusedControl <> Self then
     FTableItem.FTableView.HideFocusedControl;
   r := GetObjectRect;
+  OffsetRect(r, 0, FTableItem.TableView.GetSearchHeight);
   FControl.SetBounds(r.Left, (FTableItem.ItemRect.Top - FTableItem.FTableView.ScrollViewPos) + r.Top, r.width, r.height);
   FControl.Visible := True;
   FFocused := True;
   FTableItem.FTableView.FFocusedControl := Self;
+
+  FCached.Clear(claNull);
   FTableItem.CacheItem(True);
+
   if FTableItem.TableView.SelectionOptions.KeepSelection then
     FTableItem.TableView.ItemIndex := FTableItem.Index;
-  FTableItem.FTableView.Invalidate;
   FControl.CanFocus := True;
   FControl.SetFocus;
+  FTableItem.FTableView.Invalidate;
 
 end;
 
@@ -6975,6 +7033,54 @@ end;
 procedure TksTableViewItemButton.SetTintColor(const Value: TAlphaColor);
 begin
   GetButton.TintColor := Value;
+end;
+
+{ TksTableViewItemTrackBar }
+
+function TksTableViewItemTrackBar.CreateControl: TStyledControl;
+begin
+  Result := TTrackBar.Create(FTableItem.TableView);
+  (Result as TTrackBar).OnChange := DoChanged;
+end;
+
+procedure TksTableViewItemTrackBar.DoChanged(Sender: TObject);
+begin
+  //
+end;
+
+function TksTableViewItemTrackBar.GetMax: single;
+begin
+  Result := GetTrackBar.Max;
+end;
+
+function TksTableViewItemTrackBar.GetMin: single;
+begin
+  Result := GetTrackBar.Min;
+end;
+
+function TksTableViewItemTrackBar.GetTrackBar: TTrackBar;
+begin
+  Result := (FControl as TTrackBar);
+end;
+
+function TksTableViewItemTrackBar.GetValue: single;
+begin
+
+end;
+
+procedure TksTableViewItemTrackBar.SetMax(const Value: single);
+begin
+
+end;
+
+procedure TksTableViewItemTrackBar.SetMin(const Value: single);
+begin
+
+end;
+
+procedure TksTableViewItemTrackBar.SetValue(const Value: single);
+begin
+
 end;
 
 initialization
