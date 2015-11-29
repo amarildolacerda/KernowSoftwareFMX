@@ -588,7 +588,6 @@ type
     FTextColor: TAlphaColor;
     FActionButtons: TksTableViewActionButtons;
     FCanSelect: Boolean;
-    //FTitleWidth: TksTableViewTextWidth;
     FTagString: string;
     FTagInteger: integer;
     FSelector: TksTableItemSelector;
@@ -599,7 +598,6 @@ type
     FIsFirstRow : Boolean;                    // SF - Tile
     FIsLastRow : Boolean;                     // SF - Tile
     FAppearance : TksTableViewItemAppearance; // SF - Tile
-
     FDragging: Boolean;
     FFill : TBrush;                           // SF - BK
     function MatchesSearch(AFilter: string): Boolean;
@@ -714,7 +712,7 @@ type
     property PickerItems: TStrings read FPickerItems write SetPickerItems;
     property Purpose: TksTableViewItemPurpose read GetPurpose write SetPurpose default None;
     property Selector: TksTableItemSelector read FSelector write FSelector;
-
+    property TableView: TksTableView read FTableView;
     property TagString: string read FTagString write FTagString;
     property TagInteger: integer read FTagInteger write FTagInteger default 0;
     property ColCount: integer read FColCount write FColCount default 0;  // SF
@@ -3939,6 +3937,7 @@ procedure TksTableView.ClearItems;
 begin
   FItems.Clear;
   FItemIndex := -1;
+  FScrollPos := 0;
   FFilteredItems.Clear;
   Invalidate;
 end;
@@ -4048,7 +4047,7 @@ end;
 
 procedure TksTableView.DoButtonClicked(AItem: TksTableViewItem; AButton: TksTableViewItemButton);
 begin
-  if Assigned(FOnSwitchClicked) then
+  if Assigned(FOnButtonClicked) then
     FOnButtonClicked(Self, AItem, AButton, AItem.ID);
 end;
 
@@ -5110,7 +5109,8 @@ end;
 
 procedure TksTableView.SetScrollViewPos(const Value: single);
 begin
-
+  if Value < FMaxScrollPos then
+    Exit;
   if not SameValue(FScrollPos, Value, 1/GetScreenScale) then
   begin
     HideFocusedControl;
