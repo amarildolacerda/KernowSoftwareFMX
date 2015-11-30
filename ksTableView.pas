@@ -1015,7 +1015,7 @@ type
     property Enabled: Boolean read FEnabled write FEnabled default False;
     property Shadow: Boolean read FShadow write SetShadow default True;
     property Opacity: single read FOpacity write SetOpacity;
-    property LiveMoving: Boolean read FLiveMoving write SetLiveMoving;  // SF - LiveDD
+    property LiveMoving: Boolean read FLiveMoving write SetLiveMoving default True;  // SF - LiveDD
   end;
 
 
@@ -1206,6 +1206,7 @@ type
     //procedure SetShowSelection(const Value: Boolean);
   protected
     function GetTotalItemHeight: single;
+    function IsHeader(AItem: TksTableViewItem): Boolean;
     procedure Paint; override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; x, y: single); override;
     procedure MouseMove(Shift: TShiftState; x, y: single); override;
@@ -3062,7 +3063,7 @@ begin
   for ICount := FObjects.Count-1 downto 0 do
   begin
     AObj := FObjects[ICount];
-    if PtInRect(AObj.ObjectRect, PointF(x, (y-ItemRect.Top)-FTableView.GetSearchHeight)) then
+    if PtInRect(AObj.ObjectRect, PointF(x, (y-ItemRect.Top))) then
     begin
       Result := AObj;
       Exit;
@@ -3272,7 +3273,8 @@ var
   ASrcRect: TRectF;  // SF
 begin
   ARect := FItemRect;
-  OffsetRect(ARect, 0, 0 - AScrollPos);
+
+  OffsetRect(ARect, 0, (0 - AScrollPos) + FTableView.GetSearchHeight);
 
   if (FDragging) and (FTableView.DragDropOptions.DragSpaceColor <> claNull) then
   begin
@@ -3940,7 +3942,7 @@ begin
   ANoCols       := Max(1,ColCount);                                                // SF
   AWidth        := Width / ANoCols;                                                // SF
   AXPos         := 0;                                                              // SF
-  AYPos         := GetSearchHeight;                                                 // SF
+  AYPos         := 0;                                                 // SF
   ACol          := 0;                                                              // SF
   ARow          := 0;                                                              // SF - Tile
   AClientHeight := Height - GetSearchHeight();                                     // SF
@@ -4308,12 +4310,13 @@ begin
 
   FMouseDownItem.DoClick(FMouseDownPoint.x, (FMouseDownPoint.y - FMouseDownItem.ItemRect.Top) + ScrollViewPos);
 
+  // select the first embedded edit if no OnClick event handler exists for the table item
+  FMouseDownItem.SelectFirstEmbeddedEdit;
+
   if Assigned(FItemClickEvent) then
-    FItemClickEvent(Self, FMouseDownPoint.x, FMouseDownPoint.y, FMouseDownItem,
-      FMouseDownItem.ID, FMouseDownObject);
+    FItemClickEvent(Self, FMouseDownPoint.x, FMouseDownPoint.y, FMouseDownItem, FMouseDownItem.ID, FMouseDownObject);
 
   HideAllActionButtons(False);
-  FMouseDownItem.SelectFirstEmbeddedEdit;
 end;
 
 procedure TksTableView.DoSelectPickerItem(Sender: TObject);
@@ -4401,7 +4404,7 @@ begin
   if FMouseDownItem = nil then
     Exit;
 
-  AAllowDrag := False;
+  AAllowDrag := True;
   if (Assigned(FOnCanDragItem)) and (FDragDropOptions.Enabled = True) then
     FOnCanDragItem(Self, FMouseDownItem, AAllowDrag);
 
@@ -4551,7 +4554,7 @@ begin                                                                           
   AFiltered := FFilteredItems;                                                        // SF
   for ICount := 0 to AFiltered.Count - 1 do                                           // SF
   begin                                                                               // SF
-    if PtInRect(AFiltered[ICount].ItemRect, PointF(AXPos, (AYPos + GetScrollViewPos) - GetSearchHeight))  // SF
+    if PtInRect(AFiltered[ICount].ItemRect, PointF(AXPos, (AYPos + GetScrollViewPos)))  // SF
     then                                                                              // SF
     begin                                                                             // SF
       Result := AFiltered[ICount];                                                    // SF
@@ -4577,7 +4580,7 @@ end;
 
 function TksTableView.GetScrollViewPos: single;
 begin
-  Result := FScrollPos + GetSearchHeight;
+  Result := FScrollPos;
 end;
 
 function TksTableView.GetSearchHeight: single;
@@ -4687,6 +4690,13 @@ begin
   InvalidateRect(LocalRect);
 end;
 
+function TksTableView.IsHeader(AItem: TksTableViewItem): Boolean;
+begin
+  Result := False;
+  if AItem <> nil then
+    Result := AItem.Purpose = TksTableViewItemPurpose.Header;
+end;
+
 procedure TksTableView.KillAllTimers;
 begin
   KillTimer(FSelectTimer);
@@ -4710,6 +4720,8 @@ procedure TksTableView.MouseDown(Button: TMouseButton; Shift: TShiftState;
 var
   AConsumesClick: Boolean;
 begin
+  y := y - GetSearchHeight;
+
   if (UpdateCount > 0) or (FMouseEventsEnabled = False) then
     Exit;
   inherited;
@@ -4728,20 +4740,11 @@ begin
   FAniCalc.BoundsAnimation := FPullToRefresh.Enabled;
   FAniCalc.MouseDown(x, y);
 
-  FMouseDownItem := GetItemFromPos(x,y);  // SF
+  FMouseDownItem := GetItemFromPos(x,y);
   if FMouseDownItem <> nil then
   begin
-    {if FMouseDownItem.FActionButtons.Visible then
-    begin
-      AActionBtn := FMouseDownItem.FActionButtons.ButtonFromXY(x, y);
-      if AActionBtn <> nil then
-      begin
-        if Assigned(FOnItemActionButtonClick) then
-          FOnItemActionButtonClick(Self, FMouseDownItem, AActionBtn);
-      end;
-    end; }
 
-    FMouseDownObject := FMouseDownItem.ObjectAtPos(x, y + ScrollViewPos);
+    FMouseDownObject := FMouseDownItem.ObjectAtPos(x, y + GetScrollViewPos);
 
     if (FMouseDownObject <> FFocusedControl) and (FFocusedControl <> nil) then
       HideFocusedControl;
@@ -4773,6 +4776,8 @@ var
   AAllowDrop    : Boolean;                                                              // SF - LiveDD
   I             : Integer;                                                              // SF - LiveDD
 begin
+  y := y - GetSearchHeight;
+
   if (UpdateCount > 0) or (FMouseEventsEnabled = False) then
     Exit;
   FMouseCurrentPos := PointF(x, y);
@@ -4864,14 +4869,13 @@ var                                                                             
   ADragOverItem: TksTableViewItem;
   Form: TCustomForm;
 begin
-  AAllowMove := False;
-  //if FMouseDownObject <> nil then
-  // FMouseDownObject.MouseUp(0, 0);
+  y := y - GetSearchHeight;
+
+  AAllowMove := True;
 
   if (UpdateCount > 0) or (FMouseEventsEnabled = False) then
     Exit;
   inherited;
-
 
   if (FDragging) then                                            // SF - DD
   begin                                                                         // SF - DD
@@ -4902,7 +4906,7 @@ begin
                                                                         // SF - DD
 
     end;
-   FDragging := False;
+    FDragging := False;
     if FMouseDownItem <> nil then
       FMouseDownItem.FDragging := False;
     Invalidate;
@@ -4926,6 +4930,7 @@ begin
   FAniCalc.BoundsAnimation := True;
 
   FMouseDown := False;
+
   if (FItemIndex > -1) and (FSelectionOptions.FKeepSelection = False) then
     DeselectItem(FSelectionOptions.SelectDuration);
 
@@ -4943,17 +4948,18 @@ begin
     Exit;
   if (not Handled) then
   begin
-    if ssHorizontal in Shift then
-    begin
+    if not (ssHorizontal in Shift) then
+    {begin
       // Ignore horizontal
     end
-    else
+    else    }
     begin
       Offset := Height / 5;
       Offset := Offset * -1 * (WheelDelta / 120);
-      ANewPos := ScrollViewPos + Offset;
-      if (ANewPos >= 0) and (ANewPos <= FMaxScrollPos) then
-        SetScrollViewPos(ANewPos);
+      ANewPos := Max(ScrollViewPos + Offset, 0);
+      ANewPos := Min(ANewPos, (FMaxScrollPos));
+      SetScrollViewPos(ANewPos);
+      FAniCalc.ViewportPosition := TPointD.Create(0, FScrollPos);
       Handled := True;
     end
   end;
@@ -4969,13 +4975,16 @@ var
   ARect: TRectF;
   ASelectedRect: TRectF;
   ATop: single;
+  sh: single;
   //LastY : Single; // SF - TC
 begin
   if not FPainting then
   begin
     //LastY := 0;
+
     FPainting := True;
     try
+      sh := GetSearchHeight;
       if (Assigned(OnBeforePaint)) then                                         // SF - BK
         OnBeforePaint(Self,Canvas);                                             // SF - BK
 
@@ -4991,11 +5000,17 @@ begin
         Canvas.StrokeThickness := 1;
         Canvas.DrawRect(RectF(0, 0, Width, Height), 0, 0, AllCorners, 1);
       end;
+
+
       if (FPullToRefresh.Enabled) and (ScrollViewPos < 0) then
       begin
         Canvas.Stroke.Thickness := 1/GetScreenScale;
         Canvas.Stroke.Color := claDimgray;
-        Canvas.DrawLine(PointF(0, 0-ScrollViewPos), PointF(Width, 0-ScrollViewPos), 1);
+
+        //
+        if IsHeader(Items.First) = False then
+          Canvas.DrawLine(PointF(0, (0-ScrollViewPos)+sh), PointF(Width, (0-ScrollViewPos)+sh), 1);
+
         // pull to refresh...
         if (FMouseDown) then
           FNeedsRefresh := (ScrollViewPos <= -50);
@@ -5005,15 +5020,15 @@ begin
 
         if (FNeedsRefresh) and (ScrollViewPos <= -25) then
         begin
-          Canvas.FillText(RectF(0, 0, Width, 50), FPullToRefresh.FReleaseText, False, 1, [], TTextAlign.Center);
+          Canvas.FillText(RectF(0, sh, Width, sh+50), FPullToRefresh.FReleaseText, False, 1, [], TTextAlign.Center);
           FNeedsRefresh := True;
         end
         else
-          Canvas.FillText(RectF(0, 0, Width, 50), FPullToRefresh.FPullText, False, 1, [], TTextAlign.Center);
+          Canvas.FillText(RectF(0, sh+0, Width, sh+50), FPullToRefresh.FPullText, False, 1, [], TTextAlign.Center);
         //Canvas.Fill.Color := GetColorOrDefault(FAppearence.Background, claWhite);
-        if FAppearence.Background <> nil then
-          Canvas.Fill.Assign(FAppearence.Background);
-        Canvas.FillRect(RectF(0, 0-ScrollViewPos, Width, Height), 0, 0, AllCorners, 1);
+        //if FAppearence.Background <> nil then
+        //  Canvas.Fill.Assign(FAppearence.Background);
+        //Canvas.FillRect(RectF(0, 0-ScrollViewPos, Width, Height), 0, 0, AllCorners, 1);
       end;
 
       AItemsDrawn := False;
@@ -5071,7 +5086,7 @@ begin
         end;
       end;
 
-      if (FStickyHeaders) and (ScrollViewPos >= 0) then
+      {if (FStickyHeaders) and (ScrollViewPos >= 0) then
       begin
         for ICount := 0 to AItems.Count - 1 do
         begin
@@ -5085,6 +5100,38 @@ begin
 
 
             ARect := AItem.Render(Canvas, Max(0, ATop));
+
+            if FSelectionOptions.SelectionOverlay.Enabled then
+            begin
+              with FSelectionOptions.SelectionOverlay do
+              begin
+                Canvas.Stroke.Assign(FSelectionOptions.SelectionOverlay.Stroke);
+                case Position of
+                  ksSelectorLeft: Canvas.DrawLine(PointF(0, ARect.Top), PointF(0, ARect.Bottom), 1);
+                  ksSelectorRight: Canvas.DrawLine(PointF(Width, ARect.Top), PointF(Width, ARect.Bottom), 1);
+                end;
+              end;
+            end;
+          end;
+        end;
+      end; }
+
+      if (FStickyHeaders) and (ScrollViewPos >= 0) then
+      begin
+        for ICount := 0 to AItems.Count -1 do
+        begin
+          AItem := AItems[ICount];
+          if (AItem.Purpose = Header) then
+          begin
+            if AItem.ItemRect.Top < (AViewport.Top) then
+              ATop := Round(AItem.ItemRect.Top)
+            else
+              ATop := AViewport.Top;
+
+            //ATop := Max(0, ATop);
+            //
+
+            ARect := AItem.Render(Canvas, ATop);
 
             if FSelectionOptions.SelectionOverlay.Enabled then
             begin
@@ -5117,11 +5164,11 @@ begin
       end;
 
       {$IFDEF ANDROID}
-      if GetSearchHeight > 0 then
+      if sh > 0 then
       begin
         Canvas.Fill.Kind := TBrushKind.Solid;
         Canvas.Fill.Color := GetColorOrDefault(FAppearence.Background, claWhite);
-        Canvas.FillRect(RectF(0, 0, Width, GetSearchHeight), 0, 0, AllCorners, 1);
+        Canvas.FillRect(RectF(0, 0, Width, sh), 0, 0, AllCorners, 1);
       end;
       {$ENDIF}
 
@@ -5158,6 +5205,7 @@ begin
   if FUpdateCount > 0 then
     Exit;
   UpdateItemRects;
+  UpdateScrollingLimits;
   CacheItems(True);
 end;
 
@@ -5253,6 +5301,7 @@ begin
         ANewSelected.CacheItem(True);
     end;
     Invalidate;
+    Application.ProcessMessages;
     if FMouseDown = False then
     begin
       if (FSelectionOptions.KeepSelection = False) and  (FItemIndex > -1) then
@@ -5285,7 +5334,7 @@ begin
   if not SameValue(FScrollPos, Value, 1/GetScreenScale) then
   begin
     HideFocusedControl;
-    FScrollPos := Value {- GetSearchHeight};
+    FScrollPos := Value;
     HideAllActionButtons(True);
     Repaint; //Invalidate;
     if (Round(FScrollPos) = 0) and (FNeedsRefresh) then
@@ -6407,7 +6456,6 @@ begin
   FWidth := FControl.Width;
   FHeight := FControl.Height;
   InitializeControl;
-
   FFocused := False;
   FControl.OnExit := DoExitControl;
 end;
@@ -6429,6 +6477,7 @@ var
 begin
   if FControl.IsFocused then
   begin
+    Result := FCached;
     FCached.Clear(claNull);
     Exit;
   end;
@@ -6549,7 +6598,7 @@ begin
   FControl.CanFocus := True;
   FControl.SetFocus;
   FTableItem.FTableView.Invalidate;
-
+  FTableItem.FTableView.FSearchBox.BringToFront;
 end;
 
 function TksTableViewItemEmbeddedBaseEdit.CanFocus: Boolean;
@@ -6564,6 +6613,8 @@ end;
 
 procedure TksTableViewItemEmbeddedBaseEdit.FocusControl;
 begin
+  if GetCustomEdit.IsFocused then
+    Exit;
   inherited;
   GetCustomEdit.SelStart := Length(GetCustomEdit.Text);
 end;
@@ -6685,6 +6736,7 @@ begin
   FShadow := True;
   FOpacity := 1;
   FEnabled := False;
+  FLiveMoving := True;
   FDragSpaceColor := $FFECECEC;
 end;
 
@@ -7065,17 +7117,17 @@ end;
 
 function TksTableViewItemTrackBar.GetValue: single;
 begin
-
+  Result := GetTrackBar.Value;
 end;
 
 procedure TksTableViewItemTrackBar.SetMax(const Value: single);
 begin
-
+  GetTrackBar.Max := Value;
 end;
 
 procedure TksTableViewItemTrackBar.SetMin(const Value: single);
 begin
-
+  GetTrackBar.Min := Value;
 end;
 
 procedure TksTableViewItemTrackBar.SetValue(const Value: single);
