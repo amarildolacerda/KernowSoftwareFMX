@@ -299,7 +299,7 @@ begin
       ACol := 1;
       ARow := 1;
       FTableView.Appearence.SeparatorColor := claNull;
-      FTableView.ShowAccessory := False;
+      FTableView.AccessoryOptions.ShowAccessory := False;
       for ICount := 1 to FItems.Count do
       begin
         GetTileRects(ACol, ARow, r1, r2, r3);
@@ -332,7 +332,7 @@ begin
       FTableView.ItemHeight := 50;
 
       FTableView.ItemImageSize := 32;
-      FTableView.ShowAccessory := True;
+      FTableView.AccessoryOptions.ShowAccessory := True;
       FTableView.Appearence.SeparatorColor := $FFF0F0F0;
       FTableView.OnItemClick := ClickItem;
       for ICount := 0 to FItems.Count-1 do
