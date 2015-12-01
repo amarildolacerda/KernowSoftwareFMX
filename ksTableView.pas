@@ -4404,8 +4404,8 @@ begin
   if FMouseDownItem = nil then
     Exit;
 
-  AAllowDrag := True;
-  if (Assigned(FOnCanDragItem)) and (FDragDropOptions.Enabled = True) then
+  AAllowDrag := FDragDropOptions.Enabled;              // SF - FIX
+  if (AAllowDrag) and (Assigned(FOnCanDragItem)) then  // SF - FIX
     FOnCanDragItem(Self, FMouseDownItem, AAllowDrag);
 
   if AAllowDrag then
@@ -4423,14 +4423,13 @@ begin
       FDragDropImage.HitTest := False;
       FDragDropImage.Width              := FMouseDownItem.FBitmap.Width / GetScreenScale;
       FDragDropImage.Height             := FMouseDownItem.FBitmap.Height  / GetScreenScale;
+
       FDragDropImage.Fill.Bitmap.Bitmap := FMouseDownItem.FBitmap;
 
       FDragDropImage.Fill.Kind          := TBrushKind.Bitmap;
-      FDragDropImage.Fill.Bitmap.WrapMode := TWrapMode.TileStretch;
-      //FDragDropImage.Stroke.Thickness   := GetScreenScale() / 2;
+      FDragDropImage.Fill.Bitmap.WrapMode := TWrapMode.TileOriginal;
       FDragDropImage.Opacity            := FDragDropOptions.Opacity;
 
-      //FDragging := True;
       FDragDropScrollTimer := CreateTimer(100,DoDropScroll);
 
       Capture();
@@ -4491,7 +4490,7 @@ begin
   ScreenMousePos := LocalToScreen(PointF(x, y));
   FormMousePos   := TForm(FDragDropImage.Parent).ScreenToClient(ScreenMousePos);
   FDragDropImage.SetBounds(FormMousePos.X - FDragDropImage.MouseDownOffset.X,
-                           FormMousePos.Y - FDragDropImage.MouseDownOffset.Y,
+                           FormMousePos.Y - FDragDropImage.MouseDownOffset.Y + GetSearchHeight, // SF - FIX
                            FDragDropImage.Width, FDragDropImage.Height);
   Invalidate;
 end;
@@ -4587,7 +4586,10 @@ function TksTableView.GetSearchHeight: single;
 begin
   Result := 0;
   if FSearchVisible then
+  begin
+    FSearchBox.ApplyStyleLookup(); // SF - FIX
     Result := FSearchBox.Height;
+  end;
 end;
 
 function TksTableView.GetSelectedItem: TksTableViewItem;
@@ -4976,15 +4978,24 @@ var
   ASelectedRect: TRectF;
   ATop: single;
   sh: single;
-  //LastY : Single; // SF - TC
+  s: TStrokeBrush;
+  SaveState : TCanvasSaveState; // SF - FIX
 begin
+  inherited;
+
   if not FPainting then
   begin
-    //LastY := 0;
-
+    SaveState := nil;
     FPainting := True;
     try
       sh := GetSearchHeight;
+
+      if (sh > 0) then                                               // SF - FIX
+      begin                                                          // SF - FIX
+        SaveState := Canvas.SaveState;                               // SF - FIX
+        Canvas.IntersectClipRect (RectF(0, sh, Width, Height));      // SF - FIX
+      end;
+
       if (Assigned(OnBeforePaint)) then                                         // SF - BK
         OnBeforePaint(Self,Canvas);                                             // SF - BK
 
@@ -4994,11 +5005,20 @@ begin
 
       if (csDesigning in ComponentState) then
       begin
-        // design-time border
-        Canvas.Stroke.Color := claBlack;
-        Canvas.Stroke.Dash := TStrokeDash.Dash;
-        Canvas.StrokeThickness := 1;
+        s := TStrokeBrush.Create(TBrushKind.Solid, claBlack);
+        s.Dash := TStrokeDash.Dash;
+        Canvas.Stroke.Assign(s);
+        s.Free;
         Canvas.DrawRect(RectF(0, 0, Width, Height), 0, 0, AllCorners, 1);
+
+        // design-time border
+      //  Canvas.Stroke.Color := claBlack;
+
+        //Canvas.Stroke.Dash := TStrokeDash.DashDotDot;
+     //   Canvas.Stroke.Thickness := 0.5;
+        //Canvas.DrawRect(RectF(1, 1, Width-1, Height-1), 0, 0, AllCorners, 1);
+
+        Exit;
       end;
 
 
@@ -5164,16 +5184,21 @@ begin
       end;
 
       {$IFDEF ANDROID}
-      if sh > 0 then
+      // no longer needed as the canvas is now clipped if search visible.
+
+      {if sh > 0 then
       begin
         Canvas.Fill.Kind := TBrushKind.Solid;
-        Canvas.Fill.Color := GetColorOrDefault(FAppearence.Background, claWhite);
+        Canvas.Fill.Color := GetColorOrDefault(FAppearence.Background.Color, claWhite);
         Canvas.FillRect(RectF(0, 0, Width, sh), 0, 0, AllCorners, 1);
-      end;
+      end;  }
       {$ENDIF}
 
       if (Assigned(OnAfterPaint)) then                                          // SF - BK
         OnAfterPaint(Self,Canvas);                                              // SF - BK
+
+      if (sh>0) then                                                 // SF - FIX
+        Canvas.RestoreState(SaveState);                              // SF - FIX
     finally
       FPainting := False;
     end;
@@ -5355,7 +5380,7 @@ begin
   begin
     AScrollPos := ScrollViewPos;
     FSearchVisible := Value;
-    FSearchBox.Visible := FSearchVisible;
+    FSearchBox.Visible := False; //FSearchVisible;
     UpdateScrollingLimits;
     TAnimator.AnimateFloatWait(Self, 'ScrollPos', AScrollPos);
 
@@ -6754,14 +6779,14 @@ end;
 procedure TksDragDropOptions.SetOpacity(const Value: single);
 begin
   FOpacity := Value;
-  if FOpacity < 0 then
+  if FOpacity < 1 then
     FShadow := False;
 end;
 
 procedure TksDragDropOptions.SetShadow(const Value: Boolean);
 begin
   FShadow := Value;
-  if FShadow = False then
+  if FShadow then
     FOpacity := 1;
 end;
 
