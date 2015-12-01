@@ -4587,7 +4587,7 @@ begin
   Result := 0;
   if FSearchVisible then
   begin
-    FSearchBox.ApplyStyleLookup(); // SF - FIX
+    //FSearchBox.ApplyStyleLookup(); // SF - FIX
     Result := FSearchBox.Height;
   end;
 end;
@@ -5380,7 +5380,8 @@ begin
   begin
     AScrollPos := ScrollViewPos;
     FSearchVisible := Value;
-    FSearchBox.Visible := False; //FSearchVisible;
+    FSearchBox.Visible := FSearchVisible;
+    FSearchBox.ApplyStyleLookup();
     UpdateScrollingLimits;
     TAnimator.AnimateFloatWait(Self, 'ScrollPos', AScrollPos);
 
