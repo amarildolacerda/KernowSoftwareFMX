@@ -4464,20 +4464,20 @@ begin
 
   ADragOverItem := GetItemFromPos(x, y);
   if (Assigned(FOnCanDropItem)) and (ADragOverItem <> nil) then
-  begin
     FOnCanDropItem(Self, FMouseDownItem, ADragOverItem, AAllowDrop);
-    if FDragDropOptions.DragHighlight.Enabled then
-    begin
-      case AAllowDrop of
-        True: FDragDropImage.AllowDropStroke := FDragDropOptions.DragHighlight.AllowDropStroke; //GetColorOrDefault(FDragDropOptions.DragHighlight.AllowDropColor, claDimgray);
-        False: FDragDropImage.AllowDropStroke := FDragDropOptions.DragHighlight.DisallowDropStroke; //GetColorOrDefault(FDragDropOptions.DragHighlight.DisallowDropColor, claDimgray);
-      end;
-      // add 1 to the thickness so it shows inside the existing dark gray border...
-      FDragDropImage.Stroke.Thickness := FDragDropImage.Stroke.Thickness + 1;
-    end
-    else
-      FDragDropImage.Stroke.Color := claNull;
-  end;
+
+  if FDragDropOptions.DragHighlight.Enabled then
+  begin
+    case AAllowDrop of
+      True: FDragDropImage.AllowDropStroke := FDragDropOptions.DragHighlight.AllowDropStroke; //GetColorOrDefault(FDragDropOptions.DragHighlight.AllowDropColor, claDimgray);
+      False: FDragDropImage.AllowDropStroke := FDragDropOptions.DragHighlight.DisallowDropStroke; //GetColorOrDefault(FDragDropOptions.DragHighlight.DisallowDropColor, claDimgray);
+    end;
+    // add 1 to the thickness so it shows inside the existing dark gray border...
+    FDragDropImage.Stroke.Thickness := FDragDropImage.Stroke.Thickness + 1;
+
+  end
+  else
+    FDragDropImage.Stroke.Color := claNull;
 
   FDragDropImage.Fill.Bitmap.Bitmap := FMouseDownItem.FBitmap;                                                     // SF - LiveDD
   FDragDropImage.Width              := FMouseDownItem.FBitmap.Width / GetScreenScale;                              // SF - LiveDD
