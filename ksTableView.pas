@@ -517,6 +517,7 @@ type
     procedure SetHighQuality(const Value: Boolean);
   protected
     procedure Render(ACanvas: TCanvas); override;
+    procedure DoBeforeRenderBitmap(ABmp: TBitmap); virtual;
     property Bitmap: TBitmap read GetBitmap write SetBitmap;
     property Shadow: TksTableViewShadow read FShadow write SetShadow;
     property OwnsBitmap: Boolean read FOwnsBitmap write SetOwnsBitmap default False;
@@ -606,10 +607,12 @@ type
   TksTableViewItemAccessory = class(TksTableViewItemImage)
   private
     FAccessory: TksAccessoryType;
+    procedure RedrawAccessory;
   protected
     function GetObjectRect: TRectF; override;
     function GetAccessory: TksAccessoryType;
     procedure SetAccessory(const Value: TksAccessoryType);
+    procedure DoBeforeRenderBitmap(ABmp: TBitmap); override;
   public
     constructor Create(ATableItem: TksTableViewItem); override;
     property Accessory: TksAccessoryType read GetAccessory write SetAccessory;
@@ -1070,6 +1073,21 @@ type
     property SelectDuration: integer read FSelectDuration write FSelectDuration default C_TABLEVIEW_DEFAULT_SELECT_DURATION;
   end;
 
+  TksTableViewAccessoryOptions = class(TPersistent)
+  private
+    [weak]FTableView: TksTableView;
+    FShowAccessory: Boolean;
+    FColor: TAlphaColor;
+    procedure Changed;
+    procedure SetShowAccessory(const Value: Boolean);
+    procedure SetColor(const Value: TAlphaColor);
+  public
+    constructor Create(ATableView: TksTableView);
+  published
+    property ShowAccessory: Boolean read FShowAccessory write SetShowAccessory default True;
+    property Color: TAlphaColor read FColor write SetColor default claNull;
+  end;
+
 
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
     {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
@@ -1099,7 +1117,7 @@ type
     FMouseDownPoint: TPointF;
     FMouseCurrentPos: TPointF;
     FUpdateCount: integer;
-    FShowAccessory: Boolean;
+    //FShowAccessory: Boolean;
     FSelectTimer: TFmxHandle;
     FDeselectTimer: TFmxHandle;
     //FKeepSelection: Boolean;
@@ -1119,10 +1137,8 @@ type
     FDragDropImage : TksDragImage;                                                // SF - DD
     FDragDropScrollTimer: TFmxHandle;                                           // SF - DD
     FDragging: Boolean;
-    FOnBeforePaint : TPaintEvent;                                               // SF - BK
-    FOnAfterPaint : TPaintEvent;                                                // SF - BK
     FSelectionOptions: TksTableViewSelectionOptions;
-    //FSelectorType : TksTableViewSelectorType;                                   // SF - TC (To be replaced)
+    FAccessoryOptions: TksTableViewAccessoryOptions;
 
     // events...
     FItemClickEvent: TksTableViewItemClickEvent;
@@ -1149,7 +1165,9 @@ type
     FOnDropItem : TksTableViewDropItemEvent;
     FDragDropOptions: TksDragDropOptions;                                    // SF - DD
     FOnSearchFilterChanged: TksTableViewSearchFilterChange;
-
+    FOnBeforePaint : TPaintEvent;                                               // SF - BK
+    FOnAfterPaint : TPaintEvent;                                                // SF - BK
+    
     function GetViewPort: TRectF;
     procedure SetScrollViewPos(const Value: single);
     procedure AniCalcStart(Sender: TObject);
@@ -1204,6 +1222,7 @@ type
     procedure SetSelectionOptions(const Value: TksTableViewSelectionOptions);
     procedure DoEmbeddedDateEditChange(AItem: TksTableViewItem;
       AEmbeddedDateEdit: TksTableViewItemEmbeddedDateEdit);
+    procedure SetAccessoryOptions(const Value: TksTableViewAccessoryOptions);
     //procedure SetShowSelection(const Value: Boolean);
   protected
     function GetTotalItemHeight: single;
@@ -1233,6 +1252,7 @@ type
     procedure UncheckAll;
     procedure UpdateScrollingLimits;
     procedure RedrawAllVisibleItems;
+    //
     property UpdateCount: integer read FUpdateCount;
     property TopItem: TksTableViewItem read GetTopItem;
     property VisibleItems: TList<TksTableViewItem> read GetVisibleItems;
@@ -1243,6 +1263,7 @@ type
     property ItemIndex: integer read GetItemIndex write SetItemIndex;
     property SelectedItem: TksTableViewItem read GetSelectedItem;
   published
+    property AccessoryOptions: TksTableViewAccessoryOptions read FAccessoryOptions write SetAccessoryOptions;
     property Align;
     property Anchors;
     property Appearence: TksTableViewAppearence read FAppearence write FAppearence;
@@ -2152,6 +2173,11 @@ begin
     FBitmap.Free;
   inherited;
 end;
+procedure TksTableViewItemBaseImage.DoBeforeRenderBitmap(ABmp: TBitmap);
+begin
+  // overridden to make changes before painting.
+end;
+
 function TksTableViewItemBaseImage.GetBitmap: TBitmap;
 begin
   if FOwnsBitmap then
@@ -2172,6 +2198,7 @@ var
   ARect: TRectF;
   AScaleX, AScaleY: single;
   AOriginalRect: TRectF;
+  ABmp: TBitmap;
 begin
   inherited;
   if Bitmap <> nil then
@@ -2207,7 +2234,19 @@ begin
         AShadowBmp.Free;
       end;
     end;
-    ACanvas.DrawBitmap(Bitmap, RectF(0, 0, Bitmap.Width, Bitmap.Height), ARect, 1, FHighQuality);
+    ABmp := TBitmap.Create;
+    try
+      ABmp.Assign(Bitmap);  
+      DoBeforeRenderBitmap(ABmp);
+      ACanvas.DrawBitmap(ABmp,
+                         RectF(0, 0, ABmp.Width, ABmp.Height), 
+                         ARect, 
+                         1, 
+                         FHighQuality);
+    finally
+      ABmp.Free;
+    end;
+    
   end;
 end;
 
@@ -2274,6 +2313,13 @@ begin
   FVertAlign := TksTableItemAlign.Center;
 end;
 
+procedure TksTableViewItemAccessory.DoBeforeRenderBitmap(ABmp: TBitmap);
+begin
+  inherited;
+  if FTableItem.TableView.AccessoryOptions.Color <> claNull then
+    ABmp.ReplaceOpaqueColor(FTableItem.TableView.AccessoryOptions.Color);
+end;
+
 function TksTableViewItemAccessory.GetAccessory: TksAccessoryType;
 begin
   Result := FAccessory;
@@ -2296,7 +2342,15 @@ begin
   Result := inherited;
   //OffsetRect(Result, 0 - 4, 0);
 end;
-     {
+procedure TksTableViewItemAccessory.RedrawAccessory;
+begin  
+  Bitmap := AccessoryImages.Images[FAccessory];
+  FWidth := Bitmap.Width / AccessoryImages.FImageScale;
+  FHeight := Bitmap.Height / AccessoryImages.FImageScale;
+  Changed;
+end;
+
+{
 function TksTableViewItemAccessory.GetWidth: single;
 begin
   Result := inherited;
@@ -2310,9 +2364,7 @@ begin
   if FAccessory <> Value then
   begin
     FAccessory := Value;
-    Bitmap := AccessoryImages.Images[FAccessory];
-    FWidth := Bitmap.Width / AccessoryImages.FImageScale;
-    FHeight := Bitmap.Height / AccessoryImages.FImageScale;
+    RedrawAccessory;
   end;
 end;
 
@@ -2625,36 +2677,7 @@ begin
   w := Round(FItemRect.Width * GetScreenScale);
   h := Round(FItemRect.Height * GetScreenScale);
 
-  FBitmap.SetSize(w, h);
-  //FreeAndNil(FBitmap);
-
-   //FBitmap := TBitmap.Create(w, h);
-  //if w <> 720 then
-  //  beep;
-  //if h <> 120 then
-  //  beep;
-
-  //if FBitmap = nil then
-  //  FBitmap := TBitmap.Create(w, h)
-  //else
-  //begin
-  //  FreeAndNil(FBitmap);
-    //FBitmap.SetSize(Round(FItemRect.Width * GetScreenScale), Round(FItemRect.Height * GetScreenScale));
-
-  //end;
-
- {                                                                               // SF - BK
-  FBitmap.Clear(FTableView.Appearence.ItemBackground.Color);                    // SF - BK
-                                                                                // SF - BK
-  //if FTableView.Appearence.ItemBackground. then                               // SF - BK
-  //FBitmap.                                                                    // SF - BK
-                                                                                // SF - BK
-  if FTableView.Appearence.AlternatingItemBackground <> claNull then            // SF - BK
-  begin                                                                         // SF - BK
-    if FIndex mod 2 = 0 then                                                    // SF - BK
-      FBitmap.Clear(FTableView.Appearence.AlternatingItemBackground);           // SF - BK
-  end;                                                                          // SF - BK
-}                                                                               // SF - BK
+  FBitmap.SetSize(w, h);                                                                   // SF - BK
 
   DrawnSelection := false;                                                      // SF - BK
   if (FTableView.FSelectionOptions.ShowSelection) and (FCanSelect) then
@@ -2666,11 +2689,7 @@ begin
       DrawnSelection := true;                                                   // SF - BK
     end;                                                                        // SF - BK
   end;                                                                          // SF - BK
-{                                                                               // SF - BK
-  if (FPurpose <> None) then                                                    // SF - BK
-    FBitmap.Clear(GetColorOrDefault(FTableView.Appearence.HeaderColor,          // SF - BK
-      C_TABLEVIEW_DEFAULT_HEADER_COLOR));                                       // SF - BK
-}                                                                               // SF - BK
+
   ARect := RectF(0, 0, FBitmap.Width, FBitmap.Height);
 
   FBitmap.Canvas.BeginScene;
@@ -2712,16 +2731,19 @@ begin
     FSubTitle.Render(FBitmap.Canvas);
     FDetail.Render(FBitmap.Canvas);
 
-    if FTableView.CheckMarks <> TksTableViewCheckMarks.cmNone then
+    if FTableView.ShowAccessory then
     begin
-      case FChecked of
-        True:
-          FAccessory.Accessory := atCheckBoxChecked;
-        False:
-          FAccessory.Accessory := atCheckBox;
+      if FTableView.CheckMarks <> TksTableViewCheckMarks.cmNone then
+      begin
+        case FChecked of
+          True:
+            FAccessory.Accessory := atCheckBoxChecked;
+          False:
+            FAccessory.Accessory := atCheckBox;
+        end;
       end;
+      FAccessory.Render(FBitmap.Canvas);
     end;
-    FAccessory.Render(FBitmap.Canvas);
 
     for ICount := 0 to FObjects.Count - 1 do
       FObjects[ICount].Render(FBitmap.Canvas);
@@ -3015,11 +3037,9 @@ begin
 
   Result.Left := Result.Left + 8;
   Result.Right := Result.Right - C_SCROLL_BAR_WIDTH;
-  ;
-
-  if FAccessory.Accessory <> atNone then
-    Result.Right := Result.Right - FAccessory.Width;
-  //Result.Right := Result.Right - (FAccessory.Width + 10);
+ 
+  if (FAccessory.Accessory <> atNone) and (FTableView.ShowAccessory) then
+    Result.Right := Result.Right - (FAccessory.Width + 4);
 end;
 
 function TksTableViewItem.GetItemRect: TRectF;
@@ -4113,7 +4133,8 @@ begin
   FAppearence := TksTableViewAppearence.Create(Self);
   FDragDropOptions := TksDragDropOptions.Create;
   FSelectionOptions := TksTableViewSelectionOptions.Create(Self);
-
+  FAccessoryOptions := TksTableViewAccessoryOptions.Create(Self); 
+  
   FSearchBox := TSearchBox.Create(Self);
   FSearchBox.Stored := False;
   FSearchBox.Locked := True;
@@ -4143,7 +4164,7 @@ begin
 
   UpdateScrollingLimits;
   FSearchVisible := False;
-  FShowAccessory := True;
+  //FShowAccessory := True;
   FItemIndex := -1;
   FItemHeight := C_TABLEVIEW_DEFAULT_ITEM_HEIGHT;
   FHeaderHeight := C_TABLEVIEW_DEFAULT_HEADER_HEIGHT;
@@ -4174,6 +4195,7 @@ begin
     FreeAndNil(FSearchBox);
   end;
 
+  FreeAndNil(FAccessoryOptions);
   FreeAndNil(FRowIndicators);
   FreeAndNil(FBackgroundText);
   FreeAndNil(FFilteredItems);
@@ -4608,7 +4630,8 @@ end;
 
 function TksTableView.GetShowAccessory: Boolean;
 begin
-  Result := FShowAccessory;
+  //Result := FShowAccessory;
+  Result := FAccessoryOptions.ShowAccessory;
 end;
 
 function TksTableView.GetTopItem: TksTableViewItem;
@@ -4649,6 +4672,8 @@ var
 begin
   Result := TList<TksTableViewItem>.Create;
   ATopItem := TopItem;
+  if ATopItem = nil then
+    Exit;
   AViewport := ViewPort;
   for ICount := ATopItem.Index to FItems.Count - 1 do
   begin
@@ -5083,33 +5108,18 @@ begin
         end;
       end;
 
-      if FSelectionOptions.SelectionOverlay.Enabled then
+      if (FSelectionOptions.SelectionOverlay.Enabled) then
       begin
-        with FSelectionOptions.SelectionOverlay do
+        Canvas.Stroke.Assign(FSelectionOptions.SelectionOverlay.Stroke);
+        case FSelectionOptions.SelectionOverlay.Position of
+          ksSelectorLeft: Canvas.DrawLine(PointF(0, 0), PointF(0, Height), 1);
+          ksSelectorRight: Canvas.DrawLine(PointF(Width, 0), PointF(Width, Height), 1);
+        end;
+        if SelectedItem <> nil then
         begin
-
-          if Position = ksSelectorLeft then
-          begin
-            Canvas.Stroke.Assign(FSelectionOptions.SelectionOverlay.Stroke);
-            Canvas.DrawLine(PointF(0, 0), PointF(0, Height), 1);
-            if SelectedItem <> nil then
-            begin
-              ASelectedRect := SelectedItem.GetItemRect;
-              OffsetRect(ASelectedRect, 0, 0-ScrollViewPos);
-              FSelectionOptions.SelectionOverlay.DrawToCanvas(Canvas, ASelectedRect);
-            end;
-          end
-          else
-          begin
-            Canvas.Stroke.Assign(FSelectionOptions.SelectionOverlay.Stroke);
-            Canvas.DrawLine(PointF(Width, 0), PointF(Width, Height), 1);
-            if SelectedItem <> nil then
-            begin
-              ASelectedRect := SelectedItem.GetItemRect;
-              OffsetRect(ASelectedRect, 0, 0-ScrollViewPos);
-              FSelectionOptions.SelectionOverlay.DrawToCanvas(Canvas, ASelectedRect);
-            end;
-          end
+          ASelectedRect := SelectedItem.GetItemRect;
+          OffsetRect(ASelectedRect, 0, (0-ScrollViewPos)+sh);
+          FSelectionOptions.SelectionOverlay.DrawToCanvas(Canvas, ASelectedRect);
         end;
       end;
 
@@ -5220,6 +5230,8 @@ var
 begin
   AList := GetVisibleItems;
   try
+    for ICount := 0 to Items.Count-1 do
+      Items[ICount].FCached := False;
     for ICount := 0 to AList.Count-1 do
       AList[ICount].RecreateCache;
     Invalidate;
@@ -5284,6 +5296,12 @@ begin
   //FCombo.Align := TAlignLayout.Center;
   AddObject(FCombo);
   FCombo.DropDown;
+end;
+
+procedure TksTableView.SetAccessoryOptions(
+  const Value: TksTableViewAccessoryOptions);
+begin
+  FAccessoryOptions.Assign(Value);
 end;
 
 procedure TksTableView.SetCheckMarks(const Value: TksTableViewCheckMarks);
@@ -5368,7 +5386,7 @@ begin
     HideFocusedControl;
     FScrollPos := Value;
     HideAllActionButtons(True);
-    Repaint; //Invalidate;
+    Invalidate;
     if (Round(FScrollPos) = 0) and (FNeedsRefresh) then
     begin
       FNeedsRefresh := False;
@@ -5403,7 +5421,13 @@ end;
 
 procedure TksTableView.SetShowAccessory(const Value: Boolean);
 begin
+  FAccessoryOptions.ShowAccessory := Value;
 
+  {if FShowAccessory <> Value then
+  begin
+    FShowAccessory := Value;
+    RedrawAllVisibleItems;
+  end; }
 end;
 
 procedure TksTableView.SetTextDefaults(const Value: TksTableViewTextDefaults);
@@ -6882,13 +6906,19 @@ begin
   if FKeepSelection <> Value then
   begin
     FKeepSelection := Value;
+    FTableView.CacheItems(True);
     FTableView.Invalidate;
   end;
 end;
 
 procedure TksTableViewSelectionOptions.SetSelectionOverlay(const Value: TksTableViewSelectionOverlayOptions);
 begin
-  FSelectionOverlay := Value;
+  if FSelectionOverlay <> Value then
+  begin
+    FSelectionOverlay := Value;
+    FTableView.CacheItems(True);
+    FTableView.Invalidate;
+  end;
 end;
 
 
@@ -6897,7 +6927,7 @@ begin
   if FShowSelection <> Value then
   begin
     FShowSelection := Value;
-
+    FTableView.CacheItems(True);
     FTableView.Invalidate;
   end;
 end;
@@ -7165,6 +7195,39 @@ end;
 procedure TksTableViewItemTrackBar.SetValue(const Value: single);
 begin
 
+end;
+
+{ TksTableViewAccessoryOptions }
+
+procedure TksTableViewAccessoryOptions.Changed;
+begin
+  FTableView.RedrawAllVisibleItems;
+end;
+
+constructor TksTableViewAccessoryOptions.Create(ATableView: TksTableView);
+begin
+  inherited Create;
+  FTableView := ATableView;
+  FShowAccessory := True;
+  FColor := claNull;
+end;
+
+procedure TksTableViewAccessoryOptions.SetColor(const Value: TAlphaColor);
+begin
+  if FColor <> Value then
+  begin
+    FColor := Value;
+    Changed;
+  end;
+end;
+
+procedure TksTableViewAccessoryOptions.SetShowAccessory(const Value: Boolean);
+begin
+  if FShowAccessory <> Value then
+  begin
+    FShowAccessory := Value;
+    Changed;
+  end;
 end;
 
 initialization
