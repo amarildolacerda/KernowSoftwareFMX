@@ -1081,6 +1081,7 @@ type
     FCombo: TComboBox;
     FDateSelector: TDateEdit;
     FSearchBox: TSearchBox;
+    FSearchBoxHeight: single;
     FItems: TksTableViewItems;
     FFilteredItems: TksTableViewItems;
     FTimerService: IFMXTimerService;
@@ -4159,8 +4160,10 @@ begin
   FMouseEventsEnabled := True;
   FUpdateCount := 0;
   FDragging := False;
+  FSearchBoxHeight := 0;
   AddObject(FSearchBox);
   SetAcceptsControls(False);
+
 end;
 
 destructor TksTableView.Destroy;
@@ -4587,8 +4590,12 @@ begin
   Result := 0;
   if FSearchVisible then
   begin
-    //FSearchBox.ApplyStyleLookup(); // SF - FIX
-    Result := FSearchBox.Height;
+    if FSearchBoxHeight = 0 then
+    begin
+      FSearchBox.ApplyStyleLookup;
+      FSearchBoxHeight := FSearchBox.Height;
+    end;
+    Result := FSearchBoxHeight;
   end;
 end;
 
@@ -5381,7 +5388,6 @@ begin
     AScrollPos := ScrollViewPos;
     FSearchVisible := Value;
     FSearchBox.Visible := FSearchVisible;
-    FSearchBox.ApplyStyleLookup();
     UpdateScrollingLimits;
     TAnimator.AnimateFloatWait(Self, 'ScrollPos', AScrollPos);
 
