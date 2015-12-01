@@ -7365,16 +7365,21 @@ end;
 procedure TksTableViewBorderOptions.SetSides(const Value: TSides);
 begin
   FSides := Value;
+  Changed;
 end;
 
 procedure TksTableViewBorderOptions.SetStroke(const Value: TStrokeBrush);
 begin
   FStroke.Assign(Value);
+  Changed;
 end;
 
 procedure TksTableViewBorderOptions.SetVisible(const Value: Boolean);
 begin
+
+
   FVisible := Value;
+  Changed;
 end;
 
 initialization
