@@ -801,6 +801,7 @@ type
     [weak]FTableView: TksTableView;
     procedure UpdateIndexes;
     function GetLastItem: TksTableViewItem;
+    function GetFirstItem: TksTableViewItem;
   protected
     function GetTotalItemHeight: single;
   public
@@ -818,6 +819,7 @@ type
 
 
     procedure DeleteItem(AItem: TksTableViewItem);
+    property FirstItem: TksTableViewItem read GetFirstItem;
     property LastItem: TksTableViewItem read GetLastItem;
   end;
 
@@ -1274,6 +1276,7 @@ type
     //procedure SetShowAccessory(const Value: Boolean);
     //procedure SetShowAccessory(const Value: Boolean);
     //procedure SetShowSelection(const Value: Boolean);
+    procedure DoItemsChanged(Sender: TObject; const Item: TksTableViewItem; Action: TCollectionNotification);
   protected
     function GetTotalItemHeight: single;
     function IsHeader(AItem: TksTableViewItem): Boolean;
@@ -2553,6 +2556,13 @@ begin
       Exit;
     end;
   end;
+end;
+
+function TksTableViewItems.GetFirstItem: TksTableViewItem;
+begin
+  Result := nil;
+  if Count > 0  then
+    Result := Items[0];
 end;
 
 function TksTableViewItems.GetLastItem: TksTableViewItem;
@@ -4168,7 +4178,7 @@ begin
   FAccessoryOptions := TksTableViewAccessoryOptions.Create(Self);
   FHeaderOptions := TksTableViewItemHeaderOptions.Create(Self);
   FBorder := TksTableViewBorderOptions.Create(Self);
-  
+
   FSearchBox := TSearchBox.Create(Self);
   FSearchBox.Stored := False;
   FSearchBox.Locked := True;
@@ -4218,7 +4228,7 @@ begin
   FSearchBoxHeight := 0;
   AddObject(FSearchBox);
   SetAcceptsControls(False);
-
+  FItems.OnNotify := DoItemsChanged;
 end;
 
 destructor TksTableView.Destroy;
@@ -4343,6 +4353,12 @@ begin
   Repaint;
   if Assigned(FOnSearchFilterChanged) then
     FOnSearchFilterChanged(Self, FSearchBox.Text);
+end;
+
+procedure TksTableView.DoItemsChanged(Sender: TObject;
+  const Item: TksTableViewItem; Action: TCollectionNotification);
+begin
+  UpdateFilteredItems;
 end;
 
 procedure TksTableView.DoMouseLeave;
@@ -5077,6 +5093,7 @@ var
   sh: single;
   s: TStrokeBrush;
   SaveState : TCanvasSaveState; // SF - FIX
+  SaveStatePullRefresh: TCanvasSaveState;
 begin
   inherited;
 
@@ -5100,43 +5117,47 @@ begin
         Canvas.Fill.Assign(FAppearence.Background);
       Canvas.FillRect(RectF(0, 0, Width, Height), 0, 0, AllCorners, 1);
 
-      {if (csDesigning in ComponentState) and (FBorder.Showing = False) then
+      if (csDesigning in ComponentState) and (FBorder.Showing = False) then
       begin
         s := TStrokeBrush.Create(TBrushKind.Solid, claBlack);
         s.Dash := TStrokeDash.Dash;
         Canvas.Stroke.Assign(s);
         s.Free;
         Canvas.DrawRect(RectF(0, 0, Width, Height), 0, 0, AllCorners, 1);
-      end;  }
+      end;
 
 
-      if (FPullToRefresh.Enabled) and (ScrollViewPos < 0) then
+      if (FPullToRefresh.Enabled) and (Trunc(ScrollViewPos) < 0) then
       begin
-        Canvas.Stroke.Thickness := 1/GetScreenScale;
-        Canvas.Stroke.Color := claDimgray;
+        SaveStatePullRefresh := Canvas.SaveState;
+        try
 
-        //
-        if IsHeader(Items.First) = False then
-          Canvas.DrawLine(PointF(0, (0-ScrollViewPos)+sh), PointF(Width, (0-ScrollViewPos)+sh), 1);
+          Canvas.Stroke.Thickness := 1/(GetScreenScale*2);
+          Canvas.Stroke.Color := claDimgray;
 
-        // pull to refresh...
-        if (FMouseDown) then
-          FNeedsRefresh := (ScrollViewPos <= -50);
+          //
+          if IsHeader(Items.FirstItem) = False then
+            Canvas.DrawLine(PointF(0, (0-ScrollViewPos)+sh), PointF(Width, (0-ScrollViewPos)+sh), 1);
+          Canvas.IntersectClipRect (RectF(0, 0, Width, (0-ScrollViewPos)+sh));
+          // pull to refresh...
+          if (FMouseDown) then
+            FNeedsRefresh := (ScrollViewPos <= -50);
 
-        Canvas.Fill.Color := FPullToRefresh.TextColor;
-        Canvas.Font.Size := 16;
+          Canvas.Fill.Color := FPullToRefresh.TextColor;
+          Canvas.Font.Size := 16;
 
-        if (FNeedsRefresh) and (ScrollViewPos <= -25) then
-        begin
-          Canvas.FillText(RectF(0, sh, Width, sh+50), FPullToRefresh.FReleaseText, False, 1, [], TTextAlign.Center);
-          FNeedsRefresh := True;
-        end
-        else
-          Canvas.FillText(RectF(0, sh+0, Width, sh+50), FPullToRefresh.FPullText, False, 1, [], TTextAlign.Center);
-        //Canvas.Fill.Color := GetColorOrDefault(FAppearence.Background, claWhite);
-        //if FAppearence.Background <> nil then
-        //  Canvas.Fill.Assign(FAppearence.Background);
-        //Canvas.FillRect(RectF(0, 0-ScrollViewPos, Width, Height), 0, 0, AllCorners, 1);
+          if (FNeedsRefresh) and (ScrollViewPos <= -25) then
+          begin
+            Canvas.FillText(RectF(0, sh, Width, sh+50), FPullToRefresh.FReleaseText, False, 1, [], TTextAlign.Center);
+            FNeedsRefresh := True;
+          end
+          else
+            Canvas.FillText(RectF(0, sh+0, Width, sh+50), FPullToRefresh.FPullText, False, 1, [], TTextAlign.Center);
+
+        finally
+          Canvas.RestoreState(SaveStatePullRefresh);
+        end;
+
       end;
 
       AItemsDrawn := False;
