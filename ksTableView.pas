@@ -2291,19 +2291,19 @@ begin
         AShadowBmp.Free;
       end;
     end;
-    //ABmp := TBitmap.Create;
+    ABmp := TBitmap.Create;
     try
-      //ABmp.Assign(Bitmap);
-      DoBeforeRenderBitmap(Bitmap);
+      ABmp.Assign(Bitmap);
+      DoBeforeRenderBitmap(ABmp);
       //Bitmap.SaveToFile('C:\Users\Graham\Desktop\image.png');
-      ACanvas.DrawBitmap(Bitmap,
-                         RectF(0, 0, Bitmap.Width, Bitmap.Height),
+      ACanvas.DrawBitmap(ABmp,
+                         RectF(0, 0, ABmp.Width, ABmp.Height),
                          ARect,
                          1,
                          FHighQuality);
 
     finally
-      //ABmp.Free;
+      ABmp.Free;
     end;
 
   end;
