@@ -2,10 +2,6 @@ unit ksMainMenu;
 
 interface
 
-uses
-  System.SysUtils, System.Classes, FMX.Types, FMX.Controls, ksTableView, FMX.Graphics,
-  System.Types, System.Generics.Collections, FMX.ImgList;
-
 {$IFDEF VER290}
 {$DEFINE XE8_OR_NEWER}
 {$ENDIF}
@@ -13,6 +9,15 @@ uses
 {$DEFINE XE8_OR_NEWER}
 {$DEFINE XE10_OR_NEWER}
 {$ENDIF}
+
+
+uses
+  System.SysUtils, System.Classes, FMX.Types, FMX.Controls, ksTableView, FMX.Graphics,
+  System.Types, System.Generics.Collections
+  {$IFDEF XE8_OR_NEWER}
+  , FMX.ImgList
+  {$ENDIF}
+  ;
 
 type
   TksMainMenu = class;
@@ -43,7 +48,9 @@ type
   public
     constructor Create(AMainMenu: TksMainMenu);
     procedure AddOption(AText, AId: string; AImage: TBitmap); overload;
+    {$IFDEF XE8_OR_NEWER}
     procedure AddOption(AText, AId: string; AImageIndex: integer); overload;
+    {$ENDIF}
   end;
 
 
@@ -83,7 +90,9 @@ type
     FPainting: Boolean;
     FTileOptions: TksMainMenuTileOptions;
     FItems: TksMainMenuOptionItemList;
+    {$IFDEF XE8_OR_NEWER}
     FImages: TImageList;
+    {$ENDIF}
     FOnOptionClicked: TksMenuOptionClickEvent;
     procedure SetLatout(const Value: TksMenuLayout);
     procedure RecreateMenu;
@@ -92,7 +101,9 @@ type
     procedure GetTileRects(ACol, ARow: integer; var ATile, AGraphic, AText: TRectF);
     procedure ClickTile(Sender: TObject; x, y: single; AItem: TksTableViewItem; AId: string; ARowObj: TksTableViewItemObject);
     procedure ClickItem(Sender: TObject; x, y: single; AItem: TksTableViewItem; AId: string; ARowObj: TksTableViewItemObject);
+    {$IFDEF XE8_OR_NEWER}
     procedure SetImages(const Value: TImageList);
+    {$ENDIF}
     procedure SetBackground(const Value: TBrush);
     function GetBackground: TBrush;
     { Private declarations }
@@ -111,7 +122,9 @@ type
   published
     property Align;
     property Background: TBrush read GetBackground write SetBackground;
+    {$IFDEF XE8_OR_NEWER}
     property Images: TImageList read FImages write SetImages;
+    {$ENDIF}
     property Layout: TksMenuLayout read FLayout write SetLatout default mlTiles;
     property TileOptions: TksMainMenuTileOptions read FTileOptions write SetTileOptions;
     property Position;
@@ -359,10 +372,14 @@ begin
   FTableView.Appearence.Background := Value;
 end;
 
+{$IFDEF XE8_OR_NEWER}
+
 procedure TksMainMenu.SetImages(const Value: TImageList);
 begin
   FImages := Value;
 end;
+
+{$ENDIF}
 
 procedure TksMainMenu.SetLatout(const Value: TksMenuLayout);
 begin
@@ -482,6 +499,8 @@ begin
   FMainMenu.RecreateMenu;
 end;
 
+{$IFDEF XE8_OR_NEWER}
+
 procedure TksMainMenuOptionItemList.AddOption(AText, AId: string; AImageIndex: integer);
 var
   ABmp: TCustomBitmapItem;
@@ -489,6 +508,8 @@ begin
   ABmp := FMainMenu.Images.Source[AImageIndex].MultiResBitmap.ItemByScale(1, False, False);
   AddOption(AText, AId, ABmp.Bitmap);
 end;
+
+{$ENDIF}
 
 constructor TksMainMenuOptionItemList.Create(AMainMenu: TksMainMenu);
 begin

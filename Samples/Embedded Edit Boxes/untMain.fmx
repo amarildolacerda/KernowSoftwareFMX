@@ -17,10 +17,12 @@ object Form24: TForm24
     DeleteButton.Text = 'Delete'
     DragDropOptions.Enabled = True
     DragDropOptions.Opacity = 1.000000000000000000
+    HeaderOptions.Color = claNull
     ItemHeight = 60
     PullToRefresh.Font.Size = 16.000000000000000000
     PullToRefresh.PullText = 'pull to refresh'
     PullToRefresh.ReleaseText = 'release to refresh'
+    SelectionOptions.SelectionOverlay.Size = 0
     Size.Width = 640.000000000000000000
     Size.Height = 392.000000000000000000
     Size.PlatformDefault = False
@@ -56,7 +58,7 @@ object Form24: TForm24
       Size.PlatformDefault = False
       TextSettings.Font.Size = 16.000000000000000000
       TextSettings.HorzAlign = Center
-      Text = 'Swipe to use Action Buttons'
+      Text = 'Embedded Edit Boxes'
     end
   end
 end
