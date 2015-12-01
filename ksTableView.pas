@@ -2292,7 +2292,7 @@ begin
     try
       //ABmp.Assign(Bitmap);
       DoBeforeRenderBitmap(Bitmap);
-      Bitmap.SaveToFile('C:\Users\Graham\Desktop\image.png');
+      //Bitmap.SaveToFile('C:\Users\Graham\Desktop\image.png');
       ACanvas.DrawBitmap(Bitmap,
                          RectF(0, 0, Bitmap.Width, Bitmap.Height),
                          ARect,
@@ -2812,7 +2812,7 @@ begin
 
   finally
     FBitmap.Canvas.EndScene;
-    FBitmap.SaveToFile('C:\Users\Graham\Desktop\image2.png');
+    //FBitmap.SaveToFile('C:\Users\Graham\Desktop\image2.png');
     FCached := True;
   end;
   OffsetRect(FItemRect,ColumnOffset,0);          // SF
