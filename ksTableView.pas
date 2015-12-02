@@ -4488,6 +4488,9 @@ var
   ICount: integer;
   ASearchText: string;
 begin
+  if (FFilteredItems = nil) then
+    Exit;
+
   FFilteredItems.Clear;
   ASearchText := Trim(FSearchBox.Text);
   for ICount := 0 to FItems.Count - 1 do
