@@ -670,6 +670,7 @@ type
     FAppearance : TksTableViewItemAppearance; // SF - Tile
     FDragging: Boolean;
     FFill : TBrush;                           // SF - BK
+    FRoundedCorners: TCorners;
     function MatchesSearch(AFilter: string): Boolean;
     function IsVisible(AViewport: TRectF): Boolean;
     function GetHeight: single;
@@ -1100,11 +1101,11 @@ type
   private
     [weak]FTableView: TksTableView;
     FEnabled: Boolean;
-    FStickyHeight: integer;
+    FStickyHeight: single;
     FButton: TksTableViewStickyHeaderButton;
     procedure Changed;
     procedure SetEnabled(const Value: Boolean);
-    procedure SetStickyHeight(const Value: integer);
+    procedure SetStickyHeight(const Value: single);
     procedure SetButton(const Value: TksTableViewStickyHeaderButton);
   protected
   public
@@ -1113,7 +1114,7 @@ type
   published
     property Button: TksTableViewStickyHeaderButton read FButton write SetButton;
     property Enabled: Boolean read FEnabled write SetEnabled default True;
-    property StickyHeight: integer read FStickyHeight write SetStickyHeight default 0;
+    property StickyHeight: single read FStickyHeight write SetStickyHeight;
   end;
 
 
@@ -1356,7 +1357,7 @@ type
     procedure BeginUpdate; {$IFDEF XE8_OR_NEWER} override; {$ENDIF}
     procedure EndUpdate;   {$IFDEF XE8_OR_NEWER} override; {$ENDIF}
     procedure Invalidate;
-    procedure UpdateItemRects;
+    procedure UpdateItemRects(AUpdateFiltered: Boolean);
     procedure UncheckAll;
     procedure UpdateScrollingLimits;
     procedure RedrawAllVisibleItems;
@@ -1838,7 +1839,7 @@ end;     }
 procedure TksTableViewItemObject.Changed;
 begin
   FTableItem.Cached := False;
-  FTableItem.CacheItem(False);
+  FTableItem.CacheItem(True);
   FTableItem.FTableView.Invalidate;
 end;
 
@@ -2518,7 +2519,7 @@ begin
   Result.Purpose := TksTableViewItemPurpose.Header;
   Add(Result);
   UpdateIndexes;
-  FTableView.UpdateItemRects;
+  FTableView.UpdateItemRects(True);
   FTableView.UpdateScrollingLimits;
 end;
 
@@ -2537,7 +2538,7 @@ begin
   Add(Result);
   UpdateIndexes;
 
-  FTableView.UpdateItemRects;
+  FTableView.UpdateItemRects(True);
   FTableView.UpdateStickyHeaders;
   FTableView.UpdateScrollingLimits;
 end;
@@ -2605,7 +2606,7 @@ begin
       if Assigned(FTableView.OnDeleteItem) then
         FTableView.OnDeleteItem(FTableView, Items[ICount]);
       Delete(ICount);
-      FTableView.UpdateItemRects;
+      FTableView.UpdateItemRects(True);
       FTableView.UpdateScrollingLimits;
       FTableView.Invalidate;
       Exit;
@@ -2636,7 +2637,12 @@ begin
   begin
     //if (Items[ICount].ItemRect.Left = 0) then     // SF - only add up items in first column
     if (Items[ICount].FIsFirstCol) then     // SF - Tile
-      Result := Result + Items[ICount].Height;
+    begin
+      if (Items[ICount].FHeaderHeight>0) then
+        Result := Result + Items[ICount].FHeaderHeight
+      else
+        Result := Result + Items[ICount].Height;
+    end;
   end;
 end;
 
@@ -2778,10 +2784,10 @@ begin
 
   if AForceCache then
   begin
-    //FBitmap.DisposeOf;
-    //FBitmap := nil;
-    //FBitmap := TBitmap.Create;
-    //FBitmap.BitmapScale := GetScreenScale;
+    {FBitmap.DisposeOf;
+    FBitmap := nil;
+    FBitmap := TBitmap.Create;
+    FBitmap.BitmapScale := GetScreenScale;     }
     FBitmap.Clear(claNull);
     FCached := False;
   end;
@@ -2887,6 +2893,7 @@ end;
 procedure TksTableViewItem.Changed;
 begin
   FCached := False;
+  //CacheItem(False);
   if FTableView.FUpdateCount = 0 then
     FTableView.Invalidate;
 end;
@@ -2950,6 +2957,7 @@ begin
   FColCount := 0;          // SF
   FAppearance := iaNormal; // SF - Tile
   FDragging := False;
+  FRoundedCorners := [];
 end;
 
 procedure TksTableViewItem.DeselectObjects;
@@ -3430,11 +3438,18 @@ begin
   end;
 
   CacheItem;
-   if FBitmap = nil then
+
+
+  if FBitmap = nil then
     Exit;
   
   if FActionButtons.Visible = False then
-    ACanvas.DrawBitmap(FBitmap, RectF(0, 0, FBitmap.Width, FBitmap.Height), ARect, 1, True)
+  begin
+
+    ACanvas.DrawBitmap(FBitmap, RectF(0, 0, FBitmap.Width, FBitmap.Height),
+                       ARect, 1, False);
+
+  end
   else
   begin
     AWidth   := (FActionButtons.TotalWidth / 100) * FActionButtons.PercentWidth;
@@ -3491,6 +3506,9 @@ begin
       ACanvas.DrawLine(PointF(Round(ARect.Right) - 0.5, ARect.Top),                             // SF - TC
                        PointF(Round(ARect.Right) - 0.5, ARect.Bottom), 1);                      // SF - TC
                                                                                                 // SF - TC
+  // { }ACanvas.Stroke.Thickness := 0.5;
+  //  ACanvas.Stroke.Color := claBlack;
+  //  ACanvas.DrawRect(RectF(ARect.Left, ARect.Top, ARect.Left + (ARect.Height/2), ARect.Top + (ARect.Height/2)), 0, 0, AllCorners, 1);
 
     Result := ARect;
   end;
@@ -3537,7 +3555,7 @@ begin
   if Value <> FHeight then
   begin
     FHeight := Value;
-    FTableView.UpdateItemRects;
+    FTableView.UpdateItemRects(False);
     CacheItem(True);
   end;
 end;
@@ -3547,7 +3565,7 @@ begin
   if Value <> FHeight then
   begin
     FHeightPercentage := Value;
-    FTableView.UpdateItemRects;
+    FTableView.UpdateItemRects(False);
     CacheItem(True);
   end;
 end;
@@ -3604,10 +3622,14 @@ begin
 end;
 
 procedure TksTableViewItem.SetItemRect(const Value: TRectF);
+var
+  ALastHeight: single;
 begin
+  ALastHeight := FItemRect.Height;
   FItemRect := Value;
+  if FItemRect.Height <> ALastHeight then
   // if FItemRect.Height >  then
-  Changed;
+    Changed;
 end;
 
 procedure TksTableViewItem.SetItemTextColor(AColor: TAlphaColor);
@@ -4038,7 +4060,7 @@ begin
 
 end; }
 
-procedure TksTableView.UpdateItemRects;
+procedure TksTableView.UpdateItemRects(AUpdateFiltered: Boolean);
 var
   ICount: integer;
   AYPos: single;
@@ -4054,7 +4076,9 @@ var
 begin
   if FUpdateCount > 0 then
     Exit;
-  UpdateFilteredItems;
+
+  if AUpdateFiltered then
+    UpdateFilteredItems;
 
   AHeight       := 0;
   ANoCols       := Max(1,ColCount);                                                // SF
@@ -4086,8 +4110,8 @@ begin
       else                                                                         // SF - 02/12/2015
         AHeight := AItem.Height;                                                                     // SF
                                                                                    // SF
-      //AItem.ItemRect := RectF(0, AYPos, Width, AYPos + AItem.Height);              // SF
       AItem.ItemRect := RectF(0, AYPos, Width, AYPos + AHeight);                   // SF - 02/12/2015
+
                                                                                    // SF
       if (AItem.ColCount>0) then                                                   // SF
         ANoCols := AItem.ColCount                                                  // SF
@@ -4099,21 +4123,18 @@ begin
     else
     begin                                                                          // SF - 02/12/2015
       AItem.ItemRect := RectF(AXPos, AYPos, AXPos + AWidth, AYPos + AItem.Height); // SF - 02/12/2015
-                                                                                   // SF - 02/12/2015
+
+     //AItem.Title.Text := FormatFloat('0.000000',AYPos);                                                                             // SF - 02/12/2015
       // First column item sets row height                                         // SF - 02/12/2015
       if (ACol=0) then                                                             // SF - 02/12/2015
         AHeight := AItem.Height;                                                   // SF - 02/12/2015
     end;
-                                                                                     // SF
+                                                                                   // SF
     AItem.FIsFirstCol := (ACol=0);                                                 // SF - Tile
     AItem.FIsLastCol  := (ACol=ANoCols-1);                                         // SF - Tile
     AItem.FIsFirstRow := (ARow=0);                                                 // SF - Tile
     AItem.FIsLastRow  := false;                                                    // SF - Tile
     AItem.Index := ICount;                                                         // SF
-                                                                                   // SF
-    // First column item sets row height                                           // SF
-    if (ACol=0) then                                                               // SF
-      AHeight := AItem.Height;                                                     // SF
                                                                                    // SF
     if (AItem.Purpose<>TksTableViewItemPurpose.Header) and (ACol<ANoCols-1) then   // SF
     begin                                                                          // SF
@@ -4415,7 +4436,7 @@ end;
 procedure TksTableView.DoFilterChanged(Sender: TObject);
 begin
   UpdateFilteredItems;
-  UpdateItemRects;            // SF
+  UpdateItemRects(True);      // SF
   UpdateScrollingLimits;      // SF
   Repaint;
   if Assigned(FOnSearchFilterChanged) then
@@ -4531,7 +4552,7 @@ begin
   FUpdateCount := FUpdateCount - 1;
   if FUpdateCount = 0 then
   begin
-    UpdateItemRects;
+    UpdateItemRects(True);
     UpdateStickyHeaders;// SF - 02/12/2015 - Needs to be done after UpdateItemRects
     UpdateScrollingLimits;
     CacheItems(True);
@@ -4724,22 +4745,50 @@ begin
 end;  }
 
 
-function TksTableView.GetItemFromPos(AXPos,AYPos: single): TksTableViewItem;          // SF
-var                                                                                   // SF
-  ICount: integer;                                                                    // SF
-  AFiltered: TksTableViewItems;                                                       // SF
-begin                                                                                 // SF
-  Result := nil;                                                                      // SF
-  AFiltered := FFilteredItems;                                                        // SF
-  for ICount := 0 to AFiltered.Count - 1 do                                           // SF
-  begin                                                                               // SF
-    if PtInRect(AFiltered[ICount].ItemRect, PointF(AXPos, (AYPos + GetScrollViewPos)))  // SF
-    then                                                                              // SF
-    begin                                                                             // SF
-      Result := AFiltered[ICount];                                                    // SF
-      Exit;                                                                           // SF
-    end;                                                                              // SF
-  end;                                                                                // SF
+function TksTableView.GetItemFromPos(AXPos,AYPos: single): TksTableViewItem;
+var
+  ICount: integer;
+  JCount: integer;
+  AFiltered: TksTableViewItems;
+  AItem: TksTableViewItem;
+begin
+  Result := nil;
+  AFiltered := FFilteredItems;
+  for ICount := 0 to AFiltered.Count - 1 do
+  begin
+    AItem := AFiltered[ICount];
+
+    if (AItem.IsStickyHeader) then
+    begin
+      if PtInRect(AItem.ItemRect, PointF(AXPos,AYPos)) then
+      begin
+        Result := AItem;
+
+        // Check for clicking on Header over Sticky Header
+        for JCount := ICount+1 to AFiltered.Count - 1 do
+        begin
+          AItem := AFiltered[JCount];
+          if (AItem.Purpose=Header) then
+          begin
+            if PtInRect(AItem.ItemRect, PointF(AXPos, (AYPos + GetScrollViewPos))) then
+            begin
+              Result := AItem;
+              Exit;
+            end;
+          end;
+        end;
+        Exit;
+      end;
+    end
+    else
+    begin
+      if PtInRect(AItem.ItemRect, PointF(AXPos, (AYPos + GetScrollViewPos))) then
+      begin
+        Result := AItem;
+        Exit;
+      end;
+    end;
+  end;
 end;
 
 function TksTableView.GetItemIndex: integer;
@@ -4997,7 +5046,7 @@ begin
                                                                                                       // SF - LiveDD
         FItems.Move(FItems.IndexOf(FMouseDownItem), FItems.IndexOf(ADragOverItem));                   // SF - LiveDD
                                                                                                       // SF - LiveDD
-        UpdateItemRects;                                                                              // SF - LiveDD
+        UpdateItemRects(False);                                                                       // SF - LiveDD
                                                                                                       // SF - LiveDD
         RedrawAllVisibleItems();                                                                      // SF - LiveDD
       end;                                                                                            // SF - LiveDD
@@ -5089,7 +5138,7 @@ begin
         begin
           // move the drag row to the new position...
           FItems.Move(FItems.IndexOf(FMouseDownItem), FItems.IndexOf(ADragOverItem));
-          UpdateItemRects;
+          UpdateItemRects(False);
         end;
       end;
                                                                         // SF - DD
@@ -5160,7 +5209,7 @@ var
   AItems: TksTableViewItems;
   AViewport: TRectF;
   AItem: TksTableViewItem;
-  AItemsDrawn: Boolean;
+  //AItemsDrawn: Boolean;
   ARect: TRectF;
   ASelectedRect: TRectF;
   ATop: single;
@@ -5171,7 +5220,7 @@ var
   ArrowDownBitmap : TBitmap;                // SF - 02/12/2015 - TEST CODE
   ArrowDownRect : TRectF;                   // SF - 02/12/2015 - TEST CODE
 begin
-  inherited;
+ //inherited;
 
   if not FPainting then
   begin
@@ -5192,7 +5241,6 @@ begin
       if FAppearence.Background <> nil then
         Canvas.Fill.Assign(FAppearence.Background);
       Canvas.FillRect(RectF(0, 0, Width, Height), 0, 0, AllCorners, 1);
-
       if (csDesigning in ComponentState) and (FBorder.Showing = False) then
       begin
         s := TStrokeBrush.Create(TBrushKind.Solid, claBlack);
@@ -5236,30 +5284,20 @@ begin
 
       end;
 
-      AItemsDrawn := False;
       AItems := FilteredItems;
       AViewport := ViewPort;
 
-
+      // start of change...
 
       for ICount := 0 to AItems.Count - 1 do
       begin
         AItem := AItems[ICount];
 
-        if (AItem.IsVisible(AViewport))
-        { or (AItem.Purpose = TksTableItemPurpose.ksHeader) } then
-        begin
-          AItemsDrawn := True;
+        if (AItem.IsVisible(AViewport)) then
           AItems[ICount].Render(Canvas, AViewport.Top);
-
-          //LastY := AItems[ICount].ItemRect.Bottom - AViewport.Top;  // SF - TC
-        end
-        else
-        begin
-          if AItemsDrawn then
-            Break
-        end;
       end;
+
+      // end of change
 
       if (FSelectionOptions.SelectionOverlay.Enabled) then
       begin
@@ -5276,7 +5314,6 @@ begin
         end;
       end;
 
-      //if (FHeaderOptions.StickyHeaders) and (ScrollViewPos >= 0) then
       if (FHeaderOptions.StickyHeaders.Enabled) {and (ScrollViewPos >= 0)} then // SF - 02/12/2015
       begin
         for ICount := 0 to AItems.Count -1 do
@@ -5289,19 +5326,19 @@ begin
             else
               ATop := AViewport.Top;
 
-            //ATop := Max(0, ATop);
-            //
-
             ARect := AItem.Render(Canvas, ATop);
 
-            if (AItem.IsStickyHeader) and (FHeaderOptions.StickyHeaders.Button.Visible) then                                      // SF - 02/12/2015 - TEST CODE
+            if (AItem.IsStickyHeader) then                                      // SF - 02/12/2015 - TEST CODE
             begin
 
               ArrowDownBitmap := AccessoryImages.Images[atArrowDown];
-              ArrowDownRect   := RectF(0,0,ArrowDownBitmap.Width,ArrowDownBitmap.Height);
+              ArrowDownRect   := RectF(0, 0, ArrowDownBitmap.Width/GetScreenScale, ArrowDownBitmap.Height/GetScreenScale);
 
-              OffsetRect(ArrowDownRect,AItem.ItemRect.Right - (AItem.ItemRect.Height + ArrowDownBitmap.Width) / 2,
-                                       ((AItem.ItemRect.Height - ArrowDownBitmap.Height) / 2));
+
+              OffsetRect(ArrowDownRect,
+                         (AItem.ItemRect.Right - 4) -(ArrowDownBitmap.Width / GetScreenScale),
+                        ((AItem.ItemRect.Height - (ArrowDownBitmap.Height / GetScreenScale)) / 2));
+
 
               if (ScrollViewPos<0) then
                 OffsetRect(ArrowDownRect,0,-ScrollViewPos);
@@ -5382,7 +5419,7 @@ begin
 
   if FUpdateCount > 0 then
     Exit;
-  UpdateItemRects;
+  UpdateItemRects(False);
   UpdateScrollingLimits;
   CacheItems(True);
 end;
@@ -5508,7 +5545,7 @@ end;
 procedure TksTableView.SetColCount(const Value: integer);       // SF
 begin                                                           // SF
   FColCount := Value;                                           // SF
-  UpdateItemRects;                                              // SF
+  UpdateItemRects(False);                                       // SF
   Invalidate;                                                   // SF
 end;                                                            // SF
 
@@ -5561,16 +5598,16 @@ begin
         begin
           AStickyHeader := AItem;
 
-          if (AItem.FHeaderHeight<>FHeaderOptions.StickyHeaders.StickyHeight) then
+          if (AItem.FHeaderHeight <> FHeaderOptions.StickyHeaders.StickyHeight) then
           begin
             AItem.FHeaderHeight := FHeaderOptions.StickyHeaders.StickyHeight;
             ANeedsRecalc := true;
           end;
         end
-        else if (AItem.ItemRect.Top<=(AViewportTop+FHeaderOptions.StickyHeaders.StickyHeight)) then
+        else if (AItem.ItemRect.Top <= (AViewportTop+FHeaderOptions.StickyHeaders.StickyHeight)) then
         begin
           ANextStickyHeaderHeight := Max(AItem.Height,(AViewportTop+FHeaderOptions.StickyHeaders.StickyHeight) - AItem.ItemRect.Top);
-          if (AItem.FHeaderHeight<>ANextStickyHeaderHeight) then
+          if (AItem.FHeaderHeight <> ANextStickyHeaderHeight) then
           begin
             AItem.FHeaderHeight := ANextStickyHeaderHeight;
             ANeedsRecalc := true;
@@ -5592,7 +5629,7 @@ begin
 
     if (ANeedsRecalc) then
     begin
-      UpdateItemRects;
+      UpdateItemRects(False);
       UpdateScrollingLimits;
     end;
   end;
@@ -5629,7 +5666,7 @@ begin
     UpdateScrollingLimits;
     TAnimator.AnimateFloatWait(Self, 'ScrollPos', AScrollPos);
 
-    UpdateItemRects;
+    UpdateItemRects(True);
     Invalidate;
   end;
 end;
@@ -7195,6 +7232,7 @@ procedure TksTableViewSelectionOverlayOptions.RecreateIndicator(AHeight: single)
 var
   APath: TPathData;
   ASize: single;
+  AMaxSize: single; // SF - 02/12/2015
   AOffset: single;
   AIndicatorRect: TRectF;
 begin
@@ -7206,6 +7244,9 @@ begin
     FBitmap.Canvas.Fill.Color := FBackgroundColor;
 
     ASize := 20 + (3*FSize);
+    AMaxSize := AHeight - (FStroke.Thickness / 2);  // SF - 02/12/2015 - Fix Indicator bigger than row
+    if (ASize>AMaxSize) then                        // SF - 02/12/2015
+      ASize := AMaxSize;                            // SF - 02/12/2015
     AOffset := (AHeight - ASize) / 2;
 
 
@@ -7606,7 +7647,7 @@ begin
   end;
 end;
 
-procedure TksTableViewStickyHeaderOptions.SetStickyHeight(const Value: integer);
+procedure TksTableViewStickyHeaderOptions.SetStickyHeight(const Value: single);
 begin
   if FStickyHeight <> Value then
   begin
