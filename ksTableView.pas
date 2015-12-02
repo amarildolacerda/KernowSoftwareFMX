@@ -4487,9 +4487,11 @@ procedure TksTableView.UpdateFilteredItems;
 var
   ICount: integer;
   ASearchText: string;
+  ALastSelected: TksTableViewItem;
 begin
   if (FFilteredItems = nil) then
     Exit;
+  ALastSelected := SelectedItem;
 
   FFilteredItems.Clear;
   ASearchText := Trim(FSearchBox.Text);
@@ -4501,6 +4503,7 @@ begin
       FFilteredItems.Add(FItems[ICount]);
     end;
   end;
+  FItemIndex := FFilteredItems.IndexOf(ALastSelected);
 end;
 
 procedure TksTableView.DoSelectTimer;                                           // SF - DD
