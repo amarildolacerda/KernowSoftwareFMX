@@ -641,6 +641,8 @@ type
     FAccessory: TksTableViewItemAccessory;
     FHeight: single;
     FHeightPercentage: single;  // SF - Addded support for a Row to be a percentage of the height
+    FHeaderHeight: single;    // SF - 02/12/2015
+    FIsStickyHeader: boolean; // SF - 02/12/2015
     FItemRect: TRectF;
     FCached: Boolean;
     FCaching: Boolean;
@@ -790,7 +792,8 @@ type
     property IsFirstRow: Boolean read FIsFirstRow;                                                          // SF - Tile
     property IsLastRow: Boolean read FIsLastRow;                                                            // SF - Tile
     property Appearance: TksTableViewItemAppearance read FAppearance write SetAppearance default iaNormal;  // SF - Tile
-    property Fill: TBrush read FFill write SetFill;                                                         // SF - BK
+    property Fill: TBrush read FFill write SetFill;
+    property IsStickyHeader: Boolean read FIsStickyHeader;                                                 // SF - 02/12/2015                                      // SF - BK
 
     //property TitleWidth: TksTableViewTextWidth read FTitleWidth write SetTitleWidth default ksWidth60Percent;
     //property ActionButtonsWidth: integer read FActionButtonsWidth write SetActionButtonsWidth;
@@ -1075,22 +1078,72 @@ type
     property SelectDuration: integer read FSelectDuration write FSelectDuration default C_TABLEVIEW_DEFAULT_SELECT_DURATION;
   end;
 
+  TksTableViewStickyHeaderButton = class(TPersistent)
+  private
+    [weak]FTableView: TksTableView;
+    //FText: string;
+    FVisible: Boolean;
+    //FFontColor: TAlphaColor;
+    procedure Changed;
+    //procedure SetFontColor(const Value: TAlphaColor);
+    //procedure SetText(const Value: string);
+    procedure SetVisible(const Value: Boolean);
+  public
+    constructor Create(ATableView: TksTableView);
+  published
+    //property Text: string read FText write SetText;
+    //property FontColor: TAlphaColor read FFontColor write SetFontColor;
+    property Visible: Boolean read FVisible write SetVisible default False;
+  end;
+
+  TksTableViewStickyHeaderOptions = class(TPersistent)
+  private
+    [weak]FTableView: TksTableView;
+    FEnabled: Boolean;
+    FStickyHeight: integer;
+    FButton: TksTableViewStickyHeaderButton;
+    procedure Changed;
+    procedure SetEnabled(const Value: Boolean);
+    procedure SetStickyHeight(const Value: integer);
+    procedure SetButton(const Value: TksTableViewStickyHeaderButton);
+  protected
+  public
+    constructor Create(ATableView: TksTableView);
+    destructor Destroy; override;
+  published
+    property Button: TksTableViewStickyHeaderButton read FButton write SetButton;
+    property Enabled: Boolean read FEnabled write SetEnabled default True;
+    property StickyHeight: integer read FStickyHeight write SetStickyHeight default 0;
+  end;
+
+
   TksTableViewItemHeaderOptions = class(TPersistent)
   private
     [weak]FTableView: TksTableView;
     FHeight: integer;
-    FStickyHeaders: Boolean;
+    FStickyHeaders: TksTableViewStickyHeaderOptions;
+    //FStickyHeaders: Boolean;
+    //FStickyHeaderHeight: integer; // SF - 02/12/2015
     procedure Changed;
-    procedure SetStickyHeaders(const Value: Boolean);
+    //procedure SetStickyHeaders(const Value: Boolean);
     function GetHeaderColor: TAlphaColor;
     procedure SetHeaderColor(const Value: TAlphaColor);
+    procedure SetHeaderHeight(const Value: integer);
+    procedure SetStickyHeaders(const Value: TksTableViewStickyHeaderOptions);
+    procedure LegacyGetStickyHeadersHeight(Reader: TReader);
+    //procedure SetStickyHeaderHeight(const Value: integer);
+  protected
+    procedure DefineProperties(Filer: TFiler); override;
+
   public
     constructor Create(ATableView: TksTableView);
-    procedure SetHeaderHeight(const Value: integer);
+    destructor Destroy; override;
   published
     property Color: TAlphaColor read GetHeaderColor write SetHeaderColor;
     property Height: integer read FHeight write SetHeaderHeight default C_TABLEVIEW_DEFAULT_HEADER_HEIGHT;
-    property StickyHeaders: Boolean read FStickyHeaders write SetStickyHeaders default True;
+    property StickyHeaders: TksTableViewStickyHeaderOptions read FStickyHeaders write SetStickyHeaders;
+    //property StickyHeaders: Boolean read FStickyHeaders write SetStickyHeaders default True;
+    //property StickyHeaderHeight: integer read FStickyHeaderHeight write SetStickyHeaderHeight default 0;  // SF - 02/12/2015
   end;
 
   TksTableViewAccessoryOptions = class(TPersistent)
@@ -1214,6 +1267,7 @@ type
     FOnAfterPaint : TPaintEvent;                                                // SF - BK
 
     function GetViewPort: TRectF;
+    procedure UpdateStickyHeaders; // SF - 02/12/2015
     procedure SetScrollViewPos(const Value: single);
     procedure AniCalcStart(Sender: TObject);
     procedure AniCalcChange(Sender: TObject);
@@ -2484,6 +2538,7 @@ begin
   UpdateIndexes;
 
   FTableView.UpdateItemRects;
+  FTableView.UpdateStickyHeaders;
   FTableView.UpdateScrollingLimits;
 end;
 
@@ -4024,9 +4079,15 @@ begin
       begin                                                                        // SF
         ACol  := 0;                                                                // SF
         AYPos := AYPos + AHeight;                                                  // SF
-      end;                                                                         // SF
+      end;
+
+      if (AItem.FHeaderHeight>0) then                                              // SF - 02/12/2015
+        AHeight := AItem.FHeaderHeight                                             // SF - 02/12/2015
+      else                                                                         // SF - 02/12/2015
+        AHeight := AItem.Height;                                                                     // SF
                                                                                    // SF
-      AItem.ItemRect := RectF(0, AYPos, Width, AYPos + AItem.Height);              // SF
+      //AItem.ItemRect := RectF(0, AYPos, Width, AYPos + AItem.Height);              // SF
+      AItem.ItemRect := RectF(0, AYPos, Width, AYPos + AHeight);                   // SF - 02/12/2015
                                                                                    // SF
       if (AItem.ColCount>0) then                                                   // SF
         ANoCols := AItem.ColCount                                                  // SF
@@ -4035,9 +4096,15 @@ begin
                                                                                    // SF
       AWidth := Width / ANoCols;                                                   // SF
     end                                                                            // SF
-    else                                                                           // SF
-      AItem.ItemRect := RectF(AXPos, AYPos, AXPos + AWidth, AYPos + AItem.Height); // SF
-                                                                                   // SF
+    else
+    begin                                                                          // SF - 02/12/2015
+      AItem.ItemRect := RectF(AXPos, AYPos, AXPos + AWidth, AYPos + AItem.Height); // SF - 02/12/2015
+                                                                                   // SF - 02/12/2015
+      // First column item sets row height                                         // SF - 02/12/2015
+      if (ACol=0) then                                                             // SF - 02/12/2015
+        AHeight := AItem.Height;                                                   // SF - 02/12/2015
+    end;
+                                                                                     // SF
     AItem.FIsFirstCol := (ACol=0);                                                 // SF - Tile
     AItem.FIsLastCol  := (ACol=ANoCols-1);                                         // SF - Tile
     AItem.FIsFirstRow := (ARow=0);                                                 // SF - Tile
@@ -4315,7 +4382,7 @@ end;
 
 procedure TksTableView.LegacyGetStickyHeaders(Reader: TReader);
 begin
-  FHeaderOptions.StickyHeaders := Reader.ReadBoolean;
+  FHeaderOptions.StickyHeaders.Enabled := Reader.ReadBoolean;
 end;
 
 procedure TksTableView.LegacyGetHeaderHeight(Reader: TReader);
@@ -4465,6 +4532,7 @@ begin
   if FUpdateCount = 0 then
   begin
     UpdateItemRects;
+    UpdateStickyHeaders;// SF - 02/12/2015 - Needs to be done after UpdateItemRects
     UpdateScrollingLimits;
     CacheItems(True);
     Invalidate;
@@ -5100,6 +5168,8 @@ var
   s: TStrokeBrush;
   SaveState : TCanvasSaveState; // SF - FIX
   SaveStatePullRefresh: TCanvasSaveState;
+  ArrowDownBitmap : TBitmap;                // SF - 02/12/2015 - TEST CODE
+  ArrowDownRect : TRectF;                   // SF - 02/12/2015 - TEST CODE
 begin
   inherited;
 
@@ -5206,7 +5276,8 @@ begin
         end;
       end;
 
-      if (FHeaderOptions.StickyHeaders) and (ScrollViewPos >= 0) then
+      //if (FHeaderOptions.StickyHeaders) and (ScrollViewPos >= 0) then
+      if (FHeaderOptions.StickyHeaders.Enabled) {and (ScrollViewPos >= 0)} then // SF - 02/12/2015
       begin
         for ICount := 0 to AItems.Count -1 do
         begin
@@ -5222,6 +5293,21 @@ begin
             //
 
             ARect := AItem.Render(Canvas, ATop);
+
+            if (AItem.IsStickyHeader) and (FHeaderOptions.StickyHeaders.Button.Visible) then                                      // SF - 02/12/2015 - TEST CODE
+            begin
+
+              ArrowDownBitmap := AccessoryImages.Images[atArrowDown];
+              ArrowDownRect   := RectF(0,0,ArrowDownBitmap.Width,ArrowDownBitmap.Height);
+
+              OffsetRect(ArrowDownRect,AItem.ItemRect.Right - (AItem.ItemRect.Height + ArrowDownBitmap.Width) / 2,
+                                       ((AItem.ItemRect.Height - ArrowDownBitmap.Height) / 2));
+
+              if (ScrollViewPos<0) then
+                OffsetRect(ArrowDownRect,0,-ScrollViewPos);
+
+              Canvas.DrawBitmap(ArrowDownBitmap,RectF(0,0,ArrowDownBitmap.Width,ArrowDownBitmap.Height),ArrowDownRect,1,true);
+            end;
 
             if FSelectionOptions.SelectionOverlay.Enabled then
             begin
@@ -5438,6 +5524,80 @@ begin
     FPullToRefresh.Assign(Value);
 end;
 
+procedure TksTableView.UpdateStickyHeaders;// SF - 02/12/2015
+var
+  ICount: integer;
+  AItem: TksTableViewItem;
+  AStickyHeader: TksTableViewItem;
+  //ANextStickyHeader: TksTableViewItem;
+  ANextStickyHeaderHeight: single;
+  ANeedsRecalc: Boolean;
+  AViewportTop: single;
+begin
+  if FUpdateCount > 0 then
+    Exit;
+
+  if (FHeaderOptions.StickyHeaders.Enabled) and
+     (FHeaderOptions.StickyHeaders.StickyHeight > 0) and
+     (FilteredItems.Count > 0) then
+  begin
+    ANeedsRecalc := false;
+    AViewportTop := Viewport.Top;
+    AStickyHeader := Nil;
+    //ANextStickyHeader := Nil;
+
+    if (AViewportTop<0) then
+      AViewportTop := 0;
+
+    for ICount := 0 to FilteredItems.Count-1 do
+    begin
+      AItem := FilteredItems[ICount];
+
+      if (AItem.Purpose = Header) then
+      begin
+        AItem.FIsStickyHeader := false;
+
+        if (AItem.ItemRect.Top<=AViewportTop) then
+        begin
+          AStickyHeader := AItem;
+
+          if (AItem.FHeaderHeight<>FHeaderOptions.StickyHeaders.StickyHeight) then
+          begin
+            AItem.FHeaderHeight := FHeaderOptions.StickyHeaders.StickyHeight;
+            ANeedsRecalc := true;
+          end;
+        end
+        else if (AItem.ItemRect.Top<=(AViewportTop+FHeaderOptions.StickyHeaders.StickyHeight)) then
+        begin
+          ANextStickyHeaderHeight := Max(AItem.Height,(AViewportTop+FHeaderOptions.StickyHeaders.StickyHeight) - AItem.ItemRect.Top);
+          if (AItem.FHeaderHeight<>ANextStickyHeaderHeight) then
+          begin
+            AItem.FHeaderHeight := ANextStickyHeaderHeight;
+            ANeedsRecalc := true;
+          end;
+        end
+        else
+        begin
+          if (AItem.FHeaderHeight<>0) then
+          begin
+            AItem.FHeaderHeight := 0;
+            ANeedsRecalc := true;
+          end;
+        end;
+      end;
+    end;
+
+    if (AStickyHeader<>Nil) then
+      AStickyHeader.FIsStickyHeader := true;
+
+    if (ANeedsRecalc) then
+    begin
+      UpdateItemRects;
+      UpdateScrollingLimits;
+    end;
+  end;
+end;
+
 procedure TksTableView.SetScrollViewPos(const Value: single);
 begin
   if not SameValue(FScrollPos, Value, 1/GetScreenScale) then
@@ -5445,6 +5605,7 @@ begin
     HideFocusedControl;
     FScrollPos := Value;
     HideAllActionButtons(True);
+    UpdateStickyHeaders; // SF - 02/12/2015
     Invalidate;
     if (Round(FScrollPos) = 0) and (FNeedsRefresh) then
     begin
@@ -7301,8 +7462,27 @@ constructor TksTableViewItemHeaderOptions.Create(ATableView: TksTableView);
 begin
   inherited Create;
   FTableView := ATableView;
+  FStickyHeaders := TksTableViewStickyHeaderOptions.Create(FTableView);
   FHeight := C_TABLEVIEW_DEFAULT_HEADER_HEIGHT;
-  FStickyHeaders := True;
+  //FStickyHeaders := True;
+  //FStickyHeaderHeight := 0;  // SF - 02/12/2015
+end;
+
+procedure TksTableViewItemHeaderOptions.LegacyGetStickyHeadersHeight(Reader: TReader);
+begin
+  FStickyHeaders.StickyHeight := Reader.ReadInteger;
+end;
+
+procedure TksTableViewItemHeaderOptions.DefineProperties(Filer: TFiler);
+begin
+  inherited;
+  Filer.DefineProperty('StickyHeaderHeight', LegacyGetStickyHeadersHeight, nil, False);
+end;
+
+destructor TksTableViewItemHeaderOptions.Destroy;
+begin
+  FreeAndNil(FStickyHeaders);
+  inherited;
 end;
 
 function TksTableViewItemHeaderOptions.GetHeaderColor: TAlphaColor;
@@ -7325,13 +7505,9 @@ begin
   end;
 end;
 
-procedure TksTableViewItemHeaderOptions.SetStickyHeaders(const Value: Boolean);
+procedure TksTableViewItemHeaderOptions.SetStickyHeaders(const Value: TksTableViewStickyHeaderOptions);
 begin
-  if FStickyHeaders <> Value then
-  begin
-    FStickyHeaders := Value;
-    Changed;
-  end;
+  FStickyHeaders := Value;
 end;
 
 { TksTableViewBorderOptions }
@@ -7370,8 +7546,11 @@ end;
 
 procedure TksTableViewBorderOptions.SetSides(const Value: TSides);
 begin
-  FSides := Value;
-  Changed;
+  if FSides <> Value then
+  begin
+    FSides := Value;
+    Changed;
+  end;
 end;
 
 procedure TksTableViewBorderOptions.SetStroke(const Value: TStrokeBrush);
@@ -7382,10 +7561,81 @@ end;
 
 procedure TksTableViewBorderOptions.SetVisible(const Value: Boolean);
 begin
+  if FVisible <> Value then
+  begin
+    FVisible := Value;
+    Changed;
+  end;
+end;
+
+{ TksTableViewStickyHeaderOptions }
+
+procedure TksTableViewStickyHeaderOptions.Changed;
+begin
+  FTableView.Invalidate;
+end;
+
+constructor TksTableViewStickyHeaderOptions.Create(ATableView: TksTableView);
+begin
+  inherited Create;
+  FTableView := ATableView;
+  FButton := TksTableViewStickyHeaderButton.Create(FTableView);
+  FEnabled := True;
+  FStickyHeight := 0;
+end;
 
 
-  FVisible := Value;
-  Changed;
+
+destructor TksTableViewStickyHeaderOptions.Destroy;
+begin
+  FreeAndNil(FButton);
+  inherited;
+end;
+
+procedure TksTableViewStickyHeaderOptions.SetButton(const Value: TksTableViewStickyHeaderButton);
+begin
+  FButton.Assign(Value);
+end;
+
+procedure TksTableViewStickyHeaderOptions.SetEnabled(const Value: Boolean);
+begin
+  if FEnabled <> Value then
+  begin
+    FEnabled := Value;
+    Changed;
+  end;
+end;
+
+procedure TksTableViewStickyHeaderOptions.SetStickyHeight(const Value: integer);
+begin
+  if FStickyHeight <> Value then
+  begin
+    FStickyHeight := Value;
+    Changed;
+  end;
+end;
+
+{ TksTableViewStickyHeaderButton }
+
+procedure TksTableViewStickyHeaderButton.Changed;
+begin
+  FTableView.Invalidate;
+end;
+
+constructor TksTableViewStickyHeaderButton.Create(ATableView: TksTableView);
+begin
+  inherited Create;
+  FTableView := ATableView;
+  FVisible := False;
+end;
+
+procedure TksTableViewStickyHeaderButton.SetVisible(const Value: Boolean);
+begin
+  if FVisible <> Value then
+  begin
+    FVisible := Value;
+    Changed;
+  end;
 end;
 
 initialization
