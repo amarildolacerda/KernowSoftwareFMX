@@ -100,7 +100,8 @@ type
   TksTableViewItemAppearance = ( iaNormal, iaTile_Image, iaTile_TitleImage, iaTile_ImageTitle, iaTile_TitleImageSubTitle, iaTile_SubTitleImageTitle ); // SF - Tile
   TksTableItemSelector = (NoSelector, DateSelector, ItemPicker);
   TksTableViewOverlaySelectorPosition = (ksSelectorLeft, ksSelectorRight ); // SF - TC
-  TksTableViewOverlaySelectorStyle = (ksBlankSpace, ksArrow, ksSemiCircle);
+  TksTableViewOverlaySelectorStyle = (ksBlankSpace, ksArrow, ksSemiCircle, ksCurved);
+  TksTableViewHeaderButtonType = (hbtNone, hbtJumpToHeader); // SF - JH
   TksEmbeddedEditStyle = (ksEditNormal, ksEditClearing, ksEditCombo, ksEditTransparent);
 
 
@@ -671,6 +672,8 @@ type
     FDragging: Boolean;
     FFill : TBrush;                           // SF - BK
     FRoundedCorners: TCorners;
+    function GetCornerRect(ACorner: TCorner): TRectF;
+    procedure DrawRoundCorner(ACanvas: TCanvas; ACorner: TCorner; AScrollPos: single);
     function MatchesSearch(AFilter: string): Boolean;
     function IsVisible(AViewport: TRectF): Boolean;
     function GetHeight: single;
@@ -1041,14 +1044,14 @@ type
     procedure SetPosition(const Value: TksTableViewOverlaySelectorPosition);
     procedure SetEnabled(const Value: Boolean);
     procedure SetStrokeBrush(const Value: TStrokeBrush);
-    procedure RecreateIndicator(AHeight: single);
+    procedure RecreateIndicator(AHeight, AStickyHeaderBottom: single); // SF - OVL
     procedure SetStyle(const Value: TksTableViewOverlaySelectorStyle);
     procedure SetSize(const Value: integer);
     procedure DoStrokeChanged(Sender: TObject);
   public
     constructor Create(AParent: TksTableViewSelectionOptions);
     destructor Destroy; override;
-    procedure DrawToCanvas(ACanvas: TCanvas; ARect: TRectF);
+    procedure DrawToCanvas(ACanvas: TCanvas; ARect: TRectF ; AStickyHeaderBottom : Single); // SF - OVL
   published
     property Enabled: Boolean read FEnabled write SetEnabled default False;
     property BackgroundColor: TAlphaColor read FBackgroundColor write FBackgroundColor default claWhite;
@@ -1079,22 +1082,71 @@ type
     property SelectDuration: integer read FSelectDuration write FSelectDuration default C_TABLEVIEW_DEFAULT_SELECT_DURATION;
   end;
 
+  TksTableViewJumpToHeaderOptions = class(TPersistent) // SF - JH (Take whole class)
+  private
+    FHeaderFill: TBrush;
+    FHeaderFont: TFont;
+    FHeaderTextColor: TAlphaColor;
+    FHeaderHeight: Single;
+    FHeaderText: String;
+    FItemFill: TBrush;
+    FItemFont: TFont;
+    FItemTextColor: TAlphaColor;
+    FItemHeight: Single;
+  protected
+  public
+    constructor Create();
+    destructor Destroy; override;
+
+    procedure Assign(Source: TPersistent); override;
+  published
+    property HeaderFill: TBrush read FHeaderFill write FHeaderFill;
+    property HeaderFont: TFont read FHeaderFont write FHeaderFont;
+    property HeaderTextColor: TAlphaColor read FHeaderTextColor write FHeaderTextColor default claBlack;
+    property HeaderHeight : Single read FHeaderHeight write FHeaderHeight;
+    property HeaderText: String read FHeaderText write FHeaderText;
+    property ItemFill: TBrush read FItemFill write FItemFill;
+    property ItemFont: TFont read FItemFont write FItemFont;
+    property ItemTextColor: TAlphaColor read FItemTextColor write FItemTextColor default claBlack;
+    property ItemHeight : Single read FItemHeight write FItemHeight;
+  end;
+
   TksTableViewStickyHeaderButton = class(TPersistent)
   private
     [weak]FTableView: TksTableView;
     //FText: string;
     FVisible: Boolean;
+    FButtonRect: TRectF;                                                            // SF - JH
+    FSelected: Boolean;                                                             // SF - JH
+    FDeselectTimer: TFmxHandle;                                                     // SF - JH
+    FHeaderTableViewBackground : TRectangle;                                        // SF - JH
+    FHeaderTableView: TksTableView;                                                 // SF - JH
+    FHeaderTableViewShadowEffect: TShadowEffect;                                    // SF - JH
+    FButtonType : TksTableViewHeaderButtonType;                                     // SF - JH
+    FJumpToHeaderOptions: TksTableViewJumpToHeaderOptions;                          // SF - JH
     //FFontColor: TAlphaColor;
     procedure Changed;
     //procedure SetFontColor(const Value: TAlphaColor);
     //procedure SetText(const Value: string);
     procedure SetVisible(const Value: Boolean);
+    procedure SetButtonType(const Value: TksTableViewHeaderButtonType);             // SF - JH
+    procedure SetJumpToHeaderOptions(const Value: TksTableViewJumpToHeaderOptions); // SF - JH
   public
-    constructor Create(ATableView: TksTableView);
+    constructor Create(ATableView: TksTableView);                                   // SF - JH
+    destructor Destroy; override;
+                                                                                    // SF - JH
+    procedure PositionButton(Left,Top,Width,Height : Single);                       // SF - JH
+    procedure DrawButton(Canvas : TCanvas);                                         // SF - JH
+    procedure DoButtonClicked(Sender: TObject ; AItem: TksTableViewItem);           // SF - JH
+    procedure DoDeselect();
+    procedure CancelPopup(Sender: TObject);                                          // SF - JH
+    procedure PopupClick(Sender: TObject; x, y: Single; AItem: TksTableViewItem; AId: string; ARowObj: TksTableViewItemObject);// SF - JH
   published
     //property Text: string read FText write SetText;
     //property FontColor: TAlphaColor read FFontColor write SetFontColor;
     property Visible: Boolean read FVisible write SetVisible default False;
+    property ButtonType: TksTableViewHeaderButtonType read FButtonType write SetButtonType default TksTableViewHeaderButtonType.hbtJumpToHeader;// SF - JH
+    property JumpToHeaderOptions: TksTableViewJumpToHeaderOptions read FJumpToHeaderOptions write SetJumpToHeaderOptions;                       // SF - JH
   end;
 
   TksTableViewStickyHeaderOptions = class(TPersistent)
@@ -3123,6 +3175,110 @@ begin
   Result := DrawRect(ARect.Left, ARect.Top, ARect.Width, ARect.Height, AStroke, AFill);
 end;
 
+procedure TksTableViewItem.DrawRoundCorner(ACanvas: TCanvas; ACorner: TCorner; AScrollPos: single);
+
+  procedure DoDrawRoundCorner(ACanvas: TCanvas; ACorner: TCorner; AFill: Boolean);
+  var
+    ARect: TRectF;
+    APath: TPathData;
+    tl, tr, bl, br, lc, tc, rc, bc: TPointF;
+  begin
+
+    try
+      ARect := GetCornerRect(ACorner);
+      OffsetRect(ARect, 0, (0 - AScrollPos) + FTableView.GetSearchHeight);
+      if AFill then
+        ARect.top := ARect.top-1
+      else
+        ARect.Top := ARect.Top - 0.5;
+      //InflateRect(ARect, 0.5, 0.5);
+
+      // corner points...
+      tl := ARect.TopLeft;
+      tr := PointF(ARect.Right, ARect.Top);
+      bl := PointF(ARect.Left, ARect.Bottom);
+      br := ARect.BottomRight;
+      // side center points (for curve control)
+      lc := PointF(ARect.Left, ARect.CenterPoint.Y);
+      tc := PointF(ARect.CenterPoint.x, ARect.Top);
+      rc := PointF(ARect.Right, ARect.CenterPoint.Y);
+      bc := PointF(ARect.CenterPoint.X, ARect.Bottom);
+      APath := TPathData.Create;
+      try
+        if ACorner = TCorner.TopLeft then
+        begin
+          APath.MoveTo(tr);
+          APath.CurveTo(tc, lc, bl);
+          if AFill = True then
+          begin
+            APath.LineTo(tl);
+            APath.LineTo(tr);
+          end;
+        end;
+
+        if ACorner = TCorner.TopRight then
+        begin
+          APath.MoveTo(tl);
+          APath.CurveTo(tc, rc, br);
+          if AFill = True then
+          begin
+            APath.LineTo(tr);
+            APath.LineTo(tl);
+          end;
+        end;
+
+        if ACorner = TCorner.BottomLeft then
+        begin
+          APath.MoveTo(tl);
+          APath.CurveTo(lc, bc, br);
+          if AFill = True then
+          begin
+            APath.LineTo(bl);
+            APath.LineTo(tl);
+          end;
+        end;
+
+        if ACorner = TCorner.BottomRight then
+        begin
+          APath.MoveTo(tr);
+          APath.CurveTo(rc, bc, bl);
+          if AFill = True then
+          begin
+            APath.LineTo(br);
+            APath.LineTo(tr);
+          end;
+        end;
+
+
+        if AFill then
+        begin
+          APath.ClosePath;
+          ACanvas.Fill.Color := claWhite;
+          //ACanvas.FillPath(APath, 1);
+          //ACanvas.Fill.Assign(FFill);
+          ACanvas.FillPath(APath, 1);
+        end
+        else
+        begin
+          ACanvas.Stroke.Assign(TableView.SelectionOptions.SelectionOverlay.FStroke);
+          ACanvas.Stroke.Thickness := (ACanvas.Stroke.Thickness * 0.75);
+          ACanvas.DrawPath(APath, 1);
+        end;
+      finally
+        FreeAndNil(APath);
+      end;
+    finally
+      //ACanvas.EndScene;
+    end;
+  end;
+
+begin
+  ACanvas.BeginScene;
+  DoDrawRoundCorner(ACanvas, ACorner, True);
+  DoDrawRoundCorner(ACanvas, ACorner, False);
+  ACanvas.EndScene;
+end;
+
 function TksTableViewItem.GetAbsoluteIndex: integer;
 begin
   Result := FAbsoluteIndex;
@@ -3131,6 +3287,23 @@ end;
 function TksTableViewItem.GetCached: Boolean;
 begin
   Result := FCached;
+end;
+
+function TksTableViewItem.GetCornerRect(ACorner: TCorner): TRectF;
+var
+  r: TRectF;
+  h: single;
+
+begin
+  r := ItemRect;
+  h := r.Height/2;
+  Result := RectF(r.Left, r.Top, r.Left+h, r.Top +h);
+  case ACorner of
+    TCorner.TopRight: OffsetRect(Result, r.Width - Result.Width, 0);
+    TCorner.BottomLeft: OffsetRect(Result, 0, r.Height - Result.Height);
+    TCorner.BottomRight: OffsetRect(Result, r.Width - Result.Width, r.Height - Result.Height);
+  end;
+  OffsetRect(Result, 0, 0-FTableView.ScrollViewPos)
 end;
 
 function TksTableViewItem.GetItemData(const AIndex: string): TValue;
@@ -3425,6 +3598,7 @@ var
   AWidth: single;
   ASeperatorMargin: single;
   ASrcRect: TRectF;  // SF
+  //r: TRectF;
 begin
   ARect := FItemRect;
 
@@ -3494,6 +3668,7 @@ begin
 
     if (ARect.Left=0) then                                                                      // SF - TC
     begin                                                                                       // SF - TC
+      //ACanvas.StrokeThickness := 0.5;
       ACanvas.DrawLine(PointF(ARect.Left + ASeperatorMargin, Round(ARect.Top) - 0.5),           // SF - TC
                        PointF(FTableView.Width             , Round(ARect.Top) - 0.5), 1);       // SF - TC
                                                                                                 // SF - TC
@@ -3505,11 +3680,8 @@ begin
     if (FPurpose <> Header) and not (FIsLastCol) then                                           // SF - TC
       ACanvas.DrawLine(PointF(Round(ARect.Right) - 0.5, ARect.Top),                             // SF - TC
                        PointF(Round(ARect.Right) - 0.5, ARect.Bottom), 1);                      // SF - TC
-                                                                                                // SF - TC
-  // { }ACanvas.Stroke.Thickness := 0.5;
-  //  ACanvas.Stroke.Color := claBlack;
-  //  ACanvas.DrawRect(RectF(ARect.Left, ARect.Top, ARect.Left + (ARect.Height/2), ARect.Top + (ARect.Height/2)), 0, 0, AllCorners, 1);
 
+                                                                                              // SF - TC
     Result := ARect;
   end;
 end;
@@ -4495,6 +4667,12 @@ begin
     Exit;
   end;
 
+  if (FMouseDownItem.IsStickyHeader) and (FHeaderOptions.StickyHeaders.Button.Visible) then                         // SF - JH
+  begin                                                                                                             // SF - JH
+    if (PtInRect(FHeaderOptions.StickyHeaders.Button.FButtonRect,PointF(FMouseDownPoint.x,FMouseDownPoint.y))) then // SF - JH
+      FHeaderOptions.StickyHeaders.Button.DoButtonClicked(Self,FMouseDownItem);                                     // SF - JH
+    Exit;                                                                                                           // SF - JH
+  end;                                                                                                              // SF - JH
 
   if (FCheckMarks <> TksTableViewCheckMarks.cmMultiSelect) and (FMouseDownItem.FActionButtons.Visible = False) then
   begin
@@ -4760,7 +4938,7 @@ begin
 
     if (AItem.IsStickyHeader) then
     begin
-      if PtInRect(AItem.ItemRect, PointF(AXPos,AYPos)) then
+      if PtInRect(RectF(0,0,AItem.ItemRect.Width,AItem.ItemRect.Height), PointF(AXPos,AYPos)) then // SF - JH
       begin
         Result := AItem;
 
@@ -4998,7 +5176,15 @@ begin
     if FMouseDownItem = nil then
       Exit;
 
-    if FMouseDownItem.Purpose = None then
+    if (FMouseDownItem.IsStickyHeader) and (FHeaderOptions.StickyHeaders.Button.Visible) then                          // SF - JH
+    begin                                                                                                              // SF - JH
+      if (PtInRect(FHeaderOptions.StickyHeaders.Button.FButtonRect,PointF(FMouseDownPoint.x,FMouseDownPoint.y))) then  // SF - JH
+      begin                                                                                                            // SF - JH
+        KillTimer(FSelectTimer);                                                                                       // SF - JH
+        FSelectTimer := CreateTimer(200, DoSelectTimer);                                                               // SF - JH
+      end;                                                                                                             // SF - JH
+    end                                                                                                                // SF - JH                                                                                                // SF - HB
+    else if (FMouseDownItem.Purpose = None) then
     begin
       KillTimer(FSelectTimer);
       FSelectTimer := CreateTimer(200, DoSelectTimer);                          // SF - DD
@@ -5217,8 +5403,9 @@ var
   s: TStrokeBrush;
   SaveState : TCanvasSaveState; // SF - FIX
   SaveStatePullRefresh: TCanvasSaveState;
-  ArrowDownBitmap : TBitmap;                // SF - 02/12/2015 - TEST CODE
-  ArrowDownRect : TRectF;                   // SF - 02/12/2015 - TEST CODE
+  //ArrowDownBitmap : TBitmap;                // SF - 02/12/2015 - TEST CODE
+  //ArrowDownRect : TRectF;                   // SF - 02/12/2015 - TEST CODE
+  AStickyHeaderBottom : Single; // SF - OVL
 begin
  //inherited;
 
@@ -5287,8 +5474,6 @@ begin
       AItems := FilteredItems;
       AViewport := ViewPort;
 
-      // start of change...
-
       for ICount := 0 to AItems.Count - 1 do
       begin
         AItem := AItems[ICount];
@@ -5297,22 +5482,7 @@ begin
           AItems[ICount].Render(Canvas, AViewport.Top);
       end;
 
-      // end of change
-
-      if (FSelectionOptions.SelectionOverlay.Enabled) then
-      begin
-        Canvas.Stroke.Assign(FSelectionOptions.SelectionOverlay.Stroke);
-        case FSelectionOptions.SelectionOverlay.Position of
-          ksSelectorLeft: Canvas.DrawLine(PointF(0, 0), PointF(0, Height), 1);
-          ksSelectorRight: Canvas.DrawLine(PointF(Width, 0), PointF(Width, Height), 1);
-        end;
-        if SelectedItem <> nil then
-        begin
-          ASelectedRect := SelectedItem.GetItemRect;
-          OffsetRect(ASelectedRect, 0, (0-ScrollViewPos)+sh);
-          FSelectionOptions.SelectionOverlay.DrawToCanvas(Canvas, ASelectedRect);
-        end;
-      end;
+      AStickyHeaderBottom := 0; // SF - OVL
 
       if (FHeaderOptions.StickyHeaders.Enabled) {and (ScrollViewPos >= 0)} then // SF - 02/12/2015
       begin
@@ -5328,38 +5498,38 @@ begin
 
             ARect := AItem.Render(Canvas, ATop);
 
-            if (AItem.IsStickyHeader) then                                      // SF - 02/12/2015 - TEST CODE
-            begin
-
-              ArrowDownBitmap := AccessoryImages.Images[atArrowDown];
-              ArrowDownRect   := RectF(0, 0, ArrowDownBitmap.Width/GetScreenScale, ArrowDownBitmap.Height/GetScreenScale);
-
-
-              OffsetRect(ArrowDownRect,
-                         (AItem.ItemRect.Right - 4) -(ArrowDownBitmap.Width / GetScreenScale),
-                        ((AItem.ItemRect.Height - (ArrowDownBitmap.Height / GetScreenScale)) / 2));
-
-
-              if (ScrollViewPos<0) then
-                OffsetRect(ArrowDownRect,0,-ScrollViewPos);
-
-              Canvas.DrawBitmap(ArrowDownBitmap,RectF(0,0,ArrowDownBitmap.Width,ArrowDownBitmap.Height),ArrowDownRect,1,true);
-            end;
-
-            if FSelectionOptions.SelectionOverlay.Enabled then
-            begin
-              with FSelectionOptions.SelectionOverlay do
-              begin
-                Canvas.Stroke.Assign(FSelectionOptions.SelectionOverlay.Stroke);
-                case Position of
-                  ksSelectorLeft: Canvas.DrawLine(PointF(0, ARect.Top), PointF(0, ARect.Bottom), 1);
-                  ksSelectorRight: Canvas.DrawLine(PointF(Width, ARect.Top), PointF(Width, ARect.Bottom), 1);
-                end;
+            if (AItem.IsStickyHeader) and (FHeaderOptions.StickyHeaders.Button.Visible) then                       // SF - JH
+            begin                                                                                                  // SF - JH
+              with (HeaderOptions.StickyHeaders.Button) do                                                         // SF - JH
+              begin                                                                                                // SF - JH
+                PositionButton(AItem.ItemRect.Width - 44,                                                          // SF - JH
+                               ((AItem.ItemRect.Height - (Min(44,AItem.ItemRect.Height)))/2)-Min(0,ScrollViewPos), // SF - JH
+                               44,                                                                                 // SF - JH
+                               Min(44,AItem.ItemRect.Height));                                                     // SF - JH
+                DrawButton(Canvas);                                                                                // SF - JH
               end;
+              AStickyHeaderBottom := ARect.Bottom; // SF - OVL
             end;
+
           end;
         end;
       end;
+
+      if (FSelectionOptions.SelectionOverlay.Enabled) then                                             // SF - OVL
+      begin                                                                                            // SF - OVL
+        Canvas.Stroke.Assign(FSelectionOptions.SelectionOverlay.Stroke);                               // SF - OVL
+        case FSelectionOptions.SelectionOverlay.Position of                                            // SF - OVL
+          ksSelectorLeft: Canvas.DrawLine(PointF(0, 0), PointF(0, Height), 1);                         // SF - OVL
+          ksSelectorRight: Canvas.DrawLine(PointF(Width, 0), PointF(Width, Height), 1);                // SF - OVL
+        end;                                                                                           // SF - OVL
+        if SelectedItem <> nil then                                                                    // SF - OVL
+        begin                                                                                          // SF - OVL
+          ASelectedRect := SelectedItem.GetItemRect;                                                   // SF - OVL
+          OffsetRect(ASelectedRect, 0, (0-ScrollViewPos)+sh);                                          // SF - OVL
+          FSelectionOptions.SelectionOverlay.DrawToCanvas(Canvas, ASelectedRect, AStickyHeaderBottom); // SF - OVL
+        end;                                                                                           // SF - OVL
+      end;
+
 
       if (FBackgroundText.Enabled) and (AItems.Count = 0) then
       begin
@@ -5495,11 +5665,6 @@ begin
   FFullWidthSeparator := Value;
   Invalidate;
 end;
-
-{procedure TksTableView.SetHeaderHeight(const Value: integer);
-begin
-  FHeaderHeight := Value;
-end; }
 
 procedure TksTableView.SetHeaderOptions(
   const Value: TksTableViewItemHeaderOptions);
@@ -7210,31 +7375,42 @@ begin
   inherited;
 end;
 
-procedure TksTableViewSelectionOverlayOptions.DrawToCanvas(ACanvas: TCanvas; ARect: TRectF);
+procedure TksTableViewSelectionOverlayOptions.DrawToCanvas(ACanvas: TCanvas; ARect: TRectF ; AStickyHeaderBottom : Single);
+var                     // SF - OVL
+  TopOffset : Single;   // SF - OVL
 begin
-  if FBitmap.Height <> ARect.Height then
-    RecreateIndicator(ARect.Height-1);
-  case FPosition of
-    ksSelectorLeft: ACanvas.DrawBitmap(FBitmap,
-                                       RectF(0, 0, FBitmap.Width, FBitmap.Height),
-                                       RectF(ARect.Left - (FBitmap.Width/2), ARect.Top, ARect.Left + (FBitmap.Width/2), ARect.Bottom-1),
-                                       1,
-                                       True);
-    ksSelectorRight: ACanvas.DrawBitmap(FBitmap,
-                                        RectF(0, 0, FBitmap.Width, FBitmap.Height),
-                                        RectF(ARect.Right - (FBitmap.Width/2), ARect.Top, ARect.Right + (FBitmap.Width/2), ARect.Bottom-1),
-                                        1,
-                                        True);
+  if (ARect.Bottom>AStickyHeaderBottom) then            // SF - OVL
+  begin                                                 // SF - OVL
+    if (ARect.Top<AStickyHeaderBottom) then             // SF - OVL
+      TopOffset := AStickyHeaderBottom - ARect.Top      // SF - OVL
+    else                                                // SF - OVL
+      TopOffset := 0;                                   // SF - OVL
+
+    if (FBitmap.Height <> ARect.Height) or (TopOffset>0) then // SF - OVL
+      RecreateIndicator(ARect.Height-1,TopOffset);            // SF - OVL
+    case FPosition of
+      ksSelectorLeft: ACanvas.DrawBitmap(FBitmap,
+                                         RectF(0, TopOffset, FBitmap.Width, FBitmap.Height),                                                           // SF - OVL
+                                         RectF(ARect.Left - (FBitmap.Width/2), ARect.Top + TopOffset, ARect.Left + (FBitmap.Width/2), ARect.Bottom-1), // SF - OVL
+                                         1,
+                                         True);
+      ksSelectorRight: ACanvas.DrawBitmap(FBitmap,
+                                          RectF(0, TopOffset, FBitmap.Width, FBitmap.Height),                                                             // SF - OVL
+                                          RectF(ARect.Right - (FBitmap.Width/2), ARect.Top + TopOffset, ARect.Right + (FBitmap.Width/2), ARect.Bottom-1), // SF - OVL
+                                          1,
+                                          True);
+    end;
   end;
 end;
 
-procedure TksTableViewSelectionOverlayOptions.RecreateIndicator(AHeight: single);
+procedure TksTableViewSelectionOverlayOptions.RecreateIndicator(AHeight,AStickyHeaderBottom: single); // SF - OVL
 var
   APath: TPathData;
   ASize: single;
   AMaxSize: single; // SF - 02/12/2015
   AOffset: single;
   AIndicatorRect: TRectF;
+  AHypot: single; // SF - OVL
 begin
   FBitmap.SetSize(Round(AHeight), Round(AHeight));
   FBitmap.Clear(claNull);
@@ -7264,6 +7440,26 @@ begin
       FBitmap.Canvas.Stroke.Thickness := FBitmap.Canvas.Stroke.Thickness /2;
       FBitmap.Canvas.FillEllipse(AIndicatorRect, 1);
       FBitmap.Canvas.DrawEllipse(AIndicatorRect, 1);
+
+      if (AStickyHeaderBottom>AIndicatorRect.Top) and (AStickyHeaderBottom<AIndicatorRect.Bottom) then // SF - OVL
+      begin                                                                                            // SF - OVL
+        AHypot  := (FBitmap.Width/2);                                                                  // SF - OVL
+        AOffset := Abs(AIndicatorRect.CenterPoint.Y - AStickyHeaderBottom);                            // SF - OVL
+                                                                                                       // SF - OVL
+        if (AStickyHeaderBottom>=AIndicatorRect.CenterPoint.Y) then                                    // SF - OVL
+          AOffset := AOffset + (FBitmap.Canvas.Stroke.Thickness/2);                                    // SF - OVL
+                                                                                                       // SF - OVL
+        ASize := Sqrt((AHypot*AHypot) - (AOffset*AOffset)) - FBitmap.Canvas.Stroke.Thickness;          // SF - OVL
+                                                                                                       // SF - OVL
+        if (AStickyHeaderBottom>=AIndicatorRect.CenterPoint.Y) then                                    // SF - OVL
+          ASize := ASize - (FBitmap.Canvas.Stroke.Thickness/2);                                        // SF - OVL
+                                                                                                       // SF - OVL
+        AStickyHeaderBottom := AStickyHeaderBottom + (FBitmap.Canvas.Stroke.Thickness/2);              // SF - OVL
+                                                                                                       // SF - OVL
+        FBitmap.Canvas.DrawLine(PointF(AIndicatorRect.CenterPoint.X-ASize,AStickyHeaderBottom),        // SF - OVL
+                                PointF(AIndicatorRect.CenterPoint.X+ASize,AStickyHeaderBottom),        // SF - OVL
+                                1);                                                                    // SF - OVL
+      end;                                                                                             // SF - OVL
     end;
 
     if FStyle = ksArrow then
@@ -7280,6 +7476,19 @@ begin
         FBitmap.Canvas.FillPath(APath, 1);
         FBitmap.Canvas.DrawPath(APath, 1);
 
+        if (AStickyHeaderBottom>AIndicatorRect.Top) and (AStickyHeaderBottom<AIndicatorRect.Bottom) then                                  // SF - OVL
+        begin                                                                                                                             // SF - OVL
+          ASize := (FBitmap.Width / 2 ) - Abs(AIndicatorRect.CenterPoint.Y - AStickyHeaderBottom) - (FBitmap.Canvas.Stroke.Thickness/2);  // SF - OVL
+                                                                                                                                          // SF - OVL
+          if (AStickyHeaderBottom>=AIndicatorRect.CenterPoint.Y) then                                                                     // SF - OVL
+            ASize := ASize - (FBitmap.Canvas.Stroke.Thickness/2);                                                                         // SF - OVL
+                                                                                                                                          // SF - OVL
+          AStickyHeaderBottom := AStickyHeaderBottom + (FBitmap.Canvas.Stroke.Thickness/2);                                               // SF - OVL
+                                                                                                                                          // SF - OVL
+          FBitmap.Canvas.DrawLine(PointF(AIndicatorRect.CenterPoint.X-ASize,AStickyHeaderBottom),                                         // SF - OVL
+                                  PointF(AIndicatorRect.CenterPoint.X+ASize,AStickyHeaderBottom),                                         // SF - OVL
+                                  1);                                                                                                     // SF - OVL
+        end;                                                                                                                              // SF - OVL
       finally
         FreeAndNil(APath);
       end;
@@ -7289,6 +7498,7 @@ begin
     FBitmap.Canvas.EndScene;
   end;
 end;
+
 
 procedure TksTableViewSelectionOverlayOptions.SetEnabled(const Value: Boolean);
 begin
@@ -7657,7 +7867,7 @@ begin
 end;
 
 { TksTableViewStickyHeaderButton }
-
+               (*
 procedure TksTableViewStickyHeaderButton.Changed;
 begin
   FTableView.Invalidate;
@@ -7678,6 +7888,323 @@ begin
     Changed;
   end;
 end;
+
+procedure TksTableViewStickyHeaderButton.PositionButton(Left,Top,Width,Height : Single);
+begin
+  FButtonRect := RectF(Left,Top,Left+Width,Top+Height);
+end;
+
+procedure TksTableViewStickyHeaderButton.DrawButton(Canvas : TCanvas);
+var
+  Bitmap : TBitmap;
+  Rect   : TRectF;
+begin
+  Bitmap := AccessoryImages.Images[atArrowDown];
+  Rect   := RectF(0,0,Bitmap.Width/GetScreenScale,Bitmap.Height/GetScreenScale);
+
+  OffsetRect(Rect,FButtonRect.Left + ((FButtonRect.Width - Rect.Width)/2),FButtonRect.Top + ((FButtonRect.Height - Rect.Height)/2));
+
+  if (FSelected) then
+  begin
+    Canvas.Fill.Color := FTableView.Appearence.SelectedColor;
+    Canvas.Fill.Kind  := TBrushKind.Solid;
+    Canvas.FillRect(FButtonRect,0,0,AllCorners,1);
+  end;
+
+  Canvas.DrawBitmap(Bitmap,RectF(0,0,Rect.Width,Rect.Height),Rect,1,true);
+end;
+
+procedure TksTableViewStickyHeaderButton.DoButtonClicked(Sender: TObject ; AItem: TksTableViewItem);
+begin
+  FSelected := true;
+  FTableView.Invalidate();
+
+  FDeselectTimer := FTableView.CreateTimer(FTableView.SelectionOptions.FSelectDuration, DoDeselect);
+end;
+
+procedure TksTableViewStickyHeaderButton.DoDeselect();
+begin
+  FTableView.KillTimer(FDeselectTimer);
+  FSelected := false;
+  FTableView.Invalidate();
+end;                 *)
+
+{ TksTableViewJumpToHeaderOptions } // SF - JH (Take everything below here)
+
+constructor TksTableViewJumpToHeaderOptions.Create();
+begin
+  FHeaderFill      := TBrush.Create(TBrushKind.Solid, claWhite);
+  FHeaderFont      := TFont.Create();
+  FHeaderTextColor := claBlack;
+  FHeaderHeight    := 32;
+  FHeaderText      := '';
+  FItemFill        := TBrush.Create(TBrushKind.Solid, claWhite);
+  FItemFont        := TFont.Create();
+  FItemTextColor   := claBlack;
+  FItemHeight    := 32;
+end;
+
+destructor TksTableViewJumpToHeaderOptions.Destroy;
+begin
+  FreeAndNil(FHeaderFill);
+  FreeAndNil(FHeaderFont);
+  FreeAndNil(FItemFill);
+  FreeAndNil(FItemFont);
+
+  inherited;
+end;
+
+procedure TksTableViewJumpToHeaderOptions.Assign(Source: TPersistent);
+var
+  SrcJumpToHeaderOptions : TksTableViewJumpToHeaderOptions;
+begin
+  if (Source is TksTableViewJumpToHeaderOptions) then
+  begin
+    SrcJumpToHeaderOptions := TksTableViewJumpToHeaderOptions(Source);
+
+    FHeaderFill.Assign(SrcJumpToHeaderOptions.HeaderFill);
+    FHeaderFont.Assign(SrcJumpToHeaderOptions.HeaderFont);
+
+    FHeaderTextColor := SrcJumpToHeaderOptions.HeaderTextColor;
+    FHeaderHeight    := SrcJumpToHeaderOptions.FHeaderHeight;
+    FHeaderText      := SrcJumpToHeaderOptions.HeaderText;
+
+    FItemFill.Assign(SrcJumpToHeaderOptions.ItemFill);
+    FItemFont.Assign(SrcJumpToHeaderOptions.ItemFont);
+
+    FItemTextColor := SrcJumpToHeaderOptions.ItemTextColor;
+    FItemHeight    := SrcJumpToHeaderOptions.ItemHeight;
+  end;
+end;
+
+
+
+{ TksTableViewStickyHeaderButton }
+
+procedure TksTableViewStickyHeaderButton.Changed;
+begin
+  FTableView.Invalidate;
+end;
+
+constructor TksTableViewStickyHeaderButton.Create(ATableView: TksTableView);
+begin
+  inherited Create;
+  FTableView := ATableView;
+  FVisible := False;
+  FButtonType := hbtJumpToHeader;
+  FJumpToHeaderOptions := TksTableViewJumpToHeaderOptions.Create();
+end;
+
+destructor TksTableViewStickyHeaderButton.Destroy();
+begin
+  FreeAndNil(FJumpToHeaderOptions);
+  inherited;
+end;
+
+procedure TksTableViewStickyHeaderButton.SetVisible(const Value: Boolean);
+begin
+  if FVisible <> Value then
+  begin
+    FVisible := Value;
+    Changed;
+  end;
+end;
+
+procedure TksTableViewStickyHeaderButton.SetButtonType(const Value: TksTableViewHeaderButtonType);
+begin
+  if FButtonType <> Value then
+  begin
+    FButtonType := Value;
+    Changed;
+  end;
+end;
+
+procedure TksTableViewStickyHeaderButton.SetJumpToHeaderOptions(const Value: TksTableViewJumpToHeaderOptions);
+begin
+  JumpToHeaderOptions.Assign(Value);
+end;
+
+
+procedure TksTableViewStickyHeaderButton.PositionButton(Left,Top,Width,Height : Single);
+begin
+  FButtonRect := RectF(Left,Top,Left+Width,Top+Height);
+end;
+
+procedure TksTableViewStickyHeaderButton.DrawButton(Canvas : TCanvas);
+var
+  Bitmap : TBitmap;
+  Rect   : TRectF;
+begin
+  Bitmap := AccessoryImages.Images[atArrowDown];
+  Rect   := RectF(0,0,Bitmap.Width/GetScreenScale,Bitmap.Height/GetScreenScale);
+
+  OffsetRect(Rect,FButtonRect.Left + ((FButtonRect.Width - Rect.Width)/2),FButtonRect.Top + ((FButtonRect.Height - Rect.Height)/2));
+
+  if (FSelected) then
+  begin
+    Canvas.Fill.Color := FTableView.Appearence.SelectedColor;
+    Canvas.Fill.Kind  := TBrushKind.Solid;
+    Canvas.FillRect(FButtonRect,0,0,AllCorners,1);
+  end;
+
+  Canvas.DrawBitmap(Bitmap,RectF(0,0,Rect.Width,Rect.Height),Rect,1,true);
+end;
+
+procedure TksTableViewStickyHeaderButton.DoButtonClicked(Sender: TObject ; AItem: TksTableViewItem);
+var
+  I               : Integer;
+  Form            : TCustomForm;
+  ScreenPos       : TPointF;
+  ButtonFormPos   : TPointF;
+  BottomFormPos   : TPointF;
+  AHeaderItem     : TksTableViewItem;
+  TableViewHeight : Single;
+begin
+  FSelected := true;
+  FTableView.Invalidate();
+
+  if (FButtonType=hbtJumpToHeader) then
+  begin
+    if (FTableView.Root.GetObject() is TCustomForm) then
+    begin
+      Form := TCustomForm(FTableView.Root.GetObject());
+
+      ScreenPos     := FTableView.LocalToScreen(PointF(0, FButtonRect.Bottom));
+      ButtonFormPos := Form.ScreenToClient(ScreenPos);
+
+      ScreenPos     := FTableView.LocalToScreen(PointF(0, FTableView.Height));
+      BottomFormPos := Form.ScreenToClient(ScreenPos);
+
+      FHeaderTableViewBackground         := TRectangle.Create(Form);
+      FHeaderTableViewBackground.Parent  := Form;
+      FHeaderTableViewBackground.Opacity := 0;
+      FHeaderTableViewBackground.OnClick := CancelPopup;
+      FHeaderTableViewBackground.SetBounds(0,0,Form.Width,Form.Height);
+
+      FHeaderTableView                       := TksTableView.Create(Form);
+      FHeaderTableView.Parent                := Form;
+      FHeaderTableView.BorderOptions.Visible := true;
+      FHeaderTableView.ItemHeight            := 32;
+      FHeaderTableView.PullToRefresh.Enabled := false;
+      FHeaderTableView.OnItemClick           := PopupClick;
+
+      FHeaderTableViewShadowEffect           := TShadowEffect.Create(Form);
+      FHeaderTableViewShadowEffect.Parent    := FHeaderTableView;
+      FHeaderTableViewShadowEffect.Distance  := 4;
+
+      FHeaderTableView.BeginUpdate();
+
+      if (FJumpToHeaderOptions.FHeaderText<>'') then
+      begin
+        with (FHeaderTableView.Items.AddHeader(FJumpToHeaderOptions.FHeaderText)) do
+        begin
+          Height := JumpToHeaderOptions.HeaderHeight;
+          Fill.Assign(JumpToHeaderOptions.HeaderFill);
+          Title.Font.Assign(JumpToHeaderOptions.HeaderFont);
+          Title.TextColor := JumpToHeaderOptions.HeaderTextColor;
+        end;
+      end;
+
+      for I:=0 to FTableView.FilteredItems.Count-1 do
+      begin
+        AHeaderItem := FTableView.FilteredItems[I];
+        if (AHeaderItem.Purpose=Header) then
+        begin
+          with (FHeaderTableView.Items.AddItem(AHeaderItem.Title.Text)) do
+          begin
+            Height := JumpToHeaderOptions.ItemHeight;
+            Fill.Assign(JumpToHeaderOptions.ItemFill);
+            Title.Font.Assign(JumpToHeaderOptions.ItemFont);
+            Title.TextColor := JumpToHeaderOptions.ItemTextColor;
+          end;
+        end;
+      end;
+
+      FHeaderTableView.EndUpdate();
+
+      TableViewHeight := FHeaderTableView.GetTotalItemHeight();
+
+      if (ButtonFormPos.Y + TableViewHeight > BottomFormPos.Y - 6) then
+        TableViewHeight := BottomFormPos.Y - ButtonFormPos.Y - 6;
+
+      FHeaderTableView.SetBounds(4,ButtonFormPos.Y,FTableView.Width-10,TableViewHeight);
+    end;
+  end
+  else
+  begin
+    FDeselectTimer := FTableView.CreateTimer(FTableView.SelectionOptions.FSelectDuration, DoDeselect);
+  end;
+end;
+
+procedure TksTableViewStickyHeaderButton.DoDeselect();
+begin
+  FTableView.KillTimer(FDeselectTimer);
+  FSelected := false;
+  FTableView.Invalidate();
+end;
+
+procedure TksTableViewStickyHeaderButton.CancelPopup(Sender: TObject);
+var
+  Form : TCustomForm;
+begin
+  FSelected := false;
+  FTableView.Invalidate();
+
+  if (FTableView.Root.GetObject() is TCustomForm) then
+  begin
+    Form := TCustomForm(FTableView.Root.GetObject());
+
+    Form.RemoveObject(FHeaderTableViewShadowEffect);
+    Form.RemoveObject(FHeaderTableView);
+    Form.RemoveObject(FHeaderTableViewBackground);
+  end;
+end;
+
+procedure TksTableViewStickyHeaderButton.PopupClick(Sender: TObject; x, y: Single; AItem: TksTableViewItem; AId: string; ARowObj: TksTableViewItemObject);
+var
+  I           : Integer;
+  AHeaderItem : TksTableViewItem;
+  NeedsUpdate : Boolean;
+begin
+  Sleep(200);
+  CancelPopup(Nil);
+
+  NeedsUpdate := false;
+
+  for I:=0 to FTableView.FilteredItems.Count-1 do
+  begin
+    AHeaderItem := FTableView.FilteredItems[I];
+
+    if (AHeaderItem.Purpose=Header) then
+    begin
+      if (FTableView.HeaderOptions.StickyHeaders.StickyHeight>0) then
+      begin
+        if (AHeaderItem.FHeaderHeight<>FTableView.HeaderOptions.StickyHeaders.StickyHeight) then
+        begin
+          AHeaderItem.FHeaderHeight := FTableView.HeaderOptions.StickyHeaders.StickyHeight;
+          NeedsUpdate := true;
+        end;
+      end;
+
+      if (AHeaderItem.Title.Text=AItem.Title.Text) then
+      begin
+        if (NeedsUpdate) then
+        begin
+          FTableView.UpdateItemRects(false);
+          FTableView.UpdateScrollingLimits;
+        end;
+
+        FTableView.ScrollViewPos := AHeaderItem.ItemRect.Top;
+        FTableView.FAniCalc.ViewportPosition := TPointD.Create(0, AHeaderItem.ItemRect.Top);
+        break;
+      end;
+    end;
+  end;
+end;
+
+
+
+
 
 initialization
 

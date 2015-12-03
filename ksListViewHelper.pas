@@ -97,7 +97,7 @@ begin
 
   Self.UpdateIndexes;
 
-  Self.FTableView.UpdateItemRects;
+  Self.FTableView.UpdateItemRects(False);
   Self.FTableView.UpdateScrollingLimits;
 end;
 //------------------------------------------------------------------------------
