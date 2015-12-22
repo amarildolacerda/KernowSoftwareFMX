@@ -4,7 +4,8 @@ interface
 
 uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
-  FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.StdCtrls, FMX.Controls.Presentation, ksTableView;
+  FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.StdCtrls, FMX.Controls.Presentation, ksTableView,
+  FMX.Objects;
 
 type
   TForm24 = class(TForm)
@@ -12,6 +13,7 @@ type
     ToolBar2: TToolBar;
     ToolBar1: TToolBar;
     Label1: TLabel;
+    Image1: TImage;
     procedure FormCreate(Sender: TObject);
     procedure ksTableView1ItemSwipe(Sender: TObject; ARow: TksTableViewItem; ASwipeDirection: TksSwipeDirection; AButtons: TksTableViewActionButtons);
     procedure ksTableView1ItemActionButtonClick(Sender: TObject; ARow: TksTableViewItem; AButton: TksTableViewActionButton);
@@ -33,12 +35,18 @@ uses System.UIConsts;
 procedure TForm24.FormCreate(Sender: TObject);
 var
   ICount: integer;
+  AItem: tkstableviewitem;
 begin
-  // add 50 items to the ksTableView...
+  Image1.Visible := False;
   ksTableView1.BeginUpdate;
   try
+
     for ICount := 1 to 50 do
-      ksTableView1.Items.AddItem('Item: '+IntToStr(ICount),'sub title', 'some detail', atMore);
+    begin
+      AItem := ksTableView1.Items.AddItem('Item: '+IntToStr(ICount), 'some subtitle text', 'some detail', atMore );
+      AItem.Image.Bitmap := Image1.Bitmap;
+      //AItem.AddSwitch(0, True);
+    end;
   finally
     ksTableView1.EndUpdate;
   end;
@@ -54,15 +62,12 @@ procedure TForm24.ksTableView1ItemSwipe(Sender: TObject; ARow: TksTableViewItem;
 begin
   if ASwipeDirection = ksSwipeRightToLeft then
   begin
-    // add right-side action buttons...
-    AButtons.AddButton('Copy', claDodgerblue, claWhite, 60);
-    AButtons.AddButton('Move', claSilver, claWhite, 60);
-  end;
-  if ASwipeDirection = ksSwipeLeftToRight then
+    AButtons.AddButton('More', claSilver, claWhite, atEllipses);
+    AButtons.AddButton('Flag', claOrange, claWhite, atFlag);
+  end
+  else
   begin
-    // add left-side action buttons...
-    AButtons.AddButton('Archive', claGreen, claWhite, 60);
-    AButtons.AddButton('Reply', claOrange, claWhite, 60);
+    AButtons.AddButton('Reply', claDodgerblue, claWhite, atCompose)
   end;
 end;
 

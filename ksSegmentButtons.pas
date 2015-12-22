@@ -83,6 +83,7 @@ type
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
     property Position;
     property Width;
+    property Size;
     property Height;
     property Visible;
   end;
@@ -138,8 +139,8 @@ begin
   inherited Create(AOwner);
   CreateGUID(AGuid);
   FGroupID := GUIDToString(AGuid);
-  //Width := 200;
-  //Height := 40;
+  Width := 400;
+  Height := 40;
   FItemIndex := -1;
   Clear;
 end;

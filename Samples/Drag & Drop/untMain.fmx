@@ -17,10 +17,14 @@ object Form24: TForm24
     DeleteButton.Text = 'Delete'
     DragDropOptions.Enabled = True
     DragDropOptions.Opacity = 1.000000000000000000
+    HeaderOptions.Color = claNull
+    HeaderOptions.StickyHeaders.Button.JumpToHeaderOptions.HeaderHeight = 32.000000000000000000
+    HeaderOptions.StickyHeaders.Button.JumpToHeaderOptions.ItemHeight = 32.000000000000000000
     ItemHeight = 60
     PullToRefresh.Font.Size = 16.000000000000000000
     PullToRefresh.PullText = 'pull to refresh'
     PullToRefresh.ReleaseText = 'release to refresh'
+    SelectionOptions.SelectionOverlay.Size = 0
     Size.Width = 292.000000000000000000
     Size.Height = 392.000000000000000000
     Size.PlatformDefault = False
