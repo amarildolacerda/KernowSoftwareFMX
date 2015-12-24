@@ -37,9 +37,6 @@ object Form24: TForm24
     TextDefaults.Detail.TextColor = claDodgerblue
     TextDefaults.Header.Font.Size = 13.000000000000000000
     TextDefaults.Header.TextColor = claBlack
-    OnCanDragItem = ksTableView1CanDragItem
-    OnCanDropItem = ksTableView1CanDropItem
-    OnDropItem = ksTableView1DropItem
   end
   object ToolBar2: TToolBar
     Align = Bottom

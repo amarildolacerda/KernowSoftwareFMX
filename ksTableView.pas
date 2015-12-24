@@ -4917,7 +4917,7 @@ begin
       FDragDropImage.Fill.Bitmap.Bitmap := FMouseDownItem.FBitmap;
 
       FDragDropImage.Fill.Kind          := TBrushKind.Bitmap;
-      FDragDropImage.Fill.Bitmap.WrapMode := TWrapMode.TileOriginal;
+      FDragDropImage.Fill.Bitmap.WrapMode := TWrapMode.TileStretch;
       FDragDropImage.Opacity            := FDragDropOptions.Opacity;
 
       FDragDropScrollTimer := CreateTimer(100,DoDropScroll);

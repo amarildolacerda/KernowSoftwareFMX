@@ -13,9 +13,6 @@ type
     ToolBar1: TToolBar;
     Label1: TLabel;
     procedure FormCreate(Sender: TObject);
-    procedure ksTableView1CanDragItem(Sender: TObject; ADragRow: TksTableViewItem; var AllowDrag: Boolean);
-    procedure ksTableView1CanDropItem(Sender: TObject; ADragRow, ADropRow: TksTableViewItem; var AllowDrop: Boolean);
-    procedure ksTableView1DropItem(Sender: TObject; ADragRow, ADropRow: TksTableViewItem; var AllowMove: Boolean);
   private
     { Private declarations }
   public
@@ -43,23 +40,6 @@ begin
   finally
     ksTableView1.EndUpdate;
   end;
-end;
-
-procedure TForm24.ksTableView1CanDragItem(Sender: TObject; ADragRow: TksTableViewItem; var AllowDrag: Boolean);
-begin
-  AllowDrag := True;
-end;
-
-procedure TForm24.ksTableView1CanDropItem(Sender: TObject; ADragRow, ADropRow: TksTableViewItem; var AllowDrop: Boolean);
-begin
-  // allow dropping of items to all rows except index 4...
-  AllowDrop := ADropRow.Index <> 4;
-end;
-
-procedure TForm24.ksTableView1DropItem(Sender: TObject; ADragRow, ADropRow: TksTableViewItem; var AllowMove: Boolean);
-begin
-  // Set AllowMove so that the item position is updated...
-  AllowMove := True;
 end;
 
 end.
