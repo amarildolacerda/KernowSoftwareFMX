@@ -6020,8 +6020,11 @@ begin
     Invalidate;
     if (Round(FScrollPos) = 0) and (FNeedsRefresh) then
     begin
+//      FAniCalc.
+      ProcessMessages;
       FNeedsRefresh := False;
       DoPullToRefresh;
+      SetScrollViewPos(0);
     end;
     if Assigned(FOnScrollViewChange) then
       FOnScrollViewChange(Self, FScrollPos, FMaxScrollPos);
@@ -6030,9 +6033,8 @@ end;
 
 procedure TksTableView.ScrollTo(const Value: single);
 begin
-  FScrollPos := Value - 2; // Force Scroll
+  FScrollPos := Value;
   SetScrollViewPos(Value);
-  FAniCalc.ViewportPosition := TPointD.Create(0, Value);
 end;
 
 procedure TksTableView.ScrollToItem(AItem: TksTableViewItem);

@@ -35,7 +35,7 @@ interface
   {$DEFINE XE10_OR_NEWER}
 {$ENDIF}
 
-{$DEFINE ADD_SAMPLE_MENU_ITEMS}
+//{$DEFINE ADD_SAMPLE_MENU_ITEMS}
 
 
 uses System.UITypes, FMX.Controls, FMX.Layouts, FMX.Objects, System.Classes,
@@ -636,6 +636,7 @@ begin
         ARow := lv.Items.AddItem(AItem.Text, '', '', atMore);
         ARow.Image.Bitmap := AItem.Image;
         ARow.ID := AItem.ID;
+        ARow.Accessory.OwnsBitmap := True;
         ARow.Accessory.Color := FAppearence.AccessoryColor;
         ARow.Title.Font.Assign(FFont);
         ARow.Title.TextColor := AFontColor;
