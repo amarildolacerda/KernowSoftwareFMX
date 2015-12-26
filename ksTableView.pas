@@ -115,7 +115,7 @@ type
 
   TksTableItemAlign = (Leading, Center, Trailing, Fit);
   TksSwipeDirection = (ksSwipeUnknown, ksSwipeLeftToRight, ksSwipeRightToLeft, ksSwipeTopToBottom, ksSwipeBottomToTop);
-  TksTableViewShape = (ksRectangle, ksRoundRect, ksEllipse);
+  TksTableViewShape = (ksRectangle, ksSquare, ksRoundRect, ksEllipse);
   TksTableViewItemPurpose = (None, Header);
   TksTableViewCheckMarks = (cmNone, cmSingleSelect, cmMultiSelect);
   TksTableViewCheckMarkPosition = (cmpLeft, cmpRight);
@@ -998,18 +998,24 @@ type
 
   TksListViewRowIndicators = class(TPersistent)
   private
+    [weak]FTableView: TksTableView;
     FWidth: integer;
     FHeight: integer;
     FVisible: Boolean;
     FOutlined: Boolean;
     FShadow: Boolean;
+    FShape: TksTableViewShape;
+    procedure Changed;
+    procedure SetShadow(const Value: Boolean);
+    procedure SetShape(const Value: TksTableViewShape);
   published
-    constructor Create; virtual;
+    constructor Create(ATableView: TksTableView); virtual;
     property Width: integer read FWidth write FWidth default C_TABLEVIEW_DEFAULT_INDICATOR_WIDTH;
     property Height: integer read FHeight write FHeight default C_TABLEVIEW_DEFAULT_INDICATOR_HEIGHT;
     property Visible: Boolean read FVisible write FVisible default False;
     property Outlined: Boolean read FOutlined write FOutlined default True;
-    property Shadow: Boolean read FShadow write FShadow default True;
+    property Shadow: Boolean read FShadow write SetShadow default True;
+    property Shape: TksTableViewShape read FShape write SetShape default ksRectangle;
   end;
 
   //---------------------------------------------------------------------------------------
@@ -2597,7 +2603,7 @@ begin
 end;
 
 procedure TksTableViewItemAccessory.RedrawAccessory;
-begin  
+begin
   Bitmap := AccessoryImages.Images[FAccessory];
   FWidth := Bitmap.Width / AccessoryImages.FImageScale;
   FHeight := Bitmap.Height / AccessoryImages.FImageScale;
@@ -2962,6 +2968,11 @@ begin
       False: FIndicator.Stroke.Kind := TBrushKind.None;
       True: FIndicator.Stroke.Kind := TBrushKind.Solid;
     end;
+
+    FIndicator.Width := FTableView.RowIndicators.Width;
+    if FTableView.RowIndicators.Height <> 0 then
+      FIndicator.Height := FTableView.RowIndicators.Height;
+    FIndicator.Shape := FTableView.RowIndicators.Shape;
     FIndicator.Render(FBitmap.Canvas);
     FTileBackground.Render(FBitmap.Canvas);
     FImage.Render(FBitmap.Canvas);
@@ -3013,60 +3024,65 @@ end;
 constructor TksTableViewItem.Create(ATableView: TksTableView);
 begin
   inherited Create(nil);
-  FTableView := ATableView;
-  FBitmap := TBitmap.Create;
-  FBitmap.BitmapScale := GetScreenScale;
-  FObjects := TksTableViewItemObjects.Create(FTableView);
-  FFont := TFont.Create;
-  FFont.Size := C_TABLEVIEW_DEFAULT_FONT_SIZE;
-  FFill := TBrush.Create(TBrushKind.None, claNull);
-  FIndicator := TksTableViewItemShape.Create(Self);
-  FIndicator.VertAlign := TksTableItemAlign.Center;
+  FUpdating := True;
+  try
+    FTableView := ATableView;
+    FBitmap := TBitmap.Create;
+    FBitmap.BitmapScale := GetScreenScale;
+    FObjects := TksTableViewItemObjects.Create(FTableView);
+    FFont := TFont.Create;
+    FFont.Size := C_TABLEVIEW_DEFAULT_FONT_SIZE;
+    FFill := TBrush.Create(TBrushKind.None, claNull);
+    FIndicator := TksTableViewItemShape.Create(Self);
+    FIndicator.VertAlign := TksTableItemAlign.Center;
 
-  FTileBackground := TksTableViewItemTileBackground.Create(Self);
+    FTileBackground := TksTableViewItemTileBackground.Create(Self);
 
-  //FActionButtons := TksTableViewActionButtons.Create(Self);
+    //FActionButtons := TksTableViewActionButtons.Create(Self);
 
-  FPickerItems := TStringList.Create;
-  (FPickerItems as TStringList).OnChange := PickerItemsChanged;
+    FPickerItems := TStringList.Create;
+    (FPickerItems as TStringList).OnChange := PickerItemsChanged;
 
-  FImage := TksTableViewItemImage.Create(Self);
-  FImage.VertAlign := TksTableItemAlign.Center;
+    FImage := TksTableViewItemImage.Create(Self);
+    FImage.VertAlign := TksTableItemAlign.Center;
 
-  FAccessory := TksTableViewItemAccessory.Create(Self);
+    FAccessory := TksTableViewItemAccessory.Create(Self);
 
-  FCheckMarkAccessory := TksTableViewItemAccessory.Create(Self);
-  FCheckMarkAccessory.Accessory := atCheckBox;
-  FCheckMarkAccessory.Align := TksTableItemAlign.Leading;
-  FCheckMarkAccessory.Color := C_TABLEVIEW_ACCESSORY_KEEPCOLOR;
+    FCheckMarkAccessory := TksTableViewItemAccessory.Create(Self);
+    FCheckMarkAccessory.Accessory := atCheckBox;
+    FCheckMarkAccessory.Align := TksTableItemAlign.Leading;
+    FCheckMarkAccessory.Color := C_TABLEVIEW_ACCESSORY_KEEPCOLOR;
 
-  FTitle := TksTableViewItemText.Create(Self);
-  FTitle.Font.Assign(FTableView.TextDefaults.Title.Font);
-  FTitle.TextColor := FTableView.TextDefaults.Title.TextColor;
+    FTitle := TksTableViewItemText.Create(Self);
+    FTitle.Font.Assign(FTableView.TextDefaults.Title.Font);
+    FTitle.TextColor := FTableView.TextDefaults.Title.TextColor;
 
-  FSubTitle := TksTableViewItemText.Create(Self);
-  FSubTitle.Font.Assign(FTableView.TextDefaults.SubTitle.Font);
-  FSubTitle.TextColor := FTableView.TextDefaults.SubTitle.TextColor;
+    FSubTitle := TksTableViewItemText.Create(Self);
+    FSubTitle.Font.Assign(FTableView.TextDefaults.SubTitle.Font);
+    FSubTitle.TextColor := FTableView.TextDefaults.SubTitle.TextColor;
 
-  FDetail := TksTableViewItemText.Create(Self);
-  FDetail.TextAlignment := TTextAlign.Trailing;
-  FDetail.Font.Assign(FTableView.TextDefaults.Detail.Font);
-  FDetail.TextColor := FTableView.TextDefaults.Detail.TextColor;
+    FDetail := TksTableViewItemText.Create(Self);
+    FDetail.TextAlignment := TTextAlign.Trailing;
+    FDetail.Font.Assign(FTableView.TextDefaults.Detail.Font);
+    FDetail.TextColor := FTableView.TextDefaults.Detail.TextColor;
 
-  FPurpose := None;
-  FTextColor := claBlack;
-  FChecked := False;
-  Height := C_TABLEVIEW_DEFAULT_ITEM_HEIGHT;
-  FHeightPercentage := 0;
-  FCaching := False;
-  FUpdating := False;
-  FCanSelect := True;
-  FTagString := '';
-  FTagInteger := 0;
-  FColCount := 0;
-  FAppearance := iaNormal;
-  FDragging := False;
-  FDeleting := False;
+    FPurpose := None;
+    FTextColor := claBlack;
+    FChecked := False;
+    Height := C_TABLEVIEW_DEFAULT_ITEM_HEIGHT;
+    FHeightPercentage := 0;
+    FCaching := False;
+    FUpdating := False;
+    FCanSelect := True;
+    FTagString := '';
+    FTagInteger := 0;
+    FColCount := 0;
+    FAppearance := iaNormal;
+    FDragging := False;
+    FDeleting := False;
+  finally
+    FUpdating := False;
+  end;
 end;
 
 procedure TksTableViewItem.DeselectObjects;
@@ -4542,7 +4558,7 @@ begin
   FItems := TksTableViewItems.Create(Self, True);
   FFilteredItems := TksTableViewItems.Create(Self, False);
   FBackgroundText := TksTableViewBackgroundText.Create;
-  FRowIndicators := TksListViewRowIndicators.Create;
+  FRowIndicators := TksListViewRowIndicators.Create(Self);
   FDeleteButton := TksDeleteButton.Create;
   FAppearence := TksTableViewAppearence.Create(Self);
   FDragDropOptions := TksDragDropOptions.Create;
@@ -6168,7 +6184,7 @@ begin
     AShadowWidth := 0;
 
     if (FTableItem.FTableView.RowIndicators.Shadow) and (Self = FTableItem.FIndicator) then
-      AShadowWidth := 1;
+      AShadowWidth := 2;
 
     ABmp.SetSize(Round(Width * GetScreenScale), Round(Height * GetScreenScale));
     ABmp.BitmapScale := GetScreenScale;
@@ -6183,14 +6199,17 @@ begin
       begin
         OffsetRect(ARect, AShadowWidth, AShadowWidth);
         ABmp.Canvas.Fill.Color := claDimgray;
-        ABmp.Canvas.FillRect(ARect, FCornerRadius, FCornerRadius, AllCorners, 1);
+        if FShape = ksEllipse then
+          ABmp.Canvas.FillEllipse(ARect, 1)
+        else
+          ABmp.Canvas.FillRect(ARect, FCornerRadius, FCornerRadius, AllCorners, 1);
         OffsetRect(ARect, 0-AShadowWidth, 0-AShadowWidth);
       end;
       ABmp.Canvas.Fill.Assign(FFill);
       ABmp.Canvas.Stroke.Assign(FStroke);
       ABmp.Canvas.StrokeThickness := 1;
       FFill.Color := FFill.Color;
-      if FShape in [ksRectangle, ksRoundRect] then
+      if FShape in [ksRectangle, ksRoundRect, ksSquare] then
       begin
         if FFill.Color <> claNull  then
           ABmp.Canvas.FillRect(ARect, FCornerRadius, FCornerRadius, AllCorners, 1);
@@ -6227,6 +6246,11 @@ end;
 procedure TksTableViewItemShape.SetShape(const Value: TksTableViewShape);
 begin
   FShape := Value;
+  if FShape = ksSquare then
+  begin
+    if FWidth <> FHeight then
+      FHeight := FWidth;
+  end;
 end;
 
 procedure TksTableViewItemShape.SetStroke(const Value: TStrokeBrush);
@@ -6267,16 +6291,53 @@ end;
 
 { TksListViewRowIndicators }
 
-constructor TksListViewRowIndicators.Create;
+procedure TksListViewRowIndicators.Changed;
 begin
+  FTableView.CacheItems(True);
+  FTableView.Invalidate;
+end;
+
+constructor TksListViewRowIndicators.Create(ATableView: TksTableView);
+begin
+  FTableView := ATableView;
   FWidth := C_TABLEVIEW_DEFAULT_INDICATOR_WIDTH;
   FHeight := C_TABLEVIEW_DEFAULT_INDICATOR_HEIGHT;
   FVisible := False;
+  FShape := TksTableViewShape.ksRectangle;
   FOutlined := True;
   FShadow := True;
 end;
 
 // ------------------------------------------------------------------------------
+
+procedure TksListViewRowIndicators.SetShadow(const Value: Boolean);
+begin
+  if FShadow <> Value then
+  begin
+    FShadow := Value;
+    FTableView.CacheItems(True);
+    FTableView.Invalidate;
+  end;
+end;
+
+procedure TksListViewRowIndicators.SetShape(const Value: TksTableViewShape);
+begin
+  if FShape <> Value then
+  begin
+    FShape := Value;
+    if FShape = ksRectangle then
+    begin
+      FHeight := 0;
+      FWidth := 8;
+    end;
+    if (FShape = ksSquare) or (FShape = ksEllipse) then
+    begin
+      FWidth := 16;
+      FHeight := 16;
+    end;
+    Changed;
+  end;
+end;
 
 { TksTableViewActionButtons }
 
