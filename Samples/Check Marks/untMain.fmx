@@ -2,8 +2,8 @@ object Form24: TForm24
   Left = 0
   Top = 0
   Caption = 'Form24'
-  ClientHeight = 242
-  ClientWidth = 396
+  ClientHeight = 406
+  ClientWidth = 307
   FormFactor.Width = 320
   FormFactor.Height = 480
   FormFactor.Devices = [Desktop]
@@ -25,8 +25,8 @@ object Form24: TForm24
     PullToRefresh.PullText = 'pull to refresh'
     PullToRefresh.ReleaseText = 'release to refresh'
     SelectionOptions.SelectionOverlay.Size = 0
-    Size.Width = 396.000000000000000000
-    Size.Height = 154.000000000000000000
+    Size.Width = 307.000000000000000000
+    Size.Height = 318.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 0
     TextDefaults.Title.Font.Size = 13.000000000000000000
@@ -40,8 +40,8 @@ object Form24: TForm24
   end
   object ToolBar2: TToolBar
     Align = Bottom
-    Position.Y = 198.000000000000000000
-    Size.Width = 396.000000000000000000
+    Position.Y = 362.000000000000000000
+    Size.Width = 307.000000000000000000
     Size.Height = 44.000000000000000000
     Size.PlatformDefault = False
     StyleLookup = 'bottomtoolbar'
@@ -71,14 +71,14 @@ object Form24: TForm24
     end
   end
   object ToolBar1: TToolBar
-    Size.Width = 396.000000000000000000
+    Size.Width = 307.000000000000000000
     Size.Height = 44.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 1
     object Label1: TLabel
       Align = Client
       StyledSettings = [Family, Style, FontColor]
-      Size.Width = 396.000000000000000000
+      Size.Width = 307.000000000000000000
       Size.Height = 44.000000000000000000
       Size.PlatformDefault = False
       TextSettings.Font.Size = 16.000000000000000000
