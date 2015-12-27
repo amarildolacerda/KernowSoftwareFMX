@@ -857,6 +857,7 @@ type
     function TextBoxHtml(AText: string; ARect: TRectF): TksTableViewItemText;
     function TextOutRight(AText: string; y, AWidth: single; AXOffset: single; const AVertAlign: TksTableItemAlign = TksTableItemAlign.Center): TksTableViewItemText; overload;
     // shape functions...
+    function DrawChatBubble(AText: string; APosition: TksTableViewChatBubblePosition; AColor, ATextColor: TAlphaColor): TksTableViewChatBubble;
     function DrawRect(x, y, AWidth, AHeight: single; AStroke, AFill: TAlphaColor): TksTableViewItemShape; overload;
     function DrawRect(ARect: TRectF; AStroke, AFill: TAlphaColor): TksTableViewItemShape; overload;
     function AddButton(AWidth: integer; AText: string;
@@ -2681,22 +2682,8 @@ var
   ABubble: TksTableViewChatBubble;
 begin
   Result := AddItem('');
-  ABubble := TksTableViewChatBubble.Create(Result);
-  ABubble.FText := AText;
-  case APosition  of
-    ksCbpLeft: ABubble.Align := TksTableItemAlign.Leading;
-    ksCbpRight: ABubble.Align := TksTableItemAlign.Trailing;
-  end;
-  ABubble.OffsetX := 16;
-  if APosition = ksCbpRight then
-    ABubble.OffsetX := -16;
-
-  ABubble.RecalculateSize;
+  ABubble := Result.DrawChatBubble(AText, APosition, AColor, ATextColor);
   Result.Height := ABubble.Height + 8;
-  ABubble.CornerRadius := 16;
-  ABubble.Fill.Color := AColor;
-  ABubble.FTextColor := ATextColor;
-  Result.Objects.Add(ABubble);
 end;
 
 function TksTableViewItems.AddDateSelector(AText: string; ADate: TDateTime): TksTableViewItem;
@@ -3310,6 +3297,28 @@ begin
   Result.VertAlign := TksTableItemAlign.Center;
   Result.Bitmap := ABmp;
   FObjects.Add(Result);
+end;
+
+function TksTableViewItem.DrawChatBubble(AText: string;
+  APosition: TksTableViewChatBubblePosition; AColor,
+  ATextColor: TAlphaColor): TksTableViewChatBubble;
+begin
+  Result := TksTableViewChatBubble.Create(Self);
+
+  Result.FText := AText;
+  case APosition  of
+    ksCbpLeft: Result.Align := TksTableItemAlign.Leading;
+    ksCbpRight: Result.Align := TksTableItemAlign.Trailing;
+  end;
+  Result.OffsetX := 16;
+  if APosition = ksCbpRight then
+    Result.OffsetX := -16;
+
+  Result.RecalculateSize;
+  Result.CornerRadius := 16;
+  Result.Fill.Color := AColor;
+  Result.FTextColor := ATextColor;
+  Objects.Add(Result);
 end;
 
 function TksTableViewItem.DrawRect(x, y, AWidth, AHeight: single;
