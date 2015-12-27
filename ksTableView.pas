@@ -616,7 +616,6 @@ type
     procedure SetHighQuality(const Value: Boolean);
   protected
     procedure Render(ACanvas: TCanvas); override;
-    procedure Clear;
     procedure DoBeforeRenderBitmap(ABmp: TBitmap); virtual;
     property Bitmap: TBitmap read GetBitmap write SetBitmap;
     property Shadow: TksTableViewShadow read FShadow write SetShadow;
@@ -719,7 +718,6 @@ type
     procedure SetAccessory(const Value: TksAccessoryType);
     procedure SetColor(const Value: TAlphaColor);
     procedure DoBeforeRenderBitmap(ABmp: TBitmap); override;
-    procedure Render(ACanvas: TCanvas); override;
   public
     constructor Create(ATableItem: TksTableViewItem); override;
     property Accessory: TksAccessoryType read FAccessory write SetAccessory;
@@ -746,7 +744,6 @@ type
   TksTableViewItem = class
   private
     [weak]FTableView: TksTableView;
-    [weak]FCheckMarkAccessory: TksTableViewItemAccessory;
     FData: TDictionary<string, TValue>;
     FID: string;
     FAbsoluteIndex: integer;
@@ -757,6 +754,7 @@ type
     FSubTitle: TksTableViewItemText;
     FDetail: TksTableViewItemText;
     FAccessory: TksTableViewItemAccessory;
+    FCheckMarkAccessory: TksTableViewItemAccessory;
 
     FHeight: single;
     FHeightPercentage: single;
@@ -795,7 +793,14 @@ type
     FDeleting: Boolean;
     function MatchesSearch(AFilter: string): Boolean;
     function IsVisible(AViewport: TRectF): Boolean;
+    //function GetHeight: single;
+    //function GetHeightPercentage: single;
+    //function GetItemRect: TRectF;
     function GetInternalRect: TRectF;
+    //function GetIndex: integer;
+    //function GetAbsoluteIndex: integer;
+    //function GetSearchIndex: string;
+    //function GetCached: Boolean;
     procedure SetSearchIndex(const Value: string);
     procedure SetItemRect(const Value: TRectF);
     procedure SetIndex(const Value: integer);
@@ -806,6 +811,7 @@ type
     procedure SetHeight(const Value: single);
     procedure SetHeightPercentage(const Value: single);
     procedure SetCached(const Value: Boolean);
+    //function GetPurpose: TksTableViewItemPurpose;
     procedure SetPurpose(const Value: TksTableViewItemPurpose);
     procedure SetColCount(const Value: Integer);
     procedure SetFont(const Value: TFont);
@@ -926,7 +932,6 @@ type
     function AddItemSelector(AText, ASelected: string; AItems: TStrings): TksTableViewItem; overload;
     function AddItemSelector(AText, ASelected: string; AItems: array of string): TksTableViewItem; overload;
     function AddItemWithSwitch(AText: string; AChecked: Boolean; AID: string): TksTableViewItem;
-    function GetCheckedCount: integer;
     procedure DeleteItem(AItem: TksTableViewItem);
     property FirstItem: TksTableViewItem read GetFirstItem;
     property LastItem: TksTableViewItem read GetLastItem;
@@ -1446,8 +1451,6 @@ type
     FCheckArea: TksTableViewCheckMarkCheckArea;
     FCheckSelects: Boolean;
     FHeaderCheckSelectsAll: Boolean;
-    FCheckMarkChecked: TksTableViewItemAccessory;
-    FCheckMarkUnchecked: TksTableViewItemAccessory;
     procedure Changed;
     procedure SetCheckMarks(const Value: TksTableViewCheckMarks);
     procedure SetPosition(const Value: TksTableViewCheckMarkPosition);
@@ -1457,7 +1460,6 @@ type
     procedure SetHeaderCheckSelectsAll(const Value: Boolean);
   public
     constructor Create(ATableView: TksTableView);
-    destructor Destroy; override;
     procedure Assign(ASource: TPersistent); override;
   published
     property CheckMarks: TksTableViewCheckMarks read FCheckMarks write SetCheckMarks default TksTableViewCheckMarks.cmNone;
@@ -1661,7 +1663,6 @@ type
     property ItemIndex: integer read FItemIndex write SetItemIndex;
     property SelectedItem: TksTableViewItem read GetSelectedItem;
     property SearchText: string read GetSearchText write SetSearchText;
-    property TotalItemHeight: single read GetTotalItemHeight;
   published
     property AccessoryOptions: TksTableViewAccessoryOptions read FAccessoryOptions write SetAccessoryOptions;
     property Align;
@@ -1785,7 +1786,6 @@ type
   private
     FImageScale: integer;
     FImageMap: TBitmap;
-    FActiveStyle: TFmxObject;
     procedure AddEllipsesAccessory;
     procedure AddFlagAccessory;
     function GetAccessoryFromResource(AStyleName: string; const AState: string = ''): TksTableViewAccessoryImage;
@@ -1804,7 +1804,6 @@ var
   ATextLayout: TTextLayout;
   _ScreenScale: single;
   AIsSwiping: Boolean;
-  //ActiveStyle: TFmxObject;
 
 procedure Register;
 begin
@@ -2154,7 +2153,7 @@ begin
     Exit;
   end;
   ARowRect := GetItemRect;
-  if (Self <> FTableItem.Accessory) and (Self <> FTableItem.FCheckMarkAccessory) then
+  if (Self <> FTableItem.Accessory) and (Self <> FTableItem.CheckMarkAccessory) then
   begin
     if (FTableItem.Accessory.Accessory <> atNone) then
       ARowRect.Right := ARowRect.Right - (FTableItem.Accessory.Width+8);
@@ -2459,11 +2458,6 @@ end;
 
 // TksTableViewItemBaseImage
 
-procedure TksTableViewItemBaseImage.Clear;
-begin
-  FreeAndNil(FBitmap);
-end;
-
 constructor TksTableViewItemBaseImage.Create(ATableItem: TksTableViewItem);
 begin
   inherited;
@@ -2629,7 +2623,7 @@ begin
   FAlign := TksTableItemAlign.Trailing;
   FVertAlign := TksTableItemAlign.Center;
   FColor := claNull;
-  //FOwnsBitmap := True;
+  //FOwnsBitmap := False;
 end;
 
 procedure TksTableViewItemAccessory.DoBeforeRenderBitmap(ABmp: TBitmap);
@@ -2650,14 +2644,7 @@ begin
   Bitmap := AccessoryImages.Images[FAccessory];
   FWidth := Bitmap.Width / AccessoryImages.FImageScale;
   FHeight := Bitmap.Height / AccessoryImages.FImageScale;
-  //Changed;
-end;
-
-procedure TksTableViewItemAccessory.Render(ACanvas: TCanvas);
-begin
-  if (Bitmap = nil) and (FAccessory <> atNone) then
-    RedrawAccessory;
-  inherited;
+  Changed;
 end;
 
 procedure TksTableViewItemAccessory.SetAccessory(const Value: TksAccessoryType);
@@ -2665,7 +2652,6 @@ begin
   if FAccessory <> Value then
   begin
     FAccessory := Value;
-    Clear;
     RedrawAccessory;
   end;
 end;
@@ -2825,18 +2811,6 @@ begin
     FTableView.Invalidate;
   finally
     FTableView.EnableMouseEvents;
-  end;
-end;
-
-function TksTableViewItems.GetCheckedCount: integer;
-var
-  ICount: integer;
-begin
-  Result := 0;
-  for ICount := 0 to Count-1 do
-  begin
-    if Items[ICount].Checked then
-      Result := Result + 1;
   end;
 end;
 
@@ -3038,18 +3012,16 @@ begin
     if Assigned(FTableView.BeforeRowCache) then
       FTableView.BeforeRowCache(FTableView, FBitmap.Canvas, Self, ARect);
 
-    // indicator...
-    {case FTableView.RowIndicators.Outlined of
+    case FTableView.RowIndicators.Outlined of
       False: FIndicator.Stroke.Kind := TBrushKind.None;
       True: FIndicator.Stroke.Kind := TBrushKind.Solid;
     end;
+
     FIndicator.Width := FTableView.RowIndicators.Width;
     if FTableView.RowIndicators.Height <> 0 then
       FIndicator.Height := FTableView.RowIndicators.Height;
     FIndicator.Shape := FTableView.RowIndicators.Shape;
-    FIndicator.Render(FBitmap.Canvas);}
-
-
+    FIndicator.Render(FBitmap.Canvas);
     FTileBackground.Render(FBitmap.Canvas);
     FImage.Render(FBitmap.Canvas);
     FTitle.Render(FBitmap.Canvas);
@@ -3062,12 +3034,8 @@ begin
     if FTableView.FCheckMarkOptions.FCheckMarks <> TksTableViewCheckMarks.cmNone then
     begin
       if (FCheckmarkAllowed) then
-      begin
-        FCheckMarkAccessory.FTableItem := Self;
         FCheckMarkAccessory.Render(FBitmap.Canvas);
-      end;
     end;
-
     for ICount := 0 to FObjects.Count - 1 do
     begin
       if FObjects[ICount].Visible then
@@ -3075,7 +3043,6 @@ begin
         FObjects[ICount].Render(FBitmap.Canvas);
       end;
     end;
-
 
     if Assigned(FTableView.AfterRowCache) then
       FTableView.AfterRowCache(FTableView, FBitmap.Canvas, Self, ARect);
@@ -3114,8 +3081,8 @@ begin
     FFont := TFont.Create;
     FFont.Size := C_TABLEVIEW_DEFAULT_FONT_SIZE;
     FFill := TBrush.Create(TBrushKind.None, claNull);
-    //FIndicator := TksTableViewItemShape.Create(Self);
-    //FIndicator.VertAlign := TksTableItemAlign.Center;
+    FIndicator := TksTableViewItemShape.Create(Self);
+    FIndicator.VertAlign := TksTableItemAlign.Center;
 
     FTileBackground := TksTableViewItemTileBackground.Create(Self);
 
@@ -3127,11 +3094,10 @@ begin
 
     FAccessory := TksTableViewItemAccessory.Create(Self);
 
-    //FCheckMarkAccessory := TksTableViewItemAccessory.Create(Self);
-    //FCheckMarkAccessory.FAccessory := atCheckBox;
-    //FCheckMarkAccessory.FAlign := TksTableItemAlign.Leading;
-    //FCheckMarkAccessory.FColor := C_TABLEVIEW_ACCESSORY_KEEPCOLOR;
-    FCheckMarkAccessory := TableView.CheckMarkOptions.FCheckMarkUnchecked;
+    FCheckMarkAccessory := TksTableViewItemAccessory.Create(Self);
+    FCheckMarkAccessory.FAccessory := atCheckBox;
+    FCheckMarkAccessory.FAlign := TksTableItemAlign.Leading;
+    FCheckMarkAccessory.FColor := C_TABLEVIEW_ACCESSORY_KEEPCOLOR;
 
     FTitle := TksTableViewItemText.Create(Self);
     FTitle.Font.Assign(FTableView.TextDefaults.Title.Font);
@@ -3180,9 +3146,11 @@ begin
   FreeAndNil(FTitle);
   FreeAndNil(FSubTitle);
   FreeAndNil(FDetail);
-  //FreeAndNil(FIndicator);
+
+  FreeAndNil(FIndicator);
   FreeAndNil(FTileBackground);
   FreeAndNil(FAccessory);
+  FreeAndNil(FCheckMarkAccessory);
   FreeAndNil(FObjects);
   FreeAndNil(FBitmap);
   FreeAndNil(FFont);
@@ -3736,8 +3704,8 @@ begin
   begin
     FChecked := Value;
     case FChecked of
-      True: FCheckMarkAccessory := TableView.CheckMarkOptions.FCheckMarkChecked;
-      False: FCheckMarkAccessory := TableView.CheckMarkOptions.FCheckMarkUnchecked;
+      True: FCheckMarkAccessory.Accessory := atCheckBoxChecked;
+      False: FCheckMarkAccessory.Accessory := atCheckBox;
     end;
     Changed;
     if Assigned(FTableView.OnItemCheckmarkChanged) then
@@ -4181,20 +4149,18 @@ constructor TksTableViewAccessoryImageList.Create;
 begin
   inherited Create(True);
   FImageMap := TBitmap.Create;
-  FActiveStyle := TStyleManager.ActiveStyle(Nil);
 end;
 
 destructor TksTableViewAccessoryImageList.Destroy;
 begin
   FreeAndNil(FImageMap);
-  FreeAndNil(FActiveStyle);
   inherited;
 end;
 
 function TksTableViewAccessoryImageList.GetAccessoryFromResource
   (AStyleName: string; const AState: string = ''): TksTableViewAccessoryImage;
 var
-  //ActiveStyle: TFmxObject;
+  ActiveStyle: TFmxObject;
   AStyleObj: TStyleObject;
   AImgRect: TBounds;
   AIds: TStrings;
@@ -4212,12 +4178,9 @@ begin
   AIds := TStringList.Create;
   try
     AIds.Text := StringReplace(AStyleName, '.', #13, [rfReplaceAll]);
+    ActiveStyle := TStyleManager.ActiveStyle(Nil);
 
-
-    //ActiveStyle := TStyleManager.ActiveStyle(Nil);
-
-
-    AStyleObj := TStyleObject(FActiveStyle);
+    AStyleObj := TStyleObject(ActiveStyle);
 
     while AIds.Count > 0 do
     begin
@@ -5890,7 +5853,6 @@ begin
     if (ANewScrollViewPos<>FScrollPos) then
       ScrollTo(ANewScrollViewPos);
   end;
-  Invalidate;
 end;
 
 
@@ -8527,29 +8489,10 @@ begin
   FTableView := ATableView;
   FCheckMarks := TksTableViewCheckMarks.cmNone;
   FPosition := TksTableViewCheckMarkPosition.cmpRight;
-  FCheckMarkChecked := TksTableViewItemAccessory.Create(nil);
-  FCheckMarkUnchecked := TksTableViewItemAccessory.Create(nil);
-
-  FCheckMarkChecked.FAccessory := atCheckBoxChecked;
-  FCheckMarkChecked.FAlign := TksTableItemAlign.Leading;
-  FCheckMarkChecked.FColor := C_TABLEVIEW_ACCESSORY_KEEPCOLOR;
-
-  FCheckMarkUnchecked.FAccessory := atCheckBox;
-  FCheckMarkUnchecked.FAlign := TksTableItemAlign.Leading;
-  FCheckMarkUnchecked.FColor := C_TABLEVIEW_ACCESSORY_KEEPCOLOR;
-
   FShowInHeader := true;
   FCheckArea := caWholeRow;
   FCheckSelects := true;
   FHeaderCheckSelectsAll := true;
-
-end;
-
-destructor TksTableViewCheckMarkOptions.Destroy;
-begin
-  FreeAndNil(FCheckMarkChecked);
-  FreeAndNil(FCheckMarkUnchecked);
-  inherited;
 end;
 
 procedure TksTableViewCheckMarkOptions.Changed;
@@ -9110,9 +9053,6 @@ finalization
   FreeAndNil(ATextLayout);
 
 end.
-
-
-
 
 
 
