@@ -119,6 +119,7 @@ type
   TksTableViewItemPurpose = (None, Header);
   TksTableViewCheckMarks = (cmNone, cmSingleSelect, cmMultiSelect);
   TksTableViewCheckMarkPosition = (cmpLeft, cmpRight);
+  TksTableViewChatBubblePosition = (ksCbpLeft, ksCbpRight);
   TksTableViewCheckMarkCheckArea = (caWholeRow, caCheckMarkRect);
   TksTableViewActionButtonAlignment = (abLeftActionButtons, abRightActionButtons);
   TksImageDrawMode = (ksDrawModeStretch, ksDrawModeFit);
@@ -246,7 +247,7 @@ type
     procedure SetShowSelection(const Value: Boolean);
     procedure SetSelected(const Value: Boolean);
     procedure SetVisible(const Value: Boolean);
-    
+
   protected
     function ConsumesClick: Boolean; virtual;
     //function GetAlign: TksTableItemAlign;
@@ -645,7 +646,7 @@ type
 
   // TksTableViewItemShape
 
-  TksTableViewItemShape = class(TksTableViewItemObject)
+  TksTableViewBaseItemShape = class(TksTableViewItemObject)
   private
     FStroke: TStrokeBrush;
     FFill: TBrush;
@@ -657,13 +658,35 @@ type
     procedure SetStroke(const Value: TStrokeBrush);
   protected
     procedure Render(ACanvas: TCanvas); override;
-  public
-    constructor Create(ATableItem: TksTableViewItem); override;
-    destructor Destroy; override;
     property Stroke: TStrokeBrush read FStroke write SetStroke;
     property Fill: TBrush read FFill write SetFill;
     property Shape: TksTableViewShape read FShape write SetShape;
     property CornerRadius: single read FCornerRadius write SetCornerRadius;
+  public
+    constructor Create(ATableItem: TksTableViewItem); override;
+    destructor Destroy; override;
+  end;
+
+  TksTableViewItemShape = class(TksTableViewBaseItemShape)
+  public
+    property Stroke;
+    property Fill;
+    property Shape;
+    property CornerRadius;
+  end;
+
+  TksTableViewChatBubble = class(TksTableViewItemShape)
+  private
+    FText: string;
+    FFont: TFont;
+    FTextColor: TAlphaColor;
+  protected
+    //function GetObjectRect: TRectF; override;
+    procedure RecalculateSize;
+    procedure Render(ACanvas: TCanvas); override;
+  public
+    constructor Create(ATableItem: TksTableViewItem); override;
+    destructor Destroy; override;
   end;
 
   //---------------------------------------------------------------------------------------
@@ -903,6 +926,7 @@ type
     function AddItem(AText: string; const AAccessory: TksAccessoryType = atNone): TksTableViewItem; overload;
     function AddItem(AText, ADetail: string; const AAccessory: TksAccessoryType = atNone): TksTableViewItem; overload;
     function AddItem(AText, ASubTitle, ADetail: string; const AAccessory: TksAccessoryType = atNone): TksTableViewItem; overload;
+    function AddChatBubble(AText: string; APosition: TksTableViewChatBubblePosition; AColor, ATextColor: TAlphaColor): TksTableViewItem;
     function AddDateSelector(AText: string; ADate: TDateTime): TksTableViewItem;
     function AddItemSelector(AText, ASelected: string; AItems: TStrings): TksTableViewItem; overload;
     function AddItemSelector(AText, ASelected: string; AItems: array of string): TksTableViewItem; overload;
@@ -1902,20 +1926,26 @@ begin
 {$ENDIF}
 end;
 
-function GetTextWidth(AText: string; AFont: TFont): single;
+function GetTextWidth(AText: string; AFont: TFont; AWordWrap: Boolean;
+  const AMaxWidth: single = 0): single;
 var
   APoint: TPointF;
 begin
   ATextLayout.BeginUpdate;
   // Setting the layout MaxSize
-  APoint.x := MaxSingle;
+  if AMaxWidth > 0 then
+    APoint.X := AMaxWidth
+  else
+    APoint.x := MaxSingle;
   APoint.y := 100;
   ATextLayout.MaxSize := APoint;
   ATextLayout.Text := AText;
-  ATextLayout.WordWrap := False;
+  ATextLayout.WordWrap := AWordWrap;
   ATextLayout.Font.Assign(AFont);
   ATextLayout.HorizontalAlign := TTextAlign.Leading;
+  ATextLayout.VerticalAlign := TTextAlign.Leading;
   ATextLayout.EndUpdate;
+  //ATextLayout.RenderLayout(ATextLayout.LayoutCanvas);
   Result := ATextLayout.Width;
 end;
 
@@ -2642,6 +2672,31 @@ function TksTableViewItems.AddItem(AText, ADetail: string;
   const AAccessory: TksAccessoryType): TksTableViewItem;
 begin
   Result := AddItem(AText, '', ADetail, AAccessory);
+end;
+
+function TksTableViewItems.AddChatBubble(AText: string;
+  APosition: TksTableViewChatBubblePosition;
+  AColor, ATextColor: TAlphaColor): TksTableViewItem;
+var
+  ABubble: TksTableViewChatBubble;
+begin
+  Result := AddItem('');
+  ABubble := TksTableViewChatBubble.Create(Result);
+  ABubble.FText := AText;
+  case APosition  of
+    ksCbpLeft: ABubble.Align := TksTableItemAlign.Leading;
+    ksCbpRight: ABubble.Align := TksTableItemAlign.Trailing;
+  end;
+  ABubble.OffsetX := 16;
+  if APosition = ksCbpRight then
+    ABubble.OffsetX := -16;
+
+  ABubble.RecalculateSize;
+  Result.Height := ABubble.Height + 8;
+  ABubble.CornerRadius := 16;
+  ABubble.Fill.Color := AColor;
+  ABubble.FTextColor := ATextColor;
+  Result.Objects.Add(ABubble);
 end;
 
 function TksTableViewItems.AddDateSelector(AText: string; ADate: TDateTime): TksTableViewItem;
@@ -3471,7 +3526,7 @@ begin
 
       if (FAppearance=iaTile_TitleImage) or (FAppearance=iaTile_TitleImageSubTitle) then
       begin
-        FTitle.Width        := GetTextWidth(FTitle.Text, FTitle.Font);
+        FTitle.Width        := GetTextWidth(FTitle.Text, FTitle.Font, False);
         FTitle.Height       := GetTextHeight(FTitle.Text, FTitle.Font,  FTitle.WordWrap, FTitle.FTrimming, FTitle.Width);
         FTitle.FPlaceOffset := PointF(ARect.Left + ((ARect.Width - FTitle.Width) / 2), ARect.Top);
 
@@ -3479,7 +3534,7 @@ begin
       end
       else if (FAppearance=iaTile_SubTitleImageTitle) then
       begin
-        FSubTitle.Width        := GetTextWidth(FSubTitle.Text, FSubTitle.Font);
+        FSubTitle.Width        := GetTextWidth(FSubTitle.Text, FSubTitle.Font, False);
         FSubTitle.Height       := GetTextHeight(FSubTitle.Text, FSubTitle.Font, FSubTitle.WordWrap, FSubTitle.FTrimming, FSubTitle.Width);
         FSubTitle.FPlaceOffset := PointF(ARect.Left + ((ARect.Width - FSubTitle.Width) / 2), ARect.Top);
 
@@ -3488,7 +3543,7 @@ begin
 
       if (FAppearance=iaTile_ImageTitle) or (FAppearance=iaTile_SubTitleImageTitle) then
       begin
-        FTitle.Width        := GetTextWidth(FTitle.Text, FTitle.Font);
+        FTitle.Width        := GetTextWidth(FTitle.Text, FTitle.Font, False);
         FTitle.Height       := GetTextHeight(FTitle.Text, FTitle.Font,  FTitle.WordWrap, FTitle.FTrimming, FTitle.Width);
         FTitle.FPlaceOffset := PointF(ARect.Left + ((ARect.Width - FTitle.Width) / 2), ARect.Bottom - FTitle.Height);
 
@@ -3496,7 +3551,7 @@ begin
       end
       else if (FAppearance=iaTile_TitleImageSubTitle) then
       begin
-        FSubTitle.Width        := GetTextWidth(FSubTitle.Text, FSubTitle.Font);
+        FSubTitle.Width        := GetTextWidth(FSubTitle.Text, FSubTitle.Font, False);
         FSubTitle.Height       := GetTextHeight(FSubTitle.Text, FSubTitle.Font, FSubTitle.WordWrap, FSubTitle.FTrimming, FSubTitle.Width);
         FSubTitle.FPlaceOffset := PointF(ARect.Left + ((ARect.Width - FSubTitle.Width) / 2), ARect.Bottom - FSubTitle.Height);
 
@@ -3883,7 +3938,7 @@ begin
 
   AHeight := GetTextHeight(AText, FFont, AWordWrap, Result.Trimming, AWidth);
   if AWidth = 0 then
-    AWidth := GetTextWidth(AText, Font);
+    AWidth := GetTextWidth(AText, Font, AWordWrap);
 
   Result.Width := AWidth;
   Result.Height := AHeight;
@@ -3920,7 +3975,7 @@ begin
   if AIsHtml then
     Result := GetTextSizeHtml(AText, FFont, 0).x
   else
-    Result := GetTextWidth(AText, FFont);
+    Result := GetTextWidth(AText, FFont, False);
 end;
 
 // ------------------------------------------------------------------------------
@@ -6151,9 +6206,9 @@ end;
 
 // ------------------------------------------------------------------------------
 
-{ TksTableViewItemShape }
+{ TksTableViewBaseItemShape }
 
-constructor TksTableViewItemShape.Create(ATableItem: TksTableViewItem);
+constructor TksTableViewBaseItemShape.Create(ATableItem: TksTableViewItem);
 begin
   inherited;
   FFill := TBrush.Create(TBrushKind.Solid, claWhite);
@@ -6162,14 +6217,14 @@ begin
   FShape := ksRectangle;
 end;
 
-destructor TksTableViewItemShape.Destroy;
+destructor TksTableViewBaseItemShape.Destroy;
 begin
   FreeAndNil(FFill);
   FreeAndNil(FStroke);
   inherited;
 end;
 
-procedure TksTableViewItemShape.Render(ACanvas: TCanvas);
+procedure TksTableViewBaseItemShape.Render(ACanvas: TCanvas);
 var
   ARect: TRectF;
   AShadowWidth: single;
@@ -6233,17 +6288,17 @@ begin
   inherited;
 end;
 
-procedure TksTableViewItemShape.SetCornerRadius(const Value: single);
+procedure TksTableViewBaseItemShape.SetCornerRadius(const Value: single);
 begin
   FCornerRadius := Value;
 end;
 
-procedure TksTableViewItemShape.SetFill(const Value: TBrush);
+procedure TksTableViewBaseItemShape.SetFill(const Value: TBrush);
 begin
   FFill.Assign(Value);
 end;
 
-procedure TksTableViewItemShape.SetShape(const Value: TksTableViewShape);
+procedure TksTableViewBaseItemShape.SetShape(const Value: TksTableViewShape);
 begin
   FShape := Value;
   if FShape = ksSquare then
@@ -6253,7 +6308,7 @@ begin
   end;
 end;
 
-procedure TksTableViewItemShape.SetStroke(const Value: TStrokeBrush);
+procedure TksTableViewBaseItemShape.SetStroke(const Value: TStrokeBrush);
 begin
   FStroke.Assign(Value);
 end;
@@ -8901,6 +8956,64 @@ begin
 end;
 
 // ------------------------------------------------------------------------------
+
+{ TksTableViewChatBubble }
+
+constructor TksTableViewChatBubble.Create(ATableItem: TksTableViewItem);
+begin
+  inherited;
+  FFont := TFont.Create;
+  FShape := ksRoundRect;
+  FFill.Color := claGray;
+  FStroke.Kind := TBrushKind.None;
+  FVertAlign := TksTableItemAlign.Center;
+  FTextColor := claWhite;
+end;
+
+destructor TksTableViewChatBubble.Destroy;
+begin
+  FreeAndNil(FFont);
+  inherited;
+end;
+
+procedure TksTableViewChatBubble.RecalculateSize;
+begin
+  FWidth := GetTextWidth(FText, FFont, False, FTableItem.TableView.Width * 0.60)+24;
+  FHeight := GetTextHeight(FText, FFont, True, TTextTrimming.None, FWidth)+16;
+end;
+
+procedure TksTableViewChatBubble.Render(ACanvas: TCanvas);
+var
+  ARect: TRectF;
+  APath: TPathData;
+begin
+  inherited;
+  ARect := ObjectRect;
+  APath := TPathData.Create;
+  try
+    if FAlign = TksTableItemAlign.Leading then
+    begin
+      APath.MoveTo(PointF(ARect.Left-4, ARect.Bottom));
+      APath.LineTo(PointF(ARect.Left+10, ARect.Bottom-4));
+      APath.LineTo(PointF(ARect.Left+10, ARect.Bottom-16));
+      APath.LineTo(PointF(ARect.Left-4, ARect.Bottom));
+    end;
+    if FAlign = TksTableItemAlign.Trailing then
+    begin
+      APath.MoveTo(PointF(ARect.Right+4, ARect.Bottom));
+      APath.LineTo(PointF(ARect.Right-10, ARect.Bottom-4));
+      APath.LineTo(PointF(ARect.Right-10, ARect.Bottom-16));
+      APath.LineTo(PointF(ARect.Right+4, ARect.Bottom));
+    end;
+    ACanvas.Stroke.Color := claBlack;
+    ACanvas.Fill.Color := FFill.Color;
+    ACanvas.FillPath(APath, 1);
+  finally
+    FreeAndNil(APath);
+  end;
+  InflateRect(ARect, 0-8, 0);
+  RenderText(ACanvas, ARect, FText, FFont, FTextColor, True, TTextAlign.Leading, TTextAlign.Center, TTextTrimming.None);
+end;
 
 initialization
 
