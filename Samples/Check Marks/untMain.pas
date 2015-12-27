@@ -18,6 +18,7 @@ type
     procedure FormCreate(Sender: TObject);
     procedure ComboBox1Change(Sender: TObject);
     procedure CheckBox1Change(Sender: TObject);
+    procedure Label1Click(Sender: TObject);
   private
     { Private declarations }
   public
@@ -61,6 +62,13 @@ begin
   finally
     ksTableView1.EndUpdate;
   end;
+end;
+
+procedure TForm24.Label1Click(Sender: TObject);
+begin
+  ksTableView1.ItemIndex := 15;
+  ksTableView1.BringSelectedIntoView;
+  ShowMessage(FloatToStr(ksTableView1.ScrollViewPos));
 end;
 
 end.

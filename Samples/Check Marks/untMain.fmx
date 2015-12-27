@@ -24,7 +24,9 @@ object Form24: TForm24
     PullToRefresh.Font.Size = 16.000000000000000000
     PullToRefresh.PullText = 'pull to refresh'
     PullToRefresh.ReleaseText = 'release to refresh'
+    SelectionOptions.KeepSelection = True
     SelectionOptions.SelectionOverlay.Size = 0
+    SelectionOptions.KeepSelectedInView = False
     Size.Width = 307.000000000000000000
     Size.Height = 318.000000000000000000
     Size.PlatformDefault = False
@@ -78,12 +80,14 @@ object Form24: TForm24
     object Label1: TLabel
       Align = Client
       StyledSettings = [Family, Style, FontColor]
+      HitTest = True
       Size.Width = 307.000000000000000000
       Size.Height = 44.000000000000000000
       Size.PlatformDefault = False
       TextSettings.Font.Size = 16.000000000000000000
       TextSettings.HorzAlign = Center
       Text = 'CheckMarks Demo'
+      OnClick = Label1Click
     end
   end
 end
