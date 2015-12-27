@@ -741,7 +741,7 @@ type
 
   // TksTableViewItem
 
-  TksTableViewItem = class(TFmxObject)
+  TksTableViewItem = class
   private
     [weak]FTableView: TksTableView;
     FData: TDictionary<string, TValue>;
@@ -1612,6 +1612,8 @@ type
     procedure SetBorder(const Value: TksTableViewBorderOptions);
     procedure SetFixedRowOptions(const Value: TksTableViewFixedRowsOptions);
     procedure DoItemsChanged(Sender: TObject; const Item: TksTableViewItem; Action: TCollectionNotification);
+    function GetSearchText: string;
+    procedure SetSearchText(const Value: string);
   protected
     function GetTotalItemHeight: single;
     function IsHeader(AItem: TksTableViewItem): Boolean;
@@ -1660,6 +1662,7 @@ type
     property FilteredItems: TksTableViewItems read FFilteredItems;
     property ItemIndex: integer read FItemIndex write SetItemIndex;
     property SelectedItem: TksTableViewItem read GetSelectedItem;
+    property SearchText: string read GetSearchText write SetSearchText;
   published
     property AccessoryOptions: TksTableViewAccessoryOptions read FAccessoryOptions write SetAccessoryOptions;
     property Align;
@@ -1697,6 +1700,7 @@ type
     property SearchVisible: Boolean read FSearchVisible write SetSearchVisible default False;
     property SelectionOptions: TksTableViewSelectionOptions read FSelectionOptions write SetSelectionOptions;
     property Size;
+
     property TabOrder;
     property TabStop;
     property TextDefaults: TksTableViewTextDefaults read FTextDefaults write SetTextDefaults;
@@ -2468,8 +2472,9 @@ end;
 destructor TksTableViewItemBaseImage.Destroy;
 begin
   FreeAndNil(FShadow);
-  if FBitmap <> nil then
-    FBitmap.Free;
+
+  if (FBitmap <> nil) and (FOwnsBitmap) then
+    FreeAndNil(FBitmap);
   inherited;
 end;
 
@@ -2618,6 +2623,7 @@ begin
   FAlign := TksTableItemAlign.Trailing;
   FVertAlign := TksTableItemAlign.Center;
   FColor := claNull;
+  //FOwnsBitmap := False;
 end;
 
 procedure TksTableViewItemAccessory.DoBeforeRenderBitmap(ABmp: TBitmap);
@@ -3065,7 +3071,7 @@ end;
 
 constructor TksTableViewItem.Create(ATableView: TksTableView);
 begin
-  inherited Create(nil);
+  inherited Create;
   FUpdating := True;
   try
     FTableView := ATableView;
@@ -3080,8 +3086,6 @@ begin
 
     FTileBackground := TksTableViewItemTileBackground.Create(Self);
 
-    //FActionButtons := TksTableViewActionButtons.Create(Self);
-
     FPickerItems := TStringList.Create;
     (FPickerItems as TStringList).OnChange := PickerItemsChanged;
 
@@ -3091,9 +3095,9 @@ begin
     FAccessory := TksTableViewItemAccessory.Create(Self);
 
     FCheckMarkAccessory := TksTableViewItemAccessory.Create(Self);
-    FCheckMarkAccessory.Accessory := atCheckBox;
-    FCheckMarkAccessory.Align := TksTableItemAlign.Leading;
-    FCheckMarkAccessory.Color := C_TABLEVIEW_ACCESSORY_KEEPCOLOR;
+    FCheckMarkAccessory.FAccessory := atCheckBox;
+    FCheckMarkAccessory.FAlign := TksTableItemAlign.Leading;
+    FCheckMarkAccessory.FColor := C_TABLEVIEW_ACCESSORY_KEEPCOLOR;
 
     FTitle := TksTableViewItemText.Create(Self);
     FTitle.Font.Assign(FTableView.TextDefaults.Title.Font);
@@ -3139,18 +3143,18 @@ end;
 
 destructor TksTableViewItem.Destroy;
 begin
+  FreeAndNil(FTitle);
+  FreeAndNil(FSubTitle);
+  FreeAndNil(FDetail);
+
   FreeAndNil(FIndicator);
   FreeAndNil(FTileBackground);
   FreeAndNil(FAccessory);
   FreeAndNil(FCheckMarkAccessory);
-  FreeAndNil(FTitle);
-  FreeAndNil(FSubTitle);
-  FreeAndNil(FDetail);
   FreeAndNil(FObjects);
   FreeAndNil(FBitmap);
   FreeAndNil(FFont);
   FreeAndNil(FImage);
-  //FreeAndNil(FActionButtons);
   FreeAndNil(FPickerItems);
   FreeAndNil(FFill);
   inherited;
@@ -3431,6 +3435,9 @@ begin
 
       if (FTableView.FCheckMarkOptions.FCheckMarks <> cmNone) and (FCheckmarkAllowed) then
       begin
+        if FCheckMarkAccessory.Bitmap = nil then
+          FCheckMarkAccessory.RedrawAccessory;
+
         if (FTableView.FCheckMarkOptions.FPosition = cmpLeft) then
         begin
           FCheckMarkAccessory.FPlaceOffset := PointF(ARect.Left, 0);
@@ -5158,6 +5165,11 @@ begin
     Result := FSearchBox.Height;
 end;
 
+function TksTableView.GetSearchText: string;
+begin
+  Result := FSearchBox.Text;
+end;
+
 function TksTableView.GetFixedHeaderHeight: single;
 var
   I : Integer;
@@ -6124,8 +6136,13 @@ end;
 
 procedure TksTableView.ScrollToItem(AItemIndex: integer);
 begin
-  if (AItemIndex > -1) and (AItemIndex < FFilteredItems.Count-1) then
+  if (AItemIndex > -1) and (AItemIndex < FFilteredItems.Count) then
     ScrollToItem(FFilteredItems.Items[AItemIndex]);
+end;
+
+procedure TksTableView.SetSearchText(const Value: string);
+begin
+  FSearchBox.Text := Value;
 end;
 
 procedure TksTableView.SetSearchVisible(const Value: Boolean);
