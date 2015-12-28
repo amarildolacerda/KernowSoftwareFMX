@@ -5,17 +5,24 @@ interface
 uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
   FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.StdCtrls, FMX.Controls.Presentation, ksTableView,
-  FMX.Objects;
+  FMX.Objects, FMX.Edit;
 
 type
   TForm24 = class(TForm)
     ToolBar2: TToolBar;
     ToolBar1: TToolBar;
-    Image1: TImage;
     Label1: TLabel;
     ksTableView1: TksTableView;
+    Edit1: TEdit;
+    Button1: TButton;
+    Button2: TButton;
     procedure FormCreate(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
+    procedure Edit1KeyDown(Sender: TObject; var Key: Word; var KeyChar: Char; Shift: TShiftState);
   private
+    FPosition: TksTableViewChatBubblePosition;
+    procedure AddChatText(AText: string);
     { Private declarations }
   public
     { Public declarations }
@@ -30,15 +37,63 @@ uses System.UIConsts;
 
 {$R *.fmx}
 
+procedure TForm24.AddChatText(AText: string);
+var
+  AColor, ATextColor: TAlphaColor;
+begin
+  if Trim(AText) = '' then
+    Exit;
+
+  // set the fill and text colours based upon the chat bubble alignment...
+  if FPosition = ksCbpLeft then
+  begin
+    AColor := claDodgerblue;
+    ATextColor := claWhite;
+  end
+  else
+  begin
+    AColor := $FFDDDDDD;
+    ATextColor := claBlack;
+  end;
+
+  ksTableView1.Items.AddChatBubble(AText, FPosition, AColor, ATextColor);
+
+  // switch the position for the next chat bubble...
+  if FPosition = ksCbpLeft then
+    FPosition := ksCbpRight
+  else
+    FPosition := ksCbpLeft;
+end;
+
+procedure TForm24.Button1Click(Sender: TObject);
+begin
+  AddChatText(Edit1.Text);
+  Edit1.Text := '';
+end;
+
+procedure TForm24.Button2Click(Sender: TObject);
+begin
+  ksTableView1.ClearItems;
+  FPosition := ksCbpLeft;
+end;
+
+procedure TForm24.Edit1KeyDown(Sender: TObject; var Key: Word; var KeyChar: Char; Shift: TShiftState);
+begin
+  if Key = 13 then
+    Button1Click(Self);
+end;
+
 procedure TForm24.FormCreate(Sender: TObject);
 begin
-  Image1.Visible := False;
+  FPosition := ksCbpLeft;
+  ksTableView1.Appearence.SeparatorColor := claNull;
+
   ksTableView1.BeginUpdate;
   try
-    ksTableView1.Items.AddChatBubble('Oh, hello there, this is the start of the conversation', ksCbpLeft, claDodgerblue, claWhite);
-    ksTableView1.Items.AddChatBubble('Great conversation! thanks for letting me know!', ksCbpRight, $FFDDDDDD, claBlack);
-    ksTableView1.Items.AddChatBubble('ok, gotta go!', ksCbpLeft, claDodgerblue, claWhite);
-    ksTableView1.Items.AddChatBubble('Bye!', ksCbpRight, $FFDDDDDD, claBlack);
+    AddChatText('Oh, hello there, this is the start of the conversation');
+    AddChatText('Great conversation! thanks for letting me know!');
+    AddChatText('ok, gotta go!');
+    AddChatText('Bye!');
   finally
     ksTableView1.EndUpdate;
   end;

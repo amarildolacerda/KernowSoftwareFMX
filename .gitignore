@@ -169,3 +169,4 @@ Demos/ksComponents.dproj
 *.deployproj
 ksTableView_BACKUP.pas
 Samples/Check Marks/AndroidManifest.template.xml
+Tests/Win32/Debug/dunitx-results.xml

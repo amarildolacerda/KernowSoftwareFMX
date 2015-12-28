@@ -247,12 +247,8 @@ type
     procedure SetShowSelection(const Value: Boolean);
     procedure SetSelected(const Value: Boolean);
     procedure SetVisible(const Value: Boolean);
-
   protected
     function ConsumesClick: Boolean; virtual;
-    //function GetAlign: TksTableItemAlign;
-    //function GetID: string;
-    //function GetVertAlign: TksTableItemAlign;
     function GetItemRect: TRectF;
     function GetObjectRect: TRectF; virtual;
     procedure Changed;
@@ -293,7 +289,6 @@ type
   private
     FFocused: Boolean;
     FCached: TBitmap;
-    procedure SimulateClick(x, y: single);
     procedure DoExitControl(Sender: TObject);
     procedure ApplyStyle(AControl: TFmxObject);
   protected
@@ -445,6 +440,7 @@ type
   public
     constructor Create(ATableItem: TksTableViewItem); override;
     destructor Destroy; override;
+    function CalculateSize: TSizeF;
     procedure Assign(ASource: TksTableViewItemText);
     property Background: TAlphaColor read FBackground write SetBackground default claNull;
     property Font: TFont read FFont write SetFont;
@@ -455,6 +451,7 @@ type
     property Trimming: TTextTrimming read FTrimming write SetTrimming default TTextTrimming.Character;
     property WordWrap: Boolean read FWordWrap write SetWordWrap default False;
     property IsHtmlText: Boolean read FIsHtmlText;
+
   end;
 
   //---------------------------------------------------------------------------------------
@@ -915,6 +912,7 @@ type
     function GetFirstItem: TksTableViewItem;
   protected
     function GetTotalItemHeight: single;
+    procedure Notify(const Value: TksTableViewItem; Action: TCollectionNotification); override;
   public
     constructor Create(ATableView: TksTableView; AOwnsObjects: Boolean); virtual;
     function AddHeader(AText: string): TksTableViewItem;
@@ -927,6 +925,7 @@ type
     function AddItemSelector(AText, ASelected: string; AItems: array of string): TksTableViewItem; overload;
     function AddItemWithSwitch(AText: string; AChecked: Boolean; AID: string): TksTableViewItem;
     function GetCheckedCount: integer;
+    procedure Delete(AIndex: integer); reintroduce;
     procedure DeleteItem(AItem: TksTableViewItem);
     property FirstItem: TksTableViewItem read GetFirstItem;
     property LastItem: TksTableViewItem read GetLastItem;
@@ -1634,6 +1633,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
+    function GetScreenScale: Extended;
     function GetItemFromPos(AXPos,AYPos: single): TksTableViewItem;
     procedure ClearItems;
     procedure BeginUpdate; {$IFDEF XE8_OR_NEWER} override; {$ENDIF}
@@ -1755,6 +1755,9 @@ type
     property OnStickyHeaderChange: TksTableViewStickyHeaderChange read FOnStickyHeaderChange write FOnStickyHeaderChange;
   end;
 
+  procedure SimulateClick(AControl: TControl; x, y: single);
+
+
 procedure Register;
 
 implementation
@@ -1804,7 +1807,6 @@ var
   ATextLayout: TTextLayout;
   _ScreenScale: single;
   AIsSwiping: Boolean;
-  //ActiveStyle: TFmxObject;
 
 procedure Register;
 begin
@@ -1932,7 +1934,7 @@ begin
 {$ENDIF}
 end;
 
-function GetTextWidth(AText: string; AFont: TFont; AWordWrap: Boolean;
+function CalculateTextWidth(AText: string; AFont: TFont; AWordWrap: Boolean;
   const AMaxWidth: single = 0): single;
 var
   APoint: TPointF;
@@ -1955,7 +1957,7 @@ begin
   Result := ATextLayout.Width;
 end;
 
-function GetTextHeight(AText: string; AFont: TFont; AWordWrap: Boolean; ATrimming: TTextTrimming;
+function CalculateTextHeight(AText: string; AFont: TFont; AWordWrap: Boolean; ATrimming: TTextTrimming;
   const AWidth: single = 0): single;
 var
   APoint: TPointF;
@@ -2005,7 +2007,7 @@ begin
 end;
 
 procedure DrawAccessory(ACanvas: TCanvas; ARect: TRectF; AAccessory: TksAccessoryType;
-  AStroke, AFill, AAccessoryColor: TAlphaColor; const ACopyTo: TBitmap = nil);
+  AStroke, AFill: TAlphaColor);
 var
   AState: TCanvasSaveState;
 begin
@@ -2047,7 +2049,23 @@ begin
   finally
     ABmp.Unmap(AMap);
   end;
+end;
+
+procedure SimulateClick(AControl: TControl; x, y: single);
+var
+  AForm     : TCommonCustomForm;
+  AFormPoint: TPointF;
+begin
+  AForm := nil;
+  if (AControl.Root is TCustomForm) then
+    AForm := (AControl.Root as TCustomForm);
+  if AForm <> nil then
+  begin
+    AFormPoint := AControl.LocalToAbsolute(PointF(X,Y));
+    AForm.MouseDown(TMouseButton.mbLeft, [], AFormPoint.X, AFormPoint.Y);
+    AForm.MouseUp(TMouseButton.mbLeft, [], AFormPoint.X, AFormPoint.Y);
   end;
+end;
 
 //---------------------------------------------------------------------------------------
 
@@ -2304,6 +2322,12 @@ end;
 
 { TksTableViewItemText }
 
+function TksTableViewItemText.CalculateSize: TSizeF;
+begin
+  Result.cx := CalculateTextWidth(FText, FFont, FWordWrap, FWidth);
+  Result.cy := CalculateTextHeight(FText, FFont, FWordWrap, FTrimming, FWidth);
+end;
+
 constructor TksTableViewItemText.Create(ATableItem: TksTableViewItem);
 begin
   inherited;
@@ -2342,7 +2366,7 @@ end;
 
 procedure TksTableViewItemText.FontChanged(Sender: TObject);
 begin
-  Height := GetTextHeight(FText, FFont, FWordWrap, FTrimming)
+  Height := CalculateTextHeight(FText, FFont, FWordWrap, FTrimming)
 end;
 
 procedure TksTableViewItemText.Render(ACanvas: TCanvas);
@@ -2784,6 +2808,11 @@ begin
   FTableView := ATableView;
 end;
 
+procedure TksTableViewItems.Delete(AIndex: integer);
+begin
+  DeleteItem(Items[AIndex]);
+end;
+
 procedure TksTableViewItems.DeleteItem(AItem: TksTableViewItem);
 var
   ICount: integer;
@@ -2820,7 +2849,8 @@ begin
       ProcessMessages;
       {$ENDIF}
     end;
-    Delete(AIndex);
+
+    inherited Delete(AIndex);
     FTableView.UpdateAll(True);
     FTableView.Invalidate;
   finally
@@ -2884,6 +2914,15 @@ begin
     Result := ALastHeaderItem.ItemRect.Top + FTableView.Height - FTableView.GetStartOffsetY - FTableView.GetFixedFooterHeight;
 end;
 
+procedure TksTableViewItems.Notify(const Value: TksTableViewItem; Action: TCollectionNotification);
+begin
+  inherited;
+  if Action = TCollectionNotification.cnRemoved then
+  begin
+
+  end;
+end;
+
 procedure TksTableViewItems.UpdateIndexes;
 var
   ICount: integer;
@@ -2909,6 +2948,7 @@ begin
   Result.TintColor := ATintColor;
   Result.Text := AText;
   FObjects.Add(Result);
+  Changed;
 end;
 
 function TksTableViewItem.AddButton(AStyle: TksTableViewButtonStyle; const ATintColor: TAlphaColor): TksTableViewItemButton;
@@ -2916,6 +2956,7 @@ begin
   Result := AddButton(44, '', ATintColor);
   Result.Width := 44;
   Result.Height := 44;
+  Changed;
 end;
 
 function TksTableViewItem.AddDateEdit(AX, AY, AWidth: single;
@@ -2927,6 +2968,7 @@ begin
   Result.VertAlign := TksTableItemAlign.Center;
   Result.Date := ADate;
   FObjects.Add(Result);
+  Changed;
 end;
 
 function TksTableViewItem.AddEdit(AX, AY, AWidth: single; AText: string; const AStyle: TksEmbeddedEditStyle = TksEmbeddedEditStyle.ksEditNormal): TksTableViewItemEmbeddedEdit;
@@ -2938,6 +2980,7 @@ begin
   Result.Style := AStyle;
   Result.Text := AText;
   FObjects.Add(Result);
+  Changed;
 end;
 
 function TksTableViewItem.AddSwitch(x: single; AIsChecked: Boolean;
@@ -2949,6 +2992,7 @@ begin
   Result.Align := AAlign;
   Result.VertAlign := TksTableItemAlign.Center;
   FObjects.Add(Result);
+  Changed;
 end;
 
 function TksTableViewItem.AddTable(AX, AY, AColWidth, ARowHeight: single; AColCount, ARowCount: integer): TksTableViewItemTable;
@@ -2960,8 +3004,8 @@ begin
   Result.RowCount := ARowCount;
   Result.FPlaceOffset := PointF(AX, AY);
   Result.ResizeTable;
-
   FObjects.Add(Result);
+  Changed;
 end;
 
 procedure TksTableViewItem.CacheItem(const AForceCache: Boolean = False);
@@ -3039,7 +3083,7 @@ begin
       FTableView.BeforeRowCache(FTableView, FBitmap.Canvas, Self, ARect);
 
     // indicator...
-    {case FTableView.RowIndicators.Outlined of
+    case FTableView.RowIndicators.Outlined of
       False: FIndicator.Stroke.Kind := TBrushKind.None;
       True: FIndicator.Stroke.Kind := TBrushKind.Solid;
     end;
@@ -3047,7 +3091,7 @@ begin
     if FTableView.RowIndicators.Height <> 0 then
       FIndicator.Height := FTableView.RowIndicators.Height;
     FIndicator.Shape := FTableView.RowIndicators.Shape;
-    FIndicator.Render(FBitmap.Canvas);}
+    FIndicator.Render(FBitmap.Canvas);
 
 
     FTileBackground.Render(FBitmap.Canvas);
@@ -3091,7 +3135,9 @@ end;
 procedure TksTableViewItem.Changed;
 begin
   FCached := False;
-  if FTableView.FUpdateCount = 0 then
+  if FUpdating then
+    Exit;
+  if (FTableView.FUpdateCount = 0) then
     FTableView.Invalidate;
 end;
 
@@ -3114,8 +3160,8 @@ begin
     FFont := TFont.Create;
     FFont.Size := C_TABLEVIEW_DEFAULT_FONT_SIZE;
     FFill := TBrush.Create(TBrushKind.None, claNull);
-    //FIndicator := TksTableViewItemShape.Create(Self);
-    //FIndicator.VertAlign := TksTableItemAlign.Center;
+    FIndicator := TksTableViewItemShape.Create(Self);
+    FIndicator.VertAlign := TksTableItemAlign.Center;
 
     FTileBackground := TksTableViewItemTileBackground.Create(Self);
 
@@ -3127,10 +3173,6 @@ begin
 
     FAccessory := TksTableViewItemAccessory.Create(Self);
 
-    //FCheckMarkAccessory := TksTableViewItemAccessory.Create(Self);
-    //FCheckMarkAccessory.FAccessory := atCheckBox;
-    //FCheckMarkAccessory.FAlign := TksTableItemAlign.Leading;
-    //FCheckMarkAccessory.FColor := C_TABLEVIEW_ACCESSORY_KEEPCOLOR;
     FCheckMarkAccessory := TableView.CheckMarkOptions.FCheckMarkUnchecked;
 
     FTitle := TksTableViewItemText.Create(Self);
@@ -3180,7 +3222,7 @@ begin
   FreeAndNil(FTitle);
   FreeAndNil(FSubTitle);
   FreeAndNil(FDetail);
-  //FreeAndNil(FIndicator);
+  FreeAndNil(FIndicator);
   FreeAndNil(FTileBackground);
   FreeAndNil(FAccessory);
   FreeAndNil(FObjects);
@@ -3333,28 +3375,34 @@ begin
   Result.VertAlign := TksTableItemAlign.Center;
   Result.Bitmap := ABmp;
   FObjects.Add(Result);
+  Changed;
 end;
 
 function TksTableViewItem.DrawChatBubble(AText: string;
   APosition: TksTableViewChatBubblePosition; AColor,
   ATextColor: TAlphaColor): TksTableViewChatBubble;
 begin
-  Result := TksTableViewChatBubble.Create(Self);
-
-  Result.FText := AText;
-  case APosition  of
-    ksCbpLeft: Result.Align := TksTableItemAlign.Leading;
-    ksCbpRight: Result.Align := TksTableItemAlign.Trailing;
+  FUpdating := True;
+  try
+    Result := TksTableViewChatBubble.Create(Self);
+    Result.FText := AText;
+    case APosition  of
+      ksCbpLeft: Result.Align := TksTableItemAlign.Leading;
+      ksCbpRight: Result.Align := TksTableItemAlign.Trailing;
+    end;
+    Result.OffsetX := 16;
+    if APosition = ksCbpRight then
+      Result.OffsetX := -16;
+    Result.RecalculateSize;
+    Result.CornerRadius := 16;
+    Result.Fill.Color := AColor;
+    Result.FTextColor := ATextColor;
+    CanSelect := False;
+    Objects.Add(Result);
+  finally
+    FUpdating := False;
   end;
-  Result.OffsetX := 16;
-  if APosition = ksCbpRight then
-    Result.OffsetX := -16;
-
-  Result.RecalculateSize;
-  Result.CornerRadius := 16;
-  Result.Fill.Color := AColor;
-  Result.FTextColor := ATextColor;
-  Objects.Add(Result);
+  Changed;
 end;
 
 function TksTableViewItem.DrawRect(x, y, AWidth, AHeight: single;
@@ -3368,6 +3416,7 @@ begin
   Result.Fill.Color := AFill;
   Result.VertAlign := TksTableItemAlign.Center;
   FObjects.Add(Result);
+  Changed;
 end;
 
 function TksTableViewItem.DrawRect(ARect: TRectF; AStroke, AFill: TAlphaColor): TksTableViewItemShape;
@@ -3523,11 +3572,11 @@ begin
       FTitle.FPlaceOffset := PointF(ARect.Left, 0);
       FTitle.Width := ARect.Width;
 
-      FTitle.Height := GetTextHeight(FTitle.Text, FTitle.Font,  FTitle.WordWrap, FTitle.FTrimming, FTitle.Width);
+      FTitle.Height := CalculateTextHeight(FTitle.Text, FTitle.Font,  FTitle.WordWrap, FTitle.FTrimming, FTitle.Width);
 
       FSubTitle.FPlaceOffset := PointF(ARect.Left, 0);
       FSubTitle.Width := ARect.Width;
-      FSubTitle.Height := GetTextHeight(FSubTitle.Text, FSubTitle.Font, FSubTitle.WordWrap, FSubTitle.FTrimming, FSubTitle.Width);
+      FSubTitle.Height := CalculateTextHeight(FSubTitle.Text, FSubTitle.Font, FSubTitle.WordWrap, FSubTitle.FTrimming, FSubTitle.Width);
       if FSubTitle.Text <> '' then
       begin
         FTitle.FPlaceOffset := PointF(FTitle.FPlaceOffset.x, -9);
@@ -3535,7 +3584,7 @@ begin
       end;
       FDetail.FPlaceOffset := PointF(ARect.Right-(ARect.Width/2), 0);
       FDetail.Width := ARect.Width/2;
-      FDetail.Height := GetTextHeight(FDetail.Text, FDetail.Font, FDetail.WordWrap, FDetail.FTrimming);
+      FDetail.Height := CalculateTextHeight(FDetail.Text, FDetail.Font, FDetail.WordWrap, FDetail.FTrimming);
     end
     else if (FAppearance>=iaTile_Image) and (FAppearance<=iaTile_SubTitleImageTitle) then
     begin
@@ -3574,16 +3623,16 @@ begin
 
       if (FAppearance=iaTile_TitleImage) or (FAppearance=iaTile_TitleImageSubTitle) then
       begin
-        FTitle.Width        := GetTextWidth(FTitle.Text, FTitle.Font, False);
-        FTitle.Height       := GetTextHeight(FTitle.Text, FTitle.Font,  FTitle.WordWrap, FTitle.FTrimming, FTitle.Width);
+        FTitle.Width        := CalculateTextWidth(FTitle.Text, FTitle.Font, False);
+        FTitle.Height       := CalculateTextHeight(FTitle.Text, FTitle.Font,  FTitle.WordWrap, FTitle.FTrimming, FTitle.Width);
         FTitle.FPlaceOffset := PointF(ARect.Left + ((ARect.Width - FTitle.Width) / 2), ARect.Top);
 
         TileImageOffsetT := FTitle.Height;
       end
       else if (FAppearance=iaTile_SubTitleImageTitle) then
       begin
-        FSubTitle.Width        := GetTextWidth(FSubTitle.Text, FSubTitle.Font, False);
-        FSubTitle.Height       := GetTextHeight(FSubTitle.Text, FSubTitle.Font, FSubTitle.WordWrap, FSubTitle.FTrimming, FSubTitle.Width);
+        FSubTitle.Width        := CalculateTextWidth(FSubTitle.Text, FSubTitle.Font, False);
+        FSubTitle.Height       := CalculateTextHeight(FSubTitle.Text, FSubTitle.Font, FSubTitle.WordWrap, FSubTitle.FTrimming, FSubTitle.Width);
         FSubTitle.FPlaceOffset := PointF(ARect.Left + ((ARect.Width - FSubTitle.Width) / 2), ARect.Top);
 
         TileImageOffsetT := FSubTitle.Height;
@@ -3591,16 +3640,16 @@ begin
 
       if (FAppearance=iaTile_ImageTitle) or (FAppearance=iaTile_SubTitleImageTitle) then
       begin
-        FTitle.Width        := GetTextWidth(FTitle.Text, FTitle.Font, False);
-        FTitle.Height       := GetTextHeight(FTitle.Text, FTitle.Font,  FTitle.WordWrap, FTitle.FTrimming, FTitle.Width);
+        FTitle.Width        := CalculateTextWidth(FTitle.Text, FTitle.Font, False);
+        FTitle.Height       := CalculateTextHeight(FTitle.Text, FTitle.Font,  FTitle.WordWrap, FTitle.FTrimming, FTitle.Width);
         FTitle.FPlaceOffset := PointF(ARect.Left + ((ARect.Width - FTitle.Width) / 2), ARect.Bottom - FTitle.Height);
 
         TileImageOffsetB := FTitle.Height;
       end
       else if (FAppearance=iaTile_TitleImageSubTitle) then
       begin
-        FSubTitle.Width        := GetTextWidth(FSubTitle.Text, FSubTitle.Font, False);
-        FSubTitle.Height       := GetTextHeight(FSubTitle.Text, FSubTitle.Font, FSubTitle.WordWrap, FSubTitle.FTrimming, FSubTitle.Width);
+        FSubTitle.Width        := CalculateTextWidth(FSubTitle.Text, FSubTitle.Font, False);
+        FSubTitle.Height       := CalculateTextHeight(FSubTitle.Text, FSubTitle.Font, FSubTitle.WordWrap, FSubTitle.FTrimming, FSubTitle.Width);
         FSubTitle.FPlaceOffset := PointF(ARect.Left + ((ARect.Width - FSubTitle.Width) / 2), ARect.Bottom - FSubTitle.Height);
 
         TileImageOffsetB := FSubTitle.Height;
@@ -3960,7 +4009,7 @@ begin
   if AIsHtml then
     Result := GetTextSizeHtml(AText, FFont, AMaxWidth).y
   else
-    Result := GetTextHeight(AText, FFont, AWordWrap, ATrimming, AMaxWidth);
+    Result := CalculateTextHeight(AText, FFont, AWordWrap, ATrimming, AMaxWidth);
 end;
 
 function TksTableViewItem.TextOut(AText: string; x: single;
@@ -3984,9 +4033,9 @@ begin
   Result.Font.Assign(Font);
   Result.FPlaceOffset := PointF(x, y);
 
-  AHeight := GetTextHeight(AText, FFont, AWordWrap, Result.Trimming, AWidth);
+  AHeight := CalculateTextHeight(AText, FFont, AWordWrap, Result.Trimming, AWidth);
   if AWidth = 0 then
-    AWidth := GetTextWidth(AText, Font, AWordWrap);
+    AWidth := CalculateTextWidth(AText, Font, AWordWrap);
 
   Result.Width := AWidth;
   Result.Height := AHeight;
@@ -4013,9 +4062,15 @@ function TksTableViewItem.TextOutRight(AText: string;
   y, AWidth, AXOffset: single; const AVertAlign: TksTableItemAlign)
   : TksTableViewItemText;
 begin
-  Result := TextOut(AText, AXOffset, y, AWidth, AVertAlign);
-  Result.Align := TksTableItemAlign.Trailing;
-  Result.TextAlignment := TTextAlign.Trailing;
+  FUpdating := True;
+  try
+    Result := TextOut(AText, AXOffset, y, AWidth, AVertAlign);
+    Result.Align := TksTableItemAlign.Trailing;
+    Result.TextAlignment := TTextAlign.Trailing;
+  finally
+    FUpdating := False;
+  end;
+  Changed;
 end;
 
 function TksTableViewItem.TextWidth(AText: string; AIsHtml: Boolean): single;
@@ -4023,7 +4078,7 @@ begin
   if AIsHtml then
     Result := GetTextSizeHtml(AText, FFont, 0).x
   else
-    Result := GetTextWidth(AText, FFont, False);
+    Result := CalculateTextWidth(AText, FFont, False);
 end;
 
 // ------------------------------------------------------------------------------
@@ -5195,6 +5250,11 @@ begin
   Result := RectF(pt.x - v, pt.y - v, pt.x + v, pt.y + v);
 end;
 
+function TksTableView.GetScreenScale: Extended;
+begin
+  Result := _ScreenScale;
+end;
+
 function TksTableView.GetSearchHeight: single;
 begin
   Result := 0;
@@ -5729,8 +5789,8 @@ begin
                   OffsetRect(FStickyButtonRect,-(SelectionOptions.FSelectionOverlay.Stroke.Thickness/2),0);
                 // draw the sticky button...
                 case FHeaderOptions.StickyHeaders.Button.Selected of
-                  True: DrawAccessory(Canvas, FStickyButtonRect, TksAccessoryType.atArrowDown, claBlack, FAppearence.SelectedColor, claNull);
-                  False: DrawAccessory(Canvas, FStickyButtonRect, TksAccessoryType.atArrowDown, claNull, claNull, claNull);
+                  True: DrawAccessory(Canvas, FStickyButtonRect, TksAccessoryType.atArrowDown, claBlack, FAppearence.SelectedColor);
+                  False: DrawAccessory(Canvas, FStickyButtonRect, TksAccessoryType.atArrowDown, claNull, claNull);
                 end;
               end;
             end;
@@ -7493,7 +7553,7 @@ begin
   FControl.Visible := False;
 
 end;
-
+      {
 procedure TksTableViewItemEmbeddedControl.SimulateClick(x, y: single);
 var
   AParent   : TFmxObject;
@@ -7514,7 +7574,7 @@ begin
     AForm.MouseDown(TMouseButton.mbLeft, [], AFormPoint.X, AFormPoint.Y);
     AForm.MouseUp(TMouseButton.mbLeft, [], AFormPoint.X, AFormPoint.Y);
   end;
-end;
+end;     }
 
 procedure TksTableViewItemEmbeddedControl.MouseDown(x, y: single);
 begin
@@ -7522,7 +7582,7 @@ begin
     Exit;
   GetControlBitmap(True);
   FocusControl;
-  SimulateClick(x, y);
+  SimulateClick(FControl, x, y);
 end;
 
 procedure TksTableViewItemEmbeddedControl.Render(ACanvas: TCanvas);
@@ -9061,8 +9121,8 @@ end;
 
 procedure TksTableViewChatBubble.RecalculateSize;
 begin
-  FWidth := GetTextWidth(FText, FFont, False, FTableItem.TableView.Width * 0.60)+24;
-  FHeight := GetTextHeight(FText, FFont, True, TTextTrimming.None, FWidth)+16;
+  FWidth := CalculateTextWidth(FText, FFont, False, FTableItem.TableView.Width * 0.60)+24;
+  FHeight := CalculateTextHeight(FText, FFont, True, TTextTrimming.None, FWidth)+16;
 end;
 
 procedure TksTableViewChatBubble.Render(ACanvas: TCanvas);
