@@ -822,6 +822,7 @@ type
     procedure SetFill(const Value: TBrush);
     procedure SelectFirstEmbeddedEdit;
     function IsHeader: Boolean;
+    procedure Invalidate;
   protected
     function Render(ACanvas: TCanvas; AScrollPos: single): TRectF;
     procedure CacheItem(const AForceCache: Boolean = False);
@@ -3452,6 +3453,11 @@ begin
 end;
 
 
+procedure TksTableViewItem.Invalidate;
+begin
+  TableView.Invalidate;
+end;
+
 function TksTableViewItem.IsHeader: Boolean;
 begin
   Result := FPurpose = TksTableViewItemPurpose.Header;
@@ -3843,7 +3849,7 @@ begin
   begin
     FHeightPercentage := Value;
     FTableView.UpdateAll(False);
-    CacheItem(True);
+    Invalidate;
   end;
 end;
 
@@ -3872,7 +3878,7 @@ begin
   begin
     FAppearance := Value;
     FCached := False;
-    CacheItem;
+    Invalidate;
   end;
 end;
 
@@ -3883,7 +3889,7 @@ begin
     FHidden := Value;
     FTableView.ClearCache;
     FTableView.UpdateAll(true);
-    FTableView.Invalidate;
+    Invalidate;
   end;
 end;
 
@@ -3891,7 +3897,7 @@ procedure TksTableViewItem.SetIndicatorColor(const Value: TAlphaColor);
 begin
   FIndicator.Fill.Color := Value;
   FCached := False;
-  CacheItem;
+  Invalidate;
 end;
 
 procedure TksTableViewItem.SetItemFontStyle(AFontStyle: TFontStyles);

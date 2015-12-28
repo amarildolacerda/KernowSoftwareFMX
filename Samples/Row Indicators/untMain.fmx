@@ -70,6 +70,13 @@ object Form24: TForm24
       TabOrder = 0
       OnChange = ComboBox1Change
     end
+    object Button1: TButton
+      Position.X = 208.000000000000000000
+      Position.Y = 8.000000000000000000
+      TabOrder = 2
+      Text = 'Button1'
+      OnClick = Button1Click
+    end
   end
   object ToolBar1: TToolBar
     Size.Width = 327.000000000000000000

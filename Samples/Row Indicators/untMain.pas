@@ -15,9 +15,11 @@ type
     Label1: TLabel;
     CheckBox1: TCheckBox;
     ComboBox1: TComboBox;
+    Button1: TButton;
     procedure FormCreate(Sender: TObject);
     procedure ComboBox1Change(Sender: TObject);
     procedure CheckBox1Change(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
   private
     { Private declarations }
   public
@@ -32,6 +34,11 @@ implementation
 uses System.UIConsts;
 
 {$R *.fmx}
+
+procedure TForm24.Button1Click(Sender: TObject);
+begin
+  ksTableView1.Items[0].IndicatorColor := claGreen;
+end;
 
 procedure TForm24.CheckBox1Change(Sender: TObject);
 begin
