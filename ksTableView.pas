@@ -1790,7 +1790,7 @@ type
   private
     FImageScale: integer;
     FImageMap: TBitmap;
-    FActiveStyle: TFmxObject;
+    //FActiveStyle: TFmxObject;
     procedure AddEllipsesAccessory;
     procedure AddFlagAccessory;
     function GetAccessoryFromResource(AStyleName: string; const AState: string = ''): TksTableViewAccessoryImage;
@@ -4243,20 +4243,17 @@ constructor TksTableViewAccessoryImageList.Create;
 begin
   inherited Create(True);
   FImageMap := TBitmap.Create;
-  FActiveStyle := TStyleManager.ActiveStyle(Nil);
 end;
 
 destructor TksTableViewAccessoryImageList.Destroy;
 begin
   FreeAndNil(FImageMap);
-  FreeAndNil(FActiveStyle);
   inherited;
 end;
 
 function TksTableViewAccessoryImageList.GetAccessoryFromResource
   (AStyleName: string; const AState: string = ''): TksTableViewAccessoryImage;
 var
-  //ActiveStyle: TFmxObject;
   AStyleObj: TStyleObject;
   AImgRect: TBounds;
   AIds: TStrings;
@@ -4276,10 +4273,7 @@ begin
     AIds.Text := StringReplace(AStyleName, '.', #13, [rfReplaceAll]);
 
 
-    //ActiveStyle := TStyleManager.ActiveStyle(Nil);
-
-
-    AStyleObj := TStyleObject(FActiveStyle);
+    AStyleObj := TStyleObject(TStyleManager.ActiveStyle(nil));
 
     while AIds.Count > 0 do
     begin
