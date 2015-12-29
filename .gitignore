@@ -104,6 +104,9 @@ $RECYCLE.BIN/
 Finalbuilder/build_test.fbl7
 KernowSoftwareFMX.rc
 *.fbz7
+iosdevice64
+iosdevice32
+Win32
 KernowSoftwareFMX.res
 Demos/Screenshots
 Demos/iosdevice32
@@ -170,3 +173,4 @@ Demos/ksComponents.dproj
 ksTableView_BACKUP.pas
 Samples/Check Marks/AndroidManifest.template.xml
 Tests/Win32/Debug/dunitx-results.xml
+Tests/dunitx-results.xml

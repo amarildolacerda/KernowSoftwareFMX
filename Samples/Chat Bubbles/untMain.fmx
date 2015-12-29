@@ -2,20 +2,22 @@ object Form24: TForm24
   Left = 0
   Top = 0
   Caption = 'Form24'
-  ClientHeight = 480
+  ClientHeight = 531
   ClientWidth = 300
   FormFactor.Width = 320
   FormFactor.Height = 480
   FormFactor.Devices = [Desktop]
   OnCreate = FormCreate
-  DesignerMasterStyle = 0
+  OnVirtualKeyboardShown = FormVirtualKeyboardShown
+  OnVirtualKeyboardHidden = FormVirtualKeyboardHidden
+  DesignerMasterStyle = 2
   object ToolBar2: TToolBar
     Align = Bottom
     Padding.Left = 8.000000000000000000
     Padding.Top = 8.000000000000000000
     Padding.Right = 8.000000000000000000
     Padding.Bottom = 8.000000000000000000
-    Position.Y = 436.000000000000000000
+    Position.Y = 437.000000000000000000
     Size.Width = 300.000000000000000000
     Size.Height = 44.000000000000000000
     Size.PlatformDefault = False
@@ -25,28 +27,29 @@ object Form24: TForm24
       Touch.InteractiveGestures = [LongTap, DoubleTap]
       Align = Client
       TabOrder = 0
-      Size.Width = 224.000000000000000000
-      Size.Height = 28.000000000000000000
+      Size.Width = 200.000000000000000000
+      Size.Height = 30.000000000000000000
       Size.PlatformDefault = False
       OnKeyDown = Edit1KeyDown
+      OnEnter = Edit1Enter
     end
     object Button1: TButton
       Align = Right
-      Position.X = 232.000000000000000000
+      CanFocus = False
+      Margins.Left = 8.000000000000000000
+      Position.X = 216.000000000000000000
       Position.Y = 8.000000000000000000
-      Size.Width = 60.000000000000000000
-      Size.Height = 28.000000000000000000
+      Size.Width = 76.000000000000000000
+      Size.Height = 30.000000000000000000
       Size.PlatformDefault = False
+      StyleLookup = 'listitembutton'
       TabOrder = 1
       Text = 'SEND'
       OnClick = Button1Click
     end
   end
   object ToolBar1: TToolBar
-    Padding.Left = 8.000000000000000000
     Padding.Top = 8.000000000000000000
-    Padding.Right = 8.000000000000000000
-    Padding.Bottom = 8.000000000000000000
     Size.Width = 300.000000000000000000
     Size.Height = 44.000000000000000000
     Size.PlatformDefault = False
@@ -59,17 +62,20 @@ object Form24: TForm24
       Size.PlatformDefault = False
       TextSettings.Font.Size = 16.000000000000000000
       TextSettings.HorzAlign = Center
-      Text = 'Chat Bubbles Demo'
+      Text = 'Chat Bubbles'
     end
     object Button2: TButton
-      Align = Right
-      Position.X = 240.000000000000000000
-      Position.Y = 8.000000000000000000
-      Size.Width = 52.000000000000000000
-      Size.Height = 28.000000000000000000
+      Align = FitRight
+      CanFocus = False
+      StyledSettings = [Family, Style, FontColor]
+      Position.X = 232.000000000000000000
+      Size.Width = 68.000000000000000000
+      Size.Height = 44.000000000000000000
       Size.PlatformDefault = False
+      StyleLookup = 'toolbutton'
       TabOrder = 0
       Text = 'CLEAR'
+      TextSettings.Font.Size = 13.000000000000000000
       OnClick = Button2Click
     end
   end
@@ -88,7 +94,7 @@ object Form24: TForm24
     PullToRefresh.ReleaseText = 'release to refresh'
     SelectionOptions.SelectionOverlay.Size = 0
     Size.Width = 300.000000000000000000
-    Size.Height = 392.000000000000000000
+    Size.Height = 393.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 2
     TextDefaults.Title.Font.Size = 13.000000000000000000
@@ -99,5 +105,13 @@ object Form24: TForm24
     TextDefaults.Detail.TextColor = claDodgerblue
     TextDefaults.Header.Font.Size = 13.000000000000000000
     TextDefaults.Header.TextColor = claBlack
+  end
+  object Layout1: TLayout
+    Align = MostBottom
+    Position.Y = 481.000000000000000000
+    Size.Width = 300.000000000000000000
+    Size.Height = 50.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 3
   end
 end

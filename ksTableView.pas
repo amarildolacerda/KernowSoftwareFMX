@@ -1554,7 +1554,7 @@ type
     FOnAfterPaint : TPaintEvent;
     function GetViewPort: TRectF;
     procedure UpdateStickyHeaders;
-    procedure SetScrollViewPos(const Value: single);
+    procedure SetScrollViewPos(const Value: single; const AAnimate: Boolean = False);
     procedure AniCalcStart(Sender: TObject);
     procedure AniCalcChange(Sender: TObject);
     procedure AniCalcStop(Sender: TObject);
@@ -1612,6 +1612,7 @@ type
     procedure DoItemsChanged(Sender: TObject; const Item: TksTableViewItem; Action: TCollectionNotification);
     function GetSearchText: string;
     procedure SetSearchText(const Value: string);
+    procedure CreateAniCalculator;
   protected
     function GetTotalItemHeight: single;
     function IsHeader(AItem: TksTableViewItem): Boolean;
@@ -1647,7 +1648,7 @@ type
     procedure RedrawAllVisibleItems;
     procedure ClearCache;
     procedure ScrollTo(const Value: single);
-    procedure ScrollToItem(AItem: TksTableViewItem); overload;
+    procedure ScrollToItem(AItem: TksTableViewItem; const AAnimate: Boolean = False); overload;
     procedure ScrollToItem(AItemIndex: integer); overload;
     procedure BringSelectedIntoView;
     procedure CheckChildren(AHeader: TksTableViewItem ; Value : Boolean);
@@ -2113,6 +2114,7 @@ procedure TksTableViewItemObject.MouseDown(x, y: single);
 begin
   if (FHitTest) then
   begin
+
     FMouseDown := True;
     if FShowSelection then 
       FSelected := True;
@@ -2764,7 +2766,6 @@ begin
   Result.Height := FTableView.ItemHeight;
   Add(Result);
   UpdateIndexes;
-
   FTableView.UpdateAll(True);
 end;
 
@@ -4651,8 +4652,11 @@ begin
     Targets[0].Point := TPointD.Create(0, 0);
     Targets[1].TargetType := TAniCalculations.TTargetType.Max;
     FMaxScrollPos := Max((GetTotalItemHeight - Height) + GetStartOffsetY + GetFixedFooterHeight, 0);
+    if FMaxScrollPos < FScrollPos then
+      FScrollPos := FMaxScrollPos;
     Targets[1].Point := TPointD.Create(0,FMaxScrollPos);
     FAniCalc.SetTargets(Targets);
+    FAniCalc.ViewportPosition := PointF(0, FScrollPos);
   end;
 end;
 
@@ -4755,18 +4759,7 @@ begin
   Size.Height := C_TABLEVIEW_DEFAULT_HEIGHT;
   ClipChildren := True;
 
-  FAniCalc := TAniCalculations.Create(nil);
-  FAniCalc.Animation := True;
-  FAniCalc.Averaging := True;
-  FAniCalc.OnChanged := AniCalcChange;
-  FAniCalc.Interval := 8;
-  FAniCalc.OnStart := AniCalcStart;
-  FAniCalc.OnStop := AniCalcStop;
-  FAniCalc.BoundsAnimation := True;
-  FAniCalc.TouchTracking := [ttVertical];
-
-
-  UpdateScrollingLimits;
+  CreateAniCalculator;
   FSearchVisible := False;
   FItemIndex := -1;
   FItemHeight := C_TABLEVIEW_DEFAULT_ITEM_HEIGHT;
@@ -4785,6 +4778,22 @@ begin
   SetAcceptsControls(False);
   FItems.OnNotify := DoItemsChanged;
   FCascadeHeaderCheck := True;
+end;
+
+procedure TksTableView.CreateAniCalculator;
+begin
+  if FAniCalc <> nil then
+    FreeAndNil(FAniCalc);
+  FAniCalc := TAniCalculations.Create(nil);
+  FAniCalc.Animation := True;
+  FAniCalc.Averaging := True;
+  FAniCalc.OnChanged := AniCalcChange;
+  FAniCalc.Interval := 8;
+  FAniCalc.OnStart := AniCalcStart;
+  FAniCalc.OnStop := AniCalcStop;
+  FAniCalc.BoundsAnimation := True;
+  FAniCalc.TouchTracking := [ttVertical];
+  UpdateScrollingLimits;
 end;
 
 destructor TksTableView.Destroy;
@@ -5425,7 +5434,10 @@ begin
   if (FUpdateCount > 0) or (AIsSwiping) then
     Exit;
 
+  if (Root is TCommonCustomForm) then
+    (Root as TCommonCustomForm).Focused := nil;
   Capture;
+
 
   FMouseDownObject := nil;
   FMouseDown := True;
@@ -5931,34 +5943,38 @@ begin
 end;
 
 procedure TksTableView.BringSelectedIntoView;
+begin
+  ScrollToItem(SelectedItem);
+end;
+
+procedure TksTableView.ScrollToItem(AItem: TksTableViewItem; const AAnimate: Boolean = False);
 var
-  ASelected         : TksTableViewItem;
   AMinHeight        : Single;
   AMaxHeight        : Single;
   ANewScrollViewPos : Single;
 begin
-  ASelected := SelectedItem;
-  if (ASelected<>Nil) then
-  begin
-    ANewScrollViewPos := FScrollPos;
+  if AItem = nil then
+    Exit;
 
-    AMinHeight := 0;
-    if (FStickyHeader<>Nil) then
-      AMinHeight := FStickyHeader.FHeaderHeight;
+  CreateAniCalculator;
 
-    if (ASelected.ItemRect.Top - ANewScrollViewPos < AMinHeight) then
-      ANewScrollViewPos := ASelected.ItemRect.Top - AMinHeight;
+  ANewScrollViewPos := FScrollPos;
+  AMinHeight := 0;
+  if (FStickyHeader <> nil) then
+    AMinHeight := FStickyHeader.FHeaderHeight;
 
-    AMaxHeight := Height - GetFixedFooterHeight - GetFixedHeaderHeight;
-    if (ASelected.ItemRect.Bottom - ANewScrollViewPos > AMaxHeight) then
-      ANewScrollViewPos := ASelected.ItemRect.Bottom - AMaxHeight;
+  if (AItem.ItemRect.Top - ANewScrollViewPos < AMinHeight) then
+    ANewScrollViewPos := AItem.ItemRect.Top - AMinHeight;
 
-    if (ANewScrollViewPos<>FScrollPos) then
-      ScrollTo(ANewScrollViewPos);
-  end;
-  Invalidate;
+  AMaxHeight := Height - GetFixedFooterHeight - GetFixedHeaderHeight;
+  if (AItem.ItemRect.Bottom - ANewScrollViewPos > AMaxHeight) then
+    ANewScrollViewPos := AItem.ItemRect.Bottom - AMaxHeight;
+
+
+  if (ANewScrollViewPos <> FScrollPos) then
+    SetScrollViewPos(ANewScrollViewPos, AAnimate);
+  UpdateScrollingLimits;
 end;
-
 
 
 procedure TksTableView.Resize;
@@ -6205,15 +6221,36 @@ begin
   end;
 end;
 
-procedure TksTableView.SetScrollViewPos(const Value: single);
+procedure TksTableView.SetScrollViewPos(const Value: single; const AAnimate: Boolean = False);
+var
+  ICount: integer;
+  AStep: single;
 begin
   if not SameValue(FScrollPos, Value, TEpsilon.Vector) then
   begin
     HideFocusedControl;
-    FScrollPos := Value;
     FActionButtons.HideButtons;
-    UpdateStickyHeaders;
-    Invalidate;
+
+    AStep := (Value - FScrollPos) / 20;
+    if AAnimate then
+    begin
+      for ICount :=  1 to 20 do
+      begin
+        FScrollPos := FScrollPos + AStep;
+        UpdateStickyHeaders;
+        Invalidate;
+        {$IFDEF MSWINDOWS}
+        Sleep(5);
+        {$ENDIF}
+        ProcessMessages;
+      end;
+    end
+    else
+    begin
+      FScrollPos := Value;
+      UpdateStickyHeaders;
+      Invalidate;
+    end;
     if (Round(FScrollPos) = 0) and (FNeedsRefresh) then
     begin
 //      FAniCalc.
@@ -6229,14 +6266,14 @@ end;
 
 procedure TksTableView.ScrollTo(const Value: single);
 begin
-  FScrollPos := Value;
-  SetScrollViewPos(Value);
+  if ((Value-Height) < FMaxScrollPos) and (Value > 0) then
+  begin
+    FScrollPos := Value;
+    SetScrollViewPos(Value);
+    UpdateScrollingLimits;
+  end;
 end;
 
-procedure TksTableView.ScrollToItem(AItem: TksTableViewItem);
-begin
-  ScrollTo(AItem.ItemRect.Top);
-end;
 
 procedure TksTableView.ScrollToItem(AItemIndex: integer);
 begin
