@@ -1470,6 +1470,13 @@ type
 
   //---------------------------------------------------------------------------------------
 
+
+  TksAniCalc = class(TAniCalculations)
+  public
+    procedure UpdatePosImmediately;
+  end;
+
+  //---------------------------------------------------------------------------------------
   // TksTableView
 
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
@@ -1485,7 +1492,7 @@ type
     FItems: TksTableViewItems;
     FFilteredItems: TksTableViewItems;
     FTimerService: IFMXTimerService;
-    FAniCalc: TAniCalculations;
+    FAniCalc: TksAniCalc;
     FScrollPos: single;
     FPainting: Boolean;
     FScrolling: Boolean;
@@ -1612,7 +1619,7 @@ type
     procedure DoItemsChanged(Sender: TObject; const Item: TksTableViewItem; Action: TCollectionNotification);
     function GetSearchText: string;
     procedure SetSearchText(const Value: string);
-    procedure CreateAniCalculator;
+    procedure CreateAniCalculator(AUpdateScrollLimit: Boolean);
   protected
     function GetTotalItemHeight: single;
     function IsHeader(AItem: TksTableViewItem): Boolean;
@@ -2116,7 +2123,7 @@ begin
   begin
 
     FMouseDown := True;
-    if FShowSelection then 
+    if FShowSelection then
       FSelected := True;
     Changed;
   end;
@@ -2910,8 +2917,8 @@ begin
     end;
   end;
 
-  if (FTableView.FHeaderOptions.FStickyHeaders.Enabled) and 
-     (FTableView.FHeaderOptions.FStickyHeaders.FExtendScrollHeight) and 
+  if (FTableView.FHeaderOptions.FStickyHeaders.Enabled) and
+     (FTableView.FHeaderOptions.FStickyHeaders.FExtendScrollHeight) and
      (ALastHeaderItem<>Nil) then
     Result := ALastHeaderItem.ItemRect.Top + FTableView.Height - FTableView.GetStartOffsetY - FTableView.GetFixedFooterHeight;
 end;
@@ -3712,7 +3719,7 @@ begin
 
   if FBitmap = nil then
     Exit;
-  
+
   if (TableView.FActionButtons.Visible = False) or (TableView.FActionButtons.FTableItem <> Self) then
   begin
 
@@ -4753,7 +4760,8 @@ begin
   Size.Height := C_TABLEVIEW_DEFAULT_HEIGHT;
   ClipChildren := True;
 
-  CreateAniCalculator;
+  FAniCalc := nil;
+  CreateAniCalculator(True);
   FSearchVisible := False;
   FItemIndex := -1;
   FItemHeight := C_TABLEVIEW_DEFAULT_ITEM_HEIGHT;
@@ -4774,20 +4782,22 @@ begin
   FCascadeHeaderCheck := True;
 end;
 
-procedure TksTableView.CreateAniCalculator;
+procedure TksTableView.CreateAniCalculator(AUpdateScrollLimit: Boolean);
 begin
   if FAniCalc <> nil then
     FreeAndNil(FAniCalc);
-  FAniCalc := TAniCalculations.Create(nil);
+  FAniCalc := TksAniCalc.Create(nil);
   FAniCalc.Animation := True;
   FAniCalc.Averaging := True;
-  FAniCalc.OnChanged := AniCalcChange;
   FAniCalc.Interval := 8;
-  FAniCalc.OnStart := AniCalcStart;
-  FAniCalc.OnStop := AniCalcStop;
   FAniCalc.BoundsAnimation := True;
   FAniCalc.TouchTracking := [ttVertical];
-  UpdateScrollingLimits;
+  if AUpdateScrollLimit then
+    UpdateScrollingLimits;
+  // set events...
+  FAniCalc.OnChanged := AniCalcChange;
+  FAniCalc.OnStart := AniCalcStart;
+  FAniCalc.OnStop := AniCalcStop;
 end;
 
 destructor TksTableView.Destroy;
@@ -5950,7 +5960,8 @@ begin
   if AItem = nil then
     Exit;
 
-  CreateAniCalculator;
+  FAniCalc.UpdatePosImmediately;
+  //CreateAniCalculator(False);
 
   ANewScrollViewPos := FScrollPos;
   AMinHeight := 0;
@@ -6247,11 +6258,11 @@ begin
     end;
     if (Round(FScrollPos) = 0) and (FNeedsRefresh) then
     begin
-//      FAniCalc.
       ProcessMessages;
       FNeedsRefresh := False;
       DoPullToRefresh;
-      SetScrollViewPos(0);
+      FAniCalc.UpdatePosImmediately;
+
     end;
     if Assigned(FOnScrollViewChange) then
       FOnScrollViewChange(Self, FScrollPos, FMaxScrollPos);
@@ -6628,7 +6639,7 @@ procedure TksTableViewActionButtons.HideButtons;
 var
   ICount: integer;
 begin
-
+  //Exit;
   if (Visible = False) or (Count = 0) then
     Exit;
   if FAnimating then
@@ -8369,14 +8380,14 @@ begin
   FColor := claNull;
 end;
 
-procedure TksTableViewAccessoryOptions.Assign(ASource: TPersistent); 
+procedure TksTableViewAccessoryOptions.Assign(ASource: TPersistent);
 var
   Src : TksTableViewAccessoryOptions;
 begin
   if (ASource is TksTableViewAccessoryOptions) then
   begin
     Src := TksTableViewAccessoryOptions(ASource);
-    
+
     FShowAccessory := Src.FShowAccessory;
     FColor         := Src.FColor;
   end
@@ -8515,7 +8526,7 @@ begin
   if (ASource is TksTableViewBorderOptions) then
   begin
     Src := TksTableViewBorderOptions(ASource);
-    
+
     FVisible := Src.FVisible;
     FSides   := Src.FSides;
     FStroke.Assign(Src.FStroke);
@@ -9193,6 +9204,14 @@ begin
   end;
   InflateRect(ARect, 0-8, 0);
   RenderText(ACanvas, ARect, FText, FFont, FTextColor, True, TTextAlign.Leading, TTextAlign.Center, TTextTrimming.None);
+end;
+
+{ TksAniCalc }
+
+procedure TksAniCalc.UpdatePosImmediately;
+begin
+  // added for XE8 support
+  inherited UpdatePosImmediately(True);
 end;
 
 initialization
