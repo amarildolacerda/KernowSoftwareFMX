@@ -678,6 +678,9 @@ type
     FText: string;
     FFont: TFont;
     FTextColor: TAlphaColor;
+    procedure SetFont(const Value: TFont);
+    procedure SetText(const Value: string);
+    procedure SetTextColor(const Value: TAlphaColor);
   protected
     //function GetObjectRect: TRectF; override;
     procedure RecalculateSize;
@@ -685,6 +688,9 @@ type
   public
     constructor Create(ATableItem: TksTableViewItem); override;
     destructor Destroy; override;
+    property Text: string read FText write SetText;
+    property Font: TFont read FFont write SetFont;
+    property TextColor: TAlphaColor read FTextColor write SetTextColor;
   end;
 
   //---------------------------------------------------------------------------------------
@@ -9203,6 +9209,32 @@ begin
   end;
   InflateRect(ARect, 0-8, 0);
   RenderText(ACanvas, ARect, FText, FFont, FTextColor, True, TTextAlign.Leading, TTextAlign.Center, TTextTrimming.None);
+end;
+
+procedure TksTableViewChatBubble.SetFont(const Value: TFont);
+begin
+  FFont.Assign(Value);
+  RecalculateSize;
+  Changed;
+end;
+
+procedure TksTableViewChatBubble.SetText(const Value: string);
+begin
+  if FText <> Value then
+  begin
+    FText := Value;
+    RecalculateSize;
+    Changed;
+  end;
+end;
+
+procedure TksTableViewChatBubble.SetTextColor(const Value: TAlphaColor);
+begin
+  if FTextColor <> Value then
+  begin
+    FTextColor := Value;
+    Changed;
+  end;
 end;
 
 { TksAniCalc }
