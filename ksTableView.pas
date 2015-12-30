@@ -1470,7 +1470,6 @@ type
 
   //---------------------------------------------------------------------------------------
 
-
   TksAniCalc = class(TAniCalculations)
   public
     procedure UpdatePosImmediately;
@@ -9210,7 +9209,6 @@ end;
 
 procedure TksAniCalc.UpdatePosImmediately;
 begin
-  // added for XE8 support
   inherited UpdatePosImmediately(True);
 end;
 
