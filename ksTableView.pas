@@ -6247,7 +6247,7 @@ begin
     end;
     if (Round(FScrollPos) = 0) and (FNeedsRefresh) then
     begin
-//      FAniCalc.
+      CreateAniCalculator;
       ProcessMessages;
       FNeedsRefresh := False;
       DoPullToRefresh;
