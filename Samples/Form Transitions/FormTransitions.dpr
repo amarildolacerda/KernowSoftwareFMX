@@ -4,8 +4,7 @@ uses
   System.StartUpCopy,
   FMX.Forms,
   untMain in 'untMain.pas' {Form3},
-  untOtherForm in 'untOtherForm.pas' {Form5},
-  ksChatView in '..\..\ksChatView.pas';
+  untOtherForm in 'untOtherForm.pas' {Form5};
 
 {$R *.res}
 
