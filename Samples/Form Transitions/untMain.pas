@@ -16,9 +16,6 @@ type
     ToolBar2: TToolBar;
     Label1: TLabel;
     Image1: TImage;
-    ToolBar3: TToolBar;
-    Edit1: TEdit;
-    Button1: TButton;
     procedure FormCreate(Sender: TObject);
     procedure ksTableView1ItemClick(Sender: TObject; x, y: Single;
       AItem: TksTableViewItem; AId: string; ARowObj: TksTableViewItemObject);
