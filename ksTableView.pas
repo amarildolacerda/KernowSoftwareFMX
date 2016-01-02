@@ -682,7 +682,6 @@ type
     procedure SetText(const Value: string);
     procedure SetTextColor(const Value: TAlphaColor);
   protected
-    //function GetObjectRect: TRectF; override;
     procedure RecalculateSize;
     procedure Render(ACanvas: TCanvas); override;
   public
@@ -926,7 +925,7 @@ type
     function AddItem(AText: string; const AAccessory: TksAccessoryType = atNone): TksTableViewItem; overload;
     function AddItem(AText, ADetail: string; const AAccessory: TksAccessoryType = atNone): TksTableViewItem; overload;
     function AddItem(AText, ASubTitle, ADetail: string; const AAccessory: TksAccessoryType = atNone): TksTableViewItem; overload;
-    function AddChatBubble(AText: string; APosition: TksTableViewChatBubblePosition; AColor, ATextColor: TAlphaColor): TksTableViewItem;
+    function AddChatBubble(AText: string; APosition: TksTableViewChatBubblePosition; AColor, ATextColor: TAlphaColor; const AUserImage: TBitmap): TksTableViewItem;
     function AddDateSelector(AText: string; ADate: TDateTime): TksTableViewItem;
     function AddItemSelector(AText, ASelected: string; AItems: TStrings): TksTableViewItem; overload;
     function AddItemSelector(AText, ASelected: string; AItems: array of string): TksTableViewItem; overload;
@@ -1802,7 +1801,7 @@ type
   private
     FImageScale: integer;
     FImageMap: TBitmap;
-    //FActiveStyle: TFmxObject;
+    FActiveStyle: TFmxObject;
     procedure AddEllipsesAccessory;
     procedure AddFlagAccessory;
     function GetAccessoryFromResource(AStyleName: string; const AState: string = ''): TksTableViewAccessoryImage;
@@ -1820,6 +1819,7 @@ var
   AccessoryImages: TksTableViewAccessoryImageList;
   ATextLayout: TTextLayout;
   _ScreenScale: single;
+  AUnitTesting: Boolean;
   AIsSwiping: Boolean;
 
 procedure Register;
@@ -1884,7 +1884,8 @@ end;
 
 procedure RenderText(ACanvas: TCanvas; x, y, AWidth, AHeight: single;
   AText: string; AFont: TFont; ATextColor: TAlphaColor; AWordWrap: Boolean;
-  AHorzAlign: TTextAlign; AVertAlign: TTextAlign; ATrimming: TTextTrimming); overload;
+  AHorzAlign: TTextAlign; AVertAlign: TTextAlign; ATrimming: TTextTrimming;
+  const APadding: single = 0); overload;
 begin
   if AText = '' then
     Exit;
@@ -1895,6 +1896,7 @@ begin
   ATextLayout.Color := ATextColor;
   ATextLayout.HorizontalAlign := AHorzAlign;
   ATextLayout.VerticalAlign := AVertAlign;
+  ATextLayout.Padding.Rect := RectF(APadding, APadding, APadding, APadding);
   ATextLayout.Trimming := ATrimming;
   if AWordWrap  then
     ATextLayout.Trimming := TTextTrimming.None;
@@ -1906,9 +1908,10 @@ end;
 
 procedure RenderText(ACanvas: TCanvas; ARect: TRectF;
   AText: string; AFont: TFont; ATextColor: TAlphaColor; AWordWrap: Boolean;
-  AHorzAlign: TTextAlign; AVertAlign: TTextAlign; ATrimming: TTextTrimming); overload;
+  AHorzAlign: TTextAlign; AVertAlign: TTextAlign; ATrimming: TTextTrimming;
+  const APadding: single = 0); overload;
 begin
-  RenderText(ACanvas, ARect.Left, ARect.Top, ARect.Width, ARect.Height, AText, AFont, ATextColor, AWordWrap, AHorzAlign, AVertAlign, ATrimming);
+  RenderText(ACanvas, ARect.Left, ARect.Top, ARect.Width, ARect.Height, AText, AFont, ATextColor, AWordWrap, AHorzAlign, AVertAlign, ATrimming, APadding);
 end;
 
 function GetTextSizeHtml(AText: string; AFont: TFont;
@@ -1949,7 +1952,7 @@ begin
 end;
 
 function CalculateTextWidth(AText: string; AFont: TFont; AWordWrap: Boolean;
-  const AMaxWidth: single = 0): single;
+  const AMaxWidth: single = 0; const APadding: single = 0): single;
 var
   APoint: TPointF;
 begin
@@ -1963,6 +1966,7 @@ begin
   ATextLayout.MaxSize := APoint;
   ATextLayout.Text := AText;
   ATextLayout.WordWrap := AWordWrap;
+  ATextLayout.Padding.Rect := RectF(APadding, APadding, APadding, APadding);
   ATextLayout.Font.Assign(AFont);
   ATextLayout.HorizontalAlign := TTextAlign.Leading;
   ATextLayout.VerticalAlign := TTextAlign.Leading;
@@ -1972,7 +1976,7 @@ begin
 end;
 
 function CalculateTextHeight(AText: string; AFont: TFont; AWordWrap: Boolean; ATrimming: TTextTrimming;
-  const AWidth: single = 0): single;
+  const AWidth: single = 0; const APadding: single = 0): single;
 var
   APoint: TPointF;
 begin
@@ -1984,11 +1988,12 @@ begin
   APoint.x := MaxSingle;
   if AWidth > 0 then
     APoint.x := AWidth;
-  APoint.y := 100;
+  APoint.y := MaxSingle;
   ATextLayout.Font.Assign(AFont);
   ATextLayout.MaxSize := APoint;
   ATextLayout.Text := AText;
   ATextLayout.WordWrap := AWordWrap;
+  ATextLayout.Padding.Rect := RectF(APadding, APadding, APadding, APadding);
   ATextLayout.HorizontalAlign := TTextAlign.Leading;
   ATextLayout.VerticalAlign := TTextAlign.Leading;
   ATextLayout.EndUpdate;
@@ -2736,13 +2741,51 @@ end;
 
 function TksTableViewItems.AddChatBubble(AText: string;
   APosition: TksTableViewChatBubblePosition;
-  AColor, ATextColor: TAlphaColor): TksTableViewItem;
+  AColor, ATextColor: TAlphaColor;
+  const AUserImage: TBitmap): TksTableViewItem;
 var
   ABubble: TksTableViewChatBubble;
+  r: TRectF;
 begin
+  Result := nil;
+  if Trim(AText) = '' then
+    Exit;
   Result := AddItem('');
   ABubble := Result.DrawChatBubble(AText, APosition, AColor, ATextColor);
-  Result.Height := ABubble.Height + 8;
+  if AUserImage <> nil then
+  begin
+    r := RectF(0, 0, 32, 32);
+    case APosition of
+      ksCbpLeft: ABubble.OffsetX := 44;
+      ksCbpRight: ABubble.OffsetX := -44;
+    end;
+    //OffsetRect(r, ABubble.OffsetX / 10, 0);
+    //if APosition = ksCbpRight then
+
+      //OffsetRect(r, (FTableView.Width-C_SCROLL_BAR_WIDTH) - 32, 0);
+
+
+    //OffsetRect(r, 0, Result.Height-36);
+
+    with Result.DrawBitmap(AUserImage, r) do
+    begin
+      if APosition = ksCbpLeft then
+      begin
+        Align := TksTableItemAlign.Leading;
+        OffsetX := 4;
+      end
+      else
+      begin
+        Align := TksTableItemAlign.Trailing;
+        OffsetX := -4;
+      end;
+
+      VertAlign := TksTableItemAlign.Trailing;
+      OffsetY := -4;
+    end;
+
+  end;
+  Result.Height := ABubble.Height + 16;
 end;
 
 function TksTableViewItems.AddDateSelector(AText: string; ADate: TDateTime): TksTableViewItem;
@@ -4260,6 +4303,8 @@ end;
 destructor TksTableViewAccessoryImageList.Destroy;
 begin
   FreeAndNil(FImageMap);
+  if FActiveStyle <> nil then
+    FreeAndNil(FActiveStyle);
   inherited;
 end;
 
@@ -4272,6 +4317,7 @@ var
   r: TRectF;
   ABitmapLink: TBitmapLinks;
   AImageMap: TBitmap;
+  //ActiveStyle: TFmxObject;
 begin
   FImageScale := 1;
   if GetScreenScale >= 2 then
@@ -4284,8 +4330,14 @@ begin
   try
     AIds.Text := StringReplace(AStyleName, '.', #13, [rfReplaceAll]);
 
-
-    AStyleObj := TStyleObject(TStyleManager.ActiveStyle(nil));
+    if AUnitTesting then
+    begin
+      if FActiveStyle = nil then
+        FActiveStyle := TStyleManager.ActiveStyle(Nil);
+      AStyleObj := TStyleObject(FActiveStyle)
+    end
+    else
+      AStyleObj := TStyleObject(TStyleManager.ActiveStyle(nil));
 
     while AIds.Count > 0 do
     begin
@@ -4732,6 +4784,7 @@ end;
 constructor TksTableView.Create(AOwner: TComponent);
 begin
   inherited;
+  AUnitTesting := AOwner = nil;
   TPlatformServices.Current.SupportsPlatformService(IFMXTimerService, FTimerService);
 
   FItems := TksTableViewItems.Create(Self, True);
@@ -5992,6 +6045,7 @@ begin
   inherited;
   if FItems.Count = 0  then
     Exit;
+
 
   if FUpdateCount > 0 then
     Exit;
@@ -9174,8 +9228,8 @@ end;
 
 procedure TksTableViewChatBubble.RecalculateSize;
 begin
-  FWidth := CalculateTextWidth(FText, FFont, False, FTableItem.TableView.Width * 0.60)+24;
-  FHeight := CalculateTextHeight(FText, FFont, True, TTextTrimming.None, FWidth)+16;
+  FWidth := CalculateTextWidth(FText, FFont, False, FTableItem.TableView.Width * 0.60, 8)+24;
+  FHeight := CalculateTextHeight(FText, FFont, True, TTextTrimming.None, FWidth, 8)+16;
 end;
 
 procedure TksTableViewChatBubble.Render(ACanvas: TCanvas);
@@ -9189,17 +9243,17 @@ begin
   try
     if FAlign = TksTableItemAlign.Leading then
     begin
-      APath.MoveTo(PointF(ARect.Left-4, ARect.Bottom));
-      APath.LineTo(PointF(ARect.Left+10, ARect.Bottom-4));
-      APath.LineTo(PointF(ARect.Left+10, ARect.Bottom-16));
-      APath.LineTo(PointF(ARect.Left-4, ARect.Bottom));
+      APath.MoveTo(PointF(ARect.Left-4, ARect.Bottom-2));
+      APath.LineTo(PointF(ARect.Left+10, ARect.Bottom-6));
+      APath.LineTo(PointF(ARect.Left+10, ARect.Bottom-18));
+      APath.LineTo(PointF(ARect.Left-4, ARect.Bottom-2));
     end;
     if FAlign = TksTableItemAlign.Trailing then
     begin
-      APath.MoveTo(PointF(ARect.Right+4, ARect.Bottom));
-      APath.LineTo(PointF(ARect.Right-10, ARect.Bottom-4));
-      APath.LineTo(PointF(ARect.Right-10, ARect.Bottom-16));
-      APath.LineTo(PointF(ARect.Right+4, ARect.Bottom));
+      APath.MoveTo(PointF(ARect.Right+4, ARect.Bottom-2));
+      APath.LineTo(PointF(ARect.Right-10, ARect.Bottom-6));
+      APath.LineTo(PointF(ARect.Right-10, ARect.Bottom-18));
+      APath.LineTo(PointF(ARect.Right+4, ARect.Bottom-2));
     end;
     ACanvas.Stroke.Color := claBlack;
     ACanvas.Fill.Color := FFill.Color;
@@ -9207,8 +9261,10 @@ begin
   finally
     FreeAndNil(APath);
   end;
-  InflateRect(ARect, 0-8, 0);
-  RenderText(ACanvas, ARect, FText, FFont, FTextColor, True, TTextAlign.Leading, TTextAlign.Center, TTextTrimming.None);
+  {$IFDEF IOS}
+  OffsetRect(ARect, 8, 8);
+  {$ENDIF}
+  RenderText(ACanvas, ARect, FText, FFont, FTextColor, True, TTextAlign.Leading, TTextAlign.Center, TTextTrimming.None, 8);
 end;
 
 procedure TksTableViewChatBubble.SetFont(const Value: TFont);
@@ -9249,8 +9305,10 @@ initialization
   AccessoryImages := TksTableViewAccessoryImageList.Create;
   ATextLayout := TTextLayoutManager.DefaultTextLayout.Create;
   AIsSwiping := False;
+  AUnitTesting := False;
 
 finalization
+
 
   FreeAndNil(AccessoryImages);
   FreeAndNil(ATextLayout);

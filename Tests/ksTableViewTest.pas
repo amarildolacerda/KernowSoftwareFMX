@@ -1,6 +1,8 @@
 unit ksTableViewTest;
 
 interface
+
+
 uses
   DUnitX.TestFramework,
   ksTableView;
@@ -69,7 +71,7 @@ end;
 
 procedure TksTableViewTest.TearDown;
 begin
-  FTableView.Free;
+  //FTableView.Free;
 end;
 
 //----------------------------------------------------------------------------------------------------
@@ -215,8 +217,10 @@ procedure TksTableViewTest.TestAccessories;
 var
   ICount: TksAccessoryType;
 begin
+  FTableView.BeginUpdate;
   for ICount := Low(TksAccessoryType) to High(TksAccessoryType) do
     FTableView.Items.AddItem('Item', ICount);
+  FTableView.EndUpdate;
 end;
 
 procedure TksTableViewTest.TestClearItems;
@@ -305,7 +309,7 @@ begin
       AColor := claSilver;
       ATextColor := claBlack;
     end;
-    FTableView.Items.AddChatBubble('Chat Text '+IntToStr(ICount), AAlign, AColor, ATextColor);
+    FTableView.Items.AddChatBubble('Chat Text '+IntToStr(ICount), AAlign, AColor, ATextColor, nil);
   end;
   Assert.AreEqual(100, FTableView.Items.Count);
 end;
@@ -331,7 +335,7 @@ begin
   FTableView.ScrollToItem(99);
   // assert
   AResult := FTableView.ScrollViewPos;
-  Assert.AreEqual(4356.0, AResult);
+  Assert.AreEqual(4100.0, AResult);
 end;
 
 procedure TksTableViewTest.TestSearchFilterEvent;

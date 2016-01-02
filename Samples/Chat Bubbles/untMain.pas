@@ -5,28 +5,22 @@ interface
 uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
   FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.StdCtrls, FMX.Controls.Presentation, ksTableView,
-  FMX.Objects, FMX.Edit, FMX.Layouts;
+  FMX.Objects, FMX.Edit, FMX.Layouts, ksChatView;
 
 type
   TForm24 = class(TForm)
-    ToolBar2: TToolBar;
     ToolBar1: TToolBar;
     Label1: TLabel;
-    ksTableView1: TksTableView;
-    Edit1: TEdit;
-    Button1: TButton;
     Button2: TButton;
-    Layout1: TLayout;
+    Image1: TImage;
+    Image2: TImage;
+    ksChatView1: TksChatView;
+    Button1: TButton;
     procedure FormCreate(Sender: TObject);
     procedure Button2Click(Sender: TObject);
     procedure Button1Click(Sender: TObject);
     procedure Edit1KeyDown(Sender: TObject; var Key: Word; var KeyChar: Char; Shift: TShiftState);
-    procedure FormVirtualKeyboardHidden(Sender: TObject; KeyboardVisible: Boolean; const Bounds: TRect);
-    procedure FormVirtualKeyboardShown(Sender: TObject; KeyboardVisible: Boolean; const Bounds: TRect);
-    procedure Edit1Enter(Sender: TObject);
   private
-    FPosition: TksTableViewChatBubblePosition;
-    procedure AddChatText(AText: string);
     { Private declarations }
   public
     { Public declarations }
@@ -37,59 +31,17 @@ var
 
 implementation
 
-uses System.UIConsts, FMX.Platform, FMX.VirtualKeyboard;
+uses System.UIConsts;
 {$R *.fmx}
-
-procedure TForm24.AddChatText(AText: string);
-var
-  AColor, ATextColor: TAlphaColor;
-begin
-  if Trim(AText) = '' then
-    Exit;
-
-  // set the fill and text colours based upon the chat bubble alignment...
-  if FPosition = ksCbpLeft then
-  begin
-    AColor := claDodgerblue;
-    ATextColor := claWhite;
-  end
-  else
-  begin
-    AColor := $FFDDDDDD;
-    ATextColor := claBlack;
-  end;
-
-  ksTableView1.Items.AddChatBubble(AText, FPosition, AColor, ATextColor);
-
-  // switch the position for the next chat bubble...
-  if FPosition = ksCbpLeft then
-    FPosition := ksCbpRight
-  else
-    FPosition := ksCbpLeft;
-end;
 
 procedure TForm24.Button1Click(Sender: TObject);
 begin
-  AddChatText(Edit1.Text);
-  Edit1.Text := '';
-  SetFocused(nil);
-  {$IFDEF MSWINDOWS}
-  ksTableView1.ScrollToItem(ksTableView1.Items.LastItem, True);
-  {$ENDIF}
+  ksChatView1.AddChatBubble('Hi There!', TksTableViewChatBubblePosition.ksCbpRight, $FFDDDDDD, claBlack, Image1.Bitmap);
 end;
 
 procedure TForm24.Button2Click(Sender: TObject);
 begin
-  ksTableView1.ClearItems;
-  FPosition := ksCbpLeft;
-end;
-
-procedure TForm24.Edit1Enter(Sender: TObject);
-begin
-  {$IFDEF MSWINDOWS}
-  // no virtual keyboard so we scroll here instead...
-  ksTableView1.ScrollToItem(ksTableView1.Items.LastItem, True);
-  {$ENDIF}
+  ksChatView1.Clear;
 end;
 
 procedure TForm24.Edit1KeyDown(Sender: TObject; var Key: Word; var KeyChar: Char; Shift: TShiftState);
@@ -99,39 +51,18 @@ begin
 end;
 
 procedure TForm24.FormCreate(Sender: TObject);
-var
-  VKToolbar: IFMXVirtualKeyboardToolbarService;
 begin
-  // hide the done button
-  if TPlatformServices.Current.SupportsPlatformService(IFMXVirtualKeyboardToolbarService, IInterface(VKToolbar)) then
-    VKToolbar.SetToolbarEnabled(False);
+  Width := FormFactor.Width;
+  Height := FormFactor.Height;
 
-  FPosition := ksCbpLeft;
-  ksTableView1.Appearence.SeparatorColor := claNull;
-  Layout1.Height := 0;
+  Image1.Visible := False;
+  Image2.Visible := False;
 
-  ksTableView1.BeginUpdate;
-  try
-    AddChatText('Oh, hello there, this is the start of the conversation');
-    AddChatText('Great conversation! thanks for letting me know!');
-    AddChatText('ok, gotta go!');
-    AddChatText('Bye!');
-  finally
-    ksTableView1.EndUpdate;
-  end;
-end;
+  ksChatView1.MyImage := Image2.Bitmap;
 
-procedure TForm24.FormVirtualKeyboardHidden(Sender: TObject; KeyboardVisible: Boolean; const Bounds: TRect);
-begin
-  // set to 0 here rather than Bounds.Height as it appears to be a Firemonkey bug.
-  Layout1.Height := 0;
-  ksTableView1.ScrollToItem(ksTableView1.Items.LastItem, True);
-end;
-
-procedure TForm24.FormVirtualKeyboardShown(Sender: TObject; KeyboardVisible: Boolean; const Bounds: TRect);
-begin
-  Layout1.Height := Bounds.Height;
-  ksTableView1.ScrollToItem(ksTableView1.Items.LastItem, True);
+  ksChatView1.AddChatBubble('Hi there, I thought I''d get in touch to let you know how great I think your components are, thanks a million!', ksCbpLeft, claDodgerblue, claWhite, Image2.Bitmap);
+  ksChatView1.AddChatBubble('Thanks! Currently working on a new form transition compoenent and also the ability to add user images to chat bubbles like you see here', ksCbpRight, $FFDDDDDD, claBlack, Image1.Bitmap);
+  ksChatView1.AddChatBubble('Wow!  '+#13+'You''re the man!!!', ksCbpLeft, claDodgerblue, claWhite, Image2.Bitmap);
 end;
 
 end.

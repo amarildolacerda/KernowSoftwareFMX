@@ -31,12 +31,13 @@ requires
   fmx;
 
 contains
-  //ksListView in 'ksListView.pas', // legacy component - will remove soon.
   ksSlideMenu in 'ksSlideMenu.pas',
   ksSegmentButtons in 'ksSegmentButtons.pas',
   ksDrawFunctions in 'ksDrawFunctions.pas',
   ksTableView in 'ksTableView.pas',
   ksMainMenu in 'ksMainMenu.pas',
-  ksListViewHelper in 'ksListViewHelper.pas';
+  ksListViewHelper in 'ksListViewHelper.pas',
+  ksFormTransition in 'ksFormTransition.pas',
+  ksChatView in 'ksChatView.pas';
 
 end.
