@@ -3140,15 +3140,18 @@ begin
       FTableView.BeforeRowCache(FTableView, FBitmap.Canvas, Self, ARect);
 
     // indicator...
-    case FTableView.RowIndicators.Outlined of
-      False: FIndicator.Stroke.Kind := TBrushKind.None;
-      True: FIndicator.Stroke.Kind := TBrushKind.Solid;
+    if FTableView.RowIndicators.Visible then
+    begin
+      case FTableView.RowIndicators.Outlined of
+        False: FIndicator.Stroke.Kind := TBrushKind.None;
+        True: FIndicator.Stroke.Kind := TBrushKind.Solid;
+      end;
+      FIndicator.Width := FTableView.RowIndicators.Width;
+      if FTableView.RowIndicators.Height <> 0 then
+        FIndicator.Height := FTableView.RowIndicators.Height;
+      FIndicator.Shape := FTableView.RowIndicators.Shape;
+      FIndicator.Render(FBitmap.Canvas);
     end;
-    FIndicator.Width := FTableView.RowIndicators.Width;
-    if FTableView.RowIndicators.Height <> 0 then
-      FIndicator.Height := FTableView.RowIndicators.Height;
-    FIndicator.Shape := FTableView.RowIndicators.Shape;
-    FIndicator.Render(FBitmap.Canvas);
 
 
     FTileBackground.Render(FBitmap.Canvas);
