@@ -1799,11 +1799,12 @@ type
 
   TksTableViewAccessoryImageList = class(TObjectList<TksTableViewAccessoryImage>)
   private
-    FImageScale: integer;
+    FImageScale: single;
     FImageMap: TBitmap;
     FActiveStyle: TFmxObject;
     procedure AddEllipsesAccessory;
     procedure AddFlagAccessory;
+    procedure CalculateImageScale;
     function GetAccessoryFromResource(AStyleName: string; const AState: string = ''): TksTableViewAccessoryImage;
     procedure Initialize;
     function GetAccessoryImage(AAccessory: TksAccessoryType): TksTableViewAccessoryImage;
@@ -1812,7 +1813,7 @@ type
     destructor Destroy; override;
     property Images[AAccessory: TksAccessoryType]: TksTableViewAccessoryImage read GetAccessoryImage; default;
     property ImageMap: TBitmap read FImageMap;
-    property ImageScale: integer read FImageScale;
+    property ImageScale: single read FImageScale;
   end;
 
 var
@@ -4297,9 +4298,25 @@ begin
   Add(AAcc);
 end;
 
+procedure TksTableViewAccessoryImageList.CalculateImageScale;
+begin
+  if FImageScale = 0 then
+  begin
+    FImageScale := GetScreenScale;
+    {$IFDEF MSWINDOWS}
+      FImageScale := 1;
+    {$ENDIF}
+    {$IFDEF IOS}
+    if GetScreenScale >= 2 then
+      FImageScale := Round(GetScreenScale);
+    {$ENDIF}
+  end;
+end;
+
 constructor TksTableViewAccessoryImageList.Create;
 begin
   inherited Create(True);
+  FImageScale := 0;
   FImageMap := TBitmap.Create;
 end;
 
@@ -4320,14 +4337,9 @@ var
   r: TRectF;
   ABitmapLink: TBitmapLinks;
   AImageMap: TBitmap;
-  //ActiveStyle: TFmxObject;
 begin
-  FImageScale := 1;
-  if GetScreenScale >= 2 then
-    FImageScale := Round(GetScreenScale);
-{$IFDEF MSWINDOWS}
-  FImageScale := 1;
-{$ENDIF}
+  CalculateImageScale;
+
   Result := TksTableViewAccessoryImage.Create;
   AIds := TStringList.Create;
   try
@@ -4352,17 +4364,18 @@ begin
     begin
       if FImageMap.IsEmpty then
       begin
-        AImageMap := ((AStyleObj as TStyleObject).Source.MultiResBitmap.Bitmaps
-          [FImageScale]);
+        AImageMap := ((AStyleObj as TStyleObject).Source.MultiResBitmap.Bitmaps[FImageScale]);
 
         FImageMap.SetSize(Round(AImageMap.Width), Round(AImageMap.Height));
         FImageMap.Clear(claNull);
 
         FImageMap.Canvas.BeginScene;
         try
-          FImageMap.Canvas.DrawBitmap(AImageMap, RectF(0, 0, AImageMap.Width,
-            AImageMap.Height), RectF(0, 0, FImageMap.Width,
-            FImageMap.Height), 1, True);
+          FImageMap.Canvas.DrawBitmap(AImageMap,
+                                      RectF(0, 0, AImageMap.Width, AImageMap.Height),
+                                      RectF(0, 0, FImageMap.Width, FImageMap.Height),
+                                      1,
+                                      True);
         finally
           FImageMap.Canvas.EndScene;
         end;
