@@ -318,7 +318,7 @@ var
   ACol, ARow: integer;
   AText: TksTableViewItemText;
   AImage: TksTableViewItemImage;
-  ABackground: TksTableViewItemShape;
+  //ABackground: TksTableViewItemShape;
 begin
   if (csDesigning in ComponentState) then
     Exit;
@@ -345,7 +345,7 @@ begin
       begin
         GetTileRects(ACol, ARow, r1, r2, r3);
 
-        ABackground := AItem.DrawRect(RectF(0, 0, 20, 20), claBlack, claRed);//FItems[Icount].Fill);
+        //ABackground := AItem.DrawRect(RectF(0, 0, 20, 20), claBlack, claRed);//FItems[Icount].Fill);
 
         AImage := AItem.DrawBitmap(FItems[ICount-1].Bitmap, r2);
         AImage.ShowSelection := True;

@@ -139,7 +139,7 @@ type
     procedure SetTileOptions(const Value: TksTileMenuTileOptions);
     //procedure DrawTileOutline(ACanvas: TCanvas; ACol, ARow: integer);
     procedure GetTileRects(ACol, ARow: integer; var ATile, AGraphic, AText: TRectF);
-    procedure ClickTile(Sender: TObject; x, y: single; AIndex: integer; AId: string);
+    //procedure ClickTile(Sender: TObject; x, y: single; AIndex: integer; AId: string);
     {$IFDEF XE8_OR_NEWER}
     procedure SetImages(const Value: TImageList);
     {$ENDIF}
@@ -153,7 +153,8 @@ type
     function GetRowHeight: single;
     function GetTileRowCount: integer;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Single); override;
-    procedure Mouseup(Button: TMouseButton; Shift: TShiftState; X, Y: Single); override;
+    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Single); override;
+
     { Protected declarations }
   public
     constructor Create(AOwner: TComponent); override;
@@ -188,14 +189,14 @@ begin
 end;
 
 { TksMainMenu }
-
+     {
 procedure TksTileMenu.ClickTile(Sender: TObject; x, y: single; AIndex: integer; AId: string);
 begin
   if Assigned(FOnOptionClicked) then
   begin
     FOnOptionClicked(Self, AIndex, AId);
   end;
-end;
+end;  }
 
 function TksTileMenuOptionItem.AlterColorChannel(const Channel: Byte; const Pct: Single): Byte;
 var
@@ -269,7 +270,7 @@ end;
 
 function TksTileMenu.GetRowHeight: single;
 begin
-  Result := (Height / FTileOptions.FTileRows);
+  //Result := (Height / FTileOptions.FTileRows);
   Result := GetColWidth;
 end;
 
@@ -379,7 +380,7 @@ end;
 procedure TksTileMenu.RecreateMenu;
 var
   ICount: integer;
-  r1, r2, r3: TRectF;
+
   ACol, ARow: integer;
 begin
   if (csDesigning in ComponentState) then
