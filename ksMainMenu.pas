@@ -1,3 +1,28 @@
+{*******************************************************************************
+*                                                                              *
+*  TksMainMenu - menu compoonent                                                *
+*                                                                              *
+*  https://github.com/gmurt/KernowSoftwareFMX                                  *
+*                                                                              *
+*  Copyright 2015 Graham Murt                                                  *
+*                                                                              *
+*  email: graham@kernow-software.co.uk                                         *
+*                                                                              *
+*  Licensed under the Apache License, Version 2.0 (the "License");             *
+*  you may not use this file except in compliance with the License.            *
+*  You may obtain a copy of the License at                                     *
+*                                                                              *
+*    http://www.apache.org/licenses/LICENSE-2.0                                *
+*                                                                              *
+*  Unless required by applicable law or agreed to in writing, software         *
+*  distributed under the License is distributed on an "AS IS" BASIS,           *
+*  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.    *
+*  See the License forthe specific language governing permissions and          *
+*  limitations under the License.                                              *
+*                                                                              *
+*******************************************************************************}
+
+
 unit ksMainMenu;
 
 interface
@@ -13,7 +38,7 @@ interface
 
 uses
   System.SysUtils, System.Classes, FMX.Types, FMX.Controls, ksTableView, FMX.Graphics,
-  System.Types, System.Generics.Collections
+  System.Types, System.Generics.Collections, System.UITypes
   {$IFDEF XE8_OR_NEWER}
   , FMX.ImgList
   {$ENDIF}
@@ -31,15 +56,17 @@ type
     FBitmap: TBitmap;
     FText: string;
     FId: string;
+    FFill: TAlphaColor;
     procedure SetBitmap(const Value: TBitmap);
     procedure SetText(const Value: string);
-
+    procedure SetFill(const Value: TAlphaColor);
   public
     constructor Create; virtual;
     destructor Destroy; override;
     property Text: string read FText write SetText;
     property Bitmap: TBitmap read FBitmap write SetBitmap;
     property ID: string read FId write FId;
+    property Fill: TAlphaColor read FFill write SetFill;
   end;
 
   TksMainMenuOptionItemList = class(TObjectList<TksMainMenuOptionItem>)
@@ -291,6 +318,7 @@ var
   ACol, ARow: integer;
   AText: TksTableViewItemText;
   AImage: TksTableViewItemImage;
+  ABackground: TksTableViewItemShape;
 begin
   if (csDesigning in ComponentState) then
     Exit;
@@ -316,6 +344,8 @@ begin
       for ICount := 1 to FItems.Count do
       begin
         GetTileRects(ACol, ARow, r1, r2, r3);
+
+        ABackground := AItem.DrawRect(RectF(0, 0, 20, 20), claBlack, claRed);//FItems[Icount].Fill);
 
         AImage := AItem.DrawBitmap(FItems[ICount-1].Bitmap, r2);
         AImage.ShowSelection := True;
@@ -477,6 +507,12 @@ end;
 procedure TksMainMenuOptionItem.SetBitmap(const Value: TBitmap);
 begin
   FBitmap.Assign(Value);
+end;
+
+procedure TksMainMenuOptionItem.SetFill(const Value: TAlphaColor);
+begin
+  FFill := Value;
+
 end;
 
 procedure TksMainMenuOptionItem.SetText(const Value: string);

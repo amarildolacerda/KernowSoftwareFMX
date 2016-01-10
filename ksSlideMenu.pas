@@ -280,19 +280,48 @@ type
   end;
 
   procedure Register;
+  procedure ReplaceOpaqueColor(ABmp: TBitmap; Color : TAlphaColor);
 
 var
   SlideMenuAnimating: Boolean;
 
+
+
 implementation
 
 uses FMX.Platform, SysUtils, FMX.Ani, FMX.Pickers, Math, ksDrawFunctions,
-  FMX.ListView.Types;
+  FMX.ListView.Types, FMX.Utils;
 
 
 procedure Register;
 begin
   RegisterComponents('Kernow Software FMX', [TksSlideMenu]);
+end;
+
+procedure ReplaceOpaqueColor(ABmp: TBitmap; Color : TAlphaColor);
+var
+  x,y: Integer;
+  AMap: TBitmapData;
+  PixelColor: TAlphaColor;
+  PixelWhiteColor: TAlphaColor;
+  C: PAlphaColorRec;
+begin
+  if ABmp.Map(TMapAccess.ReadWrite, AMap) then
+  try
+    AlphaColorToPixel(Color   , @PixelColor, AMap.PixelFormat);
+    AlphaColorToPixel(claWhite, @PixelWhiteColor, AMap.PixelFormat);
+    for y := 0 to ABmp.Height - 1 do
+    begin
+      for x := 0 to ABmp.Width - 1 do
+      begin
+        C := @PAlphaColorArray(AMap.Data)[y * (AMap.Pitch div 4) + x];
+        if (C^.Color<>claWhite) and (C^.A>0) then
+          C^.Color := PremultiplyAlpha(MakeColor(PixelColor, C^.A / $FF));
+      end;
+    end;
+  finally
+    ABmp.Unmap(AMap);
+  end;
 end;
 
 { TSlideMenu }
@@ -550,6 +579,8 @@ begin
     FOnSelectMenuItemEvent(Self, AId);
   GenerateFormImage(FFormImage.Position.X);
   ToggleMenu;
+  if Assigned(FAfterSelectMenuItemEvent) then
+    FAfterSelectMenuItemEvent(Self, AId);
 end;
 
 

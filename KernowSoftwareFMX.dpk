@@ -38,6 +38,7 @@ contains
   ksMainMenu in 'ksMainMenu.pas',
   ksListViewHelper in 'ksListViewHelper.pas',
   ksFormTransition in 'ksFormTransition.pas',
-  ksChatView in 'ksChatView.pas';
+  ksChatView in 'ksChatView.pas',
+  ksTileMenu in 'ksTileMenu.pas';
 
 end.

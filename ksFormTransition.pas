@@ -41,7 +41,7 @@ uses System.UITypes, FMX.Controls, FMX.Layouts, FMX.Objects, System.Classes,
   FMX.StdCtrls, System.Types, FMX.Forms;
 
 const
-  C_TRANSITION_DELAY = 0.4;  // seconds.
+  C_TRANSITION_DELAY = 0.25;  // seconds.
   C_TRANSITION_PART_SCROLL_FACTOR = 0.3;
   C_INTERPOLATION_TYPE = TInterpolationType.Quadratic;
   C_ANIMATION_TYPE  = TAnimationType.InOut;
@@ -58,9 +58,7 @@ type
                            ksFtSlideOutToRight,
                            ksFtSlideOutToBottom);
 
-  [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
-    {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
-    {$ELSE} pidiOSDevice {$ENDIF} or pidAndroid)]
+  TksFormTransitionAfterShowForm = procedure(Sender: TObject; AForm: TForm) of object;
 
   TksFormTransitionInfo = class
   private
@@ -82,16 +80,23 @@ type
     procedure AddTransition(AFrom, ATo: TForm; AType: TksFormTransitionType; ABackgroundScroll: Boolean);
   end;
 
+  [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
+    {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
+    {$ELSE} pidiOSDevice {$ENDIF} or pidAndroid)]
+
   TksFormTransition = class(TFmxObject)
   private
+    FAfterShowForm: TksFormTransitionAfterShowForm;
     procedure AddBorder(ABmp: TBitmap; ABorder: TSide);
     procedure AnimateImage(AImage: TImage; ADirection: TAnimateDirection; ANewValue: single; AWait: Boolean);
+    class function GenerateFormImage(AForm: TForm): TBitmap;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    class function GenerateFormImage(AForm: TForm): TBitmap;
     procedure PushForm(AFrom, ATo: TForm; ATransition: TksFormTransitionType; const ScrollBackgroundForm: Boolean = True);
     procedure PopForm;
+  published
+    property AfterShowForm: TksFormTransitionAfterShowForm read FAfterShowForm write FAfterShowForm;
   end;
 
   procedure Register;
@@ -211,6 +216,7 @@ procedure TksFormTransition.PushForm(AFrom, ATo: TForm;
 var
   AImageFrom: TImage;
   AImageTo: TImage;
+  AOnShow: TNotifyEvent;
 begin
   if AAnimating then
     Exit;
@@ -224,14 +230,11 @@ begin
   AImageFrom := TImage.Create(nil);
   AImageTo := TImage.Create(nil);
   try
+    AOnShow := ATo.OnShow;
+    ATo.OnShow := nil;
     ATo.Show;
     ATo.Hide;
-
-    {AFrom.Width := AFrom.Width;
-    AFrom.Height := AFrom.Height;
-    ATo.Width := ATo.Width;
-    ATo.Height := ATo.Height; }
-
+    ATo.OnShow := AOnShow;
 
     AImageFrom.Width := AFrom.Width;
     AImageFrom.Height := AFrom.Height;
@@ -351,7 +354,8 @@ begin
     AFrom.Hide;
     AAnimating := False;
   end;
-
+  if Assigned(FAfterShowForm) then
+    FAfterShowForm(Self, ATo);
 end;
 
 { TksFormTransitioIntoList }

@@ -131,6 +131,7 @@ type
   TksTableViewOverlaySelectorStyle = (ksBlankSpace, ksArrow, ksSemiCircle);
   TksTableViewHeaderButtonType = (hbtNone, hbtJumpToHeader);
   TksEmbeddedEditStyle = (ksEditNormal, ksEditClearing, ksEditCombo, ksEditTransparent);
+  TksClearCacheType = (ksClearCacheAll, ksClearCacheNonVisible);
 
   TksTableViewRowCacheEvent = procedure(Sender: TObject; ACanvas: TCanvas; ARow: TksTableViewItem; ARect: TRectF) of object;
   TksTableViewDeletingItemEvent = procedure(Sender: TObject; AItem: TksTableViewItem; var ACanDelete: Boolean) of object;
@@ -158,6 +159,7 @@ type
     atSearch, atBookmarks, atTrash, atOrganize, atCamera, atCompose, atInfo,
     atPagecurl, atDetails, atRadioButton, atRadioButtonChecked, atCheckBox,
     atCheckBoxChecked, atUserDefined1, atUserDefined2, atUserDefined3);
+
 
   //---------------------------------------------------------------------------------------
 
@@ -1569,7 +1571,7 @@ type
     procedure AniCalcStart(Sender: TObject);
     procedure AniCalcChange(Sender: TObject);
     procedure AniCalcStop(Sender: TObject);
-    procedure CacheItems(AForceRedraw: Boolean);
+    //procedure CacheItems(AForceRedraw: Boolean);
     function GetTopItem: TksTableViewItem;
     function GetVisibleItems: TList<TksTableViewItem>;
     procedure SetItemImageSize(const Value: integer);
@@ -1624,6 +1626,7 @@ type
     function GetSearchText: string;
     procedure SetSearchText(const Value: string);
     procedure CreateAniCalculator(AUpdateScrollLimit: Boolean);
+    function GetCachedCount: integer;
   protected
     function GetTotalItemHeight: single;
     function IsHeader(AItem: TksTableViewItem): Boolean;
@@ -1657,7 +1660,7 @@ type
     procedure UncheckAll;
     procedure UpdateScrollingLimits;
     procedure RedrawAllVisibleItems;
-    procedure ClearCache;
+    procedure ClearCache(AClearType: TksClearCacheType);
     procedure ScrollTo(const Value: single);
     procedure ScrollToItem(AItem: TksTableViewItem; const AAnimate: Boolean = False); overload;
     procedure ScrollToItem(AItemIndex: integer); overload;
@@ -1675,6 +1678,7 @@ type
     property SelectedItem: TksTableViewItem read GetSelectedItem;
     property SearchText: string read GetSearchText write SetSearchText;
     property TotalItemHeight: single read GetTotalItemHeight;
+    property CachedCount: integer read GetCachedCount;
   published
     property AccessoryOptions: TksTableViewAccessoryOptions read FAccessoryOptions write SetAccessoryOptions;
     property Align;
@@ -3947,7 +3951,7 @@ begin
   if (FHidden<>Value) then
   begin
     FHidden := Value;
-    FTableView.ClearCache;
+    FTableView.ClearCache(ksClearCacheAll);
     FTableView.UpdateAll(true);
     Invalidate;
   end;
@@ -4020,7 +4024,7 @@ begin
   if FColCount <> Value then
   begin
     FColCount := Value;
-    FTableView.ClearCache;
+    FTableView.ClearCache(ksClearCacheAll);
     FTableView.UpdateAll(True);
     Changed;
   end;
@@ -4524,6 +4528,8 @@ begin
 end;
 
 procedure TksTableView.UpdateAll(AUpdateFiltered: Boolean);
+var
+  ICount: integer;
 begin
   if FUpdateCount > 0 then
     Exit;
@@ -4531,6 +4537,11 @@ begin
   UpdateItemRects(AUpdateFiltered);
   UpdateStickyHeaders;
   UpdateScrollingLimits;
+  if FItems.Count <= C_TABLEVIEW_PAGE_SIZE then
+  begin
+    for ICount := 0 to FItems.Count-1 do
+      FItems[ICount].CacheItem(False);
+  end;
 end;
 
 procedure TksTableView.UpdateItemRects(AUpdateFiltered: Boolean);
@@ -4738,7 +4749,7 @@ procedure TksTableView.AniCalcStop(Sender: TObject);
 begin
   FScrolling := False;
   FSwipeDirection := ksSwipeUnknown;
-  CacheItems(False);
+  ClearCache(ksClearCacheNonVisible);
 
   if Scene <> nil then
     Scene.ChangeScrollingState(nil, False);
@@ -4758,7 +4769,7 @@ begin
     SetScrollViewPos(NewViewPos);
   end;
 end;
-
+ (*
 procedure TksTableView.CacheItems(AForceRedraw: Boolean);
 var
   ICount: integer;
@@ -4766,7 +4777,7 @@ var
   AItems: TksTableViewItems;
   AStartPos: integer;
 begin
-  ATopItem := TopItem;
+  {ATopItem := TopItem;
   if ATopItem = nil then
     Exit;
   AItems := FFilteredItems;
@@ -4779,8 +4790,8 @@ begin
     if ICount > AItems.Count - 1 then
       Exit;
     AItems[ICount].CacheItem(AForceRedraw);
-  end;
-end;
+  end;   }
+end;    *)
 
 procedure TksTableView.ClearItems;
 begin
@@ -5117,8 +5128,8 @@ begin
   FUpdateCount := FUpdateCount - 1;
   if FUpdateCount = 0 then
   begin
+    ClearCache(ksClearCacheAll);
     UpdateAll(True);
-    CacheItems(True);
     Invalidate;
   end;
 end;
@@ -5372,6 +5383,16 @@ begin
   end
   else
     Result := 0;
+end;
+
+function TksTableView.GetCachedCount: integer;
+var
+  ICount: integer;
+begin
+  Result := 0;
+  for ICount := 0 to FItems.Count-1 do
+    if FItems[ICount].Cached then
+      Result := Result + 1;
 end;
 
 function TksTableView.GetFixedFooterHeight: single;
@@ -5968,12 +5989,29 @@ begin
   end;
 end;
 
-procedure TksTableView.ClearCache;
+procedure TksTableView.ClearCache(AClearType: TksClearCacheType);
 var
   ICount: integer;
+  AVisible: TList<TksTableViewItem>;
 begin
-  for ICount := 0 to Items.Count-1 do
-    Items[ICount].ClearCache;
+  if AClearType = ksClearCacheAll then
+  begin
+    for ICount := 0 to Items.Count-1 do
+      Items[ICount].ClearCache;
+  end
+  else
+  begin
+    if FItems.Count <= C_TABLEVIEW_PAGE_SIZE then
+      Exit;
+    AVisible := VisibleItems;
+    try
+      for ICount := 0 to Items.Count-1 do
+        if AVisible.IndexOf(Items[ICount]) = -1 then
+          Items[ICount].ClearCache;
+    finally
+      AVisible.Free;
+    end;
+  end;
 end;
 
 procedure TksTableView.CheckChildren(AHeader: TksTableViewItem ; Value : Boolean);
@@ -6068,7 +6106,7 @@ begin
 
   UpdateItemRects(False);
   UpdateScrollingLimits;
-  CacheItems(True);
+  ClearCache(ksClearCacheAll);
 
   if (FSelectionOptions.FKeepSelectedInView) then
     BringSelectedIntoView;
@@ -6079,7 +6117,7 @@ end;
 procedure TksTableView.VisibleChanged;
 begin
   inherited;
-  ClearCache;
+  ClearCache(ksClearCacheAll);
 end;
 
 {$ENDIF}
@@ -6212,7 +6250,7 @@ begin
   if FColCount <> Value then
   begin
     FColCount := Value;
-    ClearCache;
+    ClearCache(ksClearCacheAll);
     UpdateAll(False);
     Invalidate;
   end;
@@ -6310,6 +6348,8 @@ begin
   begin
     HideFocusedControl;
     FActionButtons.HideButtons;
+
+    ClearCache(ksClearCacheNonVisible);
 
     AStep := (Value - FScrollPos) / 20;
     if AAnimate then
@@ -6595,7 +6635,7 @@ end;
 
 procedure TksListViewRowIndicators.Changed;
 begin
-  FTableView.CacheItems(True);
+  FTableView.ClearCache(ksClearCacheAll);
   FTableView.Invalidate;
 end;
 
@@ -6617,7 +6657,7 @@ begin
   if FShadow <> Value then
   begin
     FShadow := Value;
-    FTableView.CacheItems(True);
+    FTableView.ClearCache(ksClearCacheAll);
     FTableView.Invalidate;
   end;
 end;
@@ -7991,7 +8031,7 @@ begin
   if FKeepSelection <> Value then
   begin
     FKeepSelection := Value;
-    FTableView.CacheItems(True);
+    FTableView.ClearCache(ksClearCacheAll);
     FTableView.Invalidate;
   end;
 end;
@@ -8001,7 +8041,7 @@ begin
   if FShowSelection <> Value then
   begin
     FShowSelection := Value;
-    FTableView.CacheItems(True);
+    FTableView.ClearCache(ksClearCacheAll);
     FTableView.Invalidate;
   end;
 end;
@@ -8009,7 +8049,7 @@ end;
 procedure TksTableViewSelectionOptions.SetSelectionOverlay(const Value: TksTableViewSelectionOverlayOptions);
 begin
   FSelectionOverlay.Assign(Value);
-  FTableView.CacheItems(True);
+  FTableView.ClearCache(ksClearCacheAll);
   FTableView.Invalidate;
 end;
 
@@ -8737,7 +8777,7 @@ end;
 
 procedure TksTableViewCheckMarkOptions.Changed;
 begin
-  FTableView.ClearCache;
+  FTableView.ClearCache(ksClearCacheAll);
   FTableView.Invalidate;
 end;
 
