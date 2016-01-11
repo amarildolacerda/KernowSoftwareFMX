@@ -2098,8 +2098,10 @@ end;
 
 procedure TksTableViewItemObject.Changed;
 begin
+  if FTableItem = nil then
+    Exit;
   FTableItem.Cached := False;
-  //FTableItem.CacheItem(True);
+  FTableItem.CacheItem(True);
   FTableItem.FTableView.Invalidate;
 end;
 
@@ -2629,6 +2631,8 @@ begin
   else
     FExternalBitmap := Value;
   Changed;
+
+  //FTableItem.FCached := False;
 end;
 
 procedure TksTableViewItemBaseImage.SetDrawMode(const Value: TksImageDrawMode);

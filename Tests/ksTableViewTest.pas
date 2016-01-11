@@ -24,6 +24,7 @@ type
     [TearDown]
     procedure TearDown;
     // tests...
+    [Test] procedure TestGetCheckedCount;
     [Test] procedure Test1000Items;
     [Test] procedure TestFilteredItems;
     [Test] procedure TestClearItems;
@@ -31,7 +32,6 @@ type
     [Test] procedure TestAccessories;
     [Test] procedure TestGetItemFromPos;
     [Test] procedure BringSelectedIntoView;
-    [Test] procedure TestGetCheckedCount;
     [Test] procedure TestTotalItemHeight;
     [Test] procedure TestTopItem;
     [Test] procedure TestTopItemFiltered;
