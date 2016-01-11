@@ -279,6 +279,8 @@ type
     property SelectFirstItem: Boolean read FSelectFirstItem write FSelectFirstItem default True;
   end;
 
+  {$R *.dcr}
+
   procedure Register;
   procedure ReplaceOpaqueColor(ABmp: TBitmap; Color : TAlphaColor);
 

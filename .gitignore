@@ -107,6 +107,8 @@ KernowSoftwareFMX.rc
 iosdevice64
 iosdevice32
 Win32
+Images
+*.xml
 KernowSoftwareFMX.res
 Demos/Screenshots
 Demos/iosdevice32
@@ -174,3 +176,6 @@ ksTableView_BACKUP.pas
 Samples/Check Marks/AndroidManifest.template.xml
 Tests/Win32/Debug/dunitx-results.xml
 Tests/dunitx-results.xml
+*.xml
+Samples/Form Transitions/FormTransitions.dproj
+Samples/Form Transitions/FormTransitions.dproj

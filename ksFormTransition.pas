@@ -41,7 +41,7 @@ uses System.UITypes, FMX.Controls, FMX.Layouts, FMX.Objects, System.Classes,
   FMX.StdCtrls, System.Types, FMX.Forms;
 
 const
-  C_TRANSITION_DELAY = 0.25;  // seconds.
+  C_TRANSITION_DELAY = 0.25;
   C_TRANSITION_PART_SCROLL_FACTOR = 0.3;
   C_INTERPOLATION_TYPE = TInterpolationType.Quadratic;
   C_ANIMATION_TYPE  = TAnimationType.InOut;
@@ -98,6 +98,8 @@ type
   published
     property AfterShowForm: TksFormTransitionAfterShowForm read FAfterShowForm write FAfterShowForm;
   end;
+
+  {$R *.dcr}
 
   procedure Register;
 
@@ -166,6 +168,11 @@ begin
   case ADirection of
     ksAdHorizontal: AProperty := 'X';
     ksAdVertical: AProperty := 'Y';
+  end;
+  if AWait then
+  begin
+    AImage.BringToFront;
+    Application.ProcessMessages;
   end;
   case AWait of
     False: TAnimator.AnimateFloat(AImage, 'Position.'+AProperty, ANewValue, C_TRANSITION_DELAY);

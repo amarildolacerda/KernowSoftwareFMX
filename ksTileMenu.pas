@@ -174,6 +174,8 @@ type
     { Published declarations }
   end;
 
+  {$R *.dcr}
+
 procedure Register;
 
 implementation

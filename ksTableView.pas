@@ -1774,6 +1774,7 @@ type
 
   procedure SimulateClick(AControl: TControl; x, y: single);
 
+{$R *.dcr}
 
 procedure Register;
 
@@ -2098,7 +2099,7 @@ end;
 procedure TksTableViewItemObject.Changed;
 begin
   FTableItem.Cached := False;
-  FTableItem.CacheItem(True);
+  //FTableItem.CacheItem(True);
   FTableItem.FTableView.Invalidate;
 end;
 
@@ -2627,6 +2628,7 @@ begin
   end
   else
     FExternalBitmap := Value;
+  Changed;
 end;
 
 procedure TksTableViewItemBaseImage.SetDrawMode(const Value: TksImageDrawMode);

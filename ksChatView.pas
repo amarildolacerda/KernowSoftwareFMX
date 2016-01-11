@@ -87,6 +87,8 @@ type
     property Size;
   end;
 
+  {$R *.dcr}
+
   procedure Register;
 
 implementation
