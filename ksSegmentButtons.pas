@@ -88,6 +88,8 @@ type
     property Visible;
   end;
 
+  {$R *.dcr}
+
   procedure Register;
 
 

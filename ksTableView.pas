@@ -5124,6 +5124,8 @@ end;
 
 procedure TksTableView.EnableMouseEvents;
 begin
+  // process any pending mouse events before re-enabling...
+  ProcessMessages;
   FMouseEventsEnabled := True;
 end;
 
@@ -6381,9 +6383,10 @@ begin
     begin
       ProcessMessages;
       FNeedsRefresh := False;
+      DisableMouseEvents;
       DoPullToRefresh;
       FAniCalc.UpdatePosImmediately;
-
+      EnableMouseEvents;
     end;
     if Assigned(FOnScrollViewChange) then
       FOnScrollViewChange(Self, FScrollPos, FMaxScrollPos);
