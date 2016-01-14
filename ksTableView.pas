@@ -40,9 +40,9 @@ TMS Pack for FireMonkey installed.
 You can get this from the following link...
 http://www.tmssoftware.com/site/tmsfmxpack.asp
 
-Once installed, simply uncomment the conditional define in ksDrawFunctions.pas
+Once installed, simply uncomment the below conditional define  }
 
-}
+{.$DEFINE USE_TMS_HTML_ENGINE}
 
 unit ksTableView;
 
@@ -437,6 +437,7 @@ type
     procedure SetTrimming(const Value: TTextTrimming);
     procedure SetBackground(const Value: TAlphaColor);
     procedure FontChanged(Sender: TObject);
+    procedure SetIsHtmlText(const Value: Boolean);
   protected
     procedure Render(ACanvas: TCanvas); override;
   public
@@ -452,7 +453,7 @@ type
     property TextVertAlign: TTextAlign read FTextVertAlign write SetTextVertAlign default TTextAlign.Leading;
     property Trimming: TTextTrimming read FTrimming write SetTrimming default TTextTrimming.Character;
     property WordWrap: Boolean read FWordWrap write SetWordWrap default False;
-    property IsHtmlText: Boolean read FIsHtmlText;
+    property IsHtmlText: Boolean read FIsHtmlText write SetIsHtmlText;
 
   end;
 
@@ -1782,7 +1783,7 @@ procedure Register;
 implementation
 
 uses SysUtils, FMX.Platform, Math, FMX.TextLayout, System.Math.Vectors,
-  FMX.Ani, FMX.Forms;
+  FMX.Ani, FMX.Forms {$IFDEF USE_TMS_HTML_ENGINE} , FMX.TMSHTMLEngine {$ENDIF};
 
 type
   //---------------------------------------------------------------------------------------
@@ -2409,8 +2410,13 @@ begin
     ACanvas.Fill.Color := FBackground;
     ACanvas.FillRect(r, 0, 0, AllCorners, 1);
   end;
-  RenderText(ACanvas, r.Left, r.Top, r.Width, r.Height, FText, FFont,
-    FTextColor, FWordWrap, FTextAlign, FTextVertAlign, FTrimming);
+  case FIsHtmlText of
+    False: RenderText(ACanvas, r.Left, r.Top, r.Width, r.Height, FText, FFont,
+                      FTextColor, FWordWrap, FTextAlign, FTextVertAlign, FTrimming);
+    True: RenderHhmlText(ACanvas, r.Left, r.Top, r.Width, r.Height, FText, FFont,
+                      FTextColor, FWordWrap, FTextAlign, FTextVertAlign, FTrimming);
+
+  end;
 end;
 
 procedure TksTableViewItemText.SetBackground(const Value: TAlphaColor);
@@ -2425,6 +2431,12 @@ end;
 procedure TksTableViewItemText.SetFont(const Value: TFont);
 begin
   FFont.Assign(Value);
+end;
+
+procedure TksTableViewItemText.SetIsHtmlText(const Value: Boolean);
+begin
+  FIsHtmlText := Value;
+  Changed;
 end;
 
 procedure TksTableViewItemText.SetText(const Value: string);
