@@ -1632,6 +1632,7 @@ type
     function IsHeader(AItem: TksTableViewItem): Boolean;
     procedure DefineProperties(Filer: TFiler); override;
     procedure Paint; override;
+    procedure KeyDown(var Key: Word; var KeyChar: WideChar; Shift: TShiftState); override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; x, y: single); override;
     procedure MouseMove(Shift: TShiftState; x, y: single); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; x, y: single); override;
@@ -4871,6 +4872,8 @@ begin
   SetAcceptsControls(False);
   FItems.OnNotify := DoItemsChanged;
   FCascadeHeaderCheck := True;
+  CanFocus := True;
+  AutoCapture := True;
 end;
 
 procedure TksTableView.CreateAniCalculator(AUpdateScrollLimit: Boolean);
@@ -5509,6 +5512,14 @@ begin
     Result := AItem.Purpose = TksTableViewItemPurpose.Header;
 end;
 
+procedure TksTableView.KeyDown(var Key: Word; var KeyChar: WideChar;
+  Shift: TShiftState);
+begin
+  inherited;
+  if Key = vkUp then ItemIndex := ItemIndex - 1;
+  if Key = vkDown then ItemIndex := ItemIndex + 1;
+end;
+
 procedure TksTableView.KillAllTimers;
 begin
   KillTimer(FSelectTimer);
@@ -5541,9 +5552,9 @@ begin
   if (FUpdateCount > 0) or (AIsSwiping) then
     Exit;
 
-  if (Root is TCommonCustomForm) then
-    (Root as TCommonCustomForm).Focused := nil;
-  Capture;
+  //if (Root is TCommonCustomForm) then
+  //  (Root as TCommonCustomForm).Focused := nil;
+  //Capture;
 
 
   FMouseDownObject := nil;
@@ -5774,6 +5785,7 @@ begin
   begin
     if not (ssHorizontal in Shift) then
     begin
+      FAniCalc.UpdatePosImmediately;
       Offset := Height / 14;
       Offset := Offset * -1 * (WheelDelta / 120);
       ANewPos := Max(ScrollViewPos + Offset, 0);
@@ -6225,6 +6237,8 @@ var
   ASelected: TksTableViewItem;
   ANewSelected: TksTableViewItem;
 begin
+  if (Value < 0) or (Value > Items.Count-1) then
+    Exit;
   if Value <> FItemIndex then
   begin
     ASelected := SelectedItem;
@@ -6400,6 +6414,7 @@ begin
     FScrollPos := Value;
     SetScrollViewPos(Value);
     UpdateScrollingLimits;
+    Invalidate;
   end;
 end;
 
