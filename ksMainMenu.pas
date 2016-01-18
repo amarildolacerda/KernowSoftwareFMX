@@ -108,8 +108,8 @@ type
   end;
 
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
-  {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
-  {$ELSE} pidiOSDevice {$ENDIF} or pidAndroid)]
+    {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
+    {$ELSE} pidiOSDevice {$ENDIF} or pidiOSSimulator or pidAndroid)]
   TksMainMenu = class(TControl)
   private
     FTableView: TksTableView;

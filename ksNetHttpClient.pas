@@ -41,8 +41,6 @@ type
   protected
     { Protected declarations }
   public
-    //constructor Create(AOwner: TComponent); override;
-    //destructor Destroy; override;
     procedure GetAsync(const AURL: string;
                        const AHeaders: TNetHeaders = nil;
                        const AOnReceiveData: TAsyncGetEvent = nil);

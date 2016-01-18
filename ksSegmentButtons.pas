@@ -83,7 +83,7 @@ type
 
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
     {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
-    {$ELSE} pidiOSDevice {$ENDIF} or pidAndroid)]
+    {$ELSE} pidiOSDevice {$ENDIF} or pidiOSSimulator or pidAndroid)]
   TksSegmentButtons = class(TControl)
   private
     FGroupID: string;
