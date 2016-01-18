@@ -37,7 +37,9 @@ uses Classes, FMX.StdCtrls, FMX.Graphics, ksControlBadge;
 {$ENDIF}
 
 type
-
+  [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
+    {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
+    {$ELSE} pidiOSDevice {$ENDIF} or pidAndroid)]
   TksSpeedButton = class(TSpeedButton)
   private
     FBadge: TksControlBadge;
@@ -71,7 +73,7 @@ constructor TksSpeedButton.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
   FBadge := TksControlBadge.Create(Self);
-  StyledSettings := [];
+  //StyledSettings := [];
   AddObject(FBadge);
 end;
 

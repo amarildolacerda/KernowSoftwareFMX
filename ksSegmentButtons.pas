@@ -347,6 +347,7 @@ begin
   Locked := True;
   Stored := False;
   HitTest := False;
+  StyledSettings := [];
 end;
 
 end.
