@@ -834,6 +834,7 @@ type
   protected
     function Render(ACanvas: TCanvas; AScrollPos: single): TRectF;
     procedure CacheItem(const AForceCache: Boolean = False);
+    procedure UpdateSearchIndex;
   public
     constructor Create(ATableView: TksTableView); reintroduce; virtual;
     destructor Destroy; override;
@@ -1850,14 +1851,13 @@ begin
   end;
   Service := IFMXScreenService(TPlatformServices.Current.GetPlatformService
     (IFMXScreenService));
-
   Result := Service.GetScreenScale;
-
   {$IFDEF IOS}
   if Result < 2 then
    Result := 2;
   {$ENDIF}
-
+  if Result > 3 then
+    Result := 3;
   _ScreenScale := Result;
 end;
 
@@ -3223,6 +3223,7 @@ begin
     Exit;
   if (FTableView.FUpdateCount = 0) then
     FTableView.Invalidate;
+  UpdateSearchIndex;
 end;
 
 procedure TksTableViewItem.PickerItemsChanged(Sender: TObject);
@@ -4168,6 +4169,20 @@ begin
     Result := GetTextSizeHtml(AText, FFont, 0).x
   else
     Result := CalculateTextWidth(AText, FFont, False);
+end;
+
+procedure TksTableViewItem.UpdateSearchIndex;
+var
+  ICount: integer;
+begin
+  FSearchIndex := '';
+  FSearchIndex := FTitle.Text+'|'+FSubTitle.Text+'|'+FDetail.Text+'|';
+  for ICount := 0 to FObjects.Count-1 do
+  begin
+    if FObjects[ICount] is TksTableViewItemText then
+      FSearchIndex := FSearchIndex + LowerCase((FObjects[ICount] as TksTableViewItemText).Text)+#13;
+  end;
+  FSearchIndex := Trim(FSearchIndex);
 end;
 
 // ------------------------------------------------------------------------------
@@ -5180,6 +5195,7 @@ begin
 
   FFilteredItems.Clear;
   ASearchText := Trim(FSearchBox.Text);
+
   for ICount := FFixedRowOptions.FHeaderCount to (FItems.Count-FFixedRowOptions.FFooterCount-1) do
   begin
     AItem := FItems[ICount];
@@ -5191,6 +5207,7 @@ begin
   end;
   FItemIndex := FFilteredItems.IndexOf(ALastSelected);
 end;
+
 
 procedure TksTableView.DoSelectTimer;
 var
@@ -5818,7 +5835,6 @@ var
   ASelectedRect: TRectF;
   ATop: single;
   sh: single;
-  s: TStrokeBrush;
   SaveState : TCanvasSaveState;
   SaveState2 : TCanvasSaveState;
   SaveStatePullRefresh: TCanvasSaveState;
@@ -5849,11 +5865,7 @@ begin
       Canvas.FillRect(RectF(0, 0, Width, Height), 0, 0, AllCorners, 1);
       if (csDesigning in ComponentState) and (FBorder.Showing = False) then
       begin
-        s := TStrokeBrush.Create(TBrushKind.Solid, claBlack);
-        s.Dash := TStrokeDash.Dash;
-        Canvas.Stroke.Assign(s);
-        s.Free;
-        Canvas.DrawRect(RectF(0, 0, Width, Height), 0, 0, AllCorners, 1);
+        DrawDesignBorder(claDimgray, claDimgray);
       end;
 
 

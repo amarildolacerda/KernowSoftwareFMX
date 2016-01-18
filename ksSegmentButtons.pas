@@ -28,7 +28,8 @@ interface
 
 uses
   Classes, FMX.Types, FMX.Controls, FMX.Graphics, Types, System.UITypes,
-  FMX.StdCtrls, System.Generics.Collections;
+  FMX.StdCtrls, System.Generics.Collections, FMX.Objects, FMX.Effects,
+  System.UIConsts, ksSpeedButton;
 
 {$IFDEF VER290}
 {$DEFINE XE8_OR_NEWER}
@@ -39,15 +40,46 @@ uses
 {$ENDIF}
 
 type
-  TKsSegmentButton = class(TSpeedButton)
-  private
-    FId: string;
-  protected
-    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Single); override;
+  TksSegmentButtons = class;
+
+  TksSegmentSpeedButton = class(TksSpeedButton)
   public
     constructor Create(AOwner: TComponent); override;
-    property ID: string read FId write FId;
   end;
+
+  TKsSegmentButton = class(TCollectionItem)
+  private
+    FButton: TksSegmentSpeedButton;
+    FID: string;
+    FText: string;
+    procedure SetText(const Value: string);
+    function GetBadgeValue: integer;
+    procedure SetBadgeValue(const Value: integer);
+  public
+    constructor Create(Collection: TCollection); override;
+    destructor Destroy; override;
+
+  published
+    property ID: string read FID write FID;
+    property Text: string read FText write SetText;
+    property BadgeValue: integer read GetBadgeValue write SetBadgeValue;
+  end;
+
+  TksSegmentButtonCollection = class(TCollection)
+  private
+    FSegmentButtons: TKsSegmentButtons;
+  protected
+    function GetOwner: TPersistent; override;
+    function GetItem(Index: Integer): TKsSegmentButton;
+    procedure SetItem(Index: Integer; Value: TKsSegmentButton);
+    procedure Update(Item: TCollectionItem); override;
+  public
+    constructor Create(AButtons: TKsSegmentButtons);
+    function Add: TKsSegmentButton;
+    function Insert( Index: Integer ): TKsSegmentButton;
+    property Items[index: Integer]: TKsSegmentButton read GetItem write SetItem; default; // default - Added by Fenistil
+  end;
+
 
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
     {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
@@ -56,36 +88,39 @@ type
   private
     FGroupID: string;
     FItemIndex: integer;
+    FBtnWidth: single;
     FOnChange: TNotifyEvent;
-    procedure ResizeButtons;
+    FSegments: TksSegmentButtonCollection;
+    FTintColor: TAlphaColor;
+    FBackgroundColor: TAlphaColor;
+    procedure UpdateButtons;
     procedure SetItemIndex(const Value: integer);
-    function GetSelectedCaption: string;
-    procedure SetSelectedCaption(const Value: string);
-    function GetSelectedID: string;
-    procedure DoButtonClick(Sender: TObject);
-    function GetButton(index: integer): TKsSegmentButton;
-    procedure SetSelectedID(const Value: string);
+    procedure SetSegments(const Value: TksSegmentButtonCollection);
+    procedure SetBackgroundColor(const Value: TAlphaColor);
+    procedure SetTintColor(const Value: TAlphaColor);
+    function GetSelected: TKsSegmentButton;
   protected
-    procedure Paint; override;
     procedure Resize; override;
+    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Single); override;
+    procedure Paint; override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    procedure AddButton(ATitle, AID: string);
-    procedure Clear;
-    procedure SelectFirst;
-    property SelectedCaption: string read GetSelectedCaption write SetSelectedCaption;
-    property SelectedID: string read GetSelectedID write SetSelectedID;
-    property Button[index: integer]: TKsSegmentButton read GetButton; default;
+    property Selected: TKsSegmentButton read GetSelected;
   published
     property Align;
     property ItemIndex: integer read FItemIndex write SetItemIndex default -1;
-    property OnChange: TNotifyEvent read FOnChange write FOnChange;
+    property Margins;
     property Position;
     property Width;
+    property TintColor: TAlphaColor read FTintColor write SetTintColor default claNull;
+    property BackgroundColor: TAlphaColor read FBackgroundColor write SetBackgroundColor default claNull;
+    property Segments: TksSegmentButtonCollection read FSegments write SetSegments;
     property Size;
     property Height;
     property Visible;
+    // events
+    property OnChange: TNotifyEvent read FOnChange write FOnChange;
   end;
 
   {$R *.dcr}
@@ -95,194 +130,223 @@ type
 
 implementation
 
-uses SysUtils;
+uses SysUtils,  Math;
 
 procedure Register;
 begin
   RegisterComponents('Kernow Software FMX', [TksSegmentButtons]);
 end;
 
+{ TKsSegmentButton }
+
+constructor TKsSegmentButton.Create(Collection: TCollection);
+begin
+  inherited Create(Collection);
+  FButton := TksSegmentSpeedButton.Create((Collection as TksSegmentButtonCollection).FSegmentButtons);
+end;
+
+destructor TKsSegmentButton.Destroy;
+begin
+  {$IFDEF NEXTGEN}
+  FButton.DisposeOf;
+  {$ELSE}
+  FButton.Free;
+  {$ENDIF}
+  inherited;
+end;
+
+function TKsSegmentButton.GetBadgeValue: integer;
+begin
+  Result := FButton.Badge.Value;
+end;
+
+procedure TKsSegmentButton.SetBadgeValue(const Value: integer);
+begin
+  FButton.Badge.Value := Value;
+end;
+
+procedure TKsSegmentButton.SetText(const Value: string);
+begin
+  FText := Value;
+  (Collection as TksSegmentButtonCollection).FSegmentButtons.UpdateButtons;
+
+end;
+
 { TksSegmentButtons }
 
-procedure TksSegmentButtons.AddButton(ATitle, AID: string);
-var
-  ABtn: TKsSegmentButton;
-begin
-  ABtn := TKsSegmentButton.Create(Self);
-  ABtn.Text := ATitle;
-  ABtn.StaysPressed := True;
-  ABtn.ID := AId;
-  ABtn.GroupName := FGroupID;
-  ABtn.OnClick := DoButtonClick;
-  AddObject(ABtn);
-  if FItemIndex = -1 then
-    FItemIndex := 0;
-  ResizeButtons;
-end;
-
-procedure TksSegmentButtons.Clear;
-var
-  ICount: integer;
-  ABtn: TKsSegmentButton;
-begin
-  for ICount := ChildrenCount - 1 downto 0 do
-  begin
-    ABtn := Children[ICount] as TKsSegmentButton;
-    RemoveObject(ABtn);
-    ABtn.DisposeOf;
-  end;
-  FItemIndex := -1;
-end;
 
 constructor TksSegmentButtons.Create(AOwner: TComponent);
 var
   AGuid: TGUID;
 begin
-  inherited Create(AOwner);
+  inherited;
+  FSegments := TksSegmentButtonCollection.Create(Self);
+  SetAcceptsControls(False);
   CreateGUID(AGuid);
-  FGroupID := GUIDToString(AGuid);
-  Width := 400;
-  Height := 40;
-  FItemIndex := -1;
-  Clear;
+  FGroupID := AGuid.ToString;
+  FGroupID := StringReplace(FGroupID, '{', '', [rfReplaceAll]);
+  FGroupID := StringReplace(FGroupID, '-', '', [rfReplaceAll]);
+  FGroupID := StringReplace(FGroupID, '}', '', [rfReplaceAll]);
+  FBackgroundColor := claNull;
+  FTintColor := claNull;
+  Size.Height := 50;
+  Size.Width := 300;
 end;
 
 destructor TksSegmentButtons.Destroy;
 begin
+  FreeAndNil(FSegments);
   inherited;
 end;
 
-procedure TksSegmentButtons.DoButtonClick(Sender: TObject);
+function TksSegmentButtons.GetSelected: TKsSegmentButton;
 begin
-  FItemIndex := Children.IndexOf(Sender as TFmxObject);
-  if Assigned(FOnChange) then
-    FOnChange(Self);
+  Result := nil;
+  if (FItemIndex > -1) and (FItemIndex < FSegments.Count) then
+    Result := FSegments[FItemIndex];
 end;
 
-function TksSegmentButtons.GetButton(index: integer): TKsSegmentButton;
+procedure TksSegmentButtons.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Single);
 begin
-  Result := (Children[index] as TKsSegmentButton);
+  inherited;
+  ItemIndex := Trunc(X / FBtnWidth);
 end;
-
-function TksSegmentButtons.GetSelectedCaption: string;
-begin
-  Result := '';
-  if ItemIndex > -1 then
-    Result := (Children[ItemIndex] as TKsSegmentButton).Text;
-end;
-
-function TksSegmentButtons.GetSelectedID: string;
-begin
-  Result := '';
-  if ItemIndex > -1 then
-    Result := (Children[ItemIndex] as TKsSegmentButton).ID;
-end;
-
 
 procedure TksSegmentButtons.Paint;
 begin
   inherited;
-  if csDesigning in ComponentState then
-    DrawDesignBorder;
+  if (csDesigning in ComponentState) then
+  begin
+    DrawDesignBorder(claDimgray, claDimgray);
+    if FSegments.Count = 0 then
+      Canvas.FillText(ClipRect, 'Add "Segments" in the Object Inspector', True, 1, [], TTextAlign.Center);
+  end;
+  if FSegments.Count > 0 then
+  begin
+    if Height <> (FSegments[0].FButton.Height + 16) then
+    begin
+      Height := FSegments[0].FButton.Height + 16;
+      UpdateExplicitBounds;
+    end;
+  end;
 end;
 
 procedure TksSegmentButtons.Resize;
 begin
   inherited;
-  ResizeButtons;
+  UpdateButtons;
 end;
 
-procedure TksSegmentButtons.ResizeButtons;
+procedure TksSegmentButtons.UpdateButtons;
 var
-  ABtnWidth: Single;
   ICount: integer;
-  AXpos: single;
-  ABtn: TKsSegmentButton;
 begin
-  inherited;
-  if csDesigning in ComponentState then
-    Exit;
-
-  AXPos := 0;
-  if ChildrenCount = 0 then
-    Exit;
-  ABtnWidth := Width / ChildrenCount;
-  for ICount := 0 to ChildrenCount-1 do
+  FBtnWidth := Width / FSegments.Count;
+  for ICount := 0 to FSegments.Count-1 do
   begin
+    if ContainsObject(FSegments[ICount].FButton) = False then
+      AddObject(FSegments[ICount].FButton);
 
-    ABtn := Children[ICount] as TKsSegmentButton;
-    ABtn.Position.X := AXPos;
-    ABtn.Position.Y := 0;
-    ABtn.Width := ABtnWidth;
-    ABtn.Height := Height;
-    ABtn.IsPressed := FItemIndex = ICount;
-    ABtn.StyleLookup := 'segmentedbuttonmiddle';
-    if ICount = 0 then ABtn.StyleLookup := 'segmentedbuttonleft';
-    if ICount = ChildrenCount-1 then
+    with FSegments[ICount].FButton do
     begin
-      ABtn.StyleLookup := 'segmentedbuttonright';
-      ABtn.Position.X := ABtn.Position.X - 1;
+      StaysPressed := True;
+      GroupName := FGroupID;
+      Width := FBtnWidth;
+      Height := Height;
+      TintColor := FTintColor;
+      if FItemIndex = ICount then
+        TextSettings.FontColor := FBackgroundColor
+      else
+        TextSettings.FontColor := FTintColor;
+      IsPressed := (ICount = FItemIndex);
+      Text := FSegments[ICount].Text;
+      if ICount = 0 then StyleLookup := 'segmentedbuttonleft';
+      if ICount > 0 then StyleLookup := 'segmentedbuttonmiddle';
+      if ICount = FSegments.Count-1 then StyleLookup := 'segmentedbuttonright';
+      if FSegments.Count = 1 then StyleLookup := 'listitembutton';
+      Position.Y := (Self.Height - Height) / 2;
+      Position.X := ICount * FBtnWidth;
     end;
-    AXPos := AXpos + ABtnWidth;
   end;
 end;
 
-procedure TksSegmentButtons.SelectFirst;
+procedure TksSegmentButtons.SetBackgroundColor(const Value: TAlphaColor);
 begin
-  if ChildrenCount > 0 then
-    ItemIndex := 0;
+  FBackgroundColor := Value;
+  UpdateButtons;
 end;
 
 procedure TksSegmentButtons.SetItemIndex(const Value: integer);
 begin
-  (Children[Value] as TKsSegmentButton).IsPressed := True;
-  FItemIndex := Value;
-  ResizeButtons;
-end;
-
-procedure TksSegmentButtons.SetSelectedCaption(const Value: string);
-var
-  ICount: integer;
-begin
-  for ICount := 0 to ChildrenCount-1 do
-    if (Children[ICount] as TKsSegmentButton).Text = Value then
-      (Children[ICount] as TKsSegmentButton).IsPressed := True;
-end;
-
-
-procedure TksSegmentButtons.SetSelectedID(const Value: string);
-var
-  ICount: integer;
-  AIndex: integer;
-begin
-  AIndex := -1;
-
-  for ICount := 0 to ChildrenCount-1 do
+  if FItemIndex <> Value then
   begin
-    if Button[ICount].ID = Value then
-    begin
-      AIndex := ICount;
-      Break;
-    end;
+    FItemIndex := Value;
+    UpdateButtons;
+    if Assigned(FOnChange) then
+      FOnChange(Self);
   end;
-  ItemIndex := AIndex;
 end;
 
-constructor TKsSegmentButton.Create(AOwner: TComponent);
+procedure TksSegmentButtons.SetSegments(const Value: TksSegmentButtonCollection);
 begin
-  inherited Create(AOwner);
-  StaysPressed := True;
+  FSegments.Assign(Value);
 end;
 
-procedure TKsSegmentButton.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
-  Y: Single);
+procedure TksSegmentButtons.SetTintColor(const Value: TAlphaColor);
+begin
+  FTintColor := Value;
+  UpdateButtons;
+end;
+
+{ TksSegmentButtonCollection }
+
+function TksSegmentButtonCollection.Add: TKsSegmentButton;
+begin
+  Result := inherited Add as TKsSegmentButton;
+  FSegmentButtons.UpdateButtons;
+end;
+
+constructor TksSegmentButtonCollection.Create(AButtons: TKsSegmentButtons);
+begin
+  inherited Create(TKsSegmentButton);
+  FSegmentButtons := AButtons;
+end;
+
+function TksSegmentButtonCollection.GetItem(Index: Integer): TKsSegmentButton;
+begin
+  Result := inherited Items[index] as TKsSegmentButton;
+end;
+
+function TksSegmentButtonCollection.GetOwner: TPersistent;
+begin
+  Result := FSegmentButtons;
+end;
+
+function TksSegmentButtonCollection.Insert(Index: Integer): TKsSegmentButton;
+begin
+  Result := inherited insert( index ) as TKsSegmentButton;
+  FSegmentButtons.UpdateButtons;
+end;
+
+procedure TksSegmentButtonCollection.SetItem(Index: Integer; Value: TKsSegmentButton);
+begin
+  inherited SetItem(index, Value);
+end;
+
+procedure TksSegmentButtonCollection.Update(Item: TCollectionItem);
 begin
   inherited;
-  IsPressed := True;
+  (Owner as TksSegmentButtons).UpdateButtons;
 end;
 
-initialization
-  Classes.RegisterClass(TKsSegmentButton);
+{ TksSegmentSpeedButton }
 
+constructor TksSegmentSpeedButton.Create(AOwner: TComponent);
+begin
+  inherited;
+  Locked := True;
+  Stored := False;
+  HitTest := False;
+end;
 
 end.

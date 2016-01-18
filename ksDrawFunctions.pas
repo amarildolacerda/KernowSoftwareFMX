@@ -53,7 +53,7 @@ type
   function GetColorOrDefault(AColor, ADefaultIfNull: TAlphaColor): TAlphaColor;
 
   procedure DrawSwitch(ACanvas: TCanvas; ARect: TRectF; AChecked, AEnabled: Boolean; ASelectedColor: TAlphaColor);
-  procedure DrawButton(ACanvas: TCanvas; ARect: TRectF; AText: string; ASelected: Boolean; AColor: TAlphaColor; AStyle: TksButtonStyle);
+  function DrawButton(ACanvas: TCanvas; ARect: TRectF; AText: string; ASelected: Boolean; AColor: TAlphaColor; AStyle: TksButtonStyle): TBitmap;
 
   function TextWidth(AText: string; AFont: TFont): single;
   function TextHeight(AText: string; AFont: TFont; AWordWrap: Boolean; const AWidth: single = 0): single;
@@ -353,7 +353,7 @@ begin
   end;
 end;
 
-procedure DrawButton(ACanvas: TCanvas; ARect: TRectF; AText: string; ASelected: Boolean; AColor: TAlphaColor; AStyle: TksButtonStyle);
+function DrawButton(ACanvas: TCanvas; ARect: TRectF; AText: string; ASelected: Boolean; AColor: TAlphaColor; AStyle: TksButtonStyle): TBitmap;
 var
   ABmp: TBitmap;
   r: TRectF;
@@ -362,7 +362,7 @@ var
   AScale: single;
 begin
   AScale := 2;
-  ARadius := 5*AScale;
+  ARadius := 5 * AScale;
   ABmp := TBitmap.Create(Round(ARect.Width * AScale), Round(ARect.Height * AScale));
   try
     if AColor = claNull then
@@ -372,7 +372,7 @@ begin
     ABmp.BitmapScale := AScale;
     r := RectF(0, 0, ABmp.Width, ABmp.Height);
     ABmp.Canvas.BeginScene;
-    ABmp.Canvas.StrokeThickness := AScale;
+    ABmp.Canvas.StrokeThickness := AScale*2;
     ABmp.Canvas.Stroke.Color := claSilver;
     ABmp.Canvas.Font.Size := (13 * AScale);
 
@@ -391,6 +391,7 @@ begin
     ABmp.Canvas.Blending := True;
     ABmp.Canvas.Fill.Color := AFill;
     ABmp.Canvas.Stroke.Color := AOutline;
+
     if AStyle = ksButtonSegmentLeft then
     begin
       ABmp.Canvas.FillRect(r, ARadius, ARadius, [TCorner.TopLeft, TCorner.BottomLeft], 1, ABmp.Canvas.Fill);
@@ -413,7 +414,8 @@ begin
 
     ABmp.Canvas.EndScene;
 
-    ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ARect, 1, True);
+    ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ARect, 1, False);
+    Result:= ABmp;
   finally
     FreeAndNil(ABmp);
   end;

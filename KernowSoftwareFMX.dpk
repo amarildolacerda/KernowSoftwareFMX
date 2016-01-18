@@ -39,6 +39,10 @@ contains
   ksListViewHelper in 'ksListViewHelper.pas',
   ksFormTransition in 'ksFormTransition.pas',
   ksChatView in 'ksChatView.pas',
-  ksTileMenu in 'ksTileMenu.pas';
+  ksTileMenu in 'ksTileMenu.pas',
+  ksNetHttpClient in 'ksNetHttpClient.pas',
+  ksSpeedButton in 'ksSpeedButton.pas',
+  ksControlBadge in 'ksControlBadge.pas';
 
 end.
+

@@ -11,7 +11,8 @@ uses
   DUnitX.Loggers.Console,
   DUnitX.Loggers.Xml.NUnit,
   DUnitX.TestFramework,
-  ksTableViewTest in 'ksTableViewTest.pas';
+  ksTableViewTest in 'ksTableViewTest.pas',
+  ksSegmentButtonsTest in 'ksSegmentButtonsTest.pas';
 
 var
   runner : ITestRunner;
