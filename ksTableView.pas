@@ -5814,6 +5814,7 @@ begin
   begin
     if not (ssHorizontal in Shift) then
     begin
+      HideFocusedControl;              // <------   ADD THIS LINE
       FAniCalc.UpdatePosImmediately;
       Offset := Height / 14;
       Offset := Offset * -1 * (WheelDelta / 120);

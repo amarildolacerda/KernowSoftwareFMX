@@ -23,6 +23,7 @@ object Form24: TForm24
     PullToRefresh.Font.Size = 16.000000000000000000
     PullToRefresh.PullText = 'pull to refresh'
     PullToRefresh.ReleaseText = 'release to refresh'
+    SelectionOptions.KeepSelection = True
     SelectionOptions.SelectionOverlay.Size = 0
     Size.Width = 309.000000000000000000
     Size.Height = 392.000000000000000000

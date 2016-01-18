@@ -74,7 +74,6 @@ type
     property OnAsyncGet: TAsyncGetEvent read FAsyncGet write FAsyncGet;
   end;
 
-
 procedure Register;
 begin
   RegisterComponents('Kernow Software Misc', [TksNetHttpClient]);
@@ -136,7 +135,6 @@ end;
 procedure TksNetHttpClientThread.Execute;
 begin
   FResponse := FHttpClient.Get(FUrl, nil, FHeaders);
-  Sleep(3000);
   Synchronize(DataReceived);
 end;
 
