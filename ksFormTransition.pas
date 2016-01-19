@@ -85,15 +85,15 @@ type
     {$ELSE} pidiOSDevice {$ENDIF} or pidiOSSimulator or pidAndroid)]
   TksFormTransition = class(TFmxObject)
   private
+    FPreventAdd: Boolean;
     FAfterShowForm: TksFormTransitionAfterShowForm;
     procedure AddBorder(ABmp: TBitmap; ABorder: TSide);
     procedure AnimateImage(AImage: TImage; ADirection: TAnimateDirection; ANewValue: single; AWait: Boolean);
     class function GenerateFormImage(AForm: TForm): TBitmap;
-  public
-    constructor Create(AOwner: TComponent); override;
-    destructor Destroy; override;
     procedure PushForm(AFrom, ATo: TForm; ATransition: TksFormTransitionType; const ScrollBackgroundForm: Boolean = True);
     procedure PopForm;
+  public
+    constructor Create(AOwner: TComponent); override;
   published
     property AfterShowForm: TksFormTransitionAfterShowForm read FAfterShowForm write FAfterShowForm;
   end;
@@ -182,11 +182,7 @@ end;
 constructor TksFormTransition.Create(AOwner: TComponent);
 begin
   inherited;
-end;
-
-destructor TksFormTransition.Destroy;
-begin
-  inherited;
+  FPreventAdd := False;
 end;
 
 class function TksFormTransition.GenerateFormImage(AForm: TForm): TBitmap;
@@ -213,7 +209,9 @@ begin
     Exit;
   AInfo := ATransitionList.Last;
 
+  FPreventAdd := True;
   PushForm(AInfo.FormTo, AInfo.FormFrom, AInfo.ReverseTransition, AInfo.BackgroundScroll);
+  FPreventAdd := False;
   ATransitionList.Delete(ATransitionList.Count-1);
 end;
 
@@ -230,7 +228,8 @@ begin
 
   ATo.Invalidate;
 
-  ATransitionList.AddTransition(AFrom, ATo, ATransition, ScrollBackgroundForm);
+  if FPreventAdd = False then
+    ATransitionList.AddTransition(AFrom, ATo, ATransition, ScrollBackgroundForm);
 
 
   AImageFrom := TImage.Create(nil);
