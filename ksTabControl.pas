@@ -536,8 +536,13 @@ begin
   begin
     DrawDesignBorder(claDimgray, claDimgray);
     Canvas.Fill.Color := claDimgray;;
+    {$IFDEF MSWINDOWS}
     if GetTabCount = 0 then
-      Canvas.FillText(ClipRect, 'Add "Tabs" in the Object Inspector: '+IntToStr(FTabIndex), True, 1, [], TTextAlign.Center);
+    begin
+      Canvas.Font.Size := 14;
+      Canvas.FillText(ClipRect, 'Right-click to add tabs', True, 1, [], TTextAlign.Center);
+    end;
+    {$ENDIF}
   end;
 end;
 
@@ -742,7 +747,9 @@ end;
 procedure TksTabItemList.Notify(const Value: TksTabItem; Action: TCollectionNotification);
 begin
   inherited;
-  if Action = TCollectionNotification.cnRemoved then
+  if csDestroying in FTabControl.ComponentState then
+    Exit;
+  if (Action = TCollectionNotification.cnRemoved) and (not (csDesigning in FTabControl.ComponentState)) then
   begin
     Value.DisposeOf;
   end;
