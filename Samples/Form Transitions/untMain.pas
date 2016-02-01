@@ -5,8 +5,8 @@ interface
 uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
   FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs,
-  ksFormTransition, ksSlideMenu, FMX.StdCtrls, FMX.Objects, ksTableView,
-  FMX.Controls.Presentation, FMX.Edit;
+  ksFormTransition, ksSlideMenu, FMX.StdCtrls, FMX.Objects,
+  FMX.Controls.Presentation, FMX.Edit, ksTypes, ksTableView;
 
 type
   TForm3 = class(TForm)
@@ -16,9 +16,12 @@ type
     ToolBar2: TToolBar;
     Label1: TLabel;
     Image1: TImage;
+    ksSlideMenu1: TksSlideMenu;
+    Button1: TButton;
     procedure FormCreate(Sender: TObject);
     procedure ksTableView1ItemClick(Sender: TObject; x, y: Single;
       AItem: TksTableViewItem; AId: string; ARowObj: TksTableViewItemObject);
+    procedure Button1Click(Sender: TObject);
   private
     { Private declarations }
   public
@@ -33,6 +36,11 @@ implementation
 uses untOtherForm, ksChatView;
 
 {$R *.fmx}
+
+procedure TForm3.Button1Click(Sender: TObject);
+begin
+  //BlurForm(Self);
+end;
 
 procedure TForm3.FormCreate(Sender: TObject);
 var
@@ -54,6 +62,7 @@ begin
   ksTableView1.Items.AddItem('Slide in top', '', 'fixed background', atMore).Image.Bitmap := AIcon;
   ksTableView1.Items.AddItem('Slide in left', '', 'background scroll', atMore).Image.Bitmap := AIcon;
   ksTableView1.Items.AddItem('Slide in left', '', 'fixed background', atMore).Image.Bitmap := AIcon;
+  //SetPassCodeRequireType(TksPassCodeRequireType.ksRequireOnActivate);
 end;
 
 procedure TForm3.ksTableView1ItemClick(Sender: TObject; x, y: Single;

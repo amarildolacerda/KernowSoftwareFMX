@@ -26,19 +26,11 @@ unit ksFormTransition;
 
 interface
 
-{$IFDEF VER290}
-  {$DEFINE XE8_OR_NEWER}
-{$ENDIF}
-
-{$IFDEF VER300}
-  {$DEFINE XE8_OR_NEWER}
-  {$DEFINE XE10_OR_NEWER}
-{$ENDIF}
-
+{$I ksComponents.inc}
 
 uses System.UITypes, FMX.Controls, FMX.Layouts, FMX.Objects, System.Classes,
   FMX.Types, Generics.Collections, FMX.Graphics, System.UIConsts, FMX.Effects,
-  FMX.StdCtrls, System.Types, FMX.Forms;
+  FMX.StdCtrls, System.Types, FMX.Forms, ksTypes;
 
 const
   C_TRANSITION_DELAY = 0.25;
@@ -83,7 +75,7 @@ type
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
     {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
     {$ELSE} pidiOSDevice {$ENDIF} or pidiOSSimulator or pidAndroid)]
-  TksFormTransition = class(TFmxObject)
+  TksFormTransition = class(TksComponent)
   private
     FPreventAdd: Boolean;
     FAfterShowForm: TksFormTransitionAfterShowForm;
@@ -92,6 +84,7 @@ type
     class function GenerateFormImage(AForm: TForm): TBitmap;
     procedure PushForm(AFrom, ATo: TForm; ATransition: TksFormTransitionType; const ScrollBackgroundForm: Boolean = True);
     procedure PopForm;
+    procedure PopAllForms;
   public
     constructor Create(AOwner: TComponent); override;
   published
@@ -104,10 +97,11 @@ type
 
   procedure PushForm(AFrom, ATo: TForm; ATransition: TksFormTransitionType; const ScrollBackgroundForm: Boolean = True);
   procedure PopForm;
+  procedure PopAllForms;
 
 implementation
 
-uses ksDrawFunctions, FMX.Ani, SysUtils;
+uses FMX.Ani, SysUtils, ksCommon;
 
 var
   AAnimating: Boolean;
@@ -143,6 +137,17 @@ begin
   end;
 end;
 
+procedure PopAllForms;
+var
+  ATran: TksFormTransition;
+begin
+  ATran := TksFormTransition.Create(nil);
+  try
+    ATran.PopAllForms;
+  finally
+    ATran.DisposeOf;
+  end;
+end;
 
 procedure TksFormTransition.AddBorder(ABmp: TBitmap; ABorder: TSide);
 var
@@ -215,6 +220,11 @@ begin
   ATransitionList.Delete(ATransitionList.Count-1);
 end;
 
+procedure TksFormTransition.PopAllForms;
+begin
+  ATransitionList.Clear;
+end;
+
 procedure TksFormTransition.PushForm(AFrom, ATo: TForm;
   ATransition: TksFormTransitionType; const ScrollBackgroundForm: Boolean = True);
 var
@@ -237,8 +247,11 @@ begin
   try
     AOnShow := ATo.OnShow;
     ATo.OnShow := nil;
+    //if True then
+
     ATo.Show;
     ATo.Hide;
+    //Application.ProcessMessages;
     ATo.OnShow := AOnShow;
 
     AImageFrom.Width := AFrom.Width;

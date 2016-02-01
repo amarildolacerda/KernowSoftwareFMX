@@ -5,7 +5,7 @@ interface
 uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
   FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.StdCtrls, FMX.Controls.Presentation, ksTableView,
-  FMX.Objects;
+  FMX.Objects, ksTypes;
 
 type
   TForm24 = class(TForm)
@@ -63,7 +63,7 @@ begin
   if ASwipeDirection = ksSwipeRightToLeft then
   begin
     AButtons.AddButton('More', claSilver, claWhite, atEllipses);
-    AButtons.AddButton('Flag', claOrange, claWhite, atFlag);
+    AButtons.AddButton('', claOrange, claWhite, atFlag);
   end
   else
   begin

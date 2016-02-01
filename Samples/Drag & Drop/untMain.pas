@@ -4,7 +4,7 @@ interface
 
 uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
-  FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.StdCtrls, FMX.Controls.Presentation, ksTableView;
+  FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.StdCtrls, FMX.Controls.Presentation, ksTableView, ksTypes;
 
 type
   TForm24 = class(TForm)
@@ -13,6 +13,7 @@ type
     ToolBar1: TToolBar;
     Label1: TLabel;
     procedure FormCreate(Sender: TObject);
+    procedure ksTableView1DropItem(Sender: TObject; ADragRow, ADropRow: TksTableViewItem; var AllowMove: Boolean);
   private
     { Private declarations }
   public
@@ -36,10 +37,21 @@ begin
   ksTableView1.BeginUpdate;
   try
     for ICount := 1 to 10 do
+    begin
       ksTableView1.Items.AddItem('Item: '+IntToStr(ICount),'sub title', 'some detail', atMore);
+      //if ICount mod 2 = 0 then
+      ///  ksTableView1.Items.AddHeader('HEADER '+IntToStr(ICount));
+    end;
   finally
     ksTableView1.EndUpdate;
   end;
+end;
+
+procedure TForm24.ksTableView1DropItem(Sender: TObject; ADragRow, ADropRow: TksTableViewItem; var AllowMove: Boolean);
+begin
+ application.mainform.caption := (IntToStr(ADragRow.Index)+'  '+IntToStr(ADropRow.Index));;
+
+  AllowMove := True;
 end;
 
 end.

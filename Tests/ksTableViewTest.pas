@@ -5,6 +5,8 @@ interface
 
 uses
   DUnitX.TestFramework,
+  ksTypes,
+  ksCommon,
   ksTableView;
 
 type
@@ -119,7 +121,7 @@ procedure TksTableViewTest.TestGetScreenScale;
 var
   AScale: Extended;
 begin
-  AScale := FTableView.GetScreenScale;
+  AScale := GetScreenScale;
   Assert.AreEqual(1.0, AScale);
 end;
 
@@ -254,11 +256,13 @@ var
   AItem: TksTableViewItem;
   ICount: integer;
 begin
+  FTableView.BeginUpdate;
   for ICount := 1 to 20 do
   begin
     AItem := FTableView.Items.AddItem('Button');
     AItem.AddButton(30, 'TEST');
   end;
+  FTableView.EndUpdate;
   Assert.AreEqual(20, FTableView.Items.Count);
 end;
 
@@ -267,10 +271,15 @@ var
   AItem: TksTableViewItem;
   ICount: TksEmbeddedEditStyle;
 begin
-  for ICount := Low(TksEmbeddedEditStyle) to High(TksEmbeddedEditStyle) do
-  begin
-    AItem := FTableView.Items.AddItem('Button');
-    AItem.AddEdit(0, 0, 100, 'TEST', ICount);
+  FTableView.BeginUpdate;
+  try
+    for ICount := Low(TksEmbeddedEditStyle) to High(TksEmbeddedEditStyle) do
+    begin
+      AItem := FTableView.Items.AddItem('Button');
+      AItem.AddEdit(0, 0, 100, 'TEST', ICount);
+    end;
+  finally
+    FTableView.EndUpdate;
   end;
   Assert.AreEqual(4, FTableView.Items.Count);
 end;
@@ -280,10 +289,15 @@ var
   AItem: TksTableViewItem;
   ICount: integer;
 begin
-  for ICount := 1 to 20 do
-  begin
-    AItem := FTableView.Items.AddItem('Switch');
-    AItem.AddSwitch(0, (ICount mod 2) = 0);
+  FTableView.BeginUpdate;
+  try
+    for ICount := 1 to 20 do
+    begin
+      AItem := FTableView.Items.AddItem('Switch');
+      AItem.AddSwitch(0, (ICount mod 2) = 0);
+    end;
+  finally
+    FTableView.EndUpdate;
   end;
   Assert.AreEqual(20, FTableView.Items.Count);
 end;
@@ -295,23 +309,28 @@ var
   AColor: TAlphaColor;
   ATextColor: TAlphaColor;
 begin
-  for ICount := 1 to 100 do
-  begin
-    if ICount mod 2 = 1 then
+  FTableView.BeginUpdate;
+  try
+    for ICount := 1 to 100 do
     begin
-      AAlign := ksCbpLeft;
-      AColor := claDodgerblue;
-      ATextColor := claWhite;
-    end
-    else
-    begin
-      AAlign := ksCbpRight;
-      AColor := claSilver;
-      ATextColor := claBlack;
+      if ICount mod 2 = 1 then
+      begin
+        AAlign := ksCbpLeft;
+        AColor := claDodgerblue;
+        ATextColor := claWhite;
+      end
+      else
+      begin
+        AAlign := ksCbpRight;
+        AColor := claSilver;
+        ATextColor := claBlack;
+      end;
+      FTableView.Items.AddChatBubble('Chat Text '+IntToStr(ICount), AAlign, AColor, ATextColor, nil);
     end;
-    FTableView.Items.AddChatBubble('Chat Text '+IntToStr(ICount), AAlign, AColor, ATextColor, nil);
+    Assert.AreEqual(100, FTableView.Items.Count);
+  finally
+    FTableView.EndUpdate;
   end;
-  Assert.AreEqual(100, FTableView.Items.Count);
 end;
 
 procedure TksTableViewTest.TestFilteredItems;

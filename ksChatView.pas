@@ -26,20 +26,12 @@ unit ksChatView;
 
 interface
 
-{$IFDEF VER290}
-  {$DEFINE XE8_OR_NEWER}
-{$ENDIF}
-
-{$IFDEF VER300}
-  {$DEFINE XE8_OR_NEWER}
-  {$DEFINE XE10_OR_NEWER}
-{$ENDIF}
-
+{$I ksComponents.inc}
 
 uses System.UITypes, FMX.Controls, FMX.Layouts, FMX.Objects, System.Classes,
   FMX.Types, Generics.Collections, FMX.Graphics, System.UIConsts, FMX.Effects,
   FMX.StdCtrls, System.Types, FMX.Forms, ksTableView, FMX.Edit,
-  FMX.VirtualKeyboard, System.Messaging;
+  FMX.VirtualKeyboard, System.Messaging, ksTypes;
 
 
 type
@@ -61,7 +53,7 @@ type
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
     {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
     {$ELSE} pidiOSDevice {$ENDIF} or pidiOSSimulator or pidAndroid)]
-  TksChatView = class(TControl)
+  TksChatView = class(TksControl)
   private
     FTableView: TksTableView;
     FEdit: TksChatViewEdit;

@@ -26,21 +26,14 @@ unit ksSlideMenu;
 
 interface
 
-{$IFDEF VER290}
-  {$DEFINE XE8_OR_NEWER}
-{$ENDIF}
-
-{$IFDEF VER300}
-  {$DEFINE XE8_OR_NEWER}
-  {$DEFINE XE10_OR_NEWER}
-{$ENDIF}
+{$I ksComponents.inc}
 
 //{$DEFINE ADD_SAMPLE_MENU_ITEMS}
 
 
 uses System.UITypes, FMX.Controls, FMX.Layouts, FMX.Objects, System.Classes,
   FMX.Types, Generics.Collections, FMX.Graphics, System.UIConsts, FMX.Effects,
-  FMX.StdCtrls, System.Types, FMX.Forms, ksTableView
+  FMX.StdCtrls, System.Types, FMX.Forms, ksTableView, ksTypes
   {$IFDEF XE8_OR_NEWER}
   ,FMX.ImgList
   {$ENDIF}
@@ -184,7 +177,7 @@ type
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
     {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
     {$ELSE} pidiOSDevice {$ENDIF} or pidiOSSimulator or pidAndroid)]
-  TksSlideMenu = class(TFmxObject)
+  TksSlideMenu = class(TksComponent)
   strict private
     FAppearence: TksSlideMenuAppearence;
     FMenu: TksSlideMenuContainer;
@@ -206,6 +199,7 @@ type
     FOnSelectMenuItemEvent: TSelectMenuItemEvent;
     FAfterSelectMenuItemEvent: TSelectMenuItemEvent;
     FOnAfterSlideOut: TNotifyEvent;
+    FOnBeforeSlideOut: TNotifyEvent;
     {$IFDEF XE8_OR_NEWER}
     FImages: TCustomImageList;
     {$ENDIF}
@@ -242,6 +236,7 @@ type
     procedure SetToolbar(const Value: TksSlideMenuToolbar);
     procedure SetMenuIndex(const Value: integer);
     function GetMenuItemCount: integer;
+    function GetColorOrDefault(AColor, ADefaultIfNull: TAlphaColor): TAlphaColor;
   protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
   public
@@ -274,6 +269,7 @@ type
     property Toolbar: TksSlideMenuToolbar read GetToolbar write SetToolbar;
     property ToggleButton: TCustomButton read FToggleButton write SetToggleButton;
     property OnAfterSlideOut: TNotifyEvent read FOnAfterSlideOut write FOnAfterSlideOut;
+    property OnBeforeSlideOut: TNotifyEvent read FOnBeforeSlideOut write FOnBeforeSlideOut;
     property HeaderTextAlign: TTextAlign read FHeaderTextAlign write FHeaderTextAlign default TTextAlign.Leading;
     property ItemTextAlign: TTextAlign read FItemTextAlign write FItemTextAlign default TTextAlign.Leading;
     property SelectFirstItem: Boolean read FSelectFirstItem write FSelectFirstItem default True;
@@ -291,8 +287,8 @@ var
 
 implementation
 
-uses FMX.Platform, SysUtils, FMX.Ani, FMX.Pickers, Math, ksDrawFunctions,
-  FMX.ListView.Types, FMX.Utils;
+uses FMX.Platform, SysUtils, FMX.Ani, FMX.Pickers, Math,
+  FMX.ListView.Types, FMX.Utils, ksCommon;
 
 
 procedure Register;
@@ -594,6 +590,14 @@ begin
     FToggleButton := nil;
 end;
 
+
+function TksSlideMenu.GetColorOrDefault(AColor, ADefaultIfNull: TAlphaColor): TAlphaColor;
+begin
+  Result := AColor;
+  if Result = claNull then
+    Result := ADefaultIfNull;
+end;
+
 procedure TksSlideMenu.UpdateMenu;
 var
   ICount: integer;
@@ -790,6 +794,12 @@ var
 begin
   if FAnimating then
     Exit;
+  if FShowing = False then
+  begin
+    if Assigned(FOnBeforeSlideOut) then
+      FOnBeforeSlideOut(Self);
+  end;
+
   FAnimating := True;
   try
     if (FShowing = False) then

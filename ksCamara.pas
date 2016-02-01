@@ -1,6 +1,6 @@
 {*******************************************************************************
 *                                                                              *
-*  TksSpeedButton - TSpeedButton with iOS style badge                          *
+*  TksCamara - Camara Access Component                                         *
 *                                                                              *
 *  https://github.com/gmurt/KernowSoftwareFMX                                  *
 *                                                                              *
@@ -22,90 +22,76 @@
 *                                                                              *
 *******************************************************************************}
 
-unit ksSpeedButton;
+unit ksCamara;
 
 interface
 
 {$I ksComponents.inc}
 
-uses Classes, FMX.StdCtrls, FMX.Graphics, ksControlBadge, ksTypes;
+uses Classes, FMX.MediaLibrary, FMX.Media, FMX.Platform, System.Messaging, FMX.Graphics,
+  ksTypes;
 
 type
+  TksCamaraOnPhotoTaken = procedure(Sender: TObject; ABitmap: TBitmap) of object;
+
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
     {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
     {$ELSE} pidiOSDevice {$ENDIF} or pidiOSSimulator or pidAndroid)]
-  TksSpeedButton = class(TksBaseSpeedButton)
+  TksCamara = class(TksComponent)
   private
-    FBadge: TksControlBadge;
-    procedure SetBadge(Value: TksBadgeProperties);
-    function GetBadge: TksBadgeProperties;
-  protected
-    procedure Resize; override;
-    function GetDefaultStyleLookupName: string; override;
+    FCamaraService: IFMXCameraService;
+    FOnPhotoTaken: TksCamaraOnPhotoTaken;
+    FEditable: Boolean;
+    FSaveToAlbum: Boolean;
+    procedure DoDidFinish(Image: TBitmap);
   public
     constructor Create(AOwner: TComponent); override;
-    destructor Destroy; override;
+    procedure TakePhoto;
   published
-    property Badge: TksBadgeProperties read GetBadge write SetBadge;
+    property OnPhotoTaken: TksCamaraOnPhotoTaken read FOnPhotoTaken write FOnPhotoTaken;
+    property Editable: Boolean read FEditable write FEditable default True;
+    property SaveToAlbum: Boolean read FSaveToAlbum write FSaveToAlbum default True;
   end;
-
 
   procedure Register;
 
 implementation
 
-uses Math;
+uses Types;
 
 procedure Register;
 begin
-  RegisterComponents('Kernow Software FMX', [TksSpeedButton]);
+  RegisterComponents('Kernow Software FMX', [TksCamara]);
 end;
 
-{ TksSpeedButton }
+{ TksCamara }
 
-constructor TksSpeedButton.Create(AOwner: TComponent);
-begin
-  inherited Create(AOwner);
-  FBadge := TksControlBadge.Create(Self);
-  //StyledSettings := [];
-  AddObject(FBadge);
-end;
-
-destructor TksSpeedButton.Destroy;
-begin
-  {$IFDEF NEXTGEN}
-  FBadge.DisposeOf;
-  {$ELSE}
-  FBadge.Free;
-  {$ENDIF}
-  inherited;
-end;
-
-
-function TksSpeedButton.GetBadge: TksBadgeProperties;
-begin
-  Result := FBadge.Properties;
-end;
-
-procedure TksSpeedButton.Resize;
+constructor TksCamara.Create(AOwner: TComponent);
 begin
   inherited;
-  FBadge.Position.X := (Width - FBadge.Width) - (Width * 0.1);
+  TPlatformServices.Current.SupportsPlatformService(IFMXCameraService, FCamaraService);
+
+  FEditable := True;
+  FSaveToAlbum := True;
 end;
 
-function TksSpeedButton.GetDefaultStyleLookupName: string;
+procedure TksCamara.DoDidFinish(Image: TBitmap);
 begin
-  Result := GenerateStyleName(TSpeedButton.ClassName);
+  if Assigned(FOnPhotoTaken) then
+    FOnPhotoTaken(Self, Image);
+
 end;
 
-procedure TksSpeedButton.SetBadge(Value: TksBadgeProperties);
+procedure TksCamara.TakePhoto;
+var
+  AParams: TParamsPhotoQuery;
 begin
-  FBadge.Properties.Assign(Value);
+  AParams.Editable := FEditable;
+  // Specifies whether to save a picture to device Photo Library
+  AParams.NeedSaveToAlbum := FSaveToAlbum;
+  AParams.RequiredResolution := TSize.Create(640, 640);
+  AParams.OnDidFinishTaking := DoDidFinish;
+  FCamaraService.TakePhoto(nil, AParams);
 end;
-
-
-initialization
-
-  Classes.RegisterClass(TksSpeedButton);
 
 end.

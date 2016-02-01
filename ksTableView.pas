@@ -48,18 +48,13 @@ unit ksTableView;
 
 interface
 
+{$I ksComponents.inc}
+
 uses Classes, FMX.Controls, FMX.Layouts, FMX.Types, System.Types, Generics.Collections,
   FMX.Graphics, FMX.Objects, FMX.InertialMovement, System.UITypes, System.TypInfo,
   System.UIConsts, System.Rtti, FMX.DateTimeCtrls, FMX.StdCtrls, FMX.Utils,
-  FMX.Styles, FMX.Styles.Objects, FMX.Edit, FMX.SearchBox, FMX.ListBox, FMX.Effects;
-
-{$IFDEF VER290}
-{$DEFINE XE8_OR_NEWER}
-{$ENDIF}
-{$IFDEF VER300}
-{$DEFINE XE8_OR_NEWER}
-{$DEFINE XE10_OR_NEWER}
-{$ENDIF}
+  FMX.Styles, FMX.Styles.Objects, FMX.Edit, FMX.SearchBox, FMX.ListBox, FMX.Effects,
+  ksTypes;
 
 const
   C_TABLEVIEW_DEFAULT_ITEM_HEIGHT = 44;
@@ -152,13 +147,6 @@ type
   TksTableViewDropItemEvent    = procedure(Sender: TObject; ADragRow, ADropRow: TksTableViewItem; var AllowMove: Boolean) of object;
   TksTableViewSearchFilterChange = procedure(Sender: TObject; ASearchText: string) of object;
   TksTableViewStickyHeaderChange = procedure(Sender: TObject; AFromStickHeader, AToStickHeader: TksTableViewItem) of object;
-
-  TksAccessoryType = (atNone, atMore, atCheckmark, atDetail, atEllipses, atFlag, atBack, atRefresh,
-    atAction, atPlay, atRewind, atForward, atPause, atStop, atAdd, atPrior,
-    atNext, atArrowUp, atArrowDown, atArrowLeft, atArrowRight, atReply,
-    atSearch, atBookmarks, atTrash, atOrganize, atCamera, atCompose, atInfo,
-    atPagecurl, atDetails, atRadioButton, atRadioButtonChecked, atCheckBox,
-    atCheckBoxChecked, atUserDefined1, atUserDefined2, atUserDefined3);
 
 
   //---------------------------------------------------------------------------------------
@@ -1010,6 +998,7 @@ type
     FTextColor: TAlphaColor;
     FWidth: integer;
     FShowImage: Boolean;
+    FShowText: Boolean;
   public
     constructor Create; virtual;
   published
@@ -1018,6 +1007,7 @@ type
     property Enabled: Boolean read FEnabled write FEnabled default False;
     property Text: string read FText write FText;
     property ShowImage: Boolean read FShowImage write FShowImage default True;
+    property ShowText: Boolean read FShowText write FShowText default True;
     property Width: integer read FWidth write FWidth default 60;
   end;
 
@@ -1490,7 +1480,7 @@ type
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
     {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
     {$ELSE} pidiOSDevice {$ENDIF} or pidiOSSimulator or pidAndroid)]
-  TksTableView = class(TControl)
+  TksTableView = class(TksControl)
   strict private
     FFullWidthSeparator: Boolean;
   private
@@ -1529,6 +1519,7 @@ type
     FDragDropImage : TksDragImage;
     FDragDropScrollTimer: TFmxHandle;
     FDragging: Boolean;
+    FDragOverItem: TksTableViewItem;
     FSelectionOptions: TksTableViewSelectionOptions;
     FAccessoryOptions: TksTableViewAccessoryOptions;
     FHeaderOptions: TksTableViewItemHeaderOptions;
@@ -1652,7 +1643,6 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetScreenScale: Extended;
     function GetItemFromPos(AXPos,AYPos: single): TksTableViewItem;
     procedure ClearItems;
     procedure BeginUpdate; {$IFDEF XE8_OR_NEWER} override; {$ENDIF}
@@ -1775,60 +1765,16 @@ type
     property OnStickyHeaderChange: TksTableViewStickyHeaderChange read FOnStickyHeaderChange write FOnStickyHeaderChange;
   end;
 
-  procedure SimulateClick(AControl: TControl; x, y: single);
-
 {$R *.dcr}
 
 procedure Register;
 
 implementation
 
-uses SysUtils, FMX.Platform, Math, FMX.TextLayout, System.Math.Vectors,
+uses SysUtils, FMX.Platform, Math, FMX.TextLayout, System.Math.Vectors, ksCommon,
   FMX.Ani, FMX.Forms {$IFDEF USE_TMS_HTML_ENGINE} , FMX.TMSHTMLEngine {$ENDIF};
 
-type
-  //---------------------------------------------------------------------------------------
-
-  // TksTableViewAccessoryImage
-
-  TksTableViewAccessoryImage = class(TBitmap)
-  private
-    FColor: TAlphaColor;
-    procedure SetColor(const Value: TAlphaColor);
-  public
-    procedure SetBitmap(ASource: TBitmap);
-    procedure DrawToCanvas(ACanvas: TCanvas; ADestRect: TRectF; const AStretch: Boolean = True);
-    property Color: TAlphaColor read FColor write SetColor default claNull;
-  end;
-
-  //---------------------------------------------------------------------------------------
-
-  // TksTableViewAccessoryImageList
-
-  TksTableViewAccessoryImageList = class(TObjectList<TksTableViewAccessoryImage>)
-  private
-    FImageScale: single;
-    FImageMap: TBitmap;
-    FActiveStyle: TFmxObject;
-    procedure AddEllipsesAccessory;
-    procedure AddFlagAccessory;
-    procedure CalculateImageScale;
-    function GetAccessoryFromResource(AStyleName: string; const AState: string = ''): TksTableViewAccessoryImage;
-    procedure Initialize;
-    function GetAccessoryImage(AAccessory: TksAccessoryType): TksTableViewAccessoryImage;
-  public
-    constructor Create;
-    destructor Destroy; override;
-    property Images[AAccessory: TksAccessoryType]: TksTableViewAccessoryImage read GetAccessoryImage; default;
-    property ImageMap: TBitmap read FImageMap;
-    property ImageScale: single read FImageScale;
-  end;
-
 var
-  AccessoryImages: TksTableViewAccessoryImageList;
-  ATextLayout: TTextLayout;
-  _ScreenScale: single;
-  AUnitTesting: Boolean;
   AIsSwiping: Boolean;
 
 procedure Register;
@@ -1836,265 +1782,6 @@ begin
   RegisterComponents('Kernow Software FMX', [TksTableView]);
 end;
 
-// ------------------------------------------------------------------------------
-
-// General graphics functions...
-
-function GetScreenScale: single;
-var
-  Service: IFMXScreenService;
-begin
-  if _ScreenScale > 0 then
-  begin
-    Result := _ScreenScale;
-    Exit;
-  end;
-  Service := IFMXScreenService(TPlatformServices.Current.GetPlatformService
-    (IFMXScreenService));
-  Result := Service.GetScreenScale;
-  {$IFDEF IOS}
-  if Result < 2 then
-   Result := 2;
-  {$ENDIF}
-  if Result > 3 then
-    Result := 3;
-  _ScreenScale := Result;
-end;
-
-procedure ProcessMessages;
-begin
-  // FMX can occasionally raise an exception.
-  try
-    Application.ProcessMessages;
-  except
-    //
-  end;
-end;
-function GetColorOrDefault(AColor, ADefaultIfNull: TAlphaColor): TAlphaColor;
-begin
-  Result := AColor;
-  if Result = claNull then
-    Result := ADefaultIfNull;
-end;
-
-function IsBlankBitmap(ABmp: TBitmap; const ABlankColor: TAlphaColor = claNull): Boolean;
-var
-  ABlank: TBitmap;
-begin
-  ABlank := TBitmap.Create(ABmp.Width, ABmp.Height);
-  try
-    ABlank.Clear(ABlankColor);
-    Result := ABmp.EqualsBitmap(ABlank);
-  finally
-    FreeAndNil(ABlank);
-  end;
-end;
-
-procedure RenderText(ACanvas: TCanvas; x, y, AWidth, AHeight: single;
-  AText: string; AFont: TFont; ATextColor: TAlphaColor; AWordWrap: Boolean;
-  AHorzAlign: TTextAlign; AVertAlign: TTextAlign; ATrimming: TTextTrimming;
-  const APadding: single = 0); overload;
-begin
-  if AText = '' then
-    Exit;
-  ATextLayout.BeginUpdate;
-  ATextLayout.Text := AText;
-  ATextLayout.WordWrap := AWordWrap;
-  ATextLayout.Font.Assign(AFont);
-  ATextLayout.Color := ATextColor;
-  ATextLayout.HorizontalAlign := AHorzAlign;
-  ATextLayout.VerticalAlign := AVertAlign;
-  ATextLayout.Padding.Rect := RectF(APadding, APadding, APadding, APadding);
-  ATextLayout.Trimming := ATrimming;
-  if AWordWrap  then
-    ATextLayout.Trimming := TTextTrimming.None;
-  ATextLayout.TopLeft := PointF(x, y);
-  ATextLayout.MaxSize := PointF(AWidth, AHeight);
-  ATextLayout.EndUpdate;
-  ATextLayout.RenderLayout(ACanvas);
-end;
-
-procedure RenderText(ACanvas: TCanvas; ARect: TRectF;
-  AText: string; AFont: TFont; ATextColor: TAlphaColor; AWordWrap: Boolean;
-  AHorzAlign: TTextAlign; AVertAlign: TTextAlign; ATrimming: TTextTrimming;
-  const APadding: single = 0); overload;
-begin
-  RenderText(ACanvas, ARect.Left, ARect.Top, ARect.Width, ARect.Height, AText, AFont, ATextColor, AWordWrap, AHorzAlign, AVertAlign, ATrimming, APadding);
-end;
-
-function GetTextSizeHtml(AText: string; AFont: TFont;
-  const AWidth: single = 0): TPointF;
-{$IFDEF USE_TMS_HTML_ENGINE}
-var
-  AnchorVal, StripVal, FocusAnchor: string;
-  XSize, YSize: single;
-  HyperLinks, MouseLink: integer;
-  HoverRect: TRectF;
-  ABmp: TBitmap;
-{$ENDIF}
-begin
-  Result := PointF(0, 0);
-{$IFDEF USE_TMS_HTML_ENGINE}
-  XSize := AWidth;
-
-  if XSize <= 0 then
-    XSize := MaxSingle;
-
-  ABmp := TBitmap.Create(10, 10);
-  try
-    ABmp.BitmapScale := GetScreenScale;
-    ABmp.Canvas.Assign(AFont);
-{$IFDEF USE_TMS_HTML_ENGINE}
-    HTMLDrawEx(ABmp.Canvas, AText, RectF(0, 0, XSize, MaxSingle), 0, 0, 0, 0, 0,
-      False, False, False, False, False, False, False, 1, claNull, claNull,
-      claNull, claNull, AnchorVal, StripVal, FocusAnchor, XSize, YSize,
-      HyperLinks, MouseLink, HoverRect, 1, nil, 1);
-    Result := PointF(XSize, YSize);
-{$ELSE}
-    Result := PointF(0, 0);
-{$ENDIF}
-  finally
-    FreeAndNil(ABmp);
-  end;
-{$ENDIF}
-end;
-
-function CalculateTextWidth(AText: string; AFont: TFont; AWordWrap: Boolean;
-  const AMaxWidth: single = 0; const APadding: single = 0): single;
-var
-  APoint: TPointF;
-begin
-  ATextLayout.BeginUpdate;
-  // Setting the layout MaxSize
-  if AMaxWidth > 0 then
-    APoint.X := AMaxWidth
-  else
-    APoint.x := MaxSingle;
-  APoint.y := 100;
-  ATextLayout.MaxSize := APoint;
-  ATextLayout.Text := AText;
-  ATextLayout.WordWrap := AWordWrap;
-  ATextLayout.Padding.Rect := RectF(APadding, APadding, APadding, APadding);
-  ATextLayout.Font.Assign(AFont);
-  ATextLayout.HorizontalAlign := TTextAlign.Leading;
-  ATextLayout.VerticalAlign := TTextAlign.Leading;
-  ATextLayout.EndUpdate;
-  //ATextLayout.RenderLayout(ATextLayout.LayoutCanvas);
-  Result := ATextLayout.Width;
-end;
-
-function CalculateTextHeight(AText: string; AFont: TFont; AWordWrap: Boolean; ATrimming: TTextTrimming;
-  const AWidth: single = 0; const APadding: single = 0): single;
-var
-  APoint: TPointF;
-begin
-  Result := 0;
-  if AText = '' then
-    Exit;
-  ATextLayout.BeginUpdate;
-  // Setting the layout MaxSize
-  APoint.x := MaxSingle;
-  if AWidth > 0 then
-    APoint.x := AWidth;
-  APoint.y := MaxSingle;
-  ATextLayout.Font.Assign(AFont);
-  ATextLayout.MaxSize := APoint;
-  ATextLayout.Text := AText;
-  ATextLayout.WordWrap := AWordWrap;
-  ATextLayout.Padding.Rect := RectF(APadding, APadding, APadding, APadding);
-  ATextLayout.HorizontalAlign := TTextAlign.Leading;
-  ATextLayout.VerticalAlign := TTextAlign.Leading;
-  ATextLayout.EndUpdate;
-  Result := ATextLayout.TextHeight;
-end;
-
-procedure RenderHhmlText(ACanvas: TCanvas; x, y, AWidth, AHeight: single;
-  AText: string; AFont: TFont; ATextColor: TAlphaColor; AWordWrap: Boolean;
-  AHorzAlign: TTextAlign; AVertAlign: TTextAlign; ATrimming: TTextTrimming);
-{$IFDEF USE_TMS_HTML_ENGINE}
-var
-  AnchorVal, StripVal, FocusAnchor: string;
-  XSize, YSize: single;
-  HyperLinks, MouseLink: integer;
-  HoverRect: TRectF;
-{$ENDIF}
-begin
-{$IFDEF USE_TMS_HTML_ENGINE}
-  ACanvas.Fill.Color := ATextColor;
-  ACanvas.Font.Assign(AFont);
-  HTMLDrawEx(ACanvas, AText, RectF(x, y, x + AWidth, y + AHeight), 0, 0, 0, 0,
-    0, False, False, True, False, False, False, AWordWrap, 1, claNull, claNull,
-    claNull, claNull, AnchorVal, StripVal, FocusAnchor, XSize, YSize,
-    HyperLinks, MouseLink, HoverRect, 1, nil, 1);
-{$ELSE}
-  AFont.Size := 10;
-  RenderText(ACanvas, x, y, AWidth, AHeight, 'Requires TMS FMX', AFont,
-    ATextColor, AWordWrap, AHorzAlign, AVertAlign, ATrimming);
-{$ENDIF}
-end;
-
-procedure DrawAccessory(ACanvas: TCanvas; ARect: TRectF; AAccessory: TksAccessoryType;
-  AStroke, AFill: TAlphaColor);
-var
-  AState: TCanvasSaveState;
-begin
-  AState := ACanvas.SaveState;
-  try
-    ACanvas.IntersectClipRect(ARect);
-    ACanvas.Fill.Color := AFill;
-    ACanvas.Fill.Kind := TBrushKind.Solid;
-    ACanvas.FillRect(ARect, 0, 0, AllCorners, 1);
-    AccessoryImages.GetAccessoryImage(AAccessory).DrawToCanvas(ACanvas, ARect, False);
-    ACanvas.Stroke.Color := AStroke;
-    ACanvas.DrawRect(ARect, 0, 0, AllCorners, 1);
-  finally
-    ACanvas.RestoreState(AState);
-  end;
-end;
-
-procedure ReplaceOpaqueColor(ABmp: TBitmap; Color : TAlphaColor);
-var
-  x,y: Integer;
-  AMap: TBitmapData;
-  PixelColor: TAlphaColor;
-  PixelWhiteColor: TAlphaColor;
-  C: PAlphaColorRec;
-begin
-  if ABmp.Map(TMapAccess.ReadWrite, AMap) then
-  try
-    AlphaColorToPixel(Color   , @PixelColor, AMap.PixelFormat);
-    AlphaColorToPixel(claWhite, @PixelWhiteColor, AMap.PixelFormat);
-    for y := 0 to ABmp.Height - 1 do
-    begin
-      for x := 0 to ABmp.Width - 1 do
-      begin
-        C := @PAlphaColorArray(AMap.Data)[y * (AMap.Pitch div 4) + x];
-        if (C^.Color<>claWhite) and (C^.A>0) then
-          C^.Color := PremultiplyAlpha(MakeColor(PixelColor, C^.A / $FF));
-      end;
-    end;
-  finally
-    ABmp.Unmap(AMap);
-  end;
-end;
-
-procedure SimulateClick(AControl: TControl; x, y: single);
-var
-  AForm     : TCommonCustomForm;
-  AFormPoint: TPointF;
-begin
-  AForm := nil;
-  if (AControl.Root is TCustomForm) then
-    AForm := (AControl.Root as TCustomForm);
-  if AForm <> nil then
-  begin
-    AFormPoint := AControl.LocalToAbsolute(PointF(X,Y));
-    AForm.MouseDown(TMouseButton.mbLeft, [], AFormPoint.X, AFormPoint.Y);
-    AForm.MouseUp(TMouseButton.mbLeft, [], AFormPoint.X, AFormPoint.Y);
-  end;
-end;
-
-//---------------------------------------------------------------------------------------
 
 // TksTableViewItemObject
 
@@ -2534,10 +2221,9 @@ begin
   inherited;
   FShadow := TksTableViewShadow.Create;
   FShadow.Visible := False;
-  FOwnsBitmap := False;
+  FOwnsBitmap := True;
   FHighQuality := False;
   FDrawMode := TksImageDrawMode.ksDrawModeStretch;
-
 end;
 
 destructor TksTableViewItemBaseImage.Destroy;
@@ -2716,8 +2402,8 @@ end;
 procedure TksTableViewItemAccessory.RedrawAccessory;
 begin
   Bitmap := AccessoryImages.Images[FAccessory];
-  FWidth := Bitmap.Width / AccessoryImages.FImageScale;
-  FHeight := Bitmap.Height / AccessoryImages.FImageScale;
+  FWidth := Bitmap.Width / AccessoryImages.ImageScale;
+  FHeight := Bitmap.Height / AccessoryImages.ImageScale;
   //Changed;
 end;
 
@@ -2911,8 +2597,6 @@ begin
 
   FTableView.DisableMouseEvents;
   try
-    if Assigned(FTableView.OnDeleteItem) then
-      FTableView.OnDeleteItem(FTableView, AItem);
 
     AIndex := IndexOf(AItem);
     if AIndex = -1 then
@@ -2932,8 +2616,13 @@ begin
     end;
 
     inherited Delete(AIndex);
-    FTableView.UpdateAll(True);
+    FTableView.UpdateItemRects(False);
+    //FTableView.UpdateAll(True);
     FTableView.Invalidate;
+
+    if Assigned(FTableView.OnDeleteItem) then
+      FTableView.OnDeleteItem(FTableView, AItem);
+
   finally
     FTableView.EnableMouseEvents;
   end;
@@ -3653,10 +3342,13 @@ begin
       FTileBackground.Height:=0;
       if FImage.Bitmap <> nil then
       begin
-        FImage.Width := FTableView.ItemImageSize;
-        FImage.Height := FTableView.ItemImageSize;
-        FImage.FPlaceOffset := PointF(ARect.Left, 0);
-        ARect.Left := ARect.Left + FTableView.ItemImageSize + 4;
+        if FImage.Bitmap.Width > 0 then
+        begin
+          FImage.Width := FTableView.ItemImageSize;
+          FImage.Height := FTableView.ItemImageSize;
+          FImage.FPlaceOffset := PointF(ARect.Left, 0);
+          ARect.Left := ARect.Left + FTableView.ItemImageSize + 4;
+        end;
       end;
 
       FTitle.FPlaceOffset := PointF(ARect.Left, 0);
@@ -4262,289 +3954,6 @@ end;
 
 // ------------------------------------------------------------------------------
 
-{ TksTableViewAccessoryImageList }
-
-function TksTableViewAccessoryImageList.GetAccessoryImage(AAccessory: TksAccessoryType): TksTableViewAccessoryImage;
-begin
-  if Count = 0 then
-    Initialize;
-  Result := Items[Ord(AAccessory)];
-end;
-
-procedure TksTableViewAccessoryImageList.AddEllipsesAccessory;
-var
-  AAcc: TksTableViewAccessoryImage;
-  ARect: TRectF;
-  ASpacing: single;
-  ASize: single;
-begin
-  AAcc := TksTableViewAccessoryImage.Create;
-  AAcc.SetSize(Round(32 * GetScreenScale), Round(32 * GetScreenScale));
-  ASize := 7 * GetScreenScale;
-  ASpacing := (AAcc.Width - (3 * ASize)) / 2;
-
-  AAcc.Clear(claNull);
-  AAcc.Canvas.BeginScene;
-  try
-    AAcc.Canvas.Fill.Color := claSilver;
-    ARect := RectF(0, 0, ASize, ASize);
-    OffsetRect(ARect, 0, (AAcc.Height - ARect.Height) / 2);
-    AAcc.Canvas.FillEllipse(ARect, 1);
-    OffsetRect(ARect, ASize+ASpacing, 0);
-    AAcc.Canvas.FillEllipse(ARect, 1);
-    OffsetRect(ARect, ASize+ASpacing, 0);
-    AAcc.Canvas.FillEllipse(ARect, 1);
-  finally
-    AAcc.Canvas.EndScene;
-  end;
-  Add(AAcc);
-end;
-
-procedure TksTableViewAccessoryImageList.AddFlagAccessory;
-var
-  AAcc: TksTableViewAccessoryImage;
-  ARect: TRectF;
-  s: single;
-  r1, r2: TRectF;
-begin
-  s := GetScreenScale;
-  AAcc := TksTableViewAccessoryImage.Create;
-  AAcc.SetSize(Round(32 * s), Round(32 * s));
-  AAcc.Clear(claNull);
-  ARect := RectF(0, 0, AAcc.Width, AAcc.Height);
-  ARect.Inflate(0-(AAcc.Width / 4), 0-(AAcc.Height / 7));
-
-
-  AAcc.Canvas.BeginScene;
-  try
-    r1 := ARect;
-    r2 := ARect;
-
-    r2.Top := ARect.Top+(ARect.Height/12);
-
-
-    r2.Left := r2.Left;
-    r2.Height := ARect.Height / 2;
-    AAcc.Canvas.stroke.Color := claSilver;
-    AAcc.Canvas.Stroke.Thickness := s*2;
-
-    AAcc.Canvas.FillRect(r2, 0, 0, AllCorners, 1);
-    AAcc.Canvas.DrawLine(r1.TopLeft, PointF(r1.Left, r1.Bottom), 1);
-  finally
-    AAcc.Canvas.EndScene;
-  end;
-  Add(AAcc);
-end;
-
-procedure TksTableViewAccessoryImageList.CalculateImageScale;
-begin
-  if FImageScale = 0 then
-  begin
-    FImageScale := GetScreenScale;
-    {$IFDEF MSWINDOWS}
-      FImageScale := 1;
-    {$ENDIF}
-    {$IFDEF IOS}
-    if GetScreenScale >= 2 then
-      FImageScale := Round(GetScreenScale);
-    {$ENDIF}
-  end;
-end;
-
-constructor TksTableViewAccessoryImageList.Create;
-begin
-  inherited Create(True);
-  FImageScale := 0;
-  FImageMap := TBitmap.Create;
-end;
-
-destructor TksTableViewAccessoryImageList.Destroy;
-begin
-  FreeAndNil(FImageMap);
-  if FActiveStyle <> nil then
-    FreeAndNil(FActiveStyle);
-  inherited;
-end;
-
-function TksTableViewAccessoryImageList.GetAccessoryFromResource
-  (AStyleName: string; const AState: string = ''): TksTableViewAccessoryImage;
-var
-  AStyleObj: TStyleObject;
-  AImgRect: TBounds;
-  AIds: TStrings;
-  r: TRectF;
-  ABitmapLink: TBitmapLinks;
-  AImageMap: TBitmap;
-begin
-  CalculateImageScale;
-
-  Result := TksTableViewAccessoryImage.Create;
-  AIds := TStringList.Create;
-  try
-    AIds.Text := StringReplace(AStyleName, '.', #13, [rfReplaceAll]);
-
-    if AUnitTesting then
-    begin
-      if FActiveStyle = nil then
-        FActiveStyle := TStyleManager.ActiveStyle(Nil);
-      AStyleObj := TStyleObject(FActiveStyle)
-    end
-    else
-      AStyleObj := TStyleObject(TStyleManager.ActiveStyle(nil));
-
-    while AIds.Count > 0 do
-    begin
-      AStyleObj := TStyleObject(AStyleObj.FindStyleResource(AIds[0]));
-      AIds.Delete(0);
-    end;
-
-    if AStyleObj <> nil then
-    begin
-      if FImageMap.IsEmpty then
-      begin
-        AImageMap := ((AStyleObj as TStyleObject).Source.MultiResBitmap.Bitmaps[FImageScale]);
-
-        FImageMap.SetSize(Round(AImageMap.Width), Round(AImageMap.Height));
-        FImageMap.Clear(claNull);
-
-        FImageMap.Canvas.BeginScene;
-        try
-          FImageMap.Canvas.DrawBitmap(AImageMap,
-                                      RectF(0, 0, AImageMap.Width, AImageMap.Height),
-                                      RectF(0, 0, FImageMap.Width, FImageMap.Height),
-                                      1,
-                                      True);
-        finally
-          FImageMap.Canvas.EndScene;
-        end;
-      end;
-
-      ABitmapLink := nil;
-      if AStyleObj = nil then
-        Exit;
-      if (AStyleObj.ClassType = TCheckStyleObject) then
-      begin
-        if AState = 'checked' then
-          ABitmapLink := TCheckStyleObject(AStyleObj).ActiveLink
-        else
-          ABitmapLink := TCheckStyleObject(AStyleObj).SourceLink
-
-      end;
-
-      if ABitmapLink = nil then
-        ABitmapLink := AStyleObj.SourceLink;
-
-{$IFDEF XE8_OR_NEWER}
-      AImgRect := ABitmapLink.LinkByScale(FImageScale, True).SourceRect;
-{$ELSE}
-      AImgRect := ABitmapLink.LinkByScale(FImageScale).SourceRect;
-{$ENDIF}
-      Result.SetSize(Round(AImgRect.Width), Round(AImgRect.Height));
-      Result.Clear(claNull);
-      Result.Canvas.BeginScene;
-
-      r := AImgRect.Rect;
-
-      Result.Canvas.DrawBitmap(FImageMap, r, RectF(0, 0, Result.Width,
-        Result.Height), 1, True);
-      Result.Canvas.EndScene;
-    end;
-  finally
-{$IFDEF NEXTGEN}
-    FreeAndNil(AIds);
-{$ELSE}
-    AIds.Free;
-{$ENDIF}
-  end;
-end;
-
-procedure TksTableViewAccessoryImageList.Initialize;
-var
-  ICount: TksAccessoryType;
-begin
-  for ICount := Low(TksAccessoryType) to High(TksAccessoryType) do
-  begin
-    case ICount of
-      atNone: Add(GetAccessoryFromResource('none'));
-      atMore: Add(GetAccessoryFromResource('listviewstyle.accessorymore'));
-      atCheckmark: Add(GetAccessoryFromResource('listviewstyle.accessorycheckmark'));
-      atDetail: Add(GetAccessoryFromResource('listviewstyle.accessorydetail'));
-      atEllipses: AddEllipsesAccessory;
-      atFlag: AddFlagAccessory;
-      atBack: Add(GetAccessoryFromResource('backtoolbutton.icon'));
-      atRefresh: Add(GetAccessoryFromResource('refreshtoolbutton.icon'));
-      atAction: Add(GetAccessoryFromResource('actiontoolbutton.icon'));
-      atPlay: Add(GetAccessoryFromResource('playtoolbutton.icon'));
-      atRewind: Add(GetAccessoryFromResource('rewindtoolbutton.icon'));
-      atForward: Add(GetAccessoryFromResource('forwardtoolbutton.icon'));
-      atPause: Add(GetAccessoryFromResource('pausetoolbutton.icon'));
-      atStop: Add(GetAccessoryFromResource('stoptoolbutton.icon'));
-      atAdd: Add(GetAccessoryFromResource('addtoolbutton.icon'));
-      atPrior: Add(GetAccessoryFromResource('priortoolbutton.icon'));
-      atNext: Add(GetAccessoryFromResource('nexttoolbutton.icon'));
-      atArrowUp: Add(GetAccessoryFromResource('arrowuptoolbutton.icon'));
-      atArrowDown: Add(GetAccessoryFromResource('arrowdowntoolbutton.icon'));
-      atArrowLeft: Add(GetAccessoryFromResource('arrowlefttoolbutton.icon'));
-      atArrowRight: Add(GetAccessoryFromResource('arrowrighttoolbutton.icon'));
-      atReply: Add(GetAccessoryFromResource('replytoolbutton.icon'));
-      atSearch: Add(GetAccessoryFromResource('searchtoolbutton.icon'));
-      atBookmarks: Add(GetAccessoryFromResource('bookmarkstoolbutton.icon'));
-      atTrash: Add(GetAccessoryFromResource('trashtoolbutton.icon'));
-      atOrganize: Add(GetAccessoryFromResource('organizetoolbutton.icon'));
-      atCamera: Add(GetAccessoryFromResource('cameratoolbutton.icon'));
-      atCompose: Add(GetAccessoryFromResource('composetoolbutton.icon'));
-      atInfo: Add(GetAccessoryFromResource('infotoolbutton.icon'));
-      atPagecurl: Add(GetAccessoryFromResource('pagecurltoolbutton.icon'));
-      atDetails: Add(GetAccessoryFromResource('detailstoolbutton.icon'));
-      atRadioButton: Add(GetAccessoryFromResource('radiobuttonstyle.background'));
-      atRadioButtonChecked: Add(GetAccessoryFromResource('radiobuttonstyle.background', 'checked'));
-      atCheckBox: Add(GetAccessoryFromResource('checkboxstyle.background'));
-      atCheckBoxChecked: Add(GetAccessoryFromResource('checkboxstyle.background', 'checked'));
-      atUserDefined1: Add(GetAccessoryFromResource('userdefined1'));
-      atUserDefined2: Add(GetAccessoryFromResource('userdefined2'));
-      atUserDefined3: Add(GetAccessoryFromResource('userdefined3'));
-    end;
-  end;
-  // generate our own ellipses accessory...
-
-end;
-
-// ------------------------------------------------------------------------------
-
-{ TksAccessoryImage }
-
-procedure TksTableViewAccessoryImage.DrawToCanvas(ACanvas: TCanvas;
-  ADestRect: TRectF; const AStretch: Boolean = True);
-var
-  r: TRectF;
-begin
-  r := ADestRect;
-  if AStretch = False then
-  begin
-    r := RectF(0, 0, Width / GetScreenScale, Height / GetScreenScale);
-    OffsetRect(r, ADestRect.Left, ADestRect.Top);
-    OffsetRect(r, (ADestRect.Width-r.Width)/2, (ADestRect.Height-r.Height)/2);
-  end;
-
-  ACanvas.DrawBitmap(Self, RectF(0, 0, Width, Height), r, 1, True);
-end;
-
-procedure TksTableViewAccessoryImage.SetBitmap(ASource: TBitmap);
-begin
-  Assign(ASource);
-end;
-
-procedure TksTableViewAccessoryImage.SetColor(const Value: TAlphaColor);
-begin
-  if FColor <> Value then
-  begin
-    FColor := Value;
-    ReplaceOpaqueColor(Value);
-  end;
-end;
-
-// ------------------------------------------------------------------------------
-
 { TksTableView }
 
 procedure TksTableView.BeginUpdate;
@@ -4574,7 +3983,7 @@ begin
   if FItems.Count <= C_TABLEVIEW_PAGE_SIZE then
   begin
     for ICount := 0 to FItems.Count-1 do
-      FItems[ICount].CacheItem(False);
+      FItems[ICount].CacheItem(True);
   end;
 end;
 
@@ -5253,6 +4662,7 @@ begin
       UpdateDropImage(FMouseDownPoint.X+8, FMouseDownPoint.Y+8);
       FDragging := True;
       FMouseDownItem.FDragging := True;
+      FDragOverItem := nil;
     end;
   end
   else
@@ -5394,11 +4804,6 @@ begin
   Result := RectF(pt.x - v, pt.y - v, pt.x + v, pt.y + v);
 end;
 
-function TksTableView.GetScreenScale: Extended;
-begin
-  Result := _ScreenScale;
-end;
-
 function TksTableView.GetSearchHeight: single;
 begin
   Result := 0;
@@ -5417,7 +4822,7 @@ var
 begin
   if (Items.Count>0) then
   begin
-    Result := Items[0].FItemRect.Top {- GetSearchHeight};
+    Result := 0; //Items[0].FItemRect.Top {- GetSearchHeight};
     for I:=0 to Min(FFixedRowOptions.FHeaderCount,Items.Count)-1 do
       Result := Result + Items[I].FItemRect.Height;
   end
@@ -5545,8 +4950,13 @@ procedure TksTableView.KeyDown(var Key: Word; var KeyChar: WideChar;
   Shift: TShiftState);
 begin
   inherited;
-  if Key = vkUp then ItemIndex := ItemIndex - 1;
-  if Key = vkDown then ItemIndex := ItemIndex + 1;
+  if Key = vkUp then ScrollTo(ScrollViewPos-ItemHeight);
+  if Key = vkDown then ScrollTo(ScrollViewPos+ItemHeight);
+  if Key = vkHome then ScrollTo(0);
+  if Key = vkEnd then ScrollTo(FMaxScrollPos);
+  if Key = vkPrior then ScrollTo(ScrollViewPos-Height);
+  if Key = vkNext then ScrollTo(ScrollViewPos+Height);
+
 end;
 
 procedure TksTableView.KillAllTimers;
@@ -5648,8 +5058,8 @@ procedure TksTableView.MouseMove(Shift: TShiftState; x, y: single);
 var
   AMouseDownRect: TRectF;
   ADragOverItem : TksTableViewItem;
-  AAllowDrop    : Boolean;
-  I             : Integer;
+  //AAllowDrop    : Boolean;
+  //I             : Integer;
 begin
   if (UpdateCount > 0) or (FMouseEventsEnabled = False) then
     Exit;
@@ -5662,7 +5072,14 @@ begin
   if FDragging then
   begin
     ADragOverItem := GetItemFromPos(x, y);
-    if (FDragDropOptions.FLiveMoving) and (ADragOverItem<>Nil) and (ADragOverItem<>FMouseDownItem) then
+
+    if ADragOverItem <> FMouseDownItem then
+      FDragOverItem := ADragOverItem;
+
+    // live moving is causing index problems... need to re-work this code.
+
+
+    {if (FDragDropOptions.FLiveMoving) and (ADragOverItem<>Nil) and (ADragOverItem<>FMouseDownItem) then
     begin
       for I:=FItems.IndexOf(ADragOverItem) downto 1 do
       begin
@@ -5686,7 +5103,7 @@ begin
 
         RedrawAllVisibleItems;
       end;
-    end;
+    end;  }
 
     UpdateDropImage(FMouseCurrentPos.X+8, FMouseCurrentPos.Y+8);
     Exit;
@@ -5732,7 +5149,6 @@ procedure TksTableView.MouseUp(Button: TMouseButton; Shift: TShiftState;
 var
   ACanDrop: Boolean;
   AAllowMove: Boolean;
-  ADragOverItem: TksTableViewItem;
   Form: TCustomForm;
 begin
   y := y - GetStartOffsetY;
@@ -5751,22 +5167,26 @@ begin
     FDragDropImage := nil;
     KillTimer(FDragDropScrollTimer);
     ReleaseCapture;
-    ADragOverItem := GetItemFromPos(x, y);
 
-    if (Assigned(FOnDropItem)) and (ADragOverItem <> nil) then
+    //ADragOverItem := GetItemFromPos(x, y);
+
+    if (Assigned(FOnDropItem)) and (FDragOverItem <> nil) then
     begin
       ACanDrop := True;
       if Assigned(FOnCanDropItem) then
-         FOnCanDropItem(Self, FMouseDownItem, ADragOverItem, ACanDrop);
+         FOnCanDropItem(Self, FMouseDownItem, FDragOverItem, ACanDrop);
 
       if ACanDrop then
       begin
-        FOnDropItem(Self,FMouseDownItem, ADragOverItem, AAllowMove);
+        FOnDropItem(Self,FMouseDownItem, FDragOverItem, AAllowMove);
         if AAllowMove then
         begin
           // move the drag row to the new position...
-          FItems.Move(FItems.IndexOf(FMouseDownItem), FItems.IndexOf(ADragOverItem));
-          UpdateAll(False);
+
+          FItems.Move(FMouseDownItem.Index, FDragOverItem.Index);
+          UpdateAll(True);
+          RedrawAllVisibleItems;
+
         end;
       end;
 
@@ -6433,11 +5853,16 @@ begin
 end;
 
 procedure TksTableView.ScrollTo(const Value: single);
+var
+  ANewValue: single;
 begin
-  if ((Value-Height) < FMaxScrollPos) and (Value > 0) then
+  ANewValue := Value;
+  if ANewValue < 0 then ANewValue := 0;
+  if ANewValue > FMaxScrollPos then ANewValue := FMaxScrollPos;
+  if ((ANewValue-Height) < FMaxScrollPos) and (ANewValue >= 0) then
   begin
-    FScrollPos := Value;
-    SetScrollViewPos(Value);
+    FScrollPos := ANewValue;
+    SetScrollViewPos(ANewValue);
     UpdateScrollingLimits;
     Invalidate;
   end;
@@ -6756,6 +6181,9 @@ begin
     Exit;
   if ADelBtn.ShowImage then
     AAcc := atTrash;
+  if FTableView.DeleteButton.ShowText = False then
+    ADelBtn.Text := '';
+
   Result := AddButton(ADelBtn.Text,
                       ADelBtn.Color,
                       ADelBtn.TextColor,
@@ -6952,8 +6380,11 @@ begin
         (FIcon as TksTableViewAccessoryImage).Color := FTextColor;
       end;
 
-      AIconRect.Bottom := AIconRect.CenterPoint.Y;
-      AIconRect.Top := AIconRect.Bottom - 28;
+      if (Text <> '')then
+      begin
+        AIconRect.Bottom := AIconRect.CenterPoint.Y;
+        AIconRect.Top := AIconRect.Bottom - 28;
+      end;
       ATextRect.Top := ATextRect.CenterPoint.Y;
       ATextRect.Bottom := ATextRect.CenterPoint.Y;
       OffsetRect(ATextRect, 0, 4);
@@ -6979,12 +6410,14 @@ end;
 
 constructor TksDeleteButton.Create;
 begin
+  inherited;
   FEnabled := False;
   FText := 'Delete';
   FColor := claRed;
   FTextColor := claWhite;
   FWidth := 60;
   FShowImage := True;
+  FShowText := True;
 end;
 
 // ------------------------------------------------------------------------------
@@ -9407,16 +8840,11 @@ end;
 
 initialization
 
-  AccessoryImages := TksTableViewAccessoryImageList.Create;
-  ATextLayout := TTextLayoutManager.DefaultTextLayout.Create;
   AIsSwiping := False;
-  AUnitTesting := False;
 
 finalization
 
 
-  FreeAndNil(AccessoryImages);
-  FreeAndNil(ATextLayout);
 
 end.
 

@@ -24,16 +24,16 @@ package KernowSoftwareFMX;
 {$MINENUMSIZE 1}
 {$IMAGEBASE $400000}
 {$ENDIF IMPLICITBUILDING}
-{$IMPLICITBUILD OFF}
+{$IMPLICITBUILD ON}
 
 requires
   rtl,
-  fmx;
+  fmx,
+  designide;
 
 contains
   ksSlideMenu in 'ksSlideMenu.pas',
   ksSegmentButtons in 'ksSegmentButtons.pas',
-  ksDrawFunctions in 'ksDrawFunctions.pas',
   ksTableView in 'ksTableView.pas',
   ksMainMenu in 'ksMainMenu.pas',
   ksListViewHelper in 'ksListViewHelper.pas',
@@ -42,7 +42,14 @@ contains
   ksTileMenu in 'ksTileMenu.pas',
   ksNetHttpClient in 'ksNetHttpClient.pas',
   ksSpeedButton in 'ksSpeedButton.pas',
-  ksControlBadge in 'ksControlBadge.pas';
+  ksControlBadge in 'ksControlBadge.pas',
+  ksCamara in 'ksCamara.pas',
+  ksCameraViewer in 'ksCameraViewer.pas',
+  ksTabControl in 'ksTabControl.pas',
+  ksComponentEditors in 'ksComponentEditors.pas',
+  ksCommon in 'ksCommon.pas',
+  ksTypes in 'ksTypes.pas';
 
 end.
+
 

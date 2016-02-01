@@ -26,7 +26,9 @@ unit ksControlBadge;
 
 interface
 
-uses FMX.Controls, Classes, FMX.StdCtrls, FMX.Objects, FMX.Effects;
+{$I ksComponents.inc}
+
+uses FMX.Controls, Classes, FMX.StdCtrls, FMX.Objects, FMX.Effects, ksTypes;
 
 type
   TksControlBadge = class;
@@ -48,7 +50,7 @@ type
   end;
 
 
-  TksControlBadge = class(TRoundRect)
+  TksControlBadge = class(TksRoundRect)
   private
     FLabel: TLabel;
     FProperties: TksBadgeProperties;

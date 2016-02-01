@@ -26,6 +26,8 @@ unit ksNetHttpClient;
 
 interface
 
+{$I ksComponents.inc}
+
 uses
   System.SysUtils, System.Classes, System.Net.HttpClientComponent,
   System.Net.HttpClient, System.Net.UrlClient;

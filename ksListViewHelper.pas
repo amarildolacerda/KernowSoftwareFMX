@@ -2,6 +2,8 @@ unit ksListViewHelper;
 
 interface
 
+{$I ksComponents.inc}
+
 uses
   System.SysUtils, System.Types, System.UITypes, System.UIConsts, System.Classes,
   ksTableView;

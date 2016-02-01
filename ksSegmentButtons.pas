@@ -26,18 +26,12 @@ unit ksSegmentButtons;
 
 interface
 
+{$I ksComponents.inc}
+
 uses
   Classes, FMX.Types, FMX.Controls, FMX.Graphics, Types, System.UITypes,
   FMX.StdCtrls, System.Generics.Collections, FMX.Objects, FMX.Effects,
-  System.UIConsts, ksSpeedButton;
-
-{$IFDEF VER290}
-{$DEFINE XE8_OR_NEWER}
-{$ENDIF}
-{$IFDEF VER300}
-{$DEFINE XE8_OR_NEWER}
-{$DEFINE XE10_OR_NEWER}
-{$ENDIF}
+  System.UIConsts, ksSpeedButton, ksTypes;
 
 type
   TksSegmentButtons = class;
@@ -58,7 +52,7 @@ type
   public
     constructor Create(Collection: TCollection); override;
     destructor Destroy; override;
-
+    procedure Assign(Source: TPersistent); override;
   published
     property ID: string read FID write FID;
     property Text: string read FText write SetText;
@@ -84,7 +78,7 @@ type
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
     {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
     {$ELSE} pidiOSDevice {$ENDIF} or pidiOSSimulator or pidAndroid)]
-  TksSegmentButtons = class(TControl)
+  TksSegmentButtons = class(TksControl)
   private
     FGroupID: string;
     FItemIndex: integer;
@@ -99,6 +93,8 @@ type
     procedure SetBackgroundColor(const Value: TAlphaColor);
     procedure SetTintColor(const Value: TAlphaColor);
     function GetSelected: TKsSegmentButton;
+    function GetSelectedID: string;
+    procedure SetSelectedID(const Value: string);
   protected
     procedure Resize; override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Single); override;
@@ -106,7 +102,9 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
+    procedure Assign(Source: TPersistent); override;
     property Selected: TKsSegmentButton read GetSelected;
+    property SelectedID: string read GetSelectedID write SetSelectedID;
   published
     property Align;
     property ItemIndex: integer read FItemIndex write SetItemIndex default -1;
@@ -138,6 +136,16 @@ begin
 end;
 
 { TKsSegmentButton }
+
+procedure TKsSegmentButton.Assign(Source: TPersistent);
+begin
+  if (Source is TKsSegmentButton) then
+  begin
+    FID := (Source as TKsSegmentButton).ID;
+    FText := (Source as TKsSegmentButton).Text;
+  end;
+end;
+
 
 constructor TKsSegmentButton.Create(Collection: TCollection);
 begin
@@ -175,6 +183,20 @@ end;
 { TksSegmentButtons }
 
 
+procedure TksSegmentButtons.Assign(Source: TPersistent);
+begin
+  if (Source is TksSegmentButtons) then
+  begin
+    FGroupID := (Source as TksSegmentButtons).FGroupID;
+    FItemIndex := (Source as TksSegmentButtons).FItemIndex;
+    FBtnWidth := (Source as TksSegmentButtons).FBtnWidth;
+    FOnChange := (Source as TksSegmentButtons).FOnChange;
+    FTintColor := (Source as TksSegmentButtons).FTintColor;
+    FBackgroundColor := (Source as TksSegmentButtons).FBackgroundColor;
+    FSegments.Assign((Source as TksSegmentButtons).Segments);
+  end;
+end;
+
 constructor TksSegmentButtons.Create(AOwner: TComponent);
 var
   AGuid: TGUID;
@@ -204,6 +226,13 @@ begin
   Result := nil;
   if (FItemIndex > -1) and (FItemIndex < FSegments.Count) then
     Result := FSegments[FItemIndex];
+end;
+
+function TksSegmentButtons.GetSelectedID: string;
+begin
+  Result := '';
+  if Selected <> nil then
+    Result := Selected.ID;
 end;
 
 procedure TksSegmentButtons.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Single);
@@ -290,6 +319,21 @@ end;
 procedure TksSegmentButtons.SetSegments(const Value: TksSegmentButtonCollection);
 begin
   FSegments.Assign(Value);
+end;
+
+procedure TksSegmentButtons.SetSelectedID(const Value: string);
+var
+  ICount: integer;
+begin
+  for ICount := 0 to Segments.Count-1 do
+  begin
+    if Segments[ICount].ID = Value then
+    begin
+      ItemIndex := ICount;
+      Exit;
+    end;
+  end;
+  ItemIndex := -1;
 end;
 
 procedure TksSegmentButtons.SetTintColor(const Value: TAlphaColor);

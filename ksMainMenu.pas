@@ -27,18 +27,11 @@ unit ksMainMenu;
 
 interface
 
-{$IFDEF VER290}
-{$DEFINE XE8_OR_NEWER}
-{$ENDIF}
-{$IFDEF VER300}
-{$DEFINE XE8_OR_NEWER}
-{$DEFINE XE10_OR_NEWER}
-{$ENDIF}
-
+{$I ksComponents.inc}
 
 uses
   System.SysUtils, System.Classes, FMX.Types, FMX.Controls, ksTableView, FMX.Graphics,
-  System.Types, System.Generics.Collections, System.UITypes
+  System.Types, System.Generics.Collections, System.UITypes, ksTypes
   {$IFDEF XE8_OR_NEWER}
   , FMX.ImgList
   {$ENDIF}
@@ -110,7 +103,7 @@ type
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
     {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
     {$ELSE} pidiOSDevice {$ENDIF} or pidiOSSimulator or pidAndroid)]
-  TksMainMenu = class(TControl)
+  TksMainMenu = class(TksControl)
   private
     FTableView: TksTableView;
     FLayout: TksMenuLayout;
