@@ -106,6 +106,8 @@ type
   TksTabItemList = class(TObjectList<TksTabItem>)
   private
     [weak]FTabControl: TksTabControl;
+  protected
+    procedure Notify(const Value: TksTabItem; Action: TCollectionNotification); override;
   public
     constructor Create(ATabControl: TksTabControl);
 
@@ -736,6 +738,15 @@ begin
   FTabControl := ATabControl;
 end;
 
+
+procedure TksTabItemList.Notify(const Value: TksTabItem; Action: TCollectionNotification);
+begin
+  inherited;
+  if Action = TCollectionNotification.cnRemoved then
+  begin
+    Value.DisposeOf;
+  end;
+end;
 
 initialization
 
