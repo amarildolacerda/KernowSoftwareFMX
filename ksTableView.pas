@@ -8238,10 +8238,11 @@ begin
   FCheckMarkChecked.FAccessory := atCheckBoxChecked;
   FCheckMarkChecked.FAlign := TksTableItemAlign.Leading;
   FCheckMarkChecked.FColor := C_TABLEVIEW_ACCESSORY_KEEPCOLOR;
-
+  FCheckMarkChecked.OwnsBitmap := False;
   FCheckMarkUnchecked.FAccessory := atCheckBox;
   FCheckMarkUnchecked.FAlign := TksTableItemAlign.Leading;
   FCheckMarkUnchecked.FColor := C_TABLEVIEW_ACCESSORY_KEEPCOLOR;
+  FCheckMarkUnchecked.OwnsBitmap := False;
 
   FShowInHeader := true;
   FCheckArea := caWholeRow;

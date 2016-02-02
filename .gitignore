@@ -180,3 +180,5 @@ Tests/dunitx-results.xml
 *.xml
 Samples/Form Transitions/FormTransitions.dproj
 Samples/Form Transitions/FormTransitions.dproj
+Samples/Chat Bubbles/ChatBubbles.dproj
+Samples/Chat Bubbles/ChatBubbles.dproj

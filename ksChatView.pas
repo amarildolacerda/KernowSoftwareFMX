@@ -37,6 +37,14 @@ uses System.UITypes, FMX.Controls, FMX.Layouts, FMX.Objects, System.Classes,
 type
   TksChatView = class;
 
+  TksChatBubbleInfo = record
+    Text: string;
+    Color: TAlphaColor;
+    TextColor: TAlphaColor;
+  end;
+
+  TksChatViewPostText = procedure(Sender: TObject; var ABubble: TksChatBubbleInfo) of object;
+
   TksChatViewEdit = class(TToolBar)
   private
     [weak]FChatView: TksChatView;
@@ -59,10 +67,13 @@ type
     FEdit: TksChatViewEdit;
     FMyImage: TBitmap;
     FSpacer: TLayout;
+    FBeforePostText: TksChatViewPostText;
     procedure SetEditVisible(const Value: Boolean);
     function GetEditVisible: Boolean;
     procedure SetMyImage(const Value: TBitmap);
     procedure VirtualKeyboardChangeHandler(const Sender: TObject; const Msg: System.Messaging.TMessage);
+    function GetButtonText: string;
+    procedure SetButtonText(const Value: string);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -73,10 +84,13 @@ type
     procedure Clear;
   published
     property Align;
+    property ButtonText: string read GetButtonText write SetButtonText;
     property MyImage: TBitmap read FMyImage write SetMyImage;
     property EditVisible: Boolean read GetEditVisible write SetEditVisible default True;
     property Position;
     property Size;
+    // events...
+    property BeforePostText: TksChatViewPostText read FBeforePostText write FBeforePostText;
   end;
 
   {$R *.dcr}
@@ -95,8 +109,15 @@ end;
 { TksChatView }
 
 procedure TksChatView.AddChatBubble(AText: string; APosition: TksTableViewChatBubblePosition; AColor, ATextColor: TAlphaColor; const AUserImage: TBitmap);
+var
+  AInfo: TksChatBubbleInfo;
 begin
-  FTableView.Items.AddChatBubble(AText, APosition, AColor, ATextColor, AUserImage);
+  AInfo.Text := AText;
+  AInfo.Color := AColor;
+  AInfo.TextColor := ATextColor;
+  if Assigned(FBeforePostText) then
+    FBeforePostText(Self, AInfo);
+  FTableView.Items.AddChatBubble(AInfo.Text, APosition, AInfo.Color, AInfo.TextColor, AUserImage);
   FTableView.ScrollToItem(FTableView.Items.LastItem, True);
 end;
 
@@ -160,9 +181,19 @@ begin
   inherited;
 end;
 
+function TksChatView.GetButtonText: string;
+begin
+  Result := FEdit.FSendButton.Text;
+end;
+
 function TksChatView.GetEditVisible: Boolean;
 begin
   Result := FEdit.Visible;
+end;
+
+procedure TksChatView.SetButtonText(const Value: string);
+begin
+  FEdit.FSendButton.Text := Value;
 end;
 
 procedure TksChatView.SetEditVisible(const Value: Boolean);
