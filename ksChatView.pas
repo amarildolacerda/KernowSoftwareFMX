@@ -43,7 +43,7 @@ type
     TextColor: TAlphaColor;
   end;
 
-  TksChatViewPostText = procedure(Sender: TObject; var ABubble: TksChatBubbleInfo) of object;
+  TksChatViewPostText = procedure(Sender: TObject; var ABubble: TksChatBubbleInfo; var AAllowPost: Boolean) of object;
 
   TksChatViewEdit = class(TToolBar)
   private
@@ -111,12 +111,16 @@ end;
 procedure TksChatView.AddChatBubble(AText: string; APosition: TksTableViewChatBubblePosition; AColor, ATextColor: TAlphaColor; const AUserImage: TBitmap);
 var
   AInfo: TksChatBubbleInfo;
+  AAllow: Boolean;
 begin
+  AAllow := True;
   AInfo.Text := AText;
   AInfo.Color := AColor;
   AInfo.TextColor := ATextColor;
   if Assigned(FBeforePostText) then
-    FBeforePostText(Self, AInfo);
+    FBeforePostText(Self, AInfo, AAllow);
+  if not AAllow then
+    Exit;
   FTableView.Items.AddChatBubble(AInfo.Text, APosition, AInfo.Color, AInfo.TextColor, AUserImage);
   FTableView.ScrollToItem(FTableView.Items.LastItem, True);
 end;

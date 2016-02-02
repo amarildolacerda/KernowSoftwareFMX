@@ -41,6 +41,7 @@ end;
 
 function TForm24.GetSelectedColor: TAlphaColor;
 begin
+  Result := claNull;
   case ksSegmentButtons1.ItemIndex of
     0: Result := claSilver;
     1: Result := claRed;

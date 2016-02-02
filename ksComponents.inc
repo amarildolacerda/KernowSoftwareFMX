@@ -23,4 +23,4 @@ http://www.tmssoftware.com/site/tmsfmxpack.asp
 
 Once installed, simply uncomment the conditional define below }
 
-{$DEFINE USE_TMS_HTML_ENGINE}
+{.$DEFINE USE_TMS_HTML_ENGINE}
