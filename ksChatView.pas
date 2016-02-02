@@ -225,37 +225,41 @@ begin
       Canvas.Fill.Color := claWhite;
       Canvas.Fill.Kind := TBrushKind.Solid;
       Canvas.FillRect(RectF(0, 0, Width, Height), 0, 0, AllCorners, 1);
-
-      Canvas.Fill.Color := claGainsboro;
-      Canvas.FillRect(RectF(0, Height-AToolbarHeight, Width, Height), 0, 0, AllCorners, 1);
-
+      if FEditVisible then
+      begin
+        Canvas.Fill.Color := claGainsboro;
+        Canvas.FillRect(RectF(0, Height-AToolbarHeight, Width, Height), 0, 0, AllCorners, 1);
+      end;
     finally
       Canvas.RestoreState(AState);
     end;
 
-    AState := Canvas.SaveState;
-    try
-      Canvas.IntersectClipRect(AEditRect);
-      Canvas.Fill.Color := claWhite;
-      Canvas.FillRect(AEditRect, 0, 0, AllCorners, 1);
-      Canvas.Stroke.Color := claDimgray;
-      Canvas.Stroke.Kind := TBrushKind.Solid;
-      Canvas.DrawRect(AEditRect, 0, 0, AllCorners, 1);
-    finally
-      Canvas.RestoreState(AState);
-    end;
+    if FEditVisible then
+    begin
+      AState := Canvas.SaveState;
+      try
+        Canvas.IntersectClipRect(AEditRect);
+        Canvas.Fill.Color := claWhite;
+        Canvas.FillRect(AEditRect, 0, 0, AllCorners, 1);
+        Canvas.Stroke.Color := claDimgray;
+        Canvas.Stroke.Kind := TBrushKind.Solid;
+        Canvas.DrawRect(AEditRect, 0, 0, AllCorners, 1);
+      finally
+        Canvas.RestoreState(AState);
+      end;
 
-    AState := Canvas.SaveState;
-    try
-      Canvas.IntersectClipRect(ABtnRect);
-      Canvas.Fill.Color := $FFEEEEEE;
-      Canvas.Stroke.Color := claDimgray;
-      Canvas.FillRect(ABtnRect, 0, 0, AllCorners, 1);
-      Canvas.DrawRect(ABtnRect, 0, 0, AllCorners, 1);
-      Canvas.Fill.Color := claBlack;
-      Canvas.FillText(ABtnRect, FButtonText, False, 1, [], TTextAlign.Center);
-    finally
-      Canvas.RestoreState(AState);
+      AState := Canvas.SaveState;
+      try
+        Canvas.IntersectClipRect(ABtnRect);
+        Canvas.Fill.Color := $FFEEEEEE;
+        Canvas.Stroke.Color := claDimgray;
+        Canvas.FillRect(ABtnRect, 0, 0, AllCorners, 1);
+        Canvas.DrawRect(ABtnRect, 0, 0, AllCorners, 1);
+        Canvas.Fill.Color := claBlack;
+        Canvas.FillText(ABtnRect, FButtonText, False, 1, [], TTextAlign.Center);
+      finally
+        Canvas.RestoreState(AState);
+      end;
     end;
     DrawDesignBorder(claBlack, claBlack);
   end;
