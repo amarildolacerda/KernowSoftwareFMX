@@ -14,8 +14,8 @@ type
     Button2: TButton;
     Image1: TImage;
     Image2: TImage;
-    ksChatView1: TksChatView;
     Button1: TButton;
+    ksChatView1: TksChatView;
     procedure FormCreate(Sender: TObject);
     procedure Button2Click(Sender: TObject);
     procedure Button1Click(Sender: TObject);

@@ -123,6 +123,7 @@ begin
     FBeforePostText(Self, AInfo, AAllow);
   if not AAllow then
     Exit;
+
   FTableView.Items.AddChatBubble(AInfo.Text, APosition, AInfo.Color, AInfo.TextColor, AUserImage);
   FTableView.ScrollToItem(FTableView.Items.LastItem, True);
 end;
@@ -166,9 +167,10 @@ begin
     FSpacer.Align := TAlignLayout.MostBottom;
     FSpacer.Height := 0;
 
-    FTableView.Stored := False;
+    {FTableView.Stored := False;
     FEdit.Stored := False;
-    FSpacer.Stored := False;
+    FSpacer.Stored := False; }
+
     FEdit.Align := TAlignLayout.Bottom;
     AddObject(FTableView);
     AddObject(FEdit);
