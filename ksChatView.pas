@@ -47,7 +47,6 @@ type
 
   TksChatViewEdit = class(TToolBar)
   private
-    [weak]FChatView: TksChatView;
     FEdit: TEdit;
     FSendButton: TButton;
     procedure EnterEdit(Sender: TObject);
@@ -68,12 +67,15 @@ type
     FMyImage: TBitmap;
     FSpacer: TLayout;
     FBeforePostText: TksChatViewPostText;
+    FEditVisible: Boolean;
+    FButtonText: string;
     procedure SetEditVisible(const Value: Boolean);
-    function GetEditVisible: Boolean;
     procedure SetMyImage(const Value: TBitmap);
     procedure VirtualKeyboardChangeHandler(const Sender: TObject; const Msg: System.Messaging.TMessage);
     function GetButtonText: string;
     procedure SetButtonText(const Value: string);
+  protected
+    procedure Paint; override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -84,9 +86,9 @@ type
     procedure Clear;
   published
     property Align;
-    property ButtonText: string read GetButtonText write SetButtonText;
+    property ButtonText: string read FButtonText write SetButtonText;
     property MyImage: TBitmap read FMyImage write SetMyImage;
-    property EditVisible: Boolean read GetEditVisible write SetEditVisible default True;
+    property EditVisible: Boolean read FEditVisible write SetEditVisible default True;
     property Position;
     property Size;
     // events...
@@ -147,62 +149,138 @@ var
   VKToolbar: IFMXVirtualKeyboardToolbarService;
 begin
   inherited;
-  FTableView := TksTableView.Create(Self);
-  FEdit := TksChatViewEdit.Create(Self);
-  FSpacer := TLayout.Create(Self);
+  FTableView := nil;
+  FEdit := nil;
+  FSpacer := nil;
   FMyImage := TBitmap.Create;
+  if not (csDesigning in ComponentState) then
+  begin
+    FTableView := TksTableView.Create(Self);
+    FEdit := TksChatViewEdit.Create(Self);
+    FSpacer := TLayout.Create(Self);
 
-  TMessageManager.DefaultManager.SubscribeToMessage(TVKStateChangeMessage, VirtualKeyboardChangeHandler);
-  // hide the done button
-  if TPlatformServices.Current.SupportsPlatformService(IFMXVirtualKeyboardToolbarService, IInterface(VKToolbar)) then
-    VKToolbar.SetToolbarEnabled(False);
+    FTableView.Appearence.SeparatorColor := claNull;
+    FTableView.SelectionOptions.ShowSelection := False;
+    FTableView.Align := TAlignLayout.Client;
 
-  FTableView.Stored := False;
-  FEdit.Stored := False;
+    FSpacer.Align := TAlignLayout.MostBottom;
+    FSpacer.Height := 0;
 
-  FTableView.Appearence.SeparatorColor := claNull;
-  FTableView.SelectionOptions.ShowSelection := False;
+    FTableView.Stored := False;
+    FEdit.Stored := False;
+    FSpacer.Stored := False;
+    FEdit.Align := TAlignLayout.Bottom;
+    AddObject(FTableView);
+    AddObject(FEdit);
+    AddObject(FSpacer);
 
-  FSpacer.Align := TAlignLayout.MostBottom;
-  FSpacer.Height := 0;
+    TMessageManager.DefaultManager.SubscribeToMessage(TVKStateChangeMessage, VirtualKeyboardChangeHandler);
+    // hide the done button
+    if TPlatformServices.Current.SupportsPlatformService(IFMXVirtualKeyboardToolbarService, IInterface(VKToolbar)) then
+      VKToolbar.SetToolbarEnabled(False);
+  end;
+  FEditVisible := True;
+  FButtonText := 'SEND';
+
   Size.Width := 200;
   Size.Height := 300;
 
-  FTableView.Align := TAlignLayout.Client;
-  FEdit.Align := TAlignLayout.Bottom;
-  AddObject(FTableView);
-  AddObject(FEdit);
-  AddObject(FSpacer);
 end;
 
 destructor TksChatView.Destroy;
 begin
-  FTableView.DisposeOf;
-  FEdit.DisposeOf;
-
-  FSpacer.DisposeOf;
+  if not (csDesigning in ComponentState) then
+  begin
+    FTableView.DisposeOf;
+    FEdit.DisposeOf;
+    FSpacer.DisposeOf;
+  end;
   FreeAndNil(FMyImage);
   inherited;
 end;
 
 function TksChatView.GetButtonText: string;
 begin
-  Result := FEdit.FSendButton.Text;
+  Result := FButtonText;
+
 end;
 
-function TksChatView.GetEditVisible: Boolean;
+procedure TksChatView.Paint;
+var
+  AToolbarHeight: integer;
+  AEditRect: TRectF;
+  ABtnRect: TRectF;
+  AState: TCanvasSaveState;
 begin
-  Result := FEdit.Visible;
+  inherited;
+  AToolbarHeight := 40;
+  if (csDesigning in ComponentState) then
+  begin
+    AEditRect := RectF(8, Height-(AToolbarHeight-8), Width - 70, Height-8);
+    ABtnRect := RectF((Width-70)+8, Height-(AToolbarHeight-8), Width-8, Height-8);
+
+    AState := Canvas.SaveState;
+    try
+      Canvas.IntersectClipRect(RectF(0, 0, Width, Height));
+      Canvas.Fill.Color := claWhite;
+      Canvas.Fill.Kind := TBrushKind.Solid;
+      Canvas.FillRect(RectF(0, 0, Width, Height), 0, 0, AllCorners, 1);
+
+      Canvas.Fill.Color := claGainsboro;
+      Canvas.FillRect(RectF(0, Height-AToolbarHeight, Width, Height), 0, 0, AllCorners, 1);
+
+    finally
+      Canvas.RestoreState(AState);
+    end;
+
+    AState := Canvas.SaveState;
+    try
+      Canvas.IntersectClipRect(AEditRect);
+      Canvas.Fill.Color := claWhite;
+      Canvas.FillRect(AEditRect, 0, 0, AllCorners, 1);
+      Canvas.Stroke.Color := claDimgray;
+      Canvas.Stroke.Kind := TBrushKind.Solid;
+      Canvas.DrawRect(AEditRect, 0, 0, AllCorners, 1);
+    finally
+      Canvas.RestoreState(AState);
+    end;
+
+    AState := Canvas.SaveState;
+    try
+      Canvas.IntersectClipRect(ABtnRect);
+      Canvas.Fill.Color := $FFEEEEEE;
+      Canvas.Stroke.Color := claDimgray;
+      Canvas.FillRect(ABtnRect, 0, 0, AllCorners, 1);
+      Canvas.DrawRect(ABtnRect, 0, 0, AllCorners, 1);
+      Canvas.Fill.Color := claBlack;
+      Canvas.FillText(ABtnRect, FButtonText, False, 1, [], TTextAlign.Center);
+    finally
+      Canvas.RestoreState(AState);
+    end;
+    DrawDesignBorder(claBlack, claBlack);
+  end;
 end;
+
 
 procedure TksChatView.SetButtonText(const Value: string);
 begin
-  FEdit.FSendButton.Text := Value;
+  if FButtonText <> Value then
+  begin
+    FButtonText := Value;
+    if FEdit <> nil then
+      FEdit.FSendButton.Text := Value;
+    Repaint;
+  end;
 end;
 
 procedure TksChatView.SetEditVisible(const Value: Boolean);
 begin
-  FEdit.Visible := Value;
+  if FEditVisible <> Value then
+  begin
+    FEditVisible := Value;
+    if FEdit <> nil then
+      FEdit.Visible := Value;
+  end;
 end;
 
 procedure TksChatView.SetMyImage(const Value: TBitmap);
@@ -215,7 +293,6 @@ end;
 constructor TksChatViewEdit.Create(AOwner: TComponent);
 begin
   inherited;
-  FChatView := TksChatView(AOwner);
   FEdit := TEdit.Create(Self);
   FSendButton := TButton.Create(Self);
   FSendButton.CanFocus := False;
@@ -225,9 +302,14 @@ begin
   FSendButton.Margins.Left := 8;
   FSendButton.StyleLookup := 'listitembutton';
   FSendButton.Text := 'SEND';
+
+  FEdit.Stored := False;
+  FSendButton.Stored := False;
+
   AddObject(FSendButton);
   AddObject(FEdit);
   FSendButton.OnClick := SendButtonClick;
+
   FEdit.OnEnter := EnterEdit;
   FEdit.OnKeyDown := EditKeyDown;
 end;
@@ -241,18 +323,25 @@ end;
 
 procedure TksChatViewEdit.EditKeyDown(Sender: TObject; var Key: Word; var KeyChar: Char; Shift: TShiftState);
 begin
+  if (csDesigning in ComponentState) then
+    Exit;
   if Key = 13 then
     SendButtonClick(Self);
 end;
 
 procedure TksChatViewEdit.EnterEdit(Sender: TObject);
+var
+  tv: TksTableView;
 begin
-  FChatView.FTableView.ScrollToItem(FChatView.FTableView.Items.LastItem, True);
+  if (csDesigning in ComponentState) then
+    Exit;
+  tv := TksChatView(Parent).FTableView;
+  tv.ScrollToItem(tv.Items.LastItem, True);
 end;
 
 procedure TksChatViewEdit.SendButtonClick(Sender: TObject);
 begin
-  FChatView.AddChatBubble(FEdit.Text, ksCbpLeft, claDodgerblue, claWhite, FChatView.MyImage);
+  TksChatView(Parent).AddChatBubble(FEdit.Text, ksCbpLeft, claDodgerblue, claWhite, TksChatView(Parent).MyImage);
   FEdit.Text := '';
 end;
 
