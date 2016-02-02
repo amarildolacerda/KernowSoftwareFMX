@@ -40,9 +40,9 @@ TMS Pack for FireMonkey installed.
 You can get this from the following link...
 http://www.tmssoftware.com/site/tmsfmxpack.asp
 
-Once installed, simply uncomment the below conditional define  }
+Once installed, simply uncomment the conditional define in ksComponents.inc }
 
-{.$DEFINE USE_TMS_HTML_ENGINE}
+
 
 unit ksTableView;
 
@@ -1772,7 +1772,7 @@ procedure Register;
 implementation
 
 uses SysUtils, FMX.Platform, Math, FMX.TextLayout, System.Math.Vectors, ksCommon,
-  FMX.Ani, FMX.Forms {$IFDEF USE_TMS_HTML_ENGINE} , FMX.TMSHTMLEngine {$ENDIF};
+  FMX.Ani, FMX.Forms;
 
 var
   AIsSwiping: Boolean;
@@ -2389,14 +2389,14 @@ end;
 procedure TksTableViewItemAccessory.DoBeforeRenderBitmap(ABmp: TBitmap);
 begin
   inherited;
-  if (FColor <> claNull) then
+  {if (FColor = claNull) then
   begin
     if (FColor <> C_TABLEVIEW_ACCESSORY_KEEPCOLOR) then
       ReplaceOpaqueColor(Bitmap, Color);
   end
   else
   if (FTableItem.TableView.AccessoryOptions.Color <> claNull) then
-    ReplaceOpaqueColor(Bitmap, FTableItem.TableView.AccessoryOptions.Color);
+    ReplaceOpaqueColor(Bitmap, FTableItem.TableView.AccessoryOptions.Color);     }
 end;
 
 procedure TksTableViewItemAccessory.RedrawAccessory;
@@ -2404,7 +2404,12 @@ begin
   Bitmap := AccessoryImages.Images[FAccessory];
   FWidth := Bitmap.Width / AccessoryImages.ImageScale;
   FHeight := Bitmap.Height / AccessoryImages.ImageScale;
-  //Changed;
+  if (FColor <> claNull) then
+    ReplaceOpaqueColor(Bitmap, FColor)
+  else
+  if (FTableItem.TableView.AccessoryOptions.Color <> claNull) then
+    ReplaceOpaqueColor(Bitmap, FTableItem.TableView.AccessoryOptions.Color);
+  Changed;
 end;
 
 procedure TksTableViewItemAccessory.Render(ACanvas: TCanvas);
@@ -2528,6 +2533,7 @@ begin
   Result.Detail.Text := ADetail;
   Result.SearchIndex := AText;
   Result.Accessory.Accessory := AAccessory;
+  Result.Accessory.OwnsBitmap := True;
   Result.Height := FTableView.ItemHeight;
   Add(Result);
   UpdateIndexes;
@@ -2946,6 +2952,7 @@ begin
     FImage.VertAlign := TksTableItemAlign.Center;
 
     FAccessory := TksTableViewItemAccessory.Create(Self);
+    FAccessory.OwnsBitmap := False;
 
     FCheckMarkAccessory := TableView.CheckMarkOptions.FCheckMarkUnchecked;
 
@@ -3613,7 +3620,8 @@ begin
   if Value <> FHeight then
   begin
     FHeight := Value;
-    FTableView.UpdateAll(False);
+    FTableView.UpdateItemRects(True);
+    //FTableView.UpdateAll(False);
     if not FDeleting then
       CacheItem(True);
   end;

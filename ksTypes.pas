@@ -173,7 +173,7 @@ begin
     r2.Height := ARect.Height / 2;
     AAcc.Canvas.stroke.Color := claSilver;
     AAcc.Canvas.Stroke.Thickness := s*2;
-
+    AAcc.Canvas.Fill.Color := claSilver;
     AAcc.Canvas.FillRect(r2, 0, 0, AllCorners, 1);
     AAcc.Canvas.DrawLine(r1.TopLeft, PointF(r1.Left, r1.Bottom), 1);
   finally
@@ -312,9 +312,7 @@ begin
   begin
     case ICount of
       atNone: Add(GetAccessoryFromResource('none'));
-      //atMore: Add(GetAccessoryFromResource('listviewstyle.accessorymore'));
-
-      atMore: Add(GetAccessoryFromResource('tabitemstyle.tabitembookmarks'));
+      atMore: Add(GetAccessoryFromResource('listviewstyle.accessorymore'));
       atCheckmark: Add(GetAccessoryFromResource('listviewstyle.accessorycheckmark'));
       atDetail: Add(GetAccessoryFromResource('listviewstyle.accessorydetail'));
       atEllipses: AddEllipsesAccessory;

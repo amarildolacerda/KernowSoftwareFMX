@@ -46,7 +46,9 @@ uses FMX.Controls, FMX.Graphics, System.UITypes, FMX.Types, Types, System.UICons
 
 implementation
 
-uses FMX.Platform, FMX.Forms,  SysUtils, FMX.TextLayout, Math, FMX.Utils;
+uses FMX.Platform, FMX.Forms,  SysUtils, FMX.TextLayout, Math, FMX.Utils
+  {$IFDEF USE_TMS_HTML_ENGINE} , FMX.TMSHTMLEngine {$ENDIF}
+  ;
 
 var
   AScreenScale: single;
