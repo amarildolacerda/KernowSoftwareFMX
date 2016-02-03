@@ -73,10 +73,13 @@ type
     FEditVisible: Boolean;
     FButtonText: string;
     FOnSendButtonClick: TksChatViewPostText;
+    FShowDoneButton: Boolean;
     procedure SetEditVisible(const Value: Boolean);
     procedure SetMyImage(const Value: TBitmap);
     procedure VirtualKeyboardChangeHandler(const Sender: TObject; const Msg: System.Messaging.TMessage);
     procedure SetButtonText(const Value: string);
+
+    procedure SetShowDoneButton(const Value: Boolean);
   protected
     procedure Paint; override;
     procedure DoSendButtonClick;
@@ -88,13 +91,16 @@ type
                             AColor, ATextColor: TAlphaColor;
                             const AUserImage: TBitmap);
     procedure Clear;
+    procedure ClearEdit;
   published
     property Align;
     property ButtonText: string read FButtonText write SetButtonText;
     property MyImage: TBitmap read FMyImage write SetMyImage;
     property EditVisible: Boolean read FEditVisible write SetEditVisible default True;
     property Position;
+    property ShowDoneButton: Boolean read FShowDoneButton write SetShowDoneButton default False;
     property Size;
+
     // events...
     property OnSendButtonClick: TksChatViewPostText read FOnSendButtonClick write FOnSendButtonClick;
     property BeforePostText: TksChatViewPostText read FBeforePostText write FBeforePostText;
@@ -106,7 +112,7 @@ type
 
 implementation
 
-uses SysUtils, FMX.Platform, FMX.Ani;
+uses SysUtils, FMX.Platform, FMX.Ani, FMX.Dialogs;
 
 procedure Register;
 begin
@@ -139,13 +145,21 @@ begin
   FTableView.ClearItems;
 end;
 
+procedure TksChatView.ClearEdit;
+begin
+  FEdit.Edit.Text := '';
+end;
+
 procedure TksChatView.VirtualKeyboardChangeHandler(const Sender: TObject;
   const Msg: System.Messaging.TMessage);
+var
+  AKeyboardBounds: TRect;
 begin
   if TVKStateChangeMessage(Msg).KeyboardVisible then
   begin
-    FSpacer.Height := TVKStateChangeMessage(Msg).KeyboardBounds.Height;
-    FTableView.ScrollToItem(FTableView.Items.LastItem, True);
+    AKeyboardBounds := TVKStateChangeMessage(Msg).KeyboardBounds;
+
+    FSpacer.Height := AKeyboardBounds.Height - ((Root.GetObject as TCommonCustomForm).Height - FSpacer.AbsoluteRect.Bottom);
   end
   else
     FSpacer.Height := 0;
@@ -183,7 +197,9 @@ begin
     AddObject(FSpacer);
 
     TMessageManager.DefaultManager.SubscribeToMessage(TVKStateChangeMessage, VirtualKeyboardChangeHandler);
+
     // hide the done button
+    FShowDoneButton := False;
     if TPlatformServices.Current.SupportsPlatformService(IFMXVirtualKeyboardToolbarService, IInterface(VKToolbar)) then
       VKToolbar.SetToolbarEnabled(False);
   end;
@@ -314,7 +330,24 @@ begin
   FMyImage.Assign(Value);
 end;
 
-{ TksChatViewEdit }
+procedure TksChatView.SetShowDoneButton(const Value: Boolean);
+var
+  VKToolbar: IFMXVirtualKeyboardToolbarService;
+begin
+  if FShowDoneButton <> Value then
+  begin
+    FShowDoneButton := Value;
+    if TPlatformServices.Current.SupportsPlatformService(IFMXVirtualKeyboardToolbarService, IInterface(VKToolbar)) then
+      VKToolbar.SetToolbarEnabled(FShowDoneButton);
+  end;
+end;
+
+{ procedure TksChatView.SetShowDoneButton(const Value: Boolean);
+begin
+  FShowDoneButton := Value;
+end;
+
+TksChatViewEdit }
 
 constructor TksChatViewEdit.Create(AOwner: TComponent);
 begin

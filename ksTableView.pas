@@ -8808,7 +8808,7 @@ begin
   finally
     FreeAndNil(APath);
   end;
-  {$IFDEF IOS}
+  {$IFNDEF MSWINDOWS}
   OffsetRect(ARect, 8, 8);
   {$ENDIF}
   RenderText(ACanvas, ARect, FText, FFont, FTextColor, True, TTextAlign.Leading, TTextAlign.Center, TTextTrimming.None, 8);
