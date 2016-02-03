@@ -8,9 +8,9 @@ Firemonkey Slide menu, ListView and Segment buttons for Delphi.  Inherits from a
 Includes demo with source.  Demo App also available on app store: 
 https://itunes.apple.com/gb/app/kscomponents-reference/id1031179701?mt=8
 
-###TksListview
+###TksTableView
 
-- Cached list view provides native performance regardless of the number of text/items/graphics added
+- Cached table view provides native performance regardless of the number of text/items/graphics added
 - support for embedded switches
 - support for embedded buttons
 - support for embedded segment buttons
@@ -20,6 +20,7 @@ https://itunes.apple.com/gb/app/kscomponents-reference/id1031179701?mt=8
 - Custom check mark colours
 - Image cropping (square, round rect or circle)
 - "Indicator" colours - add colour indicators to each row
+- "Sticky" headers
 
 
 ###TksSlideMenu
@@ -36,7 +37,35 @@ https://itunes.apple.com/gb/app/kscomponents-reference/id1031179701?mt=8
 ###TksSegmentButtons
 
 - segment button component
-- not sure what else to say about this one really :-)
+- support for iOS style badges
+
+###TksFormTransition
+
+- component for animating transitions between forms
+
+###TksTabControl
+
+- Tab control component with support for different colours/themes
+- Large number of built-in icons
+- Support for iOS style badges
+
+###TksNetHttpClient
+
+- enhanced http client with ASync Get method
+
+##TksTileMenu
+
+- simple but effective main menu component
+
+###TksChatView
+
+- component for building iOS style chat applications
+
+###TksSpeedButton
+
+- TSpeedButton descendant with support for iOS style badges
+
+
 
 Any suggestions for updates are welcome :-) 
 
