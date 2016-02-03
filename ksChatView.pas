@@ -52,9 +52,12 @@ type
     procedure EnterEdit(Sender: TObject);
     procedure SendButtonClick(Sender: TObject);
     procedure EditKeyDown(Sender: TObject; var Key: Word; var KeyChar: Char; Shift: TShiftState);
+    procedure DoSendButtonClick;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
+    property Edit: TEdit read FEdit;
+    property Button: TButton read FSendButton;
   end;
 
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
@@ -69,13 +72,14 @@ type
     FBeforePostText: TksChatViewPostText;
     FEditVisible: Boolean;
     FButtonText: string;
+    FOnSendButtonClick: TksChatViewPostText;
     procedure SetEditVisible(const Value: Boolean);
     procedure SetMyImage(const Value: TBitmap);
     procedure VirtualKeyboardChangeHandler(const Sender: TObject; const Msg: System.Messaging.TMessage);
-    function GetButtonText: string;
     procedure SetButtonText(const Value: string);
   protected
     procedure Paint; override;
+    procedure DoSendButtonClick;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -92,6 +96,7 @@ type
     property Position;
     property Size;
     // events...
+    property OnSendButtonClick: TksChatViewPostText read FOnSendButtonClick write FOnSendButtonClick;
     property BeforePostText: TksChatViewPostText read FBeforePostText write FBeforePostText;
   end;
 
@@ -121,6 +126,7 @@ begin
   AInfo.TextColor := ATextColor;
   if Assigned(FBeforePostText) then
     FBeforePostText(Self, AInfo, AAllow);
+
   if not AAllow then
     Exit;
 
@@ -201,10 +207,24 @@ begin
   inherited;
 end;
 
-function TksChatView.GetButtonText: string;
+procedure TksChatView.DoSendButtonClick;
+var
+  AInfo: TksChatBubbleInfo;
+  AAllow: Boolean;
 begin
-  Result := FButtonText;
+  AAllow := True;
+  AInfo.Text := FEdit.FEdit.Text;
+  AInfo.Color := claDodgerblue;
+  AInfo.TextColor := claWhite;
 
+  if Assigned(FOnSendButtonClick) then
+  begin
+    FOnSendButtonClick(Self, AInfo, AAllow);
+    if AAllow = False then
+      Exit;
+  end;
+  AddChatBubble(AInfo.Text, ksCbpLeft, AInfo.Color, AInfo.TextColor, FMyImage);
+  FEdit.Edit.Text := '';
 end;
 
 procedure TksChatView.Paint;
@@ -302,6 +322,7 @@ begin
   FEdit := TEdit.Create(Self);
   FSendButton := TButton.Create(Self);
   FSendButton.CanFocus := False;
+  FSendButton.StaysPressed := False;
   Padding.Rect := RectF(6, 6, 6, 6);
   FSendButton.Align := TAlignLayout.Right;
   FEdit.Align := TAlignLayout.Client;
@@ -327,6 +348,11 @@ begin
   inherited;
 end;
 
+procedure TksChatViewEdit.DoSendButtonClick;
+begin
+  TksChatView(Parent).DoSendButtonClick;
+end;
+
 procedure TksChatViewEdit.EditKeyDown(Sender: TObject; var Key: Word; var KeyChar: Char; Shift: TShiftState);
 begin
   if (csDesigning in ComponentState) then
@@ -347,8 +373,7 @@ end;
 
 procedure TksChatViewEdit.SendButtonClick(Sender: TObject);
 begin
-  TksChatView(Parent).AddChatBubble(FEdit.Text, ksCbpLeft, claDodgerblue, claWhite, TksChatView(Parent).MyImage);
-  FEdit.Text := '';
+  DoSendButtonClick;
 end;
 
 end.
