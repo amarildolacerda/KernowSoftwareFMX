@@ -727,9 +727,13 @@ type
   private
     [weak]FTableView: TksTableView;
     function GetObjectByID(AId: string): TksTableViewItemObject;
+    function GetImageByID(AId: string): TksTableViewItemImage;
+    function GetTextByID(AId: string): TksTableViewItemText;
   public
     constructor Create(ATableView: TksTableView); virtual;
     property ObjectByID[AId: string]: TksTableViewItemObject read GetObjectByID;
+    property ImageByID[AId: string]: TksTableViewItemImage read GetImageByID;
+    property TextByID[AId: string]: TksTableViewItemText read GetTextByID;
   end;
 
   //---------------------------------------------------------------------------------------
@@ -819,6 +823,8 @@ type
     procedure SelectFirstEmbeddedEdit;
     function IsHeader: Boolean;
     procedure Invalidate;
+    function GetImageByID(AID: string): TksTableViewItemImage;
+    function GetTextByID(AID: string): TksTableViewItemText;
   protected
     function Render(ACanvas: TCanvas; AScrollPos: single): TRectF;
     procedure CacheItem(const AForceCache: Boolean = False);
@@ -880,6 +886,8 @@ type
     property Index: integer read FIndex write SetIndex;
     property SearchIndex: string read FSearchIndex write SetSearchIndex;
     property Objects: TksTableViewItemObjects read FObjects;
+    property ImageByID[AID: string]: TksTableViewItemImage read GetImageByID;
+    property TextByID[AID: string]: TksTableViewItemText read GetTextByID;
     property Cached: Boolean read FCached write SetCached default False;
     property PickerItems: TStrings read FPickerItems write SetPickerItems;
     property Purpose: TksTableViewItemPurpose read FPurpose write SetPurpose default None;
@@ -908,6 +916,7 @@ type
     procedure UpdateIndexes;
     function GetLastItem: TksTableViewItem;
     function GetFirstItem: TksTableViewItem;
+    function GetItemByID(AID: string): TksTableViewItem;
   protected
     function GetTotalItemHeight: single;
     procedure Notify(const Value: TksTableViewItem; Action: TCollectionNotification); override;
@@ -922,6 +931,7 @@ type
     function AddItemSelector(AText, ASelected: string; AItems: TStrings): TksTableViewItem; overload;
     function AddItemSelector(AText, ASelected: string; AItems: array of string): TksTableViewItem; overload;
     function AddItemWithSwitch(AText: string; AChecked: Boolean; AID: string): TksTableViewItem;
+    property ItemByID[AID: string]: TksTableViewItem read GetItemByID;
     function GetCheckedCount: integer;
     procedure Delete(AIndex: integer); reintroduce;
     procedure DeleteItem(AItem: TksTableViewItem);
@@ -2192,6 +2202,16 @@ end;
 
 // ------------------------------------------------------------------------------
 
+function TksTableViewItemObjects.GetImageByID(AId: string): TksTableViewItemImage;
+var
+  AObj: TksTableViewItemObject;
+begin
+  Result := nil;
+  AObj := ObjectByID[AId];
+  if AObj is TksTableViewItemImage then
+    Result := (AObj as TksTableViewItemImage);
+end;
+
 function TksTableViewItemObjects.GetObjectByID(AId: string): TksTableViewItemObject;
 var
   ICount: integer;
@@ -2205,6 +2225,16 @@ begin
       Exit;
     end;
   end;
+end;
+
+function TksTableViewItemObjects.GetTextByID(AId: string): TksTableViewItemText;
+var
+  AObj: TksTableViewItemObject;
+begin
+  Result := nil;
+  AObj := ObjectByID[AId];
+  if AObj is TksTableViewItemText then
+    Result := (AObj as TksTableViewItemText);
 end;
 
 //---------------------------------------------------------------------------------------
@@ -2651,6 +2681,21 @@ begin
   Result := nil;
   if Count > 0  then
     Result := Items[0];
+end;
+
+function TksTableViewItems.GetItemByID(AID: string): TksTableViewItem;
+var
+  ICount: integer;
+begin
+  Result := nil;
+  for ICount := 0 to Count-1 do
+  begin
+    if Items[ICount].ID = AID then
+    begin
+      Result := Items[ICount];
+      Exit;
+    end;
+  end;
 end;
 
 function TksTableViewItems.GetLastItem: TksTableViewItem;
@@ -3212,11 +3257,22 @@ begin
     Result := TValue.Empty;
 end;
 
+
+
+function TksTableViewItem.GetTextByID(AID: string): TksTableViewItemText;
+begin
+  Result := Objects.TextByID[AId];
+end;
+
 function TksTableViewItem.GetHasData(const AIndex: string): Boolean;
 begin
   Result := (FData <> nil) and FData.ContainsKey(AIndex);
 end;
 
+function TksTableViewItem.GetImageByID(AID: string): TksTableViewItemImage;
+begin
+  Result := Objects.ImageByID[AId];
+end;
 
 function TksTableViewItem.GetIndicatorColor: TAlphaColor;
 begin
