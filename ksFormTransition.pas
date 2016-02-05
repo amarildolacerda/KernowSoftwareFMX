@@ -377,6 +377,7 @@ begin
     end;
   finally
     ATo.Show;
+    ATo.Invalidate;
     Application.ProcessMessages;
     AImageFrom.DisposeOf;
     AImageTo.DisposeOf;
