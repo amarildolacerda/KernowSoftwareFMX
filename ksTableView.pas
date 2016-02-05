@@ -2413,7 +2413,6 @@ begin
   FAlign := TksTableItemAlign.Trailing;
   FVertAlign := TksTableItemAlign.Center;
   FColor := claNull;
-  //FOwnsBitmap := True;
 end;
 
 procedure TksTableViewItemAccessory.DoBeforeRenderBitmap(ABmp: TBitmap);
@@ -2434,11 +2433,6 @@ begin
   Bitmap := AccessoryImages.Images[FAccessory];
   FWidth := Bitmap.Width / AccessoryImages.ImageScale;
   FHeight := Bitmap.Height / AccessoryImages.ImageScale;
-  {if (FColor <> claNull) then
-    ReplaceOpaqueColor(Bitmap, FColor)
-  else
-  if (FTableItem.TableView.AccessoryOptions.Color <> claNull) then
-    ReplaceOpaqueColor(Bitmap, FTableItem.TableView.AccessoryOptions.Color);}
   Changed;
 end;
 
