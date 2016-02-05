@@ -35,6 +35,9 @@ uses
 type
   TAsyncGetEvent = procedure(Sender: TObject; AResponse: IHTTPResponse) of object;
 
+  [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
+    {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
+    {$ELSE} pidiOSDevice {$ENDIF} or pidiOSSimulator or pidAndroid)]
   TksNetHttpClient = class(TNetHTTPClient)
   private
     FOnAsyncGet: TAsyncGetEvent;

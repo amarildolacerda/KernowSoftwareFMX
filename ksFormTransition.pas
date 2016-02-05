@@ -33,7 +33,7 @@ uses System.UITypes, FMX.Controls, FMX.Layouts, FMX.Objects, System.Classes,
   FMX.StdCtrls, System.Types, FMX.Forms, ksTypes;
 
 const
-  C_TRANSITION_DELAY = 0.25;
+  C_TRANSITION_DELAY = 0.3;
   C_TRANSITION_PART_SCROLL_FACTOR = 0.3;
   C_INTERPOLATION_TYPE = TInterpolationType.Quadratic;
   C_ANIMATION_TYPE  = TAnimationType.InOut;
@@ -152,16 +152,26 @@ end;
 procedure TksFormTransition.AddBorder(ABmp: TBitmap; ABorder: TSide);
 var
   ASides: TSides;
+  ASaveState: TCanvasSaveState;
+  ARect: TRectF;
 begin
   ASides := [ABorder];
-  ABmp.Canvas.BeginScene;
+  ASaveState := ABmp.Canvas.SaveState;
   try
-    ABmp.Canvas.Stroke.Color := claBlack;
-    ABmp.Canvas.Stroke.Thickness := GetScreenScale;
-    ABmp.Canvas.DrawRectSides(RectF(0, 0, ABmp.Width/GetScreenScale, ABmp.Height/GetScreenScale), 0, 0, AllCorners, 1, ASides);
+    ABmp.Canvas.BeginScene;
+    try
+      ARect := RectF(0, 0, ABmp.Width/GetScreenScale, ABmp.Height/GetScreenScale);
+      ABmp.Canvas.IntersectClipRect(ARect);
+      ABmp.Canvas.Stroke.Color := claBlack;
+      ABmp.Canvas.Stroke.Thickness := GetScreenScale;
+      ABmp.Canvas.DrawRectSides(ARect, 0, 0, AllCorners, 1, ASides);
+    finally
+      ABmp.Canvas.EndScene;
+    end;
   finally
-    ABmp.Canvas.EndScene;
+    ABmp.Canvas.RestoreState(ASaveState);
   end;
+  Application.ProcessMessages;
 end;
 
 procedure TksFormTransition.AnimateImage(AImage: TImage; ADirection: TAnimateDirection; ANewValue: single; AWait: Boolean);
@@ -176,8 +186,9 @@ begin
   if AWait then
   begin
     AImage.BringToFront;
-    Application.ProcessMessages;
+    //
   end;
+  //Application.ProcessMessages;
   case AWait of
     False: TAnimator.AnimateFloat(AImage, 'Position.'+AProperty, ANewValue, C_TRANSITION_DELAY);
     True: TAnimator.AnimateFloatWait(AImage, 'Position.'+AProperty, ANewValue, C_TRANSITION_DELAY);
@@ -201,7 +212,6 @@ begin
   Result.Height := Round(AForm.Height * AScale);
   Result.Clear(claWhite);
   Result.Canvas.BeginScene;
-
   AForm.PaintTo(Result.Canvas);
   Result.Canvas.EndScene;
 end;
@@ -245,14 +255,15 @@ begin
   AImageFrom := TImage.Create(nil);
   AImageTo := TImage.Create(nil);
   try
-    AOnShow := ATo.OnShow;
+    ATo.HandleNeeded;
+    ATo.Invalidate;
+    Application.ProcessMessages;
+    {AOnShow := ATo.OnShow;
     ATo.OnShow := nil;
-    //if True then
-
     ATo.Show;
     ATo.Hide;
-    //Application.ProcessMessages;
-    ATo.OnShow := AOnShow;
+    Application.ProcessMessages;
+    ATo.OnShow := AOnShow; }
 
     AImageFrom.Width := AFrom.Width;
     AImageFrom.Height := AFrom.Height;

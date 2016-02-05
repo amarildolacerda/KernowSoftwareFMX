@@ -41,7 +41,7 @@ type
   TksTabBarHighlightStyle = (ksTbHighlightSingleColor, ksTbHighlightFullColour);
 
   TksTabItemIcon = (Custom, AlarmClock, BarChart, Bell, BookCover, BookCoverMinus, BookCoverTick, BookMark, BookOpen,
-                     Car, Calendar, Camera, Clock, CloudDownload, CloudUpload, Cross, Download, Earch, Email, Document,
+                     Car, Calendar, Camera, Clock, CloudDownload, CloudUpload, Cross, Download, Earth, Email, Document,
                      FileList, FileListTick, FileMinus, FilePlus, Files, FileStar, FileTick, Flag, Folder, FolderMinus,
                      FolderPlus, FolderStar, FolderTick, Home, Inbox, Incoming, Location, More, Note, Outgoing,
                      PaperClip, Photo, PieChart, Pin, Presentation, Settings, Share, ShoppingCart, Spanner, Speaker,

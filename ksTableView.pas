@@ -2419,14 +2419,14 @@ end;
 procedure TksTableViewItemAccessory.DoBeforeRenderBitmap(ABmp: TBitmap);
 begin
   inherited;
-  {if (FColor = claNull) then
+  if (FColor = claNull) then
   begin
     if (FColor <> C_TABLEVIEW_ACCESSORY_KEEPCOLOR) then
       ReplaceOpaqueColor(Bitmap, Color);
   end
   else
   if (FTableItem.TableView.AccessoryOptions.Color <> claNull) then
-    ReplaceOpaqueColor(Bitmap, FTableItem.TableView.AccessoryOptions.Color);     }
+    ReplaceOpaqueColor(Bitmap, FTableItem.TableView.AccessoryOptions.Color);
 end;
 
 procedure TksTableViewItemAccessory.RedrawAccessory;
@@ -2434,11 +2434,11 @@ begin
   Bitmap := AccessoryImages.Images[FAccessory];
   FWidth := Bitmap.Width / AccessoryImages.ImageScale;
   FHeight := Bitmap.Height / AccessoryImages.ImageScale;
-  if (FColor <> claNull) then
+  {if (FColor <> claNull) then
     ReplaceOpaqueColor(Bitmap, FColor)
   else
   if (FTableItem.TableView.AccessoryOptions.Color <> claNull) then
-    ReplaceOpaqueColor(Bitmap, FTableItem.TableView.AccessoryOptions.Color);
+    ReplaceOpaqueColor(Bitmap, FTableItem.TableView.AccessoryOptions.Color);}
   Changed;
 end;
 
@@ -4037,6 +4037,8 @@ end;
 procedure TksTableView.UpdateAll(AUpdateFiltered: Boolean);
 var
   ICount: integer;
+  AStartIndex: integer;
+  AEndIndex: integer;
 begin
   if FUpdateCount > 0 then
     Exit;
@@ -4044,10 +4046,12 @@ begin
   UpdateItemRects(AUpdateFiltered);
   UpdateStickyHeaders;
   UpdateScrollingLimits;
-  if FItems.Count <= C_TABLEVIEW_PAGE_SIZE then
+  if FItems.Count > 0 then
   begin
-    for ICount := 0 to FItems.Count-1 do
-      FItems[ICount].CacheItem(True);
+    AStartIndex := Max(TopItem.Index - (C_TABLEVIEW_PAGE_SIZE div 2), 0);
+    AEndIndex := Min(FItems.Count-1, AStartIndex + C_TABLEVIEW_PAGE_SIZE);
+    for ICount := AStartIndex to AEndIndex do
+      FItems[ICount].CacheItem(False);
   end;
 end;
 
@@ -4256,7 +4260,7 @@ procedure TksTableView.AniCalcStop(Sender: TObject);
 begin
   FScrolling := False;
   FSwipeDirection := ksSwipeUnknown;
-  ClearCache(ksClearCacheNonVisible);
+  //ClearCache(ksClearCacheNonVisible);
 
   if Scene <> nil then
     Scene.ChangeScrollingState(nil, False);
@@ -4549,7 +4553,9 @@ begin
   if Assigned(FOnPullRefresh) then
   begin
     KillAllTimers;
+    DisableMouseEvents;
     FOnPullRefresh(Self);
+    EnableMouseEvents;
   end;
 end;
 
@@ -5633,6 +5639,7 @@ begin
   if FUpdateCount > 0 then
     Exit;
 
+  HideFocusedControl;
   UpdateItemRects(False);
   UpdateScrollingLimits;
   ClearCache(ksClearCacheAll);
@@ -5880,7 +5887,7 @@ begin
     HideFocusedControl;
     FActionButtons.HideButtons;
 
-    ClearCache(ksClearCacheNonVisible);
+    //ClearCache(ksClearCacheNonVisible);
 
     AStep := (Value - FScrollPos) / 20;
     if AAnimate then
