@@ -106,7 +106,7 @@ begin
   FVideoCamera := TVideoCaptureDevice(TCaptureDeviceManager.Current.GetDefaultDeviceByMediaType(TMediaType.Video));
   FVideoCamera.Quality := TVideoCaptureQuality.MediumQuality;
   {$IFDEF ANDROID}
-  FVideoCamera.SetFocusMode(TFocusMode.ContinuousAutoFocus);
+  FVideoCamera.FocusMode := TFocusMode.ContinuousAutoFocus;
   {$ENDIF}
   if FVideoCamera <> nil then
     FVideoCamera.OnSampleBufferReady := DoScanBuffer;
@@ -117,7 +117,7 @@ begin
   begin
     FVideoCamera.StartCapture;
     {$IFDEF ANDROID}
-    FVideoCamera.SetFocusMode(TFocusMode.ContinuousAutoFocus);
+    FVideoCamera.FocusMode := TFocusMode.ContinuousAutoFocus;
     {$ENDIF}
   end;
 end;
