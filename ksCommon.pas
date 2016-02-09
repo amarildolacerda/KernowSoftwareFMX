@@ -315,11 +315,11 @@ end;
 function GenerateBadge(AValue: integer; AColor, ABackgroundColor, ATextColor: TAlphaColor): TBitmap;
 var
   ABadgeScale: single;
-
 begin
-  ABadgeScale := (GetScreenScale * 1);
   {$IFNDEF MSWINDOWS}
   ABadgeScale := (GetScreenScale * 2);
+  {$ELSE}
+   ABadgeScale := (GetScreenScale * 1);
   {$ENDIF}
   Result := TBitmap.Create(Round(12 * ABadgeScale), Round(12 * ABadgeScale));
   Result.Clear(claNull);

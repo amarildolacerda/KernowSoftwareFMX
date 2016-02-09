@@ -239,7 +239,6 @@ var
   ADestRect: TRectF;
   ABadgeRect: TRectF;
   ABadgeBmp: TBitmap;
-  ABadgeScale: single;
 begin
   AAppearence := TksTabControl(Parent).Appearence;
   InflateRect(ARect, 0, -3);

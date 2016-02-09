@@ -240,7 +240,6 @@ procedure TksFormTransition.PushForm(AFrom, ATo: TForm;
 var
   AImageFrom: TImage;
   AImageTo: TImage;
-  AOnShow: TNotifyEvent;
 begin
   if AAnimating then
     Exit;

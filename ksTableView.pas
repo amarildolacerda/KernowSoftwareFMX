@@ -3925,12 +3925,10 @@ procedure TksTableViewItem.ExpandIndicatorToWidth;
 var
   ICount: integer;
   ACurrentlyExpanded: TksTableViewItem;
-  ACacheTime: integer;
-  AStart: TDateTime;
   ASteps: integer;
   AStepValue: single;
-  ADelay: integer;
 begin
+  ACurrentlyExpanded := nil;
   FTableView.DisableMouseEvents;
   try
     if Trunc(FIndicator.Width) = (ItemRect.Right) then
@@ -3953,11 +3951,10 @@ begin
 
     AStepValue := (ItemRect.Width / ASteps);
 
-    AStart := Now;
-
     for ICount := 1 to ASteps do
     begin
-      if ACurrentlyExpanded <> nil then
+      if ACurrentlyExpanded
+      <> nil then
         ACurrentlyExpanded.FIndicator.Width := (ItemRect.Right - (ICount * AStepValue));
       FIndicator.Width := (ICount * AStepValue);
       ProcessMessages;
