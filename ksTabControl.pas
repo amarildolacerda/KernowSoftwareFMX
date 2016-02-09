@@ -35,18 +35,24 @@ uses
 
 type
   TksTabControl = class;
+  TksTabItem = class;
 
   TksTabBarTheme = (ksTbCustom, ksTbLightTabs, ksTbDarkTabs);
-  TksTabBarPosition = (ksTbpBottom, ksTbpTop);
+  TksTabBarPosition = (ksTbpBottom, ksTbpNone);
   TksTabBarHighlightStyle = (ksTbHighlightSingleColor, ksTbHighlightFullColour);
 
-  TksTabItemIcon = (Custom, AlarmClock, BarChart, Bell, BookCover, BookCoverMinus, BookCoverTick, BookMark, BookOpen,
-                     Car, Calendar, Camera, Clock, CloudDownload, CloudUpload, Cross, Download, Earth, Email, Document,
-                     FileList, FileListTick, FileMinus, FilePlus, Files, FileStar, FileTick, Flag, Folder, FolderMinus,
-                     FolderPlus, FolderStar, FolderTick, Home, Inbox, Incoming, Location, More, Note, Outgoing,
-                     PaperClip, Photo, PieChart, Pin, Presentation, Settings, Share, ShoppingCart, Spanner, Speaker,
-                     Star, Tablet, Tag, Telephone, ThumbDrive, Tick, Timer, Trash, Upload, User, VideoCamera, VideoPlayer, Viewer,
-                     Wifi, Window, Write);
+  TksTabBarClickTabEvent = procedure(Sender: TObject; ATab: TksTabItem) of object;
+
+  TksTabItemIcon = (Custom, AlarmClock, BarChart, Barcode, Bell, BookCover, BookCoverMinus, BookCoverPlus, BookCoverTick, BookMark, BookOpen,
+                    Calendar, Camera, Car, Clock, CloudDownload, CloudUpload, Cross, Document, Download, Earth, Email,
+                    Fax, FileList, FileMinus, FilePlus, Files, FileStar, FileTick, Flag, Folder, FolderMinus,
+                    FolderPlus, FolderStar, Home, Inbox, Incoming, ListBullets, ListCheckBoxes, ListImages, ListNumbered, ListTicked,
+                    Location, More, Note, Outgoing,
+                    PaperClip, Photo, PieChart, Pin, Presentation, Search, Settings, Share, ShoppingCart, Spanner, Speaker,
+                    Star, Tablet, Tag, Telephone, Telephone2, TelephoneBook, Tick, Timer, Trash, Upload,
+                    User, UserEdit, UserGroup, Users, UserSearch,
+                    VideoCamera, VideoPlayer, Viewer,
+                    Wifi, Window, Write);
 
   TksTabBarAppearence = class(TPersistent)
   private
@@ -115,7 +121,7 @@ type
 
   TksTabBar = class(TControl)
   private
-    [weak]FTabControl: TFmxObject;
+    [weak]FTabControl: TksTabControl;
   protected
     procedure Paint; override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Single); override;
@@ -134,9 +140,11 @@ type
   private
     FTabBar: TksTabBar;
     FTabIndex: integer;
-    FOnChange: TNotifyEvent;
     FTabs: TksTabItemList;
     FAppearence: TksTabBarAppearence;
+    FOnChange: TNotifyEvent;
+    FOnClickTab: TksTabBarClickTabEvent;
+    FTabPosition: TksTabBarPosition;
     procedure SetTabIndex(const Value: integer);
     function GetTabRect(AIndex: integer): TRectF;
     function GetTabIndexFromXPos(AXPos: single): integer;
@@ -144,6 +152,7 @@ type
     function GetTabCount: integer;
     function GetActiveTab: TksTabItem;
     function GetSelectedTab: TksTabItem;
+    procedure SetTabBarPosition(const Value: TksTabBarPosition);
   protected
     procedure Resize; override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Single); override;
@@ -152,11 +161,14 @@ type
     function GetItemsCount: Integer;
     function GetItem(const AIndex: Integer): TFmxObject;
     function GetObject: TFmxObject;
+    procedure DoClickTab(ATab: TksTabItem);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     procedure UpdateTabs;
     function AddTab: TksTabItem;
+    procedure PrevTab;
+    procedure NextTab;
     property ActiveTab: TksTabItem read GetActiveTab;
     property Tabs: TksTabItemList read FTabs;
     property SelectedTab: TksTabItem read GetSelectedTab;
@@ -169,9 +181,11 @@ type
     property Width;
     property Size;
     property Height;
+    property TabPosition: TksTabBarPosition read FTabPosition write SetTabBarPosition default ksTbpBottom;
     property Visible;
     // events
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
+    property OnClickTab: TksTabBarClickTabEvent read FOnClickTab write FOnClickTab;
   end;
 
   {$R *.dcr}
@@ -217,6 +231,7 @@ begin
   inherited;
 end;
 
+
 procedure TksTabItem.DrawTab(ACanvas: TCanvas; AIndex: integer; ARect: TRectF);
 var
   AAppearence: TksTabBarAppearence;
@@ -251,13 +266,21 @@ begin
       if (AIndex <> TksTabControl(Parent).TabIndex) then
         ReplaceOpaqueColor(ABmp, AAppearence.NormalColor);
     end;
-    ADestRect := RectF(0, 0, 20, 20);
-    OffsetRect(ADestRect, ARect.Left + ((ARect.Width - 20) / 2), 10);
-    ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ADestRect, 1, False);
+    ADestRect := RectF(0, 0, 28, 28);
+    OffsetRect(ADestRect, ARect.Left + ((ARect.Width - 28) / 2), 4);
+    ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ADestRect, 1, True);
 
     if FBadgeValue > 0 then
     begin
-      ABadgeScale := (GetScreenScale*2);
+      ABadgeBmp := GenerateBadge(FBadgeValue, AAppearence.BadgeColor, AAppearence.BackgroundColor, claWhite);
+      try
+        ABadgeRect := RectF(ADestRect.Right-9, ADestRect.Top-9, ADestRect.Right+9, ADestRect.Top+9);
+        OffsetRect(ABadgeRect, -2, 6);
+        ACanvas.DrawBitmap(ABadgeBmp, RectF(0, 0, ABadgeBmp.Width, ABadgeBmp.Height), ABadgeRect, 1, False);
+      finally
+        FreeAndNil(ABadgeBmp);
+      end;
+      {ABadgeScale := (GetScreenScale*2);
       ABadgeBmp := TBitmap.Create(Round(18 * ABadgeScale), Round(18 * ABadgeScale));
       try
         ABadgeBmp.Clear(claNull);
@@ -265,18 +288,19 @@ begin
         ABadgeBmp.Canvas.Fill.Color := AAppearence.BadgeColor;
         ABadgeBmp.Canvas.Stroke.Color := AAppearence.BackgroundColor;
         ABadgeBmp.Canvas.FillEllipse(RectF(0, 0, ABadgeBmp.Width, ABadgeBmp.Height), 1);
-        ABadgeBmp.Canvas.StrokeThickness := 3*ABadgeScale;
-        ABadgeBmp.Canvas.DrawEllipse(RectF(0, 0, ABadgeBmp.Width, ABadgeBmp.Height), 1);
+        ABadgeBmp.Canvas.StrokeThickness := 1*ABadgeScale;
+
+        ABadgeBmp.Canvas.DrawEllipse(RectF(1, 1, ABadgeBmp.Width-1, ABadgeBmp.Height-1), 1);
         ABadgeBmp.Canvas.Fill.Color := claWhite;
         ABadgeBmp.Canvas.Font.Size := 9*ABadgeScale;
         ABadgeBmp.Canvas.FillText(RectF(0, 0, ABadgeBmp.Width, ABadgeBmp.Height), IntToStr(FBadgeValue), False, 1, [], TTextAlign.Center);
         ABadgeBmp.Canvas.EndScene;
         ABadgeRect := RectF(ADestRect.Right-9, ADestRect.Top-9, ADestRect.Right+9, ADestRect.Top+9);
-        OffsetRect(ABadgeRect, 0, 2);
+        OffsetRect(ABadgeRect, -2, 6);
         ACanvas.DrawBitmap(ABadgeBmp, RectF(0, 0, ABadgeBmp.Width, ABadgeBmp.Height), ABadgeRect, 1, False);
       finally
         FreeAndNil(ABadgeBmp);
-      end;
+      end;      }
     end;
   finally
     FreeAndNil(ABmp);
@@ -421,6 +445,12 @@ begin
   end;
 end;
 
+procedure TksTabControl.DoClickTab(ATab: TksTabItem);
+begin
+  if Assigned(FOnClickTab) then
+    FOnClickTab(Self, ATab);
+end;
+
 function TksTabControl.GetActiveTab: TksTabItem;
 begin
   if InRange(TabIndex, 0, GetTabCount - 1) then
@@ -506,6 +536,11 @@ begin
 
 end;
 
+procedure TksTabControl.NextTab;
+begin
+  TabIndex := TabIndex +1;
+end;
+
 procedure TksTabControl.Paint;
 var
   AState: TCanvasSaveState;
@@ -546,6 +581,11 @@ begin
   end;
 end;
 
+procedure TksTabControl.PrevTab;
+begin
+  TabIndex := TabIndex -1;
+end;
+
 procedure TksTabControl.Resize;
 begin
   inherited;
@@ -553,8 +593,19 @@ begin
   Repaint;
 end;
 
+procedure TksTabControl.SetTabBarPosition(const Value: TksTabBarPosition);
+begin
+  if FTabPosition <> Value then
+  begin
+    FTabPosition := Value;
+    UpdateTabs;
+  end;
+end;
+
 procedure TksTabControl.SetTabIndex(const Value: integer);
 begin
+  if (Tabs.Count > 0) and ((Value < 0) or (Value > Tabs.Count-1)) then
+    Exit;
   if FTabIndex <> Value then
   begin
     FTabIndex := Value;
@@ -575,7 +626,10 @@ begin
     ATab := Tabs[ICount];
     ATab.FTabIndex := ICount;
     ATab.Width := Self.Width;
-    ATab.Height := Self.Height-50;
+    case FTabPosition of
+      ksTbpBottom: ATab.Height := Self.Height-50;
+      ksTbpNone: ATab.Height := Self.Height;
+    end;
     ATab.Position.Y := 0;
     ATab.Position.X := 0;
     ATab.Visible := (ICount = FTabIndex);
@@ -601,7 +655,6 @@ begin
   inherited;
   TksTabControl(Parent).TabIndex := TksTabControl(FTabControl).GetTabIndexFromXPos(X);
   ATab := TksTabControl(FTabControl).GetTabFromXPos(X);
-
   {$IFDEF MSWINDOWS}
   if (csDesigning in ComponentState) and
      (TCommonCustomForm(FTabControl.Owner).Designer <> nil) then
@@ -615,7 +668,8 @@ begin
     Repaint;
   end;
  {$ENDIF}
-
+  if ATab <> nil then
+    FTabControl.DoClickTab(ATab);
 end;
 
 procedure TksTabBar.Paint;

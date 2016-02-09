@@ -44,6 +44,8 @@ uses FMX.Controls, FMX.Graphics, System.UITypes, FMX.Types, Types, System.UICons
     AText: string; AFont: TFont; ATextColor: TAlphaColor; AWordWrap: Boolean;
     AHorzAlign: TTextAlign; AVertAlign: TTextAlign; ATrimming: TTextTrimming);
 
+  function GenerateBadge(AValue: integer; AColor, ABackgroundColor, ATextColor: TAlphaColor): TBitmap;
+
 implementation
 
 uses FMX.Platform, FMX.Forms,  SysUtils, FMX.TextLayout, Math, FMX.Utils
@@ -308,6 +310,29 @@ begin
     AForm.MouseDown(TMouseButton.mbLeft, [], AFormPoint.X, AFormPoint.Y);
     AForm.MouseUp(TMouseButton.mbLeft, [], AFormPoint.X, AFormPoint.Y);
   end;
+end;
+
+function GenerateBadge(AValue: integer; AColor, ABackgroundColor, ATextColor: TAlphaColor): TBitmap;
+var
+  ABadgeScale: single;
+
+begin
+  ABadgeScale := (GetScreenScale * 1);
+  {$IFNDEF MSWINDOWS}
+  ABadgeScale := (GetScreenScale * 2);
+  {$ENDIF}
+  Result := TBitmap.Create(Round(12 * ABadgeScale), Round(12 * ABadgeScale));
+  Result.Clear(claNull);
+  Result.Canvas.BeginScene;
+  Result.Canvas.Fill.Color := AColor;
+  Result.Canvas.FillEllipse(RectF(0, 0, Result.Width, Result.Height), 1);
+  Result.Canvas.Stroke.Color := ABackgroundColor;
+  Result.Canvas.StrokeThickness := 1*ABadgeScale;
+  Result.Canvas.DrawEllipse(RectF(1, 1, Result.Width-1, Result.Height-1), 1);
+  Result.Canvas.Fill.Color := ATextColor;
+  Result.Canvas.Font.Size := 9*ABadgeScale;
+  Result.Canvas.FillText(RectF(0, 0, Result.Width, Result.Height), IntToStr(AValue), False, 1, [], TTextAlign.Center);
+  Result.Canvas.EndScene;
 end;
 
 initialization

@@ -7,6 +7,8 @@ uses Classes, DesignEditors, DesignIntf;
 const
   C_VERB_ABOUT = 'About';
   C_ADD_TAB = '&Add Tab';
+  C_NEXT_TAB = '&Next Tab';
+  C_PREV_TAB = '&Previous Tab';
 
 type
 
@@ -57,6 +59,9 @@ procedure TksTabControlComponentEditor.BuildVerbs(AVerbs: TStrings);
 begin
   inherited;
   AVerbs.Add(C_ADD_TAB);
+  AVerbs.Add('-');
+  AVerbs.Add(C_PREV_TAB);
+  AVerbs.Add(C_NEXT_TAB);
 end;
 
 procedure TksTabControlComponentEditor.ExecuteVerb(Index: Integer);
@@ -65,26 +70,28 @@ var
   ATabControl: TksTabControl;
 begin
   inherited;
+  ATabControl := nil;
+  if Component is TksTabControl then
+    ATabControl := (Component as TksTabControl);
+  if Component is TksTabItem then
+    ATabControl := TksTabControl(TksTabItem(Component).Parent);
+
   if FVerbs[Index] = C_ADD_TAB then
   begin
-    ATabControl := nil;
-    if Component is TksTabControl then
-      ATabControl := (Component as TksTabControl);
-    if Component is TksTabItem then
-      ATabControl := TksTabControl(TksTabItem(Component).Parent);
     if ATabControl <> nil then
     begin
       ItemParent := TFmxObject((ATabControl as IItemsContainer).GetObject);
       Designer.CreateChild(TksTabItem, ItemParent);
     end;
   end;
+  if FVerbs[Index] = C_PREV_TAB then ATabControl.PrevTab;
+  if FVerbs[Index] = C_NEXT_TAB then ATabControl.NextTab;
 end;
 
 { TksBaseComponentEditor }
 
 procedure TksBaseComponentEditor.BuildVerbs(AVerbs: TStrings);
 begin
-  //AVerbs.Add(C_VERB_ABOUT);
 end;
 
 constructor TksBaseComponentEditor.Create(AComponent: TComponent; ADesigner: IDesigner);
