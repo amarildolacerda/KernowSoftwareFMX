@@ -1065,6 +1065,7 @@ type
     procedure SetShadow(const Value: Boolean);
     procedure SetShape(const Value: TksTableViewShape);
     procedure SetAlignment(const Value: TksTableViewRowIndicatorAlign);
+    procedure SetSelectRow(const Value: Boolean);
   published
     constructor Create(ATableView: TksTableView); virtual;
     property Width: integer read FWidth write FWidth default C_TABLEVIEW_DEFAULT_INDICATOR_WIDTH;
@@ -1073,7 +1074,7 @@ type
     property Outlined: Boolean read FOutlined write FOutlined default True;
     property Shadow: Boolean read FShadow write SetShadow default True;
     property Shape: TksTableViewShape read FShape write SetShape default ksRectangle;
-    property SelectRow: Boolean read FSelectRow write FSelectRow default False;
+    property SelectRow: Boolean read FSelectRow write SetSelectRow default False;
     property Alignment: TksTableViewRowIndicatorAlign read FAlignment write SetAlignment default ksRowIndicatorLeft;
   end;
 
@@ -3516,6 +3517,7 @@ begin
           FIndicator.Height := ItemRect.Height - 16;
         ARect.Left := ARect.Left + FTableView.RowIndicators.Width+4;
 
+        FIndicator.OffsetX := 0;
         case FTableView.RowIndicators.Alignment of
           ksRowIndicatorLeft: FIndicator.Align := TksTableItemAlign.Leading;
           ksRowIndicatorRight:
@@ -4781,10 +4783,17 @@ begin
   // select the first embedded edit if no OnClick event handler exists for the table item
   FMouseDownItem.SelectFirstEmbeddedEdit;
 
+
+  if FRowIndicators.SelectRow then
+  //begin
+    FMouseDownItem.ExpandIndicatorToWidth;
+  //end;
+
   if Assigned(FItemClickEvent) then
     FItemClickEvent(Self, FMouseDownPoint.x, FMouseDownPoint.y, FMouseDownItem, FMouseDownItem.ID, FMouseDownObject);
 
   FActionButtons.HideButtons;
+
 end;
 
 procedure TksTableView.DoSelectPickerItem(Sender: TObject);
@@ -5816,14 +5825,19 @@ procedure TksTableView.ResetIndicatorWidths;
 var
   ICount: integer;
 begin
-  for Icount := 0 to Items.Count-1 do
-  begin
-    if Items[ICount].FIndicator.Width <> RowIndicators.Width then
+  BeginUpdate;
+  try
+    for Icount := 0 to Items.Count-1 do
     begin
-      Items[ICount].FIndicator.Width := RowIndicators.Width;
-      Items[ICount].FForegroundColor := claNull;
-      Items[ICount].CacheItem(True);
+      if Items[ICount].FIndicator.Width <> RowIndicators.Width then
+      begin
+        Items[ICount].FIndicator.Width := RowIndicators.Width;
+        Items[ICount].FForegroundColor := claNull;
+        Items[ICount].FCached := False;
+      end;
     end;
+  finally
+    EndUpdate;
   end;
 end;
 
@@ -6404,6 +6418,17 @@ begin
     FAlignment := Value;
     FTableView.ClearCache(ksClearCacheAll);
     FTableView.Invalidate;
+  end;
+end;
+
+procedure TksListViewRowIndicators.SetSelectRow(const Value: Boolean);
+begin
+  if FSelectRow <> Value then
+  begin
+    FSelectRow := Value;
+    if Value = False then
+      FTableView.ResetIndicatorWidths;
+    Changed;
   end;
 end;
 
