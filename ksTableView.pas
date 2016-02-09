@@ -2513,11 +2513,9 @@ end;
 
 procedure TksTableViewItemAccessory.RedrawAccessory;
 begin
+  Bitmap := AccessoryImages.Images[FAccessory];
   if FColor = claNull then
-  begin
     OwnsBitmap := False;
-    Bitmap := AccessoryImages.Images[FAccessory];
-  end;
   {else
   begin
 
