@@ -281,7 +281,6 @@ begin
       StaysPressed := True;
       GroupName := FGroupID;
       Width := FBtnWidth;
-      Height := Height;
       TintColor := FTintColor;
       if FItemIndex = ICount then
         TextSettings.FontColor := FBackgroundColor
@@ -289,10 +288,15 @@ begin
         TextSettings.FontColor := FTintColor;
       IsPressed := (ICount = FItemIndex);
       Text := FSegments[ICount].Text;
+      {$IFDEF ANDROID}
+      StyleLookup := 'listitembutton';
+      Height := 30;
+      {$ELSE}
       if ICount = 0 then StyleLookup := 'segmentedbuttonleft';
       if ICount > 0 then StyleLookup := 'segmentedbuttonmiddle';
       if ICount = FSegments.Count-1 then StyleLookup := 'segmentedbuttonright';
       if FSegments.Count = 1 then StyleLookup := 'listitembutton';
+      {$ENDIF}
       Position.Y := (Self.Height - Height) / 2;
       Position.X := ICount * FBtnWidth;
     end;
