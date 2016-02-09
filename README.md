@@ -8,6 +8,12 @@ Firemonkey Slide menu, ListView and Segment buttons for Delphi.  Inherits from a
 Includes demo with source.  Demo App also available on app store: 
 https://itunes.apple.com/gb/app/kscomponents-reference/id1031179701?mt=8
 
+### Feel free to support the components with a donation ;-)
+
+If you'd like to support the ksComponents project, you can do so at the following link ;-)
+
+http://www.kernow-software.co.uk/?page_id=397
+
 ###TksTableView
 
 - Cached table view provides native performance regardless of the number of text/items/graphics added
