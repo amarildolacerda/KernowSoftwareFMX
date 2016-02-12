@@ -68,6 +68,7 @@ begin
     begin
       AItem := ksTableView1.Items.AddItem('Item: '+IntToStr(ICount), 'some subtitle text', 'some detail', atMore );
       AItem.Image.Bitmap := Image1.Bitmap;
+      AItem.Image.BadgeValue := ICount;
     end;
   finally
     ksTableView1.EndUpdate;

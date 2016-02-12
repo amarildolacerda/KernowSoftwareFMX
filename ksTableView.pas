@@ -957,8 +957,8 @@ type
     function AddItemWithSwitch(AText: string; AChecked: Boolean; AID: string): TksTableViewItem;
     property ItemByID[AID: string]: TksTableViewItem read GetItemByID;
     function GetCheckedCount: integer;
-    procedure Delete(AIndex: integer); reintroduce;
-    procedure DeleteItem(AItem: TksTableViewItem);
+    procedure Delete(AIndex: integer; const AAnimate: Boolean = True); reintroduce;
+    procedure DeleteItem(AItem: TksTableViewItem; const AAnimate: Boolean = True);
     property FirstItem: TksTableViewItem read GetFirstItem;
     property LastItem: TksTableViewItem read GetLastItem;
   end;
@@ -2346,8 +2346,6 @@ var
   AScaleX, AScaleY: single;
   AOriginalRect: TRectF;
   ABmp: TBitmap;
-  ABadgeRect: TRectF;
-  ABadge: TBitmap;
 begin
   inherited;
   if Bitmap <> nil then
@@ -2395,16 +2393,12 @@ begin
   end;
   if FBadgeValue > 0 then
   begin
-    ABadge := GenerateBadge(FBadgeValue, FBadgeColor, claWhite, FBadgeTextColor);
-    try
-      ABadgeRect := RectF(ARect.Right - 12, ARect.Top, ARect.Right, ARect.Top + 12);
-      OffsetRect(ABadgeRect, 0, -2);
-      ACanvas.DrawBitmap(ABadge,
-                         RectF(0, 0, ABadge.Width, ABadge.Height),
-                         ABadgeRect, 1, False);
-    finally
-      FreeAndNil(ABadge);
-    end;
+    GenerateBadge(ACanvas,
+                  PointF(ARect.Right-12, ARect.Top-4),
+                  FBadgeValue,
+                  FBadgeColor,
+                  claWhite,
+                  FBadgeTextColor);
   end;
 end;
 
@@ -2713,12 +2707,12 @@ begin
   FTableView := ATableView;
 end;
 
-procedure TksTableViewItems.Delete(AIndex: integer);
+procedure TksTableViewItems.Delete(AIndex: integer; const AAnimate: Boolean = True);
 begin
-  DeleteItem(Items[AIndex]);
+  DeleteItem(Items[AIndex], AAnimate);
 end;
 
-procedure TksTableViewItems.DeleteItem(AItem: TksTableViewItem);
+procedure TksTableViewItems.DeleteItem(AItem: TksTableViewItem; const AAnimate: Boolean = True);
 var
   ICount: integer;
   ACanDelete: Boolean;
@@ -2741,16 +2735,19 @@ begin
       Exit;
 
     AItem.FDeleting := True;
-    for ICount := Trunc(AItem.Height) downto 0 do
+    if AAnimate then
     begin
-      AItem.Height := ICount;
-      //FTableView.Repaint;
-      {$IFDEF NEXTGEN}
-      if ICount mod 5 = 0 then
+      for ICount := Trunc(AItem.Height) downto 0 do
+      begin
+        AItem.Height := ICount;
+        //FTableView.Repaint;
+        {$IFDEF NEXTGEN}
+        if ICount mod 5 = 0 then
+          ProcessMessages;
+        {$ELSE}
         ProcessMessages;
-      {$ELSE}
-      ProcessMessages;
-      {$ENDIF}
+        {$ENDIF}
+      end;
     end;
 
     inherited Delete(AIndex);

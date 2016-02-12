@@ -237,8 +237,6 @@ var
   AAppearence: TksTabBarAppearence;
   ABmp: TBitmap;
   ADestRect: TRectF;
-  ABadgeRect: TRectF;
-  ABadgeBmp: TBitmap;
 begin
   AAppearence := TksTabControl(Parent).Appearence;
   InflateRect(ARect, 0, -3);
@@ -271,35 +269,12 @@ begin
 
     if FBadgeValue > 0 then
     begin
-      ABadgeBmp := GenerateBadge(FBadgeValue, AAppearence.BadgeColor, AAppearence.BackgroundColor, claWhite);
-      try
-        ABadgeRect := RectF(ADestRect.Right-9, ADestRect.Top-9, ADestRect.Right+9, ADestRect.Top+9);
-        OffsetRect(ABadgeRect, -2, 6);
-        ACanvas.DrawBitmap(ABadgeBmp, RectF(0, 0, ABadgeBmp.Width, ABadgeBmp.Height), ABadgeRect, 1, False);
-      finally
-        FreeAndNil(ABadgeBmp);
-      end;
-      {ABadgeScale := (GetScreenScale*2);
-      ABadgeBmp := TBitmap.Create(Round(18 * ABadgeScale), Round(18 * ABadgeScale));
-      try
-        ABadgeBmp.Clear(claNull);
-        ABadgeBmp.Canvas.BeginScene;
-        ABadgeBmp.Canvas.Fill.Color := AAppearence.BadgeColor;
-        ABadgeBmp.Canvas.Stroke.Color := AAppearence.BackgroundColor;
-        ABadgeBmp.Canvas.FillEllipse(RectF(0, 0, ABadgeBmp.Width, ABadgeBmp.Height), 1);
-        ABadgeBmp.Canvas.StrokeThickness := 1*ABadgeScale;
-
-        ABadgeBmp.Canvas.DrawEllipse(RectF(1, 1, ABadgeBmp.Width-1, ABadgeBmp.Height-1), 1);
-        ABadgeBmp.Canvas.Fill.Color := claWhite;
-        ABadgeBmp.Canvas.Font.Size := 9*ABadgeScale;
-        ABadgeBmp.Canvas.FillText(RectF(0, 0, ABadgeBmp.Width, ABadgeBmp.Height), IntToStr(FBadgeValue), False, 1, [], TTextAlign.Center);
-        ABadgeBmp.Canvas.EndScene;
-        ABadgeRect := RectF(ADestRect.Right-9, ADestRect.Top-9, ADestRect.Right+9, ADestRect.Top+9);
-        OffsetRect(ABadgeRect, -2, 6);
-        ACanvas.DrawBitmap(ABadgeBmp, RectF(0, 0, ABadgeBmp.Width, ABadgeBmp.Height), ABadgeRect, 1, False);
-      finally
-        FreeAndNil(ABadgeBmp);
-      end;      }
+      GenerateBadge(ACanvas,
+                    PointF(ADestRect.Right-7, ADestRect.Top-2),
+                    FBadgeValue,
+                    AAppearence.BadgeColor,
+                    AAppearence.BackgroundColor,
+                    claWhite);
     end;
   finally
     FreeAndNil(ABmp);

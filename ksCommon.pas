@@ -44,7 +44,7 @@ uses FMX.Controls, FMX.Graphics, System.UITypes, FMX.Types, Types, System.UICons
     AText: string; AFont: TFont; ATextColor: TAlphaColor; AWordWrap: Boolean;
     AHorzAlign: TTextAlign; AVertAlign: TTextAlign; ATrimming: TTextTrimming);
 
-  function GenerateBadge(AValue: integer; AColor, ABackgroundColor, ATextColor: TAlphaColor): TBitmap;
+  procedure GenerateBadge(ACanvas: TCanvas; ATopLeft: TPointF; AValue: integer; AColor, ABackgroundColor, ATextColor: TAlphaColor);
 
 implementation
 
@@ -312,27 +312,45 @@ begin
   end;
 end;
 
-function GenerateBadge(AValue: integer; AColor, ABackgroundColor, ATextColor: TAlphaColor): TBitmap;
+procedure GenerateBadge(ACanvas: TCanvas; ATopLeft: TPointF; AValue: integer; AColor, ABackgroundColor, ATextColor: TAlphaColor);
+
+  procedure DrawEllipse(ACanvas: TCanvas; ARect: TRectF; AColor: TAlphaColor);
+  begin
+    ACanvas.Fill.Color := AColor;
+    ACanvas.FillEllipse(ARect, 1);
+    ACanvas.Stroke.Color := AColor;
+    ACanvas.StrokeThickness := 1;
+    ACanvas.DrawEllipse(ARect, 1);
+  end;
 var
-  ABadgeScale: single;
+  ABmp: TBitmap;
+  AOutlineRect: TRectF;
+  ARect: TRectF;
+  r, r2: TRectF;
+  s: single;
 begin
-  {$IFNDEF MSWINDOWS}
-  ABadgeScale := (GetScreenScale * 2);
-  {$ELSE}
-   ABadgeScale := (GetScreenScale * 1);
-  {$ENDIF}
-  Result := TBitmap.Create(Round(12 * ABadgeScale), Round(12 * ABadgeScale));
-  Result.Clear(claNull);
-  Result.Canvas.BeginScene;
-  Result.Canvas.Fill.Color := AColor;
-  Result.Canvas.FillEllipse(RectF(0, 0, Result.Width, Result.Height), 1);
-  Result.Canvas.Stroke.Color := ABackgroundColor;
-  Result.Canvas.StrokeThickness := 1*ABadgeScale;
-  Result.Canvas.DrawEllipse(RectF(1, 1, Result.Width-1, Result.Height-1), 1);
-  Result.Canvas.Fill.Color := ATextColor;
-  Result.Canvas.Font.Size := 9*ABadgeScale;
-  Result.Canvas.FillText(RectF(0, 0, Result.Width, Result.Height), IntToStr(AValue), False, 1, [], TTextAlign.Center);
-  Result.Canvas.EndScene;
+  s := GetScreenScale;
+  ABmp := TBitmap.Create(Round(32*s), Round(32*s));
+  try
+    ARect := RectF(ATopLeft.X, ATopLeft.Y, ATopLeft.X + 16, ATopLeft.Y + 16);
+
+    AOutlineRect := ARect;
+    InflateRect(AOutlineRect, GetScreenScale, GetScreenScale);
+
+    ABmp.Clear(claNull);
+    ABmp.Canvas.BeginScene;
+    r := RectF(2, 2, 30*s, 30*s);
+    r2 := RectF(0, 0, 32*s, 32*s);
+    DrawEllipse(ABmp.Canvas, r2, ABackgroundColor);
+    DrawEllipse(ABmp.Canvas, r, AColor);
+    ABmp.Canvas.EndScene;
+    ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ARect, 1, False);
+    ACanvas.Fill.Color := ATextColor;
+    ACanvas.Font.Size := 9;
+    ACanvas.FillText(ARect, IntToStr(AValue), False, 1, [], TTextAlign.Center);
+  finally
+    FreeAndNil(ABmp);
+  end;
 end;
 
 initialization
