@@ -92,6 +92,8 @@ type
                             const AUserImage: TBitmap);
     procedure Clear;
     procedure ClearEdit;
+    procedure ScrollToTop;
+    procedure ScrollToEnd;
   published
     property Align;
     property ButtonText: string read FButtonText write SetButtonText;
@@ -303,6 +305,16 @@ begin
   end;
 end;
 
+
+procedure TksChatView.ScrollToEnd;
+begin
+  FTableView.ScrollToItem(FTableView.Items.LastItem);
+end;
+
+procedure TksChatView.ScrollToTop;
+begin
+  FTableView.ScrollToItem(FTableView.Items.FirstItem);
+end;
 
 procedure TksChatView.SetButtonText(const Value: string);
 begin
