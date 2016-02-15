@@ -30,10 +30,12 @@ interface
 
 uses
   System.SysUtils, System.Classes, System.Net.HttpClientComponent,
-  System.Net.HttpClient, System.Net.UrlClient;
+  System.Net.HttpClient, System.Net.UrlClient, FMX.Graphics;
 
 type
   TAsyncGetEvent = procedure(Sender: TObject; AResponse: IHTTPResponse) of object;
+  TAsyncGetBitmapEvent = procedure(Sender: TObject; ABitmap: TBitmap) of object;
+  TksHttpThreadType = (ksTtNormal, ksTtBitmap);
 
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
     {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
@@ -41,7 +43,9 @@ type
   TksNetHttpClient = class(TNetHTTPClient)
   private
     FOnAsyncGet: TAsyncGetEvent;
+    FOnAsyncGetBitmap: TAsyncGetBitmapEvent;
     procedure DoOnAsyncGet(AResponse: IHTTPResponse);
+    procedure DoOnAsyncGetBitmap(ABitmap: TBitmap);
     { Private declarations }
   protected
     { Protected declarations }
@@ -50,9 +54,13 @@ type
                        const AHeaders: TNetHeaders = nil;
                        const AOnReceiveData: TAsyncGetEvent = nil);
 
+    procedure GetAsyncBitmap(const AURL: string;
+                             const AHeaders: TNetHeaders = nil;
+                             const AOnReceiveBitmap: TAsyncGetBitmapEvent = nil);
     { Public declarations }
   published
     property OnAsyncGet: TAsyncGetEvent read FOnAsyncGet write FOnAsyncGet;
+    property OnAsyncGetBitmap: TAsyncGetBitmapEvent read FOnAsyncGetBitmap write FOnAsyncGetBitmap;
     { Published declarations }
   end;
 
@@ -69,6 +77,9 @@ type
     FUrl: string;
     FResponse: IHTTPResponse;
     FAsyncGet: TAsyncGetEvent;
+    FAsyncGetBitmap: TAsyncGetBitmapEvent;
+    FType: TksHttpThreadType;
+    FData: TObject;
     procedure DataReceived;
   protected
     procedure Execute; override;
@@ -76,7 +87,9 @@ type
     constructor Create(AOwner: TksNetHttpClient);
     destructor Destroy; override;
     procedure Get(const AURL: string; const AHeaders: TNetHeaders; const AOnGet: TAsyncGetEvent);
+    procedure GetBitmap(const AURL: string; const AHeaders: TNetHeaders; const AOnGet: TAsyncGetBitmapEvent);
     property OnAsyncGet: TAsyncGetEvent read FAsyncGet write FAsyncGet;
+    property Data: TObject read FData write FData;
   end;
 
 procedure Register;
@@ -92,6 +105,12 @@ begin
     FOnAsyncGet(Self, AResponse);
 end;
 
+procedure TksNetHttpClient.DoOnAsyncGetBitmap(ABitmap: TBitmap);
+begin
+  if Assigned(FOnAsyncGetBitmap) then
+    FOnAsyncGetBitmap(Self, ABitmap);
+end;
+
 procedure TksNetHttpClient.GetAsync(const AURL: string;
                                     const AHeaders: TNetHeaders = nil;
                                     const AOnReceiveData: TAsyncGetEvent = nil);
@@ -104,27 +123,62 @@ end;
 
 
 
+procedure TksNetHttpClient.GetAsyncBitmap(const AURL: string;
+  const AHeaders: TNetHeaders = nil; const AOnReceiveBitmap: TAsyncGetBitmapEvent = nil);
+var
+  AThread: TksNetHttpClientThread;
+begin
+  AThread := TksNetHttpClientThread.Create(Self);
+  AThread.GetBitmap(AUrl, AHeaders, AOnReceiveBitmap);
+end;
+
 { TksNetHttpClientThread }
 
 constructor TksNetHttpClientThread.Create(AOwner: TksNetHttpClient);
 begin
   inherited Create(True);
   FHttpClient := TksNetHttpClient.Create(nil);
+  FType := ksTtNormal;
   FOwner := AOwner;
   FreeOnTerminate := True;
 end;
 
 procedure TksNetHttpClientThread.DataReceived;
+var
+  ABmp: TBitmap;
 begin
-  if Assigned(FAsyncGet) then
+  ABmp := nil;
+  if FType = ksTtNormal then
   begin
-    FAsyncGet(Self, FResponse);
-  end
-  else
-  begin
-    if FOwner <> nil then
-      FOwner.DoOnAsyncGet(FResponse);
+    if Assigned(FAsyncGet) then
+    begin
+      FAsyncGet(Self, FResponse);
+    end
+    else
+    begin
+      if FOwner <> nil then
+        FOwner.DoOnAsyncGet(FResponse);
+    end;
   end;
+  if FType = ksTtBitmap then
+  begin
+    ABmp := TBitmap.CreateFromStream(FResponse.ContentStream);
+    try
+      if Assigned(FAsyncGetBitmap) then
+      begin
+        FAsyncGetBitmap(Self, ABmp);
+      end
+      else
+      begin
+        if FOwner <> nil then
+          FOwner.DoOnAsyncGetBitmap(ABmp);
+      end;
+
+    finally
+      FreeAndNil(ABmp);
+    end;
+  end;
+
 end;
 
 destructor TksNetHttpClientThread.Destroy;
@@ -148,8 +202,19 @@ procedure TksNetHttpClientThread.Get(const AURL: string;
                                      const AOnGet: TAsyncGetEvent);
 begin
   FUrl := AUrl;
+  FType := ksTtNormal;
+  FData := nil;
   FHeaders := AHeaders;
   FAsyncGet := AOnGet;
+  Start;
+end;
+
+procedure TksNetHttpClientThread.GetBitmap(const AURL: string; const AHeaders: TNetHeaders; const AOnGet: TAsyncGetBitmapEvent);
+begin
+  FUrl := AUrl;
+  FType := ksTtBitmap;
+  FHeaders := AHeaders;
+  FAsyncGetBitmap := AOnGet;
   Start;
 end;
 

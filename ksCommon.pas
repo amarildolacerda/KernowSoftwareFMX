@@ -18,8 +18,6 @@ uses FMX.Controls, FMX.Graphics, System.UITypes, FMX.Types, Types, System.UICons
 
   function IsBlankBitmap(ABmp: TBitmap; const ABlankColor: TAlphaColor = claNull): Boolean;
 
-  procedure DrawAccessory(ACanvas: TCanvas; ARect: TRectF; AAccessory: TksAccessoryType;
-    AStroke, AFill: TAlphaColor);
 
   function GetTextSizeHtml(AText: string; AFont: TFont;
     const AWidth: single = 0): TPointF;
@@ -250,7 +248,7 @@ begin
     ATextColor, AWordWrap, AHorzAlign, AVertAlign, ATrimming);
 {$ENDIF}
 end;
-
+        {
 procedure DrawAccessory(ACanvas: TCanvas; ARect: TRectF; AAccessory: TksAccessoryType;
   AStroke, AFill: TAlphaColor);
 var
@@ -268,7 +266,7 @@ begin
   finally
     ACanvas.RestoreState(AState);
   end;
-end;
+end;    }
 
 procedure ReplaceOpaqueColor(ABmp: TBitmap; Color : TAlphaColor);
 var

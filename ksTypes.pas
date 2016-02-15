@@ -92,13 +92,13 @@ type
     constructor Create;
     destructor Destroy; override;
     function GetAccessoryImage(AAccessory: TksAccessoryType): TksTableViewAccessoryImage;
+    procedure DrawAccessory(ACanvas: TCanvas; ARect: TRectF; AAccessory: TksAccessoryType; AStroke, AFill: TAlphaColor);
     property Images[AAccessory: TksAccessoryType]: TksTableViewAccessoryImage read GetAccessoryImage; default;
     property ImageMap: TBitmap read FImageMap;
     property ImageScale: single read FImageScale;
   end;
 
 var
-  AccessoryImages: TksTableViewAccessoryImageList;
   AUnitTesting: Boolean;
 
 
@@ -210,6 +210,24 @@ begin
   if FActiveStyle <> nil then
     FreeAndNil(FActiveStyle);
   inherited;
+end;
+
+procedure TksTableViewAccessoryImageList.DrawAccessory(ACanvas: TCanvas; ARect: TRectF; AAccessory: TksAccessoryType; AStroke, AFill: TAlphaColor);
+var
+  AState: TCanvasSaveState;
+begin
+  AState := ACanvas.SaveState;
+  try
+    ACanvas.IntersectClipRect(ARect);
+    ACanvas.Fill.Color := AFill;
+    ACanvas.Fill.Kind := TBrushKind.Solid;
+    ACanvas.FillRect(ARect, 0, 0, AllCorners, 1);
+    GetAccessoryImage(AAccessory).DrawToCanvas(ACanvas, ARect, False);
+    ACanvas.Stroke.Color := AStroke;
+    ACanvas.DrawRect(ARect, 0, 0, AllCorners, 1);
+  finally
+    ACanvas.RestoreState(AState);
+  end;
 end;
 
 function TksTableViewAccessoryImageList.GetAccessoryFromResource
@@ -390,12 +408,8 @@ begin
 end;
 
 initialization
-
-  AccessoryImages := TksTableViewAccessoryImageList.Create;
   AUnitTesting := False;
 
 finalization
-
-  FreeAndNil(AccessoryImages);
 
 end.

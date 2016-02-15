@@ -50,7 +50,7 @@ interface
 
 {$I ksComponents.inc}
 
-uses Classes, FMX.Controls, FMX.Layouts, FMX.Types, System.Types, Generics.Collections,
+uses Classes, FMX.Controls, FMX.Layouts, FMX.Types, System.Types, System.Generics.Collections,
   FMX.Graphics, FMX.Objects, FMX.InertialMovement, System.UITypes, System.TypInfo,
   System.UIConsts, System.Rtti, FMX.DateTimeCtrls, FMX.StdCtrls, FMX.Utils,
   FMX.Styles, FMX.Styles.Objects, FMX.Edit, FMX.SearchBox, FMX.ListBox, FMX.Effects,
@@ -946,6 +946,7 @@ type
     procedure Notify(const Value: TksTableViewItem; Action: TCollectionNotification); override;
   public
     constructor Create(ATableView: TksTableView; AOwnsObjects: Boolean); virtual;
+    procedure Move(CurIndex, NewIndex: Integer); overload;
     function AddHeader(AText: string): TksTableViewItem;
     function AddItem(AText: string; const AAccessory: TksAccessoryType = atNone): TksTableViewItem; overload;
     function AddItem(AText, ADetail: string; const AAccessory: TksAccessoryType = atNone): TksTableViewItem; overload;
@@ -1820,6 +1821,7 @@ uses SysUtils, FMX.Platform, Math, FMX.TextLayout, System.Math.Vectors, ksCommon
 
 var
   AIsSwiping: Boolean;
+  AccessoryImages: TksTableViewAccessoryImageList;
 
 procedure Register;
 begin
@@ -2444,8 +2446,6 @@ begin
     FExternalBitmap := Value;
   end;
   Changed;
-
-  //FTableItem.FCached := False;
 end;
 
 procedure TksTableViewItemBaseImage.SetDrawMode(const Value: TksImageDrawMode);
@@ -2473,6 +2473,8 @@ begin
     FOwnsBitmap := Value;
     if (FOwnsBitmap) and (FExternalBitmap <> nil) then
       Bitmap.Assign(FExternalBitmap)
+    else
+      FreeAndNil(FBitmap);
   end;
 end;
 
@@ -2511,17 +2513,6 @@ begin
   Bitmap := AccessoryImages.Images[FAccessory];
   if FColor = claNull then
     OwnsBitmap := False;
-  {else
-  begin
-
-    if FColor <> claNull then
-      ReplaceOpaqueColor(Bitmap, FColor)
-    else
-    begin
-      if FTableItem.TableView.AccessoryOptions.Color <> claNull then
-        ReplaceOpaqueColor(Bitmap, FTableItem.TableView.AccessoryOptions.Color)
-    end;
-  end; }
   FWidth := Bitmap.Width / AccessoryImages.ImageScale;
   FHeight := Bitmap.Height / AccessoryImages.ImageScale;
   Changed;
@@ -2532,7 +2523,7 @@ begin
   if (Bitmap = nil) and (FAccessory <> atNone) then
     RedrawAccessory;
 
-  //
+  if FColor <> C_TABLEVIEW_ACCESSORY_KEEPCOLOR then
   begin
     if FColor <> claNull then
       ReplaceOpaqueColor(Bitmap, FColor)
@@ -2542,6 +2533,7 @@ begin
         ReplaceOpaqueColor(Bitmap, FTableItem.TableView.AccessoryOptions.Color)
     end;
   end;
+
   inherited;
 end;
 
@@ -2600,13 +2592,6 @@ begin
       ksCbpLeft: ABubble.OffsetX := 44;
       ksCbpRight: ABubble.OffsetX := -44;
     end;
-    //OffsetRect(r, ABubble.OffsetX / 10, 0);
-    //if APosition = ksCbpRight then
-
-      //OffsetRect(r, (FTableView.Width-C_SCROLL_BAR_WIDTH) - 32, 0);
-
-
-    //OffsetRect(r, 0, Result.Height-36);
 
     with Result.DrawBitmap(AUserImage, r) do
     begin
@@ -2834,13 +2819,19 @@ begin
     Result := ALastHeaderItem.ItemRect.Top + FTableView.Height - FTableView.GetStartOffsetY - FTableView.GetFixedFooterHeight;
 end;
 
+procedure TksTableViewItems.Move(CurIndex, NewIndex: Integer);
+begin
+  inherited;
+  Items[CurIndex].CacheItem(True);
+  Items[NewIndex].CacheItem(True);
+  //FTableView.UpdateAll(True);
+  FTableView.UpdateItemRects(True);
+  FTableView.Invalidate;
+end;
+
 procedure TksTableViewItems.Notify(const Value: TksTableViewItem; Action: TCollectionNotification);
 begin
   inherited;
-  if Action = TCollectionNotification.cnRemoved then
-  begin
-
-  end;
 end;
 
 procedure TksTableViewItems.UpdateIndexes;
@@ -5630,8 +5621,8 @@ begin
                   OffsetRect(FStickyButtonRect,-(SelectionOptions.FSelectionOverlay.Stroke.Thickness/2),0);
                 // draw the sticky button...
                 case FHeaderOptions.StickyHeaders.Button.Selected of
-                  True: DrawAccessory(Canvas, FStickyButtonRect, TksAccessoryType.atArrowDown, claBlack, FAppearence.SelectedColor);
-                  False: DrawAccessory(Canvas, FStickyButtonRect, TksAccessoryType.atArrowDown, claNull, claNull);
+                  True: AccessoryImages.DrawAccessory(Canvas, FStickyButtonRect, TksAccessoryType.atArrowDown, claBlack, FAppearence.SelectedColor);
+                  False: AccessoryImages.DrawAccessory(Canvas, FStickyButtonRect, TksAccessoryType.atArrowDown, claNull, claNull);
                 end;
               end;
             end;
@@ -9146,9 +9137,11 @@ end;
 initialization
 
   AIsSwiping := False;
+  AccessoryImages := TksTableViewAccessoryImageList.Create;
 
 finalization
 
+ FreeAndNil(AccessoryImages);
 
 
 end.
