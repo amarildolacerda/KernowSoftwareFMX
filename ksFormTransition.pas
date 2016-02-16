@@ -50,8 +50,6 @@ type
                            ksFtSlideOutToRight,
                            ksFtSlideOutToBottom);
 
-  TksFormTransitionAfterShowForm = procedure(Sender: TObject; AForm: TForm) of object;
-
   TksFormTransitionInfo = class
   private
     [weak]FFormFrom: TForm;
@@ -78,7 +76,6 @@ type
   TksFormTransition = class(TksComponent)
   private
     FPreventAdd: Boolean;
-    FAfterShowForm: TksFormTransitionAfterShowForm;
     procedure AddBorder(ABmp: TBitmap; ABorder: TSide);
     procedure AnimateImage(AImage: TImage; ADirection: TAnimateDirection; ANewValue: single; AWait: Boolean);
     class function GenerateFormImage(AForm: TForm): TBitmap;
@@ -87,8 +84,6 @@ type
     procedure PopAllForms;
   public
     constructor Create(AOwner: TComponent); override;
-  published
-    property AfterShowForm: TksFormTransitionAfterShowForm read FAfterShowForm write FAfterShowForm;
   end;
 
   {$R *.dcr}
@@ -240,6 +235,7 @@ procedure TksFormTransition.PushForm(AFrom, ATo: TForm;
 var
   AImageFrom: TImage;
   AImageTo: TImage;
+  ABmp: TBitmap;
 begin
   if AAnimating then
     Exit;
@@ -257,12 +253,6 @@ begin
     ATo.HandleNeeded;
     ATo.Invalidate;
     Application.ProcessMessages;
-    {AOnShow := ATo.OnShow;
-    ATo.OnShow := nil;
-    ATo.Show;
-    ATo.Hide;
-    Application.ProcessMessages;
-    ATo.OnShow := AOnShow; }
 
     AImageFrom.Width := AFrom.Width;
     AImageFrom.Height := AFrom.Height;
@@ -270,7 +260,12 @@ begin
     AImageTo.Width := ATo.Width;
     AImageTo.Height := ATo.Height;
 
-    AImageFrom.Bitmap := TksFormTransition.GenerateFormImage(AFrom);
+    ABmp := TksFormTransition.GenerateFormImage(AFrom);
+    try
+      AImageFrom.Bitmap := ABmp;
+    finally
+      FreeAndNil(ABmp);
+    end;
     AImageFrom.Position.X := 0;
     AImageFrom.Position.Y := 0;
     AFrom.AddObject(AImageFrom);
@@ -278,7 +273,12 @@ begin
     AImageTo.Position.X := 0;
     AImageTo.Position.Y := 0;
     AFrom.AddObject(AImageTo);
-    AImageTo.Bitmap := TksFormTransition.GenerateFormImage(ATo);
+    ABmp := TksFormTransition.GenerateFormImage(ATo);
+    try
+      AImageTo.Bitmap := ABmp;
+    finally
+      FreeAndNil(ABmp);
+    end;
 
     case ATransition of
       ksFtSlideInFromLeft: AImageTo.Position.X := 0-AImageTo.Width;
@@ -383,8 +383,6 @@ begin
     AFrom.Hide;
     AAnimating := False;
   end;
-  if Assigned(FAfterShowForm) then
-    FAfterShowForm(Self, ATo);
 end;
 
 { TksFormTransitioIntoList }

@@ -1814,6 +1814,9 @@ type
 
 procedure Register;
 
+var
+  AccessoryImages: TksTableViewAccessoryImageList;
+
 implementation
 
 uses SysUtils, FMX.Platform, Math, FMX.TextLayout, System.Math.Vectors, ksCommon,
@@ -1821,7 +1824,6 @@ uses SysUtils, FMX.Platform, Math, FMX.TextLayout, System.Math.Vectors, ksCommon
 
 var
   AIsSwiping: Boolean;
-  AccessoryImages: TksTableViewAccessoryImageList;
 
 procedure Register;
 begin
@@ -4219,7 +4221,7 @@ begin
   UpdateItemRects(AUpdateFiltered);
   UpdateStickyHeaders;
   UpdateScrollingLimits;
-  if FItems.Count > 0 then
+  if (FItems.Count > 0) and (TopItem <> nil) then
   begin
     AStartIndex := Max(TopItem.Index - (C_TABLEVIEW_PAGE_SIZE div 2), 0);
     AEndIndex := Min(FItems.Count-1, AStartIndex + C_TABLEVIEW_PAGE_SIZE);
