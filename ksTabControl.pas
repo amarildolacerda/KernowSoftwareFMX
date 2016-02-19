@@ -154,6 +154,7 @@ type
     function GetSelectedTab: TksTabItem;
     procedure SetTabBarPosition(const Value: TksTabBarPosition);
   protected
+    procedure DoRealign; override;
     procedure Resize; override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Single); override;
     procedure Paint; override;
@@ -425,6 +426,13 @@ begin
     FOnClickTab(Self, ATab);
 end;
 
+procedure TksTabControl.DoRealign;
+begin
+  inherited;
+  UpdateTabs;
+  Repaint;
+end;
+
 function TksTabControl.GetActiveTab: TksTabItem;
 begin
   if InRange(TabIndex, 0, GetTabCount - 1) then
@@ -607,6 +615,7 @@ begin
     ATab.Position.Y := 0;
     ATab.Position.X := 0;
     ATab.Visible := (ICount = FTabIndex);
+    ATab.Realign;
   end;
   Repaint;
 end;

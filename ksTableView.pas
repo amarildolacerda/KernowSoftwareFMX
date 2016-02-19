@@ -2390,7 +2390,7 @@ begin
                          RectF(0, 0, ABmp.Width, ABmp.Height),
                          ARect,
                          1,
-                         FHighQuality);
+                         not FHighQuality);
     finally
       ABmp.Free;
     end;
