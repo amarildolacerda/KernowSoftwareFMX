@@ -38,7 +38,7 @@ type
   TksTabItem = class;
 
   TksTabBarTheme = (ksTbCustom, ksTbLightTabs, ksTbDarkTabs);
-  TksTabBarPosition = (ksTbpBottom, ksTbpNone);
+  TksTabBarPosition = (ksTbpBottom, ksTbpNone, ksTbpTop);
   TksTabBarHighlightStyle = (ksTbHighlightSingleColor, ksTbHighlightFullColour);
 
   TksTabBarClickTabEvent = procedure(Sender: TObject; ATab: TksTabItem) of object;
@@ -384,6 +384,7 @@ begin
   Size.Height := 250;
   Size.Width := 250;
   FTabBar.Align := TAlignLayout.Bottom;
+  FTabPosition := ksTbpBottom;
   AddObject(FTabBar);
 end;
 
@@ -605,15 +606,24 @@ var
 begin
   for ICount := 0 to GetTabCount-1 do
   begin
+    case FTabPosition of
+      ksTbpBottom: FTabBar.Align := TAlignLayout.Bottom;
+      ksTbpTop: FTabBar.Align := TAlignLayout.Top;
+    end;
     ATab := Tabs[ICount];
     ATab.FTabIndex := ICount;
     ATab.Width := Self.Width;
     case FTabPosition of
       ksTbpBottom: ATab.Height := Self.Height-50;
       ksTbpNone: ATab.Height := Self.Height;
+      ksTbpTop: ATab.Height := Self.Height-50;
     end;
     ATab.Position.Y := 0;
+    if FTabPosition = ksTbpTop then
+      ATab.Position.Y := 50;
+
     ATab.Position.X := 0;
+
     ATab.Visible := (ICount = FTabIndex);
     ATab.Realign;
   end;
@@ -682,7 +692,10 @@ begin
       if (csDesigning in ComponentState) then
         DrawDesignBorder(claDimgray, claDimgray);
 
-      DrawRectSides(ARect, 0, 0, AllCorners,1, [TSide.Top]);
+      case ATabControl.TabPosition of
+        ksTbpBottom: DrawRectSides(ARect, 0, 0, AllCorners,1, [TSide.Top]);
+        ksTbpTop: DrawRectSides(ARect, 0, 0, AllCorners,1, [TSide.Bottom]);
+      end;
 
       for ICount := 0 to TksTabControl(FTabControl).GetTabCount-1 do
         ATabControl.Tabs[ICount].DrawTab(Canvas, ICount, ATabControl.GetTabRect(ICount));

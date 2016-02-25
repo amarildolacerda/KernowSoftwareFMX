@@ -21,11 +21,13 @@ type
     ksSegmentButtons2: TksSegmentButtons;
     Button1: TButton;
     Button2: TButton;
+    ksSegmentButtons3: TksSegmentButtons;
     procedure FormCreate(Sender: TObject);
     procedure ksSegmentButtons1Change(Sender: TObject);
     procedure Button1Click(Sender: TObject);
     procedure Button2Click(Sender: TObject);
     procedure ksSegmentButtons2Change(Sender: TObject);
+    procedure ksSegmentButtons3SelectSegment(Sender: TObject; AIndex: Integer; AButton: TksSegmentButton);
   private
     { Private declarations }
   public
@@ -94,6 +96,14 @@ begin
   begin
     ksTabControl1.Tabs[0].BadgeValue := 3;
     ksTabControl1.Tabs[1].BadgeValue := 8;
+  end;
+end;
+
+procedure TForm24.ksSegmentButtons3SelectSegment(Sender: TObject; AIndex: Integer; AButton: TksSegmentButton);
+begin
+  case AIndex of
+    0: ksTabControl1.TabPosition := ksTbpBottom;
+    1: ksTabControl1.TabPosition := ksTbpTop;
   end;
 end;
 

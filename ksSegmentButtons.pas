@@ -34,7 +34,11 @@ uses
   System.UIConsts, ksSpeedButton, ksTypes;
 
 type
+  TksSegmentButton = class;
   TksSegmentButtons = class;
+
+  TksSelectSegmentButtonEvent = procedure(Sender: TObject; AIndex: integer; AButton: TksSegmentButton) of object;
+
 
   TksSegmentSpeedButton = class(TksSpeedButton)
   public
@@ -87,6 +91,7 @@ type
     FSegments: TksSegmentButtonCollection;
     FTintColor: TAlphaColor;
     FBackgroundColor: TAlphaColor;
+    FOnSelectSegment: TksSelectSegmentButtonEvent;
     procedure UpdateButtons;
     procedure SetItemIndex(const Value: integer);
     procedure SetSegments(const Value: TksSegmentButtonCollection);
@@ -119,6 +124,7 @@ type
     property Visible;
     // events
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
+    property OnSelectSegment: TksSelectSegmentButtonEvent read FOnSelectSegment write FOnSelectSegment;
   end;
 
   {$R *.dcr}
@@ -313,10 +319,17 @@ procedure TksSegmentButtons.SetItemIndex(const Value: integer);
 begin
   if FItemIndex <> Value then
   begin
+
     FItemIndex := Value;
     UpdateButtons;
+
     if Assigned(FOnChange) then
       FOnChange(Self);
+    if FItemIndex > -1 then
+    begin
+      if Assigned(FOnSelectSegment) then
+        FOnSelectSegment(Self, FItemIndex, Segments[FItemIndex]);
+    end;
   end;
 end;
 

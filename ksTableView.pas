@@ -1601,6 +1601,7 @@ type
     FOnIndicatorExpand: TksTableViewRowIndicatorExpandEvent;
     FOnBeforePaint : TPaintEvent;
     FOnAfterPaint : TPaintEvent;
+    FItemObjectMouseUpEvent: TksTableViewItemClickEvent;
     function GetViewPort: TRectF;
     procedure UpdateStickyHeaders;
     procedure SetScrollViewPos(const Value: single; const AAnimate: Boolean = False);
@@ -1683,6 +1684,7 @@ type
     procedure SelectItem(ARow: TksTableViewItem; AItems: TStrings; ASelected: string; AOnSelectItem: TNotifyEvent);
     procedure DoSelectDate(Sender: TObject);
     procedure DoSelectPickerItem(Sender: TObject);
+    procedure DoItemObjectMouseUp(AObject: TksTableViewItemObject; x, y: single);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -1773,6 +1775,7 @@ type
     property OnItemActionButtonClick: TksItemActionButtonClickEvent read FOnItemActionButtonClick write FOnItemActionButtonClick;
     property OnItemCheckmarkChanged: TksItemChecMarkChangedEvent read FOnItemChecMarkChanged write FOnItemChecMarkChanged;
     property OnItemClick: TksTableViewItemClickEvent read FItemClickEvent write FItemClickEvent;
+    property OnItemObjectMouseUp: TksTableViewItemClickEvent read FItemObjectMouseUpEvent write FItemObjectMouseUpEvent;
     property OnPainting;
     property OnPaint;
     property OnResize;
@@ -1886,7 +1889,9 @@ end;
 
 procedure TksTableViewItemObject.MouseUp(x, y: single);
 begin
-  //
+  FTableItem.TableView.DoItemObjectMouseUp(Self, x, y);
+  //if (Assigned(FOnClick)) then
+  //  FOnClick(Self);
 end;
 
 procedure TksTableViewItemObject.Render(ACanvas: TCanvas);
@@ -4706,12 +4711,17 @@ begin
   HideFocusedControl;
 end;
 
+procedure TksTableView.DoItemObjectMouseUp(AObject: TksTableViewItemObject; x, y: single);
+begin
+  if Assigned(FItemObjectMouseUpEvent) then
+    FItemObjectMouseUpEvent(Self, x, y, AObject.TableItem, AObject.ID, AObject);
+end;
+
 procedure TksTableView.DoItemsChanged(Sender: TObject;
   const Item: TksTableViewItem; Action: TCollectionNotification);
 begin
   if (FUpdateCount>0) then
     exit;
-
   UpdateFilteredItems;
 end;
 
