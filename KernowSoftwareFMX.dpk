@@ -24,7 +24,7 @@ package KernowSoftwareFMX;
 {$MINENUMSIZE 1}
 {$IMAGEBASE $400000}
 {$ENDIF IMPLICITBUILDING}
-{$IMPLICITBUILD ON}
+{$IMPLICITBUILD OFF}
 
 requires
   rtl,
@@ -48,7 +48,8 @@ contains
   ksTabControl in 'ksTabControl.pas',
   ksComponentEditors in 'ksComponentEditors.pas',
   ksCommon in 'ksCommon.pas',
-  ksTypes in 'ksTypes.pas';
+  ksTypes in 'ksTypes.pas',
+  ksLoadingIndicator in 'ksLoadingIndicator.pas';
 
 end.
 

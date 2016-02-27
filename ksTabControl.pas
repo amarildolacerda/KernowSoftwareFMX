@@ -153,6 +153,7 @@ type
     function GetActiveTab: TksTabItem;
     function GetSelectedTab: TksTabItem;
     procedure SetTabBarPosition(const Value: TksTabBarPosition);
+    procedure SetActiveTab(const Value: TksTabItem);
   protected
     procedure DoRealign; override;
     procedure Resize; override;
@@ -168,9 +169,10 @@ type
     destructor Destroy; override;
     procedure UpdateTabs;
     function AddTab: TksTabItem;
+
     procedure PrevTab;
     procedure NextTab;
-    property ActiveTab: TksTabItem read GetActiveTab;
+    property ActiveTab: TksTabItem read GetActiveTab write SetActiveTab;
     property Tabs: TksTabItemList read FTabs;
     property SelectedTab: TksTabItem read GetSelectedTab;
   published
@@ -525,10 +527,10 @@ begin
 end;
 
 procedure TksTabControl.Paint;
-var
-  AState: TCanvasSaveState;
+//var
+//  AState: TCanvasSaveState;
 begin
-  with Canvas do
+  {with Canvas do
   begin
     AState := SaveState;
     try
@@ -548,20 +550,20 @@ begin
     finally
       RestoreState(AState);
     end;
-  end;
+  end;}
 
+  {$IFDEF MSWINDOWS}
   if (csDesigning in ComponentState) then
   begin
     DrawDesignBorder(claDimgray, claDimgray);
     Canvas.Fill.Color := claDimgray;;
-    {$IFDEF MSWINDOWS}
     if GetTabCount = 0 then
     begin
       Canvas.Font.Size := 14;
       Canvas.FillText(ClipRect, 'Right-click to add tabs', True, 1, [], TTextAlign.Center);
     end;
-    {$ENDIF}
   end;
+  {$ENDIF}
 end;
 
 procedure TksTabControl.PrevTab;
@@ -574,6 +576,14 @@ begin
   inherited;
   UpdateTabs;
   Repaint;
+end;
+
+procedure TksTabControl.SetActiveTab(const Value: TksTabItem);
+begin
+  if Value <> nil then
+  begin
+    TabIndex := Tabs.IndexOf(Value);
+  end;
 end;
 
 procedure TksTabControl.SetTabBarPosition(const Value: TksTabBarPosition);

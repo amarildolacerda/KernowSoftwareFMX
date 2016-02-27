@@ -9,13 +9,19 @@ object Form33: TForm33
   FormFactor.Devices = [Desktop]
   DesignerMasterStyle = 2
   object ToolBar1: TToolBar
+    Padding.Left = 8.000000000000000000
+    Padding.Top = 8.000000000000000000
+    Padding.Right = 8.000000000000000000
+    Padding.Bottom = 8.000000000000000000
     Size.Width = 277.000000000000000000
     Size.Height = 44.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 2
     object Button1: TButton
       Align = Left
-      Position.Y = 7.000000000000000000
+      CanFocus = False
+      Position.X = 8.000000000000000000
+      Position.Y = 8.000000000000000000
       Size.Width = 97.000000000000000000
       Size.Height = 30.000000000000000000
       Size.PlatformDefault = False
@@ -26,8 +32,9 @@ object Form33: TForm33
     end
     object Button2: TButton
       Align = Right
-      Position.X = 176.000000000000000000
-      Position.Y = 7.000000000000000000
+      CanFocus = False
+      Position.X = 168.000000000000000000
+      Position.Y = 8.000000000000000000
       Size.Width = 101.000000000000000000
       Size.Height = 30.000000000000000000
       Size.PlatformDefault = False
@@ -39,48 +46,54 @@ object Form33: TForm33
   end
   object ToolBar2: TToolBar
     Align = Bottom
+    Padding.Left = 8.000000000000000000
+    Padding.Top = 8.000000000000000000
+    Padding.Right = 8.000000000000000000
+    Padding.Bottom = 8.000000000000000000
     Position.Y = 363.000000000000000000
     Size.Width = 277.000000000000000000
     Size.Height = 44.000000000000000000
     Size.PlatformDefault = False
+    StyleLookup = 'bottomtoolbar'
     TabOrder = 1
   end
-  object Memo1: TMemo
-    Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
-    DataDetectorTypes = []
-    Align = Client
-    Size.Width = 277.000000000000000000
-    Size.Height = 319.000000000000000000
-    Size.PlatformDefault = False
-    TabOrder = 3
-    Viewport.Width = 269.000000000000000000
-    Viewport.Height = 311.000000000000000000
+  object ksLoadingIndicator1: TksLoadingIndicator
+    Left = 216
+    Top = 120
   end
-  object Rectangle1: TRectangle
-    Fill.Color = claBlack
-    Position.X = 96.000000000000000000
-    Position.Y = 160.000000000000000000
-    Size.Width = 81.000000000000000000
-    Size.Height = 81.000000000000000000
+  object ProgressBar1: TProgressBar
+    Align = Top
+    Orientation = Horizontal
+    Margins.Left = 8.000000000000000000
+    Margins.Top = 8.000000000000000000
+    Margins.Right = 8.000000000000000000
+    Margins.Bottom = 8.000000000000000000
+    Position.X = 8.000000000000000000
+    Position.Y = 89.000000000000000000
+    Size.Width = 261.000000000000000000
+    Size.Height = 4.000000000000000000
     Size.PlatformDefault = False
-    XRadius = 10.000000000000000000
-    YRadius = 10.000000000000000000
-    object Arc1: TArc
-      Position.X = 15.000000000000000000
-      Position.Y = 15.000000000000000000
-      Size.Width = 50.000000000000000000
-      Size.Height = 50.000000000000000000
-      Size.PlatformDefault = False
-      Stroke.Color = claWhite
-      Stroke.Thickness = 5.000000000000000000
-      EndAngle = -90.000000000000000000
-    end
+    Value = 50.000000000000000000
+  end
+  object Label1: TLabel
+    Align = Top
+    Margins.Left = 8.000000000000000000
+    Margins.Top = 8.000000000000000000
+    Margins.Right = 8.000000000000000000
+    Margins.Bottom = 8.000000000000000000
+    Position.X = 8.000000000000000000
+    Position.Y = 52.000000000000000000
+    Size.Width = 261.000000000000000000
+    Size.Height = 21.000000000000000000
+    Size.PlatformDefault = False
+    Text = 'Bytes read: '
   end
   object ksNetHttpClient1: TksNetHttpClient
     AllowCookies = True
     HandleRedirects = True
     UserAgent = 'Embarcadero URI Client/1.0'
+    OnReceiveData = ksNetHttpClient1ReceiveData
     Left = 216
-    Top = 56
+    Top = 64
   end
 end

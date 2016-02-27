@@ -1556,7 +1556,6 @@ type
     FMouseDownObject: TksTableViewItemObject;
     [weak]FFocusedControl: TksTableViewItemEmbeddedControl;
     FColCount: integer;
-    FMouseEventsEnabled: Boolean;
     FMaxScrollPos: single;
     FDragDropImage : TksDragImage;
     FDragDropScrollTimer: TFmxHandle;
@@ -1601,7 +1600,9 @@ type
     FOnIndicatorExpand: TksTableViewRowIndicatorExpandEvent;
     FOnBeforePaint : TPaintEvent;
     FOnAfterPaint : TPaintEvent;
+
     FItemObjectMouseUpEvent: TksTableViewItemClickEvent;
+    FMouseEventsEnabledCounter: integer;
     function GetViewPort: TRectF;
     procedure UpdateStickyHeaders;
     procedure SetScrollViewPos(const Value: single; const AAnimate: Boolean = False);
@@ -1643,10 +1644,7 @@ type
     procedure DoSwitchClicked(AItem: TksTableViewItem; ASwitch: TksTableViewItemSwitch);
     procedure DoButtonClicked(AItem: TksTableViewItem; AButton: TksTableViewItemButton);
     procedure SetPullToRefresh(const Value: TksTableViewPullToRefresh);
-    procedure HideFocusedControl;
     procedure DoEmbeddedEditChange(AItem: TksTableViewItem; AEmbeddedEdit: TksTableViewItemEmbeddedBaseEdit);
-    procedure EnableMouseEvents;
-    procedure DisableMouseEvents;
     procedure SetSelectionOptions(const Value: TksTableViewSelectionOptions);
     procedure DoEmbeddedDateEditChange(AItem: TksTableViewItem; AEmbeddedDateEdit: TksTableViewItemEmbeddedDateEdit);
     procedure SetAccessoryOptions(const Value: TksTableViewAccessoryOptions);
@@ -1689,7 +1687,10 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     function GetItemFromPos(AXPos,AYPos: single): TksTableViewItem;
+    procedure EnableMouseEvents;
+    procedure DisableMouseEvents;
     procedure ClearItems;
+    procedure HideFocusedControl;
     procedure BeginUpdate; {$IFDEF XE8_OR_NEWER} override; {$ENDIF}
     procedure EndUpdate;   {$IFDEF XE8_OR_NEWER} override; {$ENDIF}
     procedure Invalidate;
@@ -3670,7 +3671,6 @@ begin
 
   CacheItem;
 
-
   if FBitmap = nil then
     Exit;
 
@@ -3678,7 +3678,7 @@ begin
   begin
 
     ACanvas.DrawBitmap(FBitmap, RectF(0, 0, FBitmap.Width, FBitmap.Height),
-                       ARect, 1, False);
+                       ARect, 1, True);
 
   end
   else
@@ -4549,7 +4549,6 @@ begin
   FFullWidthSeparator := True;
   FStickyHeader := Nil;
 
-  FMouseEventsEnabled := True;
   FUpdateCount := 0;
   FDragging := False;
   AddObject(FSearchBox);
@@ -4558,6 +4557,7 @@ begin
   FCascadeHeaderCheck := True;
   CanFocus := True;
   AutoCapture := True;
+  FMouseEventsEnabledCounter := 0;
 end;
 
 procedure TksTableView.CreateAniCalculator(AUpdateScrollLimit: Boolean);
@@ -4607,7 +4607,7 @@ end;
 
 procedure TksTableView.DisableMouseEvents;
 begin
-  FMouseEventsEnabled := False;
+  Inc(FMouseEventsEnabledCounter);
 end;
 
 function TksTableView.CreateTimer(AInterval: integer; AProc: TTimerProc): TFmxHandle;
@@ -4827,7 +4827,7 @@ procedure TksTableView.EnableMouseEvents;
 begin
   // process any pending mouse events before re-enabling...
   ProcessMessages;
-  FMouseEventsEnabled := True;
+  Dec(FMouseEventsEnabledCounter);
 end;
 
 procedure TksTableView.EndUpdate;
@@ -5245,7 +5245,7 @@ var
   AConsumesClick: Boolean;
 begin
 
-  if (UpdateCount > 0) or (FMouseEventsEnabled = False) then
+  if (UpdateCount > 0) or (FMouseEventsEnabledCounter > 0) then
     Exit;
   y := y - GetStartOffsetY;
 
@@ -5323,7 +5323,7 @@ var
   //AAllowDrop    : Boolean;
   //I             : Integer;
 begin
-  if (UpdateCount > 0) or (FMouseEventsEnabled = False) then
+  if (UpdateCount > 0) or (FMouseEventsEnabledCounter > 0) then
     Exit;
 
   y := y - GetStartOffsetY;
@@ -5417,7 +5417,7 @@ begin
 
   AAllowMove := True;
 
-  if (UpdateCount > 0) or (FMouseEventsEnabled = False) then
+  if (UpdateCount > 0) or (FMouseEventsEnabledCounter > 0) then
     Exit;
   inherited;
 
@@ -5524,7 +5524,6 @@ var
   AStickyHeaderBottom: Single;
 begin
   inherited;
-
   if not FPainting then
   begin
     SaveState := nil;

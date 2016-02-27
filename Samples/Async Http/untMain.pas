@@ -5,8 +5,8 @@ interface
 uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
   FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, System.Net.URLClient,
-  System.Net.HttpClient, System.Net.HttpClientComponent, FMX.StdCtrls,
-  FMX.Controls.Presentation, ksNetHttpClient, FMX.ScrollBox, FMX.Memo, FMX.Objects;
+  System.Net.HttpClient, System.Net.HttpClientComponent, FMX.StdCtrls, ksTableView,
+  FMX.Controls.Presentation, ksNetHttpClient, FMX.ScrollBox, FMX.Memo, FMX.Objects, ksLoadingIndicator, ksTypes;
 
 type
   TForm33 = class(TForm)
@@ -15,13 +15,13 @@ type
     ToolBar2: TToolBar;
     Button1: TButton;
     Button2: TButton;
-    Memo1: TMemo;
-    Rectangle1: TRectangle;
-    Arc1: TArc;
+    ksLoadingIndicator1: TksLoadingIndicator;
+    ProgressBar1: TProgressBar;
+    Label1: TLabel;
     procedure Button1Click(Sender: TObject);
     procedure Button2Click(Sender: TObject);
+    procedure ksNetHttpClient1ReceiveData(const Sender: TObject; AContentLength, AReadCount: Int64; var Abort: Boolean);
   private
-     procedure DoReceiveData(Sender: TObject; AResponse: IHTTPResponse);
     { Private declarations }
   public
     { Public declarations }
@@ -39,24 +39,37 @@ var
   AResponse: IHTTPResponse;
 begin
   // standard (blocking) get method...
-  Memo1.Lines.Clear;
-  Application.ProcessMessages;
-  AResponse := ksNetHttpClient1.Get('http://www.embarcadero.com');
-  Memo1.Lines.Text := AResponse.ContentAsString;
+  ksLoadingIndicator1.ShowLoading;
+  try
+    //Memo1.Lines.Clear;
+    Application.ProcessMessages;
+    AResponse := ksNetHttpClient1.Get('http://download.thinkbroadband.com/1MB.zip');
+  finally
+    ksLoadingIndicator1.HideLoading;
+  end;
 end;
 
 procedure TForm33.Button2Click(Sender: TObject);
+var
+  AResponse: IHTTPResponse;
 begin
   // async get...
-  Memo1.Lines.Clear;
-  Application.ProcessMessages;
-  ksNetHttpClient1.GetAsync('http://www.embarcadero.com', nil, DoReceiveData);
+  ksLoadingIndicator1.ShowLoading;
+  try
+    //Memo1.Lines.Clear;
+    Application.ProcessMessages;
+    AResponse := ksNetHttpClient1.GetAsyncWait('http://download.thinkbroadband.com/1MB.zip', nil);
+  finally
+    ksLoadingIndicator1.HideLoading;
+  end;
+
 end;
 
-procedure TForm33.DoReceiveData(Sender: TObject; AResponse: IHTTPResponse);
+procedure TForm33.ksNetHttpClient1ReceiveData(const Sender: TObject; AContentLength, AReadCount: Int64; var Abort: Boolean);
 begin
-  // async response...
-  Memo1.Lines.Text := AResponse.ContentAsString;
+  ProgressBar1.Max := AContentLength;
+  ProgressBar1.Value := AReadCount;
+  Label1.Text := 'Bytes read: '+IntToStr(AReadCount);
 end;
 
 end.

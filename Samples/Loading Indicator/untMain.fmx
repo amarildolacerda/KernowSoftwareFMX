@@ -1,0 +1,71 @@
+object Form64: TForm64
+  Left = 0
+  Top = 0
+  Caption = 'Form64'
+  ClientHeight = 480
+  ClientWidth = 309
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  DesignerMasterStyle = 2
+  object ToolBar2: TToolBar
+    Align = Bottom
+    Padding.Left = 8.000000000000000000
+    Padding.Top = 8.000000000000000000
+    Padding.Right = 8.000000000000000000
+    Padding.Bottom = 8.000000000000000000
+    Position.Y = 436.000000000000000000
+    Size.Width = 309.000000000000000000
+    Size.Height = 44.000000000000000000
+    Size.PlatformDefault = False
+    StyleLookup = 'bottomtoolbar'
+    TabOrder = 0
+    object Button1: TButton
+      Position.X = 8.000000000000000000
+      Position.Y = 6.000000000000000000
+      Size.Width = 73.000000000000000000
+      Size.Height = 30.000000000000000000
+      Size.PlatformDefault = False
+      StyleLookup = 'listitembutton'
+      TabOrder = 5
+      Text = 'Show'
+      OnClick = Button1Click
+    end
+    object Button2: TButton
+      Position.X = 96.000000000000000000
+      Position.Y = 6.000000000000000000
+      Size.Width = 73.000000000000000000
+      Size.Height = 30.000000000000000000
+      Size.PlatformDefault = False
+      StyleLookup = 'listitembutton'
+      TabOrder = 4
+      Text = 'Hide'
+      OnClick = Button2Click
+    end
+  end
+  object ToolBar1: TToolBar
+    Padding.Left = 8.000000000000000000
+    Padding.Top = 8.000000000000000000
+    Padding.Right = 8.000000000000000000
+    Padding.Bottom = 8.000000000000000000
+    Size.Width = 309.000000000000000000
+    Size.Height = 44.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 1
+    object Label1: TLabel
+      Align = Client
+      StyledSettings = [Family, Style, FontColor]
+      HitTest = True
+      Size.Width = 293.000000000000000000
+      Size.Height = 28.000000000000000000
+      Size.PlatformDefault = False
+      TextSettings.Font.Size = 16.000000000000000000
+      TextSettings.HorzAlign = Center
+      Text = 'Loading Indicator Demo'
+    end
+  end
+  object ksLoadingIndicator1: TksLoadingIndicator
+    Left = 56
+    Top = 80
+  end
+end
