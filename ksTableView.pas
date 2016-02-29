@@ -876,8 +876,8 @@ type
     function TextOutRight(AText: string; y, AWidth: single; AXOffset: single; const AVertAlign: TksTableItemAlign = TksTableItemAlign.Center): TksTableViewItemText; overload;
     // shape functions...
     function DrawChatBubble(AText: string; APosition: TksTableViewChatBubblePosition; AColor, ATextColor: TAlphaColor): TksTableViewChatBubble;
-    function DrawRect(x, y, AWidth, AHeight: single; AStroke, AFill: TAlphaColor): TksTableViewItemShape; overload;
-    function DrawRect(ARect: TRectF; AStroke, AFill: TAlphaColor): TksTableViewItemShape; overload;
+    function DrawRect(x, y, AWidth, AHeight: single; AStroke, AFill: TAlphaColor; const AVertAlign: TksTableItemAlign = TksTableItemAlign.Center): TksTableViewItemShape; overload;
+    function DrawRect(ARect: TRectF; AStroke, AFill: TAlphaColor; const AVertAlign: TksTableItemAlign = TksTableItemAlign.Center): TksTableViewItemShape; overload;
     function AddButton(AWidth: integer; AText: string;
                        const ATintColor: TAlphaColor = claNull;
                        const AVertAlign: TksTableItemAlign = TksTableItemAlign.Center;
@@ -2136,7 +2136,7 @@ end;
 
 procedure TksTableViewItemText.FontChanged(Sender: TObject);
 begin
-  Height := CalculateTextHeight(FText, FFont, FWordWrap, FTrimming)
+  Height := CalculateTextHeight(FText, FFont, FWordWrap, FTrimming, FWidth)
 end;
 
 procedure TksTableViewItemText.Render(ACanvas: TCanvas);
@@ -3336,7 +3336,8 @@ begin
 end;
 
 function TksTableViewItem.DrawRect(x, y, AWidth, AHeight: single;
-  AStroke, AFill: TAlphaColor): TksTableViewItemShape;
+  AStroke, AFill: TAlphaColor;
+  const AVertAlign: TksTableItemAlign = TksTableItemAlign.Center): TksTableViewItemShape;
 begin
   Result := TksTableViewItemShape.Create(Self);
   Result.Width := AWidth;
@@ -3344,14 +3345,15 @@ begin
   Result.FPlaceOffset := PointF(x, y);
   Result.Stroke.Color := AStroke;
   Result.Fill.Color := AFill;
-  Result.VertAlign := TksTableItemAlign.Center;
+  Result.VertAlign := AVertAlign;
   FObjects.Add(Result);
   Changed;
 end;
 
-function TksTableViewItem.DrawRect(ARect: TRectF; AStroke, AFill: TAlphaColor): TksTableViewItemShape;
+function TksTableViewItem.DrawRect(ARect: TRectF; AStroke, AFill: TAlphaColor;
+  const AVertAlign: TksTableItemAlign = TksTableItemAlign.Center): TksTableViewItemShape;
 begin
-  Result := DrawRect(ARect.Left, ARect.Top, ARect.Width, ARect.Height, AStroke, AFill);
+  Result := DrawRect(ARect.Left, ARect.Top, ARect.Width, ARect.Height, AStroke, AFill, AVertAlign);
 end;
 
 

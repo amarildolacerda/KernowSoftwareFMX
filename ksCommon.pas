@@ -214,6 +214,7 @@ begin
     APoint.x := AWidth;
   APoint.y := MaxSingle;
   ATextLayout.Font.Assign(AFont);
+  ATextLayout.Trimming := ATrimming;
   ATextLayout.MaxSize := APoint;
   ATextLayout.Text := AText;
   ATextLayout.WordWrap := AWordWrap;
@@ -221,7 +222,7 @@ begin
   ATextLayout.HorizontalAlign := TTextAlign.Leading;
   ATextLayout.VerticalAlign := TTextAlign.Leading;
   ATextLayout.EndUpdate;
-  Result := ATextLayout.TextHeight;
+  Result := ATextLayout.Height;
 end;
 
 procedure RenderHhmlText(ACanvas: TCanvas; x, y, AWidth, AHeight: single;
