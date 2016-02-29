@@ -943,7 +943,6 @@ type
     function GetItemByID(AID: string): TksTableViewItem;
   protected
     function GetTotalItemHeight: single;
-    procedure Notify(const Value: TksTableViewItem; Action: TCollectionNotification); override;
   public
     constructor Create(ATableView: TksTableView; AOwnsObjects: Boolean); virtual;
     procedure Move(CurIndex, NewIndex: Integer); overload;
@@ -2657,6 +2656,7 @@ begin
   Add(Result);
   UpdateIndexes;
   FTableView.UpdateAll(True);
+  ProcessMessages;
 end;
 
 function TksTableViewItems.AddItemSelector(AText, ASelected: string; AItems: TStrings): TksTableViewItem;
@@ -2835,11 +2835,6 @@ begin
   //FTableView.UpdateAll(True);
   FTableView.UpdateItemRects(True);
   FTableView.Invalidate;
-end;
-
-procedure TksTableViewItems.Notify(const Value: TksTableViewItem; Action: TCollectionNotification);
-begin
-  inherited;
 end;
 
 procedure TksTableViewItems.UpdateIndexes;
@@ -4490,7 +4485,8 @@ begin
   FScrollPos := 0;
   FFilteredItems.Clear;
   FItems.Clear;
-  Invalidate;
+  if FUpdateCount = 0 then
+    Invalidate;
 end;
 
 procedure TksTableView.ComboClosePopup(Sender: TObject);
@@ -4720,8 +4716,8 @@ end;
 procedure TksTableView.DoItemsChanged(Sender: TObject;
   const Item: TksTableViewItem; Action: TCollectionNotification);
 begin
-  if (FUpdateCount>0) then
-    exit;
+  if (FUpdateCount > 0) then
+    Exit;
   UpdateFilteredItems;
 end;
 
