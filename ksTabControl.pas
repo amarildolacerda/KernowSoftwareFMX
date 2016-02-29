@@ -154,6 +154,7 @@ type
     function GetSelectedTab: TksTabItem;
     procedure SetTabBarPosition(const Value: TksTabBarPosition);
     procedure SetActiveTab(const Value: TksTabItem);
+    function GetNextTabName: string;
   protected
     procedure DoRealign; override;
     procedure Resize; override;
@@ -410,8 +411,8 @@ begin
     FTabs.Add(ATab);
     if not (csLoading in ComponentState) then
     begin
-      ATab.Text := 'Item '+IntToStr(GetTabCount);
-      ATab.Name := 'TabItem'+IntToStr(GetTabCount);
+      ATab.Name := GetNextTabName;
+      ATab.Text := ATab.Name;
     end;
     UpdateTabs;
     Exit;
@@ -453,6 +454,19 @@ end;
 function TksTabControl.GetItemsCount: Integer;
 begin
   Result := FTabs.Count;
+end;
+
+function TksTabControl.GetNextTabName: string;
+var
+  AIndex: integer;
+  AOwner: TForm;
+begin
+  AOwner := (Root.GetObject as TForm);
+  AIndex := 1;
+  repeat
+    Result := 'ksTabItem'+IntToStr(AIndex);
+    Inc(AIndex);
+  until AOwner.FindComponent(Result) = nil;
 end;
 
 function TksTabControl.GetObject: TFmxObject;
@@ -530,7 +544,7 @@ procedure TksTabControl.Paint;
 //var
 //  AState: TCanvasSaveState;
 begin
-  {with Canvas do
+{  with Canvas do
   begin
     AState := SaveState;
     try
@@ -550,20 +564,20 @@ begin
     finally
       RestoreState(AState);
     end;
-  end;}
+  end;  }
 
-  {$IFDEF MSWINDOWS}
   if (csDesigning in ComponentState) then
   begin
     DrawDesignBorder(claDimgray, claDimgray);
     Canvas.Fill.Color := claDimgray;;
+    {$IFDEF MSWINDOWS}
     if GetTabCount = 0 then
     begin
       Canvas.Font.Size := 14;
       Canvas.FillText(ClipRect, 'Right-click to add tabs', True, 1, [], TTextAlign.Center);
     end;
-  end;
   {$ENDIF}
+  end;
 end;
 
 procedure TksTabControl.PrevTab;
