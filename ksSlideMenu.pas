@@ -422,9 +422,40 @@ procedure TksSlideMenu.GenerateFormImage(AXpos: single);
 var
   AScale: single;
   ABmp: TBitmap;
+  ABmp2: TBitmap;
   AForm: TForm;
+  AOwner : TComponent;
+  AWidth : single;
+  AHeight: single;
+  ATopLeft : TPointF;
+  //AFormTopLeft : TPointF;
 begin
-  AForm := (Owner as TForm);
+  AOwner := Owner;
+  if (AOwner is TForm) then
+  begin
+    AWidth   := (AOwner as TForm).Width;
+    AHeight  := (AOwner as TForm).Height;
+    ATopLeft := PointF(0,0);
+  end
+  else if (AOwner is TFrame) then
+  begin
+    AWidth   := (AOwner as TFrame).Width;
+    AHeight  := (AOwner as TFrame).Height;
+    ATopLeft := PointF(0,0);
+
+    while not (AOwner is TForm) do
+    begin
+      ATopLeft := ATopLeft + (AOwner as TFrame).LocalToAbsolute(PointF(0,0));
+      AOwner   := AOwner.Owner;
+    end;
+
+    if not (AOwner is TForm) then
+      exit;
+  end
+  else
+    exit;
+
+  AForm := (AOwner as TForm);
   FFormImage.Visible := false;
 
   FMenu.Visible := False;
@@ -432,8 +463,8 @@ begin
   try
     AScale := GetScreenScale;
     ABmp.BitmapScale := AScale;
-    ABmp.Width := Round(AForm.Width * AScale);
-    ABmp.Height := Round(AForm.Height * AScale);
+    ABmp.Width  := Round((ATopLeft.x + AWidth ) * AScale);
+    ABmp.Height := Round((ATopLeft.y + AHeight) * AScale);
     ABmp.Canvas.BeginScene;
     AForm.PaintTo(ABmp.Canvas);
     ABmp.Canvas.EndScene;
@@ -445,8 +476,25 @@ begin
     ABmp.Canvas.FillEllipse(RectF(0, 0, 100, 100), 1);}
     ABmp.Canvas.EndScene;
 
-    FFormImage.Width := Round(AForm.Width);
-    FFormImage.Height := Round(AForm.Height);
+    if (ATopLeft.x>0) or (ATopLeft.y>0) then
+    begin
+      ABmp2 := TBitmap.Create;
+      ABmp2.BitmapScale := AScale;
+      ABmp2.Width  := Round(AWidth  * AScale);
+      ABmp2.Height := Round(AHeight * AScale);
+      ABmp2.Canvas.BeginScene;
+      ABmp2.Canvas.DrawBitmap(ABmp,
+                              RectF(Round(ATopLeft.x * AScale),Round(ATopLeft.y * AScale),ABmp.Width,ABmp.Height),
+                              RectF(0,0,AWidth,AHeight),
+                              1,true);
+      ABmp2.Canvas.EndScene;
+
+      ABmp.Free();
+      ABmp := ABmp2;
+    end;
+
+    FFormImage.Width := Round(AWidth);
+    FFormImage.Height := Round(AHeight);
     FFormImage.Bitmap.Assign(ABmp);
   finally
     FreeAndNil(ABmp);
@@ -466,20 +514,15 @@ begin
 
   {$ENDIF}
 
-  AForm.AddObject(FFormImage);
+  TfmxObject(Owner).AddObject(FFormImage);
   FFormImage.Visible := True;
   FMenu.Visible := True;
   Application.ProcessMessages;
 end;
 
 procedure TksSlideMenu.RemoveFormImage;
-var
-  AForm: TForm;
 begin
-  AForm := (Owner as TForm);
-  if AForm <> nil then
-    AForm.RemoveObject(FFormImage);
-
+  (Owner as TfmxObject).RemoveObject(FFormImage);
 end;
 
 {$IFNDEF ANDROID}
@@ -487,15 +530,21 @@ end;
 procedure TksSlideMenu.GenerateShadows;
 var
   AScale: single;
-  AForm: TForm;
   ABmp: TBitmap;
+  AHeight : Single;
 begin
+  if (Owner is TForm) then
+    AHeight := (Owner as TForm).Height
+  else if (Owner is TFrame) then
+    AHeight := (Owner as TFrame).Height
+  else
+    exit;
+
   ABmp := TBitmap.Create;
   try
     AScale := GetScreenScale;
-    AForm := (Owner as TForm);
     ABmp.Width := Round(16 * AScale);
-    ABmp.Height := Round(AForm.Height * AScale);
+    ABmp.Height := Round(AHeight * AScale);
     ABmp.Canvas.BeginScene;
     ABmp.Canvas.Fill.Kind := TBrushKind.Gradient;
     ABmp.Canvas.Fill.Gradient.Color := claNull;
@@ -506,7 +555,7 @@ begin
     ABmp.Canvas.FillRect(RectF(0, 0, ABmp.Width, ABmp.Height), 0, 0, [], 1);
     ABmp.Canvas.EndScene;
     FShadowLeft.Width := 16;
-    FShadowLeft.Height := Round(AForm.Height);
+    FShadowLeft.Height := Round(AHeight);
     FShadowLeft.Bitmap.Assign(ABmp);
   finally
     FreeAndNil(ABmp);
@@ -515,9 +564,8 @@ begin
   ABmp := TBitmap.Create;
   try
     AScale := GetScreenScale;
-    AForm := (Owner as TForm);
     ABmp.Width := Round(16 * AScale);
-    ABmp.Height := Round(AForm.Height * AScale);
+    ABmp.Height := Round(AHeight * AScale);
     ABmp.Canvas.BeginScene;
     ABmp.Canvas.Fill.Kind := TBrushKind.Gradient;
     ABmp.Canvas.Fill.Gradient.Color := $AA000000;
@@ -528,7 +576,7 @@ begin
     ABmp.Canvas.FillRect(RectF(0, 0, ABmp.Width, ABmp.Height), 0, 0, [], 1);
     ABmp.Canvas.EndScene;
     FShadowRight.Width := 16;
-    FShadowRight.Height := Round(AForm.Height);
+    FShadowRight.Height := Round(AHeight);
     FShadowRight.Bitmap.Assign(ABmp);
   finally
     FreeAndNil(ABmp);
@@ -744,18 +792,31 @@ end;
 procedure TksSlideMenu.SwitchMenuToImage;
 var
   ABmp: TBitmap;
-  AForm: TForm;
   ABottom: single;
+  AWidth: single;
+  AClientHeight: single;
 begin
-  AForm := (Owner as TForm);
-  ABmp := TBitmap.Create(Round(C_DEFAULT_MENU_WIDTH * GetScreenScale), Round(AForm.ClientHeight * GetScreenScale));
+  if (Owner is TForm) then
+  begin
+    AWidth        := (Owner as TForm).Width;
+    AClientHeight := (Owner as TForm).ClientHeight;
+  end
+  else if (Owner is TFrame) then
+  begin
+    AWidth        := (Owner as TFrame).Width;
+    AClientHeight := (Owner as TFrame).Height
+  end
+  else
+    exit;
+
+  ABmp := TBitmap.Create(Round(C_DEFAULT_MENU_WIDTH * GetScreenScale), Round(AClientHeight * GetScreenScale));
   try
-     FMenuImage := TImage.Create(AForm);
+     FMenuImage := TImage.Create(Owner);
     FMenuImage.Width := C_DEFAULT_MENU_WIDTH;
-    FMenuImage.Height := AForm.ClientHeight;
+    FMenuImage.Height := AClientHeight;
     case FMenuPosition of
       mpLeft: FMenuImage.Position.X := 0;
-      mpRight: FMenuImage.Position.X := AForm.Width - C_DEFAULT_MENU_WIDTH;
+      mpRight: FMenuImage.Position.X := AWidth - C_DEFAULT_MENU_WIDTH;
     end;
     ABmp.Canvas.BeginScene;
     ABmp.BitmapScale := GetScreenScale;
@@ -778,11 +839,11 @@ end;
 
 procedure TksSlideMenu.SwitchImageToMenu;
 var
-  AForm: TForm;
+  AObject: TfmxObject;
 begin
-  AForm := (Owner as TForm);
-  AForm.InsertObject(AForm.ChildrenCount-1, FMenu);
-  AForm.RemoveObject(FMenuImage);
+  AObject := (Owner as TfmxObject);
+  AObject.InsertObject(AObject.ChildrenCount-1, FMenu);
+  AObject.RemoveObject(FMenuImage);
   FMenu.HitTest := True;
 end;
 
@@ -790,7 +851,8 @@ procedure TksSlideMenu.ToggleMenu;
 var
   AStartXPos: single;
   ANewXPos: single;
-  AForm: TForm;
+  AObject: TfmxObject;
+  AWidth: single;
 begin
   if FAnimating then
     Exit;
@@ -810,7 +872,14 @@ begin
     end;
     FMenu.HitTest := False;
 
-    AForm := (Owner as TForm);
+    AObject := (Owner as TfmxObject);
+
+    if (Owner is TForm) then
+      AWidth := (Owner as TForm).Width
+    else if (Owner is TFrame) then
+      AWidth := (Owner as TFrame).Width
+    else
+      AWidth := 0;
 
     HidePickers;
 
@@ -833,23 +902,28 @@ begin
 
     GenerateFormImage(AStartXPos);
 
-    FMenu.Height := (Owner as TForm).ClientHeight;
+    if (Owner is TForm) then
+      FMenu.Height := (Owner as TForm).ClientHeight
+    else if (Owner is TFrame) then
+      FMenu.Height := (Owner as TFrame).Height
+    else
+      FMenu.Height := 0;
 
     // add the menu just behind the screen image...
 
     case FMenuPosition of
       mpLeft : FMenu.Position.X := 0;
-      mpRight: FMenu.Position.X := AForm.Width - C_DEFAULT_MENU_WIDTH;
+      mpRight: FMenu.Position.X := AWidth - C_DEFAULT_MENU_WIDTH;
     end;
-    AForm.InsertObject(0, FMenu);
+    AObject.InsertObject(0, FMenu);
 
     if FMenu.FListView.Items.Count = 0 then
       UpdateMenu;
 
 
     SwitchMenuToImage;
-    AForm.RemoveObject(FMenu);
-    AForm.InsertObject(AForm.ChildrenCount-1, FMenuImage);
+    AObject.RemoveObject(FMenu);
+    AObject.InsertObject(AObject.ChildrenCount-1, FMenuImage);
 
 
     FFormImage.HitTest := False;
@@ -866,13 +940,13 @@ begin
 
     if FShowing = False then
     begin
-      AForm.RemoveObject(FMenu);
+      AObject.RemoveObject(FMenu);
       RemoveFormImage;
     end
     else
       SwitchImageToMenu;
 
-    AForm.RemoveObject(FMenuImage);
+    AObject.RemoveObject(FMenuImage);
     Application.ProcessMessages;
 
   finally

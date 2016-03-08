@@ -276,35 +276,40 @@ procedure TksSegmentButtons.UpdateButtons;
 var
   ICount: integer;
 begin
-  FBtnWidth := Width / FSegments.Count;
+  if FSegments.Count = 0 then
+    Exit;
+  FBtnWidth := (Width-16) / FSegments.Count;
   for ICount := 0 to FSegments.Count-1 do
   begin
-    if ContainsObject(FSegments[ICount].FButton) = False then
-      AddObject(FSegments[ICount].FButton);
-
-    with FSegments[ICount].FButton do
+    if Assigned(FSegments[ICount].FButton) then
     begin
-      StaysPressed := True;
-      GroupName := FGroupID;
-      Width := FBtnWidth;
-      TintColor := FTintColor;
-      if FItemIndex = ICount then
-        TextSettings.FontColor := FBackgroundColor
-      else
-        TextSettings.FontColor := FTintColor;
-      IsPressed := (ICount = FItemIndex);
-      Text := FSegments[ICount].Text;
-      {$IFDEF ANDROID}
-      StyleLookup := 'listitembutton';
-      Height := 30;
-      {$ELSE}
-      if ICount = 0 then StyleLookup := 'segmentedbuttonleft';
-      if ICount > 0 then StyleLookup := 'segmentedbuttonmiddle';
-      if ICount = FSegments.Count-1 then StyleLookup := 'segmentedbuttonright';
-      if FSegments.Count = 1 then StyleLookup := 'listitembutton';
-      {$ENDIF}
-      Position.Y := (Self.Height - Height) / 2;
-      Position.X := ICount * FBtnWidth;
+      if ContainsObject(FSegments[ICount].FButton) = False then
+        AddObject(FSegments[ICount].FButton);
+
+      with FSegments[ICount].FButton do
+      begin
+        StaysPressed := True;
+        GroupName := FGroupID;
+        Width := FBtnWidth;
+        TintColor := FTintColor;
+        if FItemIndex = ICount then
+          TextSettings.FontColor := FBackgroundColor
+        else
+          TextSettings.FontColor := FTintColor;
+        IsPressed := (ICount = FItemIndex);
+        Text := FSegments[ICount].Text;
+        {$IFDEF ANDROID}
+        StyleLookup := 'listitembutton';
+        Height := 30;
+        {$ELSE}
+        if ICount = 0 then StyleLookup := 'segmentedbuttonleft';
+        if ICount > 0 then StyleLookup := 'segmentedbuttonmiddle';
+        if ICount = FSegments.Count-1 then StyleLookup := 'segmentedbuttonright';
+        if FSegments.Count = 1 then StyleLookup := 'listitembutton';
+        {$ENDIF}
+        Position.Y := (Self.Height - Height) / 2;
+        Position.X := (ICount * FBtnWidth)+8;
+      end;
     end;
   end;
 end;

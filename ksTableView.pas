@@ -87,17 +87,16 @@ const
   {$ENDIF}
 
   {$IFDEF ANDROID}
-  C_TABLEIEW_DEFAULT_SWITCH_COLOR = claDodgerBlue;
   C_TABLEVIEW_PAGE_SIZE = 50;
   {$ELSE}
-  C_TABLEIEW_DEFAULT_SWITCH_COLOR = claLimeGreen;
-  C_TABLEVIEW_PAGE_SIZE = 200;
+  C_TABLEVIEW_PAGE_SIZE = 50;
   {$ENDIF}
 
 type
   TksTableViewItem = class;
   TksTableViewItemObject = class;
   TksTableView = class;
+  TksTableViewItems = class;
   TksTableViewActionButtons = class;
   TksTableViewActionButton = class;
   TksTableViewItemSwitch = class;
@@ -763,6 +762,7 @@ type
     [weak]FTableView: TksTableView;
     [weak]FCheckMarkAccessory: TksTableViewItemAccessory;
     [weak]FTagObject: TObject;
+    [weak]FOwner: TksTableViewItems;
     FData: TDictionary<string, TValue>;
     FID: string;
     FAbsoluteIndex: integer;
@@ -937,6 +937,7 @@ type
   TksTableViewItems = class(TObjectList<TksTableViewItem>)
   private
     [weak]FTableView: TksTableView;
+    FCachedCount: integer;
     procedure UpdateIndexes;
     function GetLastItem: TksTableViewItem;
     function GetFirstItem: TksTableViewItem;
@@ -961,6 +962,7 @@ type
     procedure DeleteItem(AItem: TksTableViewItem; const AAnimate: Boolean = True);
     property FirstItem: TksTableViewItem read GetFirstItem;
     property LastItem: TksTableViewItem read GetLastItem;
+    property CachedCount: integer read FCachedCount;
   end;
 
   //---------------------------------------------------------------------------------------
@@ -1524,6 +1526,8 @@ type
   TksTableView = class(TksControl)
   strict private
     FFullWidthSeparator: Boolean;
+    FClearCacheTimer: TFmxHandle;
+    procedure DoClearCacheTimer;
   private
     FCombo: TComboBox;
     FDateSelector: TDateEdit;
@@ -2656,7 +2660,6 @@ begin
   Add(Result);
   UpdateIndexes;
   FTableView.UpdateAll(True);
-  ProcessMessages;
 end;
 
 function TksTableViewItems.AddItemSelector(AText, ASelected: string; AItems: TStrings): TksTableViewItem;
@@ -2698,6 +2701,7 @@ constructor TksTableViewItems.Create(ATableView: TksTableView;
 begin
   inherited Create(AOwnsObjects);
   FTableView := ATableView;
+  FCachedCount := 0;
 end;
 
 procedure TksTableViewItems.Delete(AIndex: integer; const AAnimate: Boolean = True);
@@ -2936,12 +2940,13 @@ begin
     Exit;
 
   if AForceCache then
-    FCached := False;
+    ClearCache;
 
   if (FCached = True) or (FCaching) then
     Exit;
 
   FCaching := True;
+
 
   ColumnOffset := ItemRect.Left;
 
@@ -2954,7 +2959,9 @@ begin
   w := Round(FItemRect.Width * AScreenScale);
   h := Round(FItemRect.Height * AScreenScale);
 
+  Inc(FOwner.FCachedCount);
   FBitmap.SetSize(w, h);
+
 
   ARect := RectF(0, 0, FBitmap.Width, FBitmap.Height);
 
@@ -3076,6 +3083,7 @@ begin
   FUpdating := True;
   try
     FTableView := ATableView;
+    FOwner := ATableView.Items;
     FBitmap := TBitmap.Create;
     FBitmap.BitmapScale := GetScreenScale;
     FObjects := TksTableViewItemObjects.Create(FTableView);
@@ -3643,8 +3651,12 @@ end;
 
 procedure TksTableViewItem.ClearCache;
 begin
-  FCached := false;
-  FBitmap.SetSize(0,0);
+  if FCached then
+  begin
+    FCached := false;
+    FBitmap.SetSize(0,0);
+    Dec(FOwner.FCachedCount);
+  end;
 end;
 
 function TksTableViewItem.Render(ACanvas: TCanvas; AScrollPos: single): TRectF;
@@ -4556,6 +4568,7 @@ begin
   CanFocus := True;
   AutoCapture := True;
   FMouseEventsEnabledCounter := 0;
+  FClearCacheTimer := CreateTimer(1000, DoClearCacheTimer)
 end;
 
 procedure TksTableView.CreateAniCalculator(AUpdateScrollLimit: Boolean);
@@ -4578,6 +4591,7 @@ end;
 
 destructor TksTableView.Destroy;
 begin
+  KillTimer(FClearCacheTimer);
   if FSearchBox <> nil then
   begin
     FSearchBox.Parent := nil;
@@ -4619,6 +4633,24 @@ procedure TksTableView.DoButtonClicked(AItem: TksTableViewItem; AButton: TksTabl
 begin
   if Assigned(FOnButtonClicked) then
     FOnButtonClicked(Self, AItem, AButton, AItem.ID);
+end;
+
+procedure TksTableView.DoClearCacheTimer;
+var
+  AViewPort: TRectF;
+  ICount: integer;
+  AItem: TksTableViewItem;
+begin
+  AViewport := ViewPort;
+  AViewPort.Top := AViewPort.Top - 1500;
+  AViewPort.Bottom := AViewPort.Bottom + 1500;
+  for ICount := 0 to FItems.Count-1 do
+  begin
+    AItem := FItems[ICount];
+    if (AItem.Cached) and (AItem.IsVisible(AViewPort) = False) then
+      AItem.ClearCache;
+  end;
+
 end;
 
 procedure TksTableView.DoDeselectItem;

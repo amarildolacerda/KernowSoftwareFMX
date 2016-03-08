@@ -154,7 +154,7 @@ type
     function GetSelectedTab: TksTabItem;
     procedure SetTabBarPosition(const Value: TksTabBarPosition);
     procedure SetActiveTab(const Value: TksTabItem);
-    function GetNextTabName: string;
+    //function GetNextTabName: string;
   protected
     procedure DoRealign; override;
     procedure Resize; override;
@@ -411,7 +411,7 @@ begin
     FTabs.Add(ATab);
     if not (csLoading in ComponentState) then
     begin
-      ATab.Name := GetNextTabName;
+      //ATab.Name := GetNextTabName;
       ATab.Text := ATab.Name;
     end;
     UpdateTabs;
@@ -455,7 +455,7 @@ function TksTabControl.GetItemsCount: Integer;
 begin
   Result := FTabs.Count;
 end;
-
+                             {
 function TksTabControl.GetNextTabName: string;
 var
   AIndex: integer;
@@ -467,7 +467,7 @@ begin
     Result := 'ksTabItem'+IntToStr(AIndex);
     Inc(AIndex);
   until AOwner.FindComponent(Result) = nil;
-end;
+end;                          }
 
 function TksTabControl.GetObject: TFmxObject;
 begin
