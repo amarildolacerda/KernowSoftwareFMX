@@ -5310,8 +5310,9 @@ begin
     begin
       AConsumesClick := FMouseDownObject.ConsumesClick;
       FMouseDownItem.DoClick(FMouseDownPoint.x, (FMouseDownPoint.y - FMouseDownItem.ItemRect.Top) + ScrollViewPos);
-      if AConsumesClick then
-        Exit;
+      Exit;
+      //if AConsumesClick then
+      //  Exit;
     end;
 
     if FMouseDownItem = nil then
