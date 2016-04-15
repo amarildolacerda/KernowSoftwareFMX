@@ -37,12 +37,16 @@ uses System.UITypes, FMX.Controls, FMX.Layouts, FMX.Objects, System.Classes,
 type
   TksChatView = class;
 
+
   TksChatBubbleInfo = record
     Text: string;
+    APosition: TksTableViewChatBubblePosition;
     Color: TAlphaColor;
     TextColor: TAlphaColor;
+    TableViewItem: TksTableViewItem;
   end;
 
+  TKsChatViewClickBubbleEvent = procedure(Sender: TObject; ABubble: TksChatBubbleInfo) of object;
   TksChatViewPostText = procedure(Sender: TObject; var ABubble: TksChatBubbleInfo; var AAllowPost: Boolean) of object;
 
   TksChatViewEdit = class(TToolBar)
@@ -74,12 +78,14 @@ type
     FButtonText: string;
     FOnSendButtonClick: TksChatViewPostText;
     FShowDoneButton: Boolean;
+    FOnChatBubbleClick: TKsChatViewClickBubbleEvent;
     procedure SetEditVisible(const Value: Boolean);
     procedure SetMyImage(const Value: TBitmap);
     procedure VirtualKeyboardChangeHandler(const Sender: TObject; const Msg: System.Messaging.TMessage);
     procedure SetButtonText(const Value: string);
 
     procedure SetShowDoneButton(const Value: Boolean);
+    procedure DoChatViewClick(Sender: TObject; x, y: single; AItem: TksTableViewItem; AId: string; ARowObj: TksTableViewItemObject);
   protected
     procedure Paint; override;
     procedure DoSendButtonClick;
@@ -106,6 +112,7 @@ type
     // events...
     property OnSendButtonClick: TksChatViewPostText read FOnSendButtonClick write FOnSendButtonClick;
     property BeforePostText: TksChatViewPostText read FBeforePostText write FBeforePostText;
+    property OnChatBubbleClick: TKsChatViewClickBubbleEvent read FOnChatBubbleClick write FOnChatBubbleClick;
   end;
 
   {$R *.dcr}
@@ -127,6 +134,7 @@ procedure TksChatView.AddChatBubble(AText: string; APosition: TksTableViewChatBu
 var
   AInfo: TksChatBubbleInfo;
   AAllow: Boolean;
+  ABubble: TksTableViewChatBubble;
 begin
   AAllow := True;
   AInfo.Text := AText;
@@ -138,7 +146,8 @@ begin
   if not AAllow then
     Exit;
 
-  FTableView.Items.AddChatBubble(AInfo.Text, APosition, AInfo.Color, AInfo.TextColor, AUserImage);
+  ABubble := FTableView.Items.AddChatBubble(AInfo.Text, APosition, AInfo.Color, AInfo.TextColor, AUserImage);
+
   FTableView.ScrollToItem(FTableView.Items.LastItem, True);
 end;
 
@@ -181,6 +190,7 @@ begin
     FTableView := TksTableView.Create(Self);
     FEdit := TksChatViewEdit.Create(Self);
     FSpacer := TLayout.Create(Self);
+    FTableView.OnItemClick := DoChatViewClick;
 
     FTableView.Appearence.SeparatorColor := claNull;
     FTableView.SelectionOptions.ShowSelection := False;
@@ -223,6 +233,26 @@ begin
   end;
   FreeAndNil(FMyImage);
   inherited;
+end;
+
+procedure TksChatView.DoChatViewClick(Sender: TObject; x, y: single; AItem: TksTableViewItem; AId: string; ARowObj: TksTableViewItemObject);
+var
+  ABubble: TksTableViewChatBubble;
+  AInfo: TksChatBubbleInfo;
+begin
+  if (ARowObj is TksTableViewChatBubble) then
+  begin
+    ABubble := (ARowObj as TksTableViewChatBubble);
+    if Assigned(FOnChatBubbleClick) then
+    begin
+      AInfo.Text := ABubble.Text;
+      AInfo.APosition := ABubble.Position;
+      AInfo.Color := ABubble.Fill.Color;
+      AInfo.TextColor := ABubble.TextColor;
+      AInfo.TableViewItem := AItem;
+      FOnChatBubbleClick(Self, AInfo);
+    end;
+  end;
 end;
 
 procedure TksChatView.DoSendButtonClick;

@@ -5,7 +5,7 @@ interface
 uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
   FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, ksTableView,
-  ksFormTransition, FMX.StdCtrls, FMX.Controls.Presentation;
+  ksFormTransition, FMX.StdCtrls, FMX.Controls.Presentation, ksTypes;
 
 type
   TForm5 = class(TForm)

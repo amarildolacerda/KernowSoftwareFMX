@@ -64,15 +64,14 @@ begin
     Result := AScreenScale;
     Exit;
   end;
-  Service := IFMXScreenService(TPlatformServices.Current.GetPlatformService
-    (IFMXScreenService));
+  Service := IFMXScreenService(TPlatformServices.Current.GetPlatformService(IFMXScreenService));
+
   Result := Trunc(Service.GetScreenScale);
+
   {$IFDEF IOS}
   if Result < 2 then
    Result := 2;
   {$ENDIF}
-  if Result > 3 then
-    Result := 3;
   AScreenScale := Result;
 end;
 
@@ -86,6 +85,7 @@ begin
     //
   end;
 end;
+
 function GetColorOrDefault(AColor, ADefaultIfNull: TAlphaColor): TAlphaColor;
 begin
   Result := AColor;
@@ -277,21 +277,24 @@ var
   PixelWhiteColor: TAlphaColor;
   C: PAlphaColorRec;
 begin
-  if ABmp.Map(TMapAccess.ReadWrite, AMap) then
-  try
-    AlphaColorToPixel(Color   , @PixelColor, AMap.PixelFormat);
-    AlphaColorToPixel(claWhite, @PixelWhiteColor, AMap.PixelFormat);
-    for y := 0 to ABmp.Height - 1 do
-    begin
-      for x := 0 to ABmp.Width - 1 do
+  if (Assigned(ABmp)) then
+  begin
+    if ABmp.Map(TMapAccess.ReadWrite, AMap) then
+    try
+      AlphaColorToPixel(Color   , @PixelColor, AMap.PixelFormat);
+      AlphaColorToPixel(claWhite, @PixelWhiteColor, AMap.PixelFormat);
+      for y := 0 to ABmp.Height - 1 do
       begin
-        C := @PAlphaColorArray(AMap.Data)[y * (AMap.Pitch div 4) + x];
-        if (C^.Color<>claWhite) and (C^.A>0) then
-          C^.Color := PremultiplyAlpha(MakeColor(PixelColor, C^.A / $FF));
+        for x := 0 to ABmp.Width - 1 do
+        begin
+          C := @PAlphaColorArray(AMap.Data)[y * (AMap.Pitch div 4) + x];
+          if (C^.Color<>claWhite) and (C^.A>0) then
+            C^.Color := PremultiplyAlpha(MakeColor(PixelColor, C^.A / $FF));
+        end;
       end;
+    finally
+      ABmp.Unmap(AMap);
     end;
-  finally
-    ABmp.Unmap(AMap);
   end;
 end;
 

@@ -204,9 +204,11 @@ begin
     {$IFDEF NEXTGEN}
     FIndicator.DisposeOf;
     FModalBackground.DisposeOf;
+    FLoadingText.DisposeOf;
     {$ELSE}
     FIndicator.Free;
     FModalBackground.Free;
+    FLoadingText.Free;
     {$ENDIF}
   end;
   inherited;

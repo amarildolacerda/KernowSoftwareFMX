@@ -157,7 +157,7 @@ begin
     try
       ARect := RectF(0, 0, ABmp.Width/GetScreenScale, ABmp.Height/GetScreenScale);
       ABmp.Canvas.IntersectClipRect(ARect);
-      ABmp.Canvas.Stroke.Color := claBlack;
+      ABmp.Canvas.Stroke.Color := claSilver;
       ABmp.Canvas.Stroke.Thickness := GetScreenScale;
       ABmp.Canvas.DrawRectSides(ARect, 0, 0, AllCorners, 1, ASides);
     finally
