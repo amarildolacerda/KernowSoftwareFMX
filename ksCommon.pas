@@ -66,12 +66,13 @@ begin
   end;
   Service := IFMXScreenService(TPlatformServices.Current.GetPlatformService(IFMXScreenService));
 
-  Result := Trunc(Service.GetScreenScale);
+  Result := Service.GetScreenScale;
 
   {$IFDEF IOS}
   if Result < 2 then
    Result := 2;
   {$ENDIF}
+
   AScreenScale := Result;
 end;
 

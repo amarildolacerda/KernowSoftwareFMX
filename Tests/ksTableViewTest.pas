@@ -389,7 +389,7 @@ var
 begin
   FTableView.Items.AddItem('This is a test');
   AWidth := FormatFloat('0.00', FTableView.Items[0].Title.CalculateSize.Width);
-  Assert.AreEqual('69.58', AWidth);
+  Assert.AreEqual('69.92', AWidth);
 end;
 
 procedure TksTableViewTest.TestTopItem;

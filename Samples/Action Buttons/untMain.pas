@@ -14,6 +14,8 @@ type
     ToolBar1: TToolBar;
     Label1: TLabel;
     Image1: TImage;
+    Image2: TImage;
+    Image3: TImage;
     procedure FormCreate(Sender: TObject);
     procedure ksTableView1ItemSwipe(Sender: TObject; ARow: TksTableViewItem; ASwipeDirection: TksSwipeDirection; AButtons: TksTableViewActionButtons);
     procedure ksTableView1ItemActionButtonClick(Sender: TObject; ARow: TksTableViewItem; AButton: TksTableViewActionButton);
@@ -37,16 +39,24 @@ var
   ICount: integer;
   AItem: tkstableviewitem;
 begin
+  Image2.Visible := False;
+  Image3.Visible := False;
+
+  AccessoryImages.Images[atUserDefined1].SetBitmap(Image2.Bitmap);
+  AccessoryImages.Images[atUserDefined2].SetBitmap(Image3.Bitmap);
+
   Image1.Visible := False;
   ksTableView1.BeginUpdate;
   try
 
-    for ICount := 1 to 50 do
+    for ICount := 1 to 3 do
     begin
       AItem := ksTableView1.Items.AddItem('Item: '+IntToStr(ICount), 'some subtitle text', 'some detail', atMore );
       AItem.Image.Bitmap := Image1.Bitmap;
       //AItem.AddSwitch(0, True);
     end;
+    AItem := ksTableView1.Items.AddItem('User defined', 'with custom images', 'some detail', atMore );
+    AItem.Image.Bitmap := Image1.Bitmap;
   finally
     ksTableView1.EndUpdate;
   end;
@@ -62,8 +72,18 @@ procedure TForm24.ksTableView1ItemSwipe(Sender: TObject; ARow: TksTableViewItem;
 begin
   if ASwipeDirection = ksSwipeRightToLeft then
   begin
-    AButtons.AddButton('More', claSilver, claWhite, atEllipses);
-    AButtons.AddButton('', claOrange, claWhite, atFlag);
+    if ARow.Index = 3 then
+    begin
+      // user defined action button image for the last row
+      AButtons.AddButton('Like', claSilver, claWhite, atUserDefined1);
+      AButtons.AddButton('Lock', claOrange, claWhite, atUserDefined2);
+      //AButtons.AddButton('Flag', claOrange, claWhite, atUserDefined2);
+    end
+    else
+    begin
+      AButtons.AddButton('More', claSilver, claWhite, atEllipses);
+      AButtons.AddButton('Flag', claOrange, claWhite, atFlag);
+    end;
   end
   else
   begin

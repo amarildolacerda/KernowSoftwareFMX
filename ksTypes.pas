@@ -104,7 +104,7 @@ var
 
 implementation
 
-uses ksCommon, SysUtils, FMX.Styles, FMX.Styles.Objects;
+uses ksCommon, SysUtils, FMX.Styles, FMX.Styles.Objects, Math;
 
 // ------------------------------------------------------------------------------
 
@@ -186,13 +186,9 @@ procedure TksTableViewAccessoryImageList.CalculateImageScale;
 begin
   if FImageScale = 0 then
   begin
-    FImageScale := GetScreenScale;
+    FImageScale := Min(Trunc(GetScreenScale), 3);
     {$IFDEF MSWINDOWS}
-      FImageScale := 1;
-    {$ENDIF}
-    {$IFDEF IOS}
-    if GetScreenScale >= 2 then
-      FImageScale := Round(GetScreenScale);
+    FImageScale := 1;
     {$ENDIF}
   end;
 end;
@@ -394,8 +390,12 @@ begin
 end;
 
 procedure TksTableViewAccessoryImage.SetBitmap(ASource: TBitmap);
+var
+  AScale: single;
 begin
+  AScale := Min(Trunc(GetScreenScale), 3);
   Assign(ASource);
+  Resize(Round(32 * AScale), Round(32 * AScale));
 end;
 
 procedure TksTableViewAccessoryImage.SetColor(const Value: TAlphaColor);

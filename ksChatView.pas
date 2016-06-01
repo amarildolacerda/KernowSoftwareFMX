@@ -134,7 +134,6 @@ procedure TksChatView.AddChatBubble(AText: string; APosition: TksTableViewChatBu
 var
   AInfo: TksChatBubbleInfo;
   AAllow: Boolean;
-  ABubble: TksTableViewChatBubble;
 begin
   AAllow := True;
   AInfo.Text := AText;
@@ -146,7 +145,7 @@ begin
   if not AAllow then
     Exit;
 
-  ABubble := FTableView.Items.AddChatBubble(AInfo.Text, APosition, AInfo.Color, AInfo.TextColor, AUserImage);
+  FTableView.Items.AddChatBubble(AInfo.Text, APosition, AInfo.Color, AInfo.TextColor, AUserImage);
 
   FTableView.ScrollToItem(FTableView.Items.LastItem, True);
 end;

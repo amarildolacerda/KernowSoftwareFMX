@@ -128,6 +128,7 @@ type
   TksTableViewRowSelectAnimation = (ksRowSelectAniNone, ksRowSelectAniFromLeft, ksRowSelectAniFromRight);
   TksTableViewRowIndicatorAlign = (ksRowIndicatorLeft, ksRowIndicatorRight);
 
+  TksTableBeginRowCacheEvent = procedure(Sender: TObject; ARow:TksTableViewItem) of object;
   TksTableViewRowCacheEvent = procedure(Sender: TObject; ACanvas: TCanvas; ARow: TksTableViewItem; ARect: TRectF) of object;
   TksTableViewDeletingItemEvent = procedure(Sender: TObject; AItem: TksTableViewItem; var ACanDelete: Boolean) of object;
   TksTableViewDeleteItemEvent = procedure(Sender: TObject; AItem: TksTableViewItem) of object;
@@ -943,13 +944,19 @@ type
 
   TksTableViewItems = class(TObjectList<TksTableViewItem>)
   private
-    [weak]FTableView: TksTableView;
     FCachedCount: integer;
+    {$IFNDEF VER310}
+    [weak]FTableView: TksTableView;
     procedure UpdateIndexes;
+    {$ENDIF}
     function GetLastItem: TksTableViewItem;
     function GetFirstItem: TksTableViewItem;
     function GetItemByID(AID: string): TksTableViewItem;
   protected
+    {$IFDEF VER310}
+    [weak]FTableView: TksTableView;
+    procedure UpdateIndexes;
+    {$ENDIF}
     function GetTotalItemHeight: single;
   public
     constructor Create(ATableView: TksTableView; AOwnsObjects: Boolean); virtual;
@@ -1611,7 +1618,7 @@ type
     FOnIndicatorExpand: TksTableViewRowIndicatorExpandEvent;
     FOnBeforePaint : TPaintEvent;
     FOnAfterPaint : TPaintEvent;
-
+    FOnBeginRowCacheEvent: TksTableBeginRowCacheEvent;
     FItemObjectMouseUpEvent: TksTableViewItemClickEvent;
     FMouseEventsEnabledCounter: integer;
     FLastCacheClear: TDateTime;
@@ -1814,6 +1821,7 @@ type
     property OnMouseWheel;
     property OnMouseEnter;
     property OnMouseLeave;
+    property OnBeginRowCache: TksTableBeginRowCacheEvent read FOnBeginRowCacheEvent write FOnBeginRowCacheEvent;
     property OnScrollViewChange: TksTableViewScrollChangeEvent read FOnScrollViewChange write FOnScrollViewChange;
     property OnSelectDate: TksTableViewSelectDateEvent read FOnSelectDate write FOnSelectDate;
     property OnSelectPickerItem: TksTableViewSelectPickerItem read FOnSelectPickerItem write FOnSelectPickerItem;
@@ -2966,6 +2974,8 @@ begin
 
   FCaching := True;
 
+  if Assigned(FTableView.OnBeginRowCache) then
+    FTableView.OnBeginRowCache(FTableView, Self);
 
   ColumnOffset := ItemRect.Left;
 
@@ -9349,6 +9359,7 @@ finalization
 
 
 end.
+
 
 
 

@@ -248,6 +248,7 @@ type
     function AddMenuItem(AId, AText: string; AImage: TBitmap): TksSlideMenuItem; overload;
     procedure ToggleMenu;
     procedure UpdateMenu;
+    procedure RefreshMenu;
     property Showing: Boolean read FShowing;
     property MenuIndex: integer read FMenuIndex write SetMenuIndex;
     property MenuItemCount: integer read GetMenuItemCount;
@@ -518,6 +519,42 @@ begin
   FFormImage.Visible := True;
   FMenu.Visible := True;
   Application.ProcessMessages;
+end;
+
+procedure TksSlideMenu.RefreshMenu;
+var
+  AWidth: single;
+begin
+  if (FAnimating) or (not FShowing) then
+    Exit;
+
+  if (Owner is TForm) then
+    AWidth := (Owner as TForm).Width
+  else
+  if (Owner is TFrame) then
+    AWidth := (Owner as TFrame).Width
+  else
+    AWidth := 0;
+
+  HidePickers;
+
+  GenerateFormImage(FFormImage.Position.x);
+
+  if (Owner is TForm) then
+    FMenu.Height := (Owner as TForm).ClientHeight
+  else
+  if (Owner is TFrame) then
+    FMenu.Height := (Owner as TFrame).Height
+  else
+    FMenu.Height := 0;
+
+  case FMenuPosition of
+    mpLeft: FMenu.Position.x := 0;
+    mpRight:FMenu.Position.x := AWidth - C_DEFAULT_MENU_WIDTH;
+  end;
+
+  if FMenu.FListView.Items.Count = 0 then
+    UpdateMenu;
 end;
 
 procedure TksSlideMenu.RemoveFormImage;
