@@ -2752,14 +2752,23 @@ begin
       Exit;
   end;
 
+  AIndex := IndexOf(AItem);
+  if AIndex = -1 then
+    Exit;
+
+  AItem.FDeleting := True;
+
+  if FTableView.UpdateCount > 0 then
+  begin
+    inherited Delete(AIndex);
+    FTableView.UpdateItemRects(False);
+    if Assigned(FTableView.OnDeleteItem) then
+      FTableView.OnDeleteItem(FTableView, AItem);
+    Exit;
+  end;
+
   FTableView.DisableMouseEvents;
   try
-
-    AIndex := IndexOf(AItem);
-    if AIndex = -1 then
-      Exit;
-
-    AItem.FDeleting := True;
     if AAnimate then
     begin
       for ICount := Trunc(AItem.Height) downto 0 do
@@ -3700,6 +3709,9 @@ var
   ASeperatorMargin: single;
   ASrcRect: TRectF;
 begin
+  if _FBitmap = nil then
+    Exit;
+
   ARect := FItemRect;
 
   OffsetRect(ARect, 0, (0 - AScrollPos) + FTableView.GetStartOffsetY);
@@ -3713,113 +3725,10 @@ begin
 
   CacheItem;
 
-  (*if FTagString = '' then
-  begin
-    RealignStandardObjects;
-    FTagString := 'aligned';
-  end;
 
-  ACanvas.BeginScene;
-  try
-    if (Purpose=None) and
-       ((FTableView.FSelectionOptions.ShowSelection) and (FCanSelect)) and
-       ((FIndex = FTableView.ItemIndex) or ((Checked) and (FTableView.FCheckMarkOptions.FCheckSelects))) then
-    begin
-      ACanvas.Fill.Kind  := TBrushKind.Solid;
-
-      if FTableView.FSelectionOptions.FSelectionOverlay.Enabled then
-      begin
-        if (FTableView.FSelectionOptions.FSelectionOverlay.FStyle=ksBlankSpace) then
-          ACanvas.Fill.Color := GetColorOrDefault(FTableView.FSelectionOptions.FSelectionOverlay.BackgroundColor,C_TABLEVIEW_DEFAULT_SELECTED_COLOR)
-      end
-      else
-        ACanvas.Fill.Color := GetColorOrDefault(FTableView.Appearence.SelectedColor,C_TABLEVIEW_DEFAULT_SELECTED_COLOR);
-    end
-    else if (FFill.Kind<>TBrushKind.None) then
-      ACanvas.Fill.Assign(FFill)
-    else if (FPurpose<>None) then
-    begin
-      ACanvas.Fill.Kind  := TBrushKind.Solid;
-      ACanvas.Fill.Color := GetColorOrDefault(FTableView.Appearence.HeaderColor,
-                                   C_TABLEVIEW_DEFAULT_HEADER_COLOR)
-    end
-    else if (FTableView.Appearence.AlternatingItemBackground <> claNull) and (FIndex mod 2 = 0) then
-    begin
-      ACanvas.Fill.Kind  := TBrushKind.Solid;
-      ACanvas.Fill.Color := FTableView.Appearence.AlternatingItemBackground;
-    end
-    else
-      ACanvas.Fill.Assign(FTableView.Appearence.ItemBackground);
-
-    ACanvas.FillRect(ARect, 0, 0, AllCorners, 1);
-
-
-    //if Assigned(FTableView.BeforeRowCache) then
-    //  FTableView.BeforeRowCache(FTableView, ACanvas, Self, ARect);
-
-    // indicator...
-    if FTableView.RowIndicators.Visible then
-    begin
-      case FTableView.RowIndicators.Outlined of
-        False: FIndicator.Stroke.Kind := TBrushKind.None;
-        True: FIndicator.Stroke.Kind := TBrushKind.Solid;
-      end;
-      if FIndicator.Width = 0 then
-        FIndicator.Width := FTableView.RowIndicators.Width;
-      if Trunc(FTableView.RowIndicators.Height) <> 0 then
-        FIndicator.Height := FTableView.RowIndicators.Height
-      else
-        FIndicator.Height := Height;
-
-      FIndicator.Shape := FTableView.RowIndicators.Shape;
-      FIndicator.Render(ARect, ACanvas);
-    end;
-
-
-    //FTileBackground.Render(ARect, ACanvas);
-    //FImage.Render(ARect, ACanvas);
-    FTitle.Render(ARect, ACanvas);
-    //FSubTitle.Render(ARect, ACanvas);
-    //FDetail.Render(ARect, ACanvas);
-
-    if FTableView.AccessoryOptions.ShowAccessory then
-      FAccessory.Render(ARect, ACanvas);
-
-    if FTableView.FCheckMarkOptions.FCheckMarks <> TksTableViewCheckMarks.cmNone then
-    begin
-      if (FCheckmarkAllowed) then
-      begin
-        FCheckMarkAccessory.FTableItem := Self;
-        FCheckMarkAccessory.Render(ARect, ACanvas);
-      end;
-    end;
-
-    for ICount := 0 to FObjects.Count - 1 do
-    begin
-      if FObjects[ICount].Visible then
-      begin
-        FObjects[ICount].Render(ARect, ACanvas);
-      end;
-    end;
-
-
-
-    //FTileBackground.Render(ARect, ACanvas);
-    //FImage.Render(ARect, ACanvas);
-
-    FTitle.Render(ARect, ACanvas);
-    FSubTitle.Render(ARect, ACanvas);
-    FDetail.Render(ARect, ACanvas);
-
-    if FTableView.AccessoryOptions.ShowAccessory then
-      FAccessory.Render(ARect, ACanvas);
-  //if FBitmap = nil then
-  //  Exit;
-      *)
 
   if (TableView.FActionButtons.Visible = False) or (TableView.FActionButtons.TableItem <> Self) then
   begin
-
     ACanvas.DrawBitmap(_FBitmap, RectF(0, 0, _FBitmap.Width, _FBitmap.Height),
                        ARect, 1, True);
 

@@ -139,7 +139,7 @@ begin
       FImage.Bitmap := nil;
       ABmp := TBitmap.Create;
       ABmp.LoadFromStream(AStream);
-      ABmp.Resize(Round(24 * GetScreenScale), Round(24 * GetScreenScale));
+      ABmp.Resize(24, 24);
       FImage.Width := ABmp.Width;
       FImage.Height := ABmp.Height;
       {$IFDEF IOS}

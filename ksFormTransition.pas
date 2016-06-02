@@ -226,8 +226,12 @@ begin
 end;
 
 procedure TksFormTransition.PopAllForms;
+var
+  ICount: integer;
 begin
-  ATransitionList.Clear;
+  while ATransitionList.Count > 0 do
+    PopForm;
+  ///ATransitionList.Clear;
 end;
 
 procedure TksFormTransition.PushForm(AFrom, ATo: TForm;
