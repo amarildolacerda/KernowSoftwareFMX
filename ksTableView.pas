@@ -1587,6 +1587,7 @@ type
     FFixedRowOptions: TksTableViewFixedRowsOptions;
     FCascadeHeaderCheck: Boolean;
     FActionButtons: TksTableViewActionButtons;
+    //FCachedCount: integer;
 
     // events...
     FItemClickEvent: TksTableViewItemClickEvent;
@@ -3087,6 +3088,7 @@ begin
   end;
   OffsetRect(FItemRect,ColumnOffset,0);
   FCaching := False;
+  //Inc(FOwner.FCachedCount);
 end;
 
 procedure TksTableViewItem.Changed;
@@ -5279,13 +5281,14 @@ begin
 end;
 
 function TksTableView.GetCachedCount: integer;
-var
-  ICount: integer;
+//var
+//  ICount: integer;
 begin
-  Result := 0;
+  {Result := 0;
   for ICount := 0 to FItems.Count-1 do
     if FItems[ICount].Cached then
-      Result := Result + 1;
+      Result := Result + 1;   }
+  Result := FItems.CachedCount;
 end;
 
 function TksTableView.GetFixedFooterHeight: single;
@@ -6299,7 +6302,8 @@ begin
     HideFocusedControl;
     FActionButtons.HideButtons;
 
-    //ClearCache(ksClearCacheNonVisible);
+    if CachedCount > C_TABLEVIEW_PAGE_SIZE then
+      ClearCache(ksClearCacheNonVisible);
 
     AStep := (Value - FScrollPos) / 20;
     if AAnimate then
@@ -6319,7 +6323,8 @@ begin
     begin
       FScrollPos := Value;
       UpdateStickyHeaders;
-      Repaint;
+      //IRepaint;
+      Invalidate;
     end;
     if (Round(FScrollPos) = 0) and (FNeedsRefresh) then
     begin

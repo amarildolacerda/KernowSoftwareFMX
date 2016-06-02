@@ -28,17 +28,34 @@ interface
 
 {$I ksComponents.inc}
 
-uses Classes, FMX.StdCtrls, FMX.Graphics, ksControlBadge, ksTypes;
+uses Classes, FMX.StdCtrls, FMX.Graphics, ksControlBadge, ksTypes, FMX.Objects;
 
 type
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
     {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
     {$ELSE} pidiOSDevice {$ENDIF} or pidiOSSimulator or pidAndroid)]
+
+  TksSpeedButtonIcon = (Custom, AlarmClock, BarChart, Barcode, Bell, BookCover, BookCoverMinus, BookCoverPlus, BookMark, BookOpen,
+                        Calendar, Camera, Car, Clock, CloudDownload, CloudUpload, Cross, Document, Download, Earth, Email,
+                        Fax, FileList, FileMinus, FilePlus, Files, FileStar, FileTick, Flag, Folder, FolderMinus,
+                        FolderPlus, FolderStar, Home, Inbox, Incoming, ListBullets, ListCheckBoxes, ListImages, ListNumbered, ListTicked,
+                        Location, More, Note, Outgoing,
+                        PaperClip, Photo, PieChart, Pin, Presentation, Search, Settings, Share, ShoppingCart, Spanner, Speaker,
+                        Star, Tablet, Tag, Telephone, Telephone2, TelephoneBook, Tick, Timer, Trash, Upload,
+                        User, UserEdit, UserGroup, Users, UserSearch,
+                        VideoCamera, VideoPlayer, Viewer,
+                        Wifi, Window, Write);
+
+
+
   TksSpeedButton = class(TksBaseSpeedButton)
   private
     FBadge: TksControlBadge;
+    FIcon: TksSpeedButtonIcon;
+    FImage: Timage;
     procedure SetBadge(Value: TksBadgeProperties);
     function GetBadge: TksBadgeProperties;
+    procedure SetIcon(const Value: TksSpeedButtonIcon);
   protected
     procedure Resize; override;
     function GetDefaultStyleLookupName: string; override;
@@ -46,6 +63,7 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
   published
+    property Icon: TksSpeedButtonIcon read FIcon write SetIcon;
     property Badge: TksBadgeProperties read GetBadge write SetBadge;
   end;
 
@@ -54,7 +72,7 @@ type
 
 implementation
 
-uses Math;
+uses Math, FMX.types, System.TypInfo, System.Types, ksCommon, System.UIConsts;
 
 procedure Register;
 begin
@@ -67,7 +85,14 @@ constructor TksSpeedButton.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
   FBadge := TksControlBadge.Create(Self);
+  FIcon := Custom;
+  FImage := TImage.Create(Self);
+  FImage.HitTest := False;
+  FImage.Locked := True;
+  FImage.Stored := False;
   //StyledSettings := [];
+  FImage.Align := TAlignLayout.Center;
+  AddObjecT(FImage);
   AddObject(FBadge);
 end;
 
@@ -75,8 +100,10 @@ destructor TksSpeedButton.Destroy;
 begin
   {$IFDEF NEXTGEN}
   FBadge.DisposeOf;
+  FImage.DisposeOf;
   {$ELSE}
   FBadge.Free;
+  FImage.Free;
   {$ENDIF}
   inherited;
 end;
@@ -96,6 +123,37 @@ end;
 function TksSpeedButton.GetDefaultStyleLookupName: string;
 begin
   Result := GenerateStyleName(TSpeedButton.ClassName);
+end;
+
+procedure TksSpeedButton.SetIcon(const Value: TksSpeedButtonIcon);
+var
+  AStream: TResourceStream;
+  AEnumName: String;
+  ABmp: TBitmap;
+begin
+  if Value <> TksSpeedButtonIcon.Custom  then
+  begin
+    AEnumName := GetENumName(TypeInfo(TksSpeedButtonIcon), Ord(Value));
+    AStream := TResourceStream.Create(HInstance, AEnumName, RT_RCDATA);
+    try
+      FImage.Bitmap := nil;
+      ABmp := TBitmap.Create;
+      ABmp.LoadFromStream(AStream);
+      ABmp.Resize(Round(24 * GetScreenScale), Round(24 * GetScreenScale));
+      FImage.Width := ABmp.Width;
+      FImage.Height := ABmp.Height;
+      {$IFDEF IOS}
+      ReplaceOpaqueColor(ABmp, claDodgerblue);
+      {$ENDIF}
+
+      FImage.Bitmap := ABmp;
+      ABmp.Free;
+    finally
+      AStream.Free;
+    end;
+  end;
+  FIcon := Value;
+
 end;
 
 procedure TksSpeedButton.SetBadge(Value: TksBadgeProperties);
