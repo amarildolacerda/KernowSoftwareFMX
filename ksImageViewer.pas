@@ -38,7 +38,7 @@ type
 
   TksImageViewer = class(TksControl, IMultiTouch)
   private
-    FAniCalc: TAniCalculations;
+    FAniCalc: TksAniCalc;
     FBitmap: TBitmap;
     FZoom: integer;
 
@@ -82,7 +82,7 @@ type
 
 implementation
 
-uses System.UIConsts, SysUtils, Math;
+uses System.UIConsts, SysUtils, Math, FMX.Controls;
 
 
 procedure Register;
@@ -136,7 +136,7 @@ begin
   inherited;
   FBitmap := TBitmap.Create;
 
-  FAniCalc := TAniCalculations.Create(nil);
+  FAniCalc := TksAniCalc.Create(nil);
   FAniCalc.OnChanged := AniCalcChange;
   FAniCalc.ViewportPositionF := PointF(0, 0);
   FAniCalc.Animation := True;
@@ -263,9 +263,9 @@ begin
     if FZoom <> Value then
     begin
       FZoom := Value;
+   FAniCalc.UpdatePosImmediately;
+   FAniCalc.MouseLeave;
 
-    //Form73.Label1.Text := FormatFloat('0.00', FAniCalc.ViewportPositionF.X);
-    //Form73.Label2.Text := FormatFloat('0.00', FMaxXPos);
     if FMaxXPos = 0 then
       XPercent := 0
     else
@@ -274,10 +274,6 @@ begin
       ypercent := 0
     else
       ypercent := (FAniCalc.ViewportPositionF.Y / FMaxYPos) * 100;
-
-
-   // Form73.Label1.Text := FormatFloat('0.00', xpercent);
-     // ypercent := FAniCalc.ViewportPositionF.y;
 
     UpdateScrollLimits;
 
