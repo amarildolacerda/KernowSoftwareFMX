@@ -169,7 +169,7 @@ Demos/ksComponents.deployproj
 KernowSoftwareFMX.dproj
 Demos/ksComponents.dproj
 *.rc
-*.res
+#*.res
 Demos/ksComponents.dproj
 Demos/ksComponents.dproj
 *.deployproj
@@ -188,3 +188,22 @@ ksComponents.fbp8
 ksComponents.fbpInf
 Samples/Form Transitions/FormTransitions.dproj
 Samples/Form Transitions/FormTransitions.dproj
+Samples/Action Buttons/ActionButtons.RES
+Samples/Async Http/AsyncHttpDemo.res
+Samples/Accessories/AccessoriesDemo.res
+Samples/Chat Bubbles/ChatBubbles.res
+Samples/Check Marks/CheckMarks.RES
+Samples/Drag & Drop/DragAndDrop.RES
+Samples/Embedded Edit Boxes/EmbeddedEdits.RES
+Samples/Form Transitions/FormTransitions.res
+Samples/Image Updating/ImageUpdating.res
+Samples/Item Selector/ItemSelector.res
+Samples/Loading Indicator/LoadingIndicator.res
+Samples/Row Indicators/CheckMarks.res
+Samples/Row Indicators/RowIndicators.RES
+Samples/Slide Menu/SlideMenu.res
+Samples/Switches/Switches.RES
+Samples/Tab Control/ActionButtons.RES
+Samples/Tab Control/TabControl.res
+Samples/VirtualListView/Action Buttons/ActionButtons.res
+Tests/ksComponentsTests.RES
