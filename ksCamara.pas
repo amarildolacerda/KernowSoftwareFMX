@@ -70,7 +70,6 @@ constructor TksCamara.Create(AOwner: TComponent);
 begin
   inherited;
   TPlatformServices.Current.SupportsPlatformService(IFMXCameraService, FCamaraService);
-
   FEditable := True;
   FSaveToAlbum := True;
 end;
@@ -79,7 +78,6 @@ procedure TksCamara.DoDidFinish(Image: TBitmap);
 begin
   if Assigned(FOnPhotoTaken) then
     FOnPhotoTaken(Self, Image);
-
 end;
 
 procedure TksCamara.TakePhoto;

@@ -77,7 +77,8 @@ type
   private
     FPreventAdd: Boolean;
     procedure AddBorder(ABmp: TBitmap; ABorder: TSide);
-    procedure AnimateImage(AImage: TImage; ADirection: TAnimateDirection; ANewValue: single; AWait: Boolean);
+    procedure AnimateImage(AImage: TImage; ADirection: TAnimateDirection;
+      ANewValue: single; AWait: Boolean; const AFade: Boolean = False);
     class function GenerateFormImage(AForm: TForm): TBitmap;
     procedure PushForm(AFrom, ATo: TForm; ATransition: TksFormTransitionType; const ScrollBackgroundForm: Boolean = True);
     procedure PopForm;
@@ -169,7 +170,8 @@ begin
   Application.ProcessMessages;
 end;
 
-procedure TksFormTransition.AnimateImage(AImage: TImage; ADirection: TAnimateDirection; ANewValue: single; AWait: Boolean);
+procedure TksFormTransition.AnimateImage(AImage: TImage; ADirection: TAnimateDirection;
+  ANewValue: single; AWait: Boolean; const AFade: Boolean = False);
 var
   AProperty: string;
 begin
@@ -226,12 +228,9 @@ begin
 end;
 
 procedure TksFormTransition.PopAllForms;
-var
-  ICount: integer;
 begin
   while ATransitionList.Count > 0 do
     PopForm;
-  ///ATransitionList.Clear;
 end;
 
 procedure TksFormTransition.PushForm(AFrom, ATo: TForm;
@@ -245,8 +244,6 @@ begin
     Exit;
   AAnimating := True;
 
-  ATo.Invalidate;
-
   if FPreventAdd = False then
     ATransitionList.AddTransition(AFrom, ATo, ATransition, ScrollBackgroundForm);
 
@@ -254,9 +251,7 @@ begin
   AImageFrom := TImage.Create(nil);
   AImageTo := TImage.Create(nil);
   try
-    ATo.HandleNeeded;
-    ATo.Invalidate;
-    Application.ProcessMessages;
+    ATo.SetBounds(AFrom.Left, AFrom.Top, AFrom.Width, AFrom.Height);
 
     AImageFrom.Width := AFrom.Width;
     AImageFrom.Height := AFrom.Height;
@@ -314,7 +309,7 @@ begin
         AImageTo.BringToFront;
         AddBorder(AImageTo.Bitmap, TSide.Left);
         if ScrollBackgroundForm then
-          AnimateImage(AImageFrom, ksAdHorizontal, 0-(AImageFrom.Width * C_TRANSITION_PART_SCROLL_FACTOR), False);
+          AnimateImage(AImageFrom, ksAdHorizontal, 0-(AImageFrom.Width * C_TRANSITION_PART_SCROLL_FACTOR), False, True);
         AnimateImage(AImageTo, ksAdHorizontal, 0, True);
       end;
 

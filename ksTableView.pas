@@ -1526,11 +1526,6 @@ type
 
   //---------------------------------------------------------------------------------------
 
-  TksAniCalc = class(TAniCalculations)
-  public
-    procedure UpdatePosImmediately;
-  end;
-
   //---------------------------------------------------------------------------------------
   // TksTableView
 
@@ -9254,12 +9249,7 @@ begin
   end;
 end;
 
-{ TksAniCalc }
 
-procedure TksAniCalc.UpdatePosImmediately;
-begin
-  inherited UpdatePosImmediately(True);
-end;
 
 
 initialization

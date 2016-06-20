@@ -29,23 +29,27 @@ interface
 {$I ksComponents.inc}
 
 uses Classes, FMX.Controls, FMX.Objects, FMX.Types, FMX.StdCtrls, FMX.Graphics, System.UITypes, Types,
-  System.UIConsts, System.Generics.Collections;
+  System.UIConsts, System.Generics.Collections, FMX.InertialMovement;
 
 type
+  TksSound = (ksMailNew, ksMailSent, ksVoiceMail, ksBeep, ksMessageReceived, ksMessageSent);
+
+
   IksBaseComponent = interface
   ['{23FAF7AC-205E-4F03-924D-DA5C7D663777}']
+  end;
 
+  IksSystemSound = interface(IKsBaseComponent)
+  ['{CF3A9726-6F3B-4029-B5CD-EB763DB0D2C5}']
+    procedure Play(ASound: TksSound);
   end;
 
   TksControl = class(TControl, IksBaseComponent);
+
+
   TksComponent = class(TFmxObject);
   TksRoundRect = class(TRoundRect);
   TksBaseSpeedButton = class(TSpeedButton);
-
-  (*IksTabControl = interface
-  ['{B71E062B-92AF-4A27-8842-306E7E28CAC4}']
-    procedure InternalNewTab;
-  end;   *)
 
   TksBaseTabControl = class(TksComponent)
   protected
@@ -98,15 +102,32 @@ type
     property ImageScale: single read FImageScale;
   end;
 
+  TksAniCalc = class(TAniCalculations)
+  public
+    procedure UpdatePosImmediately;
+  end;
+
+
+
 var
   AUnitTesting: Boolean;
 
 
+  procedure PlaySystemSound(ASound: TksSound);
+
 implementation
 
-uses ksCommon, SysUtils, FMX.Styles, FMX.Styles.Objects, Math;
+uses ksCommon, SysUtils, FMX.Styles, FMX.Styles.Objects, Math, ksSystemSound;
 
 // ------------------------------------------------------------------------------
+
+procedure PlaySystemSound(ASound: TksSound);
+var
+  AObj: TksSystemSound;
+begin
+  AObj := TksSystemSound.Create;
+  AObj.Play(ASound);
+end;
 
 { TksTableViewAccessoryImageList }
 
@@ -209,20 +230,21 @@ begin
 end;
 
 procedure TksTableViewAccessoryImageList.DrawAccessory(ACanvas: TCanvas; ARect: TRectF; AAccessory: TksAccessoryType; AStroke, AFill: TAlphaColor);
-var
-  AState: TCanvasSaveState;
 begin
-  AState := ACanvas.SaveState;
+  //AState := ACanvas.SaveState;
   try
-    ACanvas.IntersectClipRect(ARect);
-    ACanvas.Fill.Color := AFill;
-    ACanvas.Fill.Kind := TBrushKind.Solid;
-    ACanvas.FillRect(ARect, 0, 0, AllCorners, 1);
+    //ACanvas.IntersectClipRect(ARect);
+    if AFill <> claNull then
+    begin
+      ACanvas.Fill.Color := AFill;
+      ACanvas.Fill.Kind := TBrushKind.Solid;
+      ACanvas.FillRect(ARect, 0, 0, AllCorners, 1);
+    end;
     GetAccessoryImage(AAccessory).DrawToCanvas(ACanvas, ARect, False);
-    ACanvas.Stroke.Color := AStroke;
-    ACanvas.DrawRect(ARect, 0, 0, AllCorners, 1);
+    //ACanvas.Stroke.Color := AStroke;
+    //ACanvas.DrawRect(ARect, 0, 0, AllCorners, 1);
   finally
-    ACanvas.RestoreState(AState);
+  //  ACanvas.RestoreState(AState);
   end;
 end;
 
@@ -405,6 +427,13 @@ begin
     FColor := Value;
     ReplaceOpaqueColor(Value);
   end;
+end;
+
+{ TksAniCalc }
+
+procedure TksAniCalc.UpdatePosImmediately;
+begin
+  inherited UpdatePosImmediately(True);
 end;
 
 initialization

@@ -26,6 +26,8 @@ package KernowSoftwareFMX;
 {$ENDIF IMPLICITBUILDING}
 {$IMPLICITBUILD OFF}
 
+{$R glyphs.res}
+
 requires
   rtl,
   fmx,
@@ -49,7 +51,10 @@ contains
   ksComponentEditors in 'ksComponentEditors.pas',
   ksCommon in 'ksCommon.pas',
   ksTypes in 'ksTypes.pas',
-  ksLoadingIndicator in 'ksLoadingIndicator.pas';
+  ksLoadingIndicator in 'ksLoadingIndicator.pas',
+  ksVirtualListView in 'ksVirtualListView.pas',
+  ksSystemSound in 'ksSystemSound.pas',
+  ksImageViewer in 'ksImageViewer.pas';
 
 end.
 
