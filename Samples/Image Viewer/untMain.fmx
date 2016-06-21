@@ -1,13 +1,13 @@
-object frmMain: TfrmMain
+object Form76: TForm76
   Left = 0
   Top = 0
-  Caption = 'Form73'
-  ClientHeight = 456
-  ClientWidth = 330
+  Caption = 'Form76'
+  ClientHeight = 480
+  ClientWidth = 640
   FormFactor.Width = 320
   FormFactor.Height = 480
   FormFactor.Devices = [Desktop]
-  DesignerMasterStyle = 2
+  DesignerMasterStyle = 0
   object ksImageViewer1: TksImageViewer
     Touch.InteractiveGestures = [Zoom, Pan]
     Align = Client

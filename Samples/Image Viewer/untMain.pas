@@ -4,12 +4,11 @@ interface
 
 uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
-  FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.Layouts,
-  ksImageViewer, FMX.Controls.Presentation, FMX.StdCtrls, ksTypes, FMX.Objects,
-  FMX.ListBox, FMX.Gestures;
+  FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, ksTypes,
+  ksImageViewer;
 
 type
-  TfrmMain = class(TForm)
+  TForm76 = class(TForm)
     ksImageViewer1: TksImageViewer;
   private
     { Private declarations }
@@ -18,7 +17,7 @@ type
   end;
 
 var
-  frmMain: TfrmMain;
+  Form76: TForm76;
 
 implementation
 
