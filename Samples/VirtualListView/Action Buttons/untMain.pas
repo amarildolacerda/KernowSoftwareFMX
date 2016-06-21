@@ -5,27 +5,33 @@ interface
 uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
   FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.StdCtrls,
-  FMX.Controls.Presentation, FMX.Objects, FMX.Ani, ksTypes, ksVirtualListView;
+  FMX.Controls.Presentation, FMX.Objects, FMX.Ani, ksTypes, ksVirtualListView,
+  FMX.Layouts;
 
 type
   TForm76 = class(TForm)
-    ksVirtualListView1: TksVirtualListView;
     Image1: TImage;
     ToolBar1: TToolBar;
     Label1: TLabel;
-    Image2: TImage;
-    Image3: TImage;
-    Image4: TImage;
-    Image5: TImage;
-    Image6: TImage;
-    Image7: TImage;
-    Image8: TImage;
+    Layout1: TLayout;
     Image9: TImage;
-    procedure FormCreate(Sender: TObject);
+    Image8: TImage;
+    Image7: TImage;
+    Image6: TImage;
+    Image5: TImage;
+    Image4: TImage;
+    Image3: TImage;
+    Image2: TImage;
+    ksVirtualListView1: TksVirtualListView;
+    Timer1: TTimer;
     procedure ksVirtualListView1ItemSwipe(Sender: TObject; ARow: TksVListItem;
       ASwipeDirection: TksVListSwipeDirection; AButtons: TksVListActionButtons);
+    procedure Timer1Timer(Sender: TObject);
   private
+    procedure PopulateItems;
     { Private declarations }
+  protected
+    procedure DoShow; override;
   public
     { Public declarations }
   end;
@@ -39,7 +45,7 @@ uses System.UIConsts;
 
 {$R *.fmx}
 
-procedure TForm76.FormCreate(Sender: TObject);
+procedure TForm76.PopulateItems;
 var
   ICount: integer;
 begin
@@ -86,6 +92,17 @@ begin
 
    ksVirtualListView1.Items[9].Image.Bitmap := Image9.Bitmap;
   end;
+end;
+
+procedure TForm76.Timer1Timer(Sender: TObject);
+begin
+  Timer1.Enabled := False;
+  PopulateItems;
+end;
+
+procedure TForm76.DoShow;
+begin
+  Timer1.Enabled := True;
 end;
 
 procedure TForm76.ksVirtualListView1ItemSwipe(Sender: TObject;

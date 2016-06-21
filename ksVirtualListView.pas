@@ -2024,8 +2024,10 @@ constructor TksVListItemTextObject.Create(AItem: TksVListItem);
 begin
   inherited Create(AItem);
   FTextSettings := TTextSettings.Create(nil);
+  {$IFDEF IOS}
   FTextSettings.Font.Size := 16;
   FTextSettings.Font.Family := 'Segoe UI Semilight';
+  {$ENDIF}
   FText := '';
   FCached := nil;
 end;
@@ -2272,7 +2274,7 @@ begin
     InflateRect(ARect, -4, -4);
   end;
   ACanvas.DrawBitmap(FBitmap, RectF(0, 0, FBitmap.Width, FBitmap.Height),
-    ARect, 1, True);
+    ARect, 1, False);
 end;
 
 function TksVListItemImageObject.GetIsEmpty: Boolean;
@@ -2327,7 +2329,7 @@ begin
     if FBitmap = nil then
     begin
       FBitmap := TBitmap.Create(Value.Width, Value.Height);
-      FBitmap.Clear(claNull);
+      //FBitmap.Clear(claNull);
     end;
     FBitmap.Canvas.BeginScene;
     try
@@ -2336,7 +2338,6 @@ begin
     finally
       FBitmap.Canvas.EndScene;
     end;
-    // FBitmap.Assign(Value);
   end
   else
     FBitmap := Value;
