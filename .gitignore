@@ -209,3 +209,6 @@ Samples/VirtualListView/Action Buttons/ActionButtons.res
 Tests/ksComponentsTests.RES
 Samples/Image Viewer/ImageViewer.RES
 Samples/HTML Text/HtmlText.RES
+*.dex
+*.vrc
+*.vsr

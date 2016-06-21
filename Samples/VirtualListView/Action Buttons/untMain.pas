@@ -4,12 +4,11 @@ interface
 
 uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
-  FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs,
-  ksTypes, ksVirtualListView, FMX.StdCtrls, FMX.Controls.Presentation,
-  FMX.Objects, FMX.Ani;
+  FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.StdCtrls,
+  FMX.Controls.Presentation, FMX.Objects, FMX.Ani, ksTypes, ksVirtualListView;
 
 type
-  TfrmMain = class(TForm)
+  TForm76 = class(TForm)
     ksVirtualListView1: TksVirtualListView;
     Image1: TImage;
     ToolBar1: TToolBar;
@@ -23,7 +22,6 @@ type
     Image8: TImage;
     Image9: TImage;
     procedure FormCreate(Sender: TObject);
-    procedure Button1Click(Sender: TObject);
     procedure ksVirtualListView1ItemSwipe(Sender: TObject; ARow: TksVListItem;
       ASwipeDirection: TksVListSwipeDirection; AButtons: TksVListActionButtons);
   private
@@ -33,7 +31,7 @@ type
   end;
 
 var
-  frmMain: TfrmMain;
+  Form76: TForm76;
 
 implementation
 
@@ -41,12 +39,7 @@ uses System.UIConsts;
 
 {$R *.fmx}
 
-procedure TfrmMain.Button1Click(Sender: TObject);
-begin
-   ksVirtualListView1.Items.Delete(1, True);
-end;
-
-procedure TfrmMain.FormCreate(Sender: TObject);
+procedure TForm76.FormCreate(Sender: TObject);
 var
   ICount: integer;
 begin
@@ -95,7 +88,7 @@ begin
   end;
 end;
 
-procedure TfrmMain.ksVirtualListView1ItemSwipe(Sender: TObject;
+procedure TForm76.ksVirtualListView1ItemSwipe(Sender: TObject;
   ARow: TksVListItem; ASwipeDirection: TksVListSwipeDirection;
   AButtons: TksVListActionButtons);
 begin
@@ -111,4 +104,3 @@ begin
 end;
 
 end.
-
