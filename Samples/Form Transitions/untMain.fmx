@@ -1742,11 +1742,6 @@ object Form3: TForm3
       TextSettings.HorzAlign = Center
       Text = 'FIRST FORM'
     end
-    object Button1: TButton
-      TabOrder = 0
-      Text = 'Button1'
-      OnClick = Button1Click
-    end
   end
   object ksSlideMenu1: TksSlideMenu
     Appearence.HeaderFontColor = claNull

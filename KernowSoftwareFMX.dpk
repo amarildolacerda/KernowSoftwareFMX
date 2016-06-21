@@ -1,8 +1,6 @@
 package KernowSoftwareFMX;
 
 {$R *.res}
-{$R glyphs.res}
-
 requires
   rtl,
   fmx,

@@ -17,11 +17,9 @@ type
     Label1: TLabel;
     Image1: TImage;
     ksSlideMenu1: TksSlideMenu;
-    Button1: TButton;
     procedure FormCreate(Sender: TObject);
     procedure ksTableView1ItemClick(Sender: TObject; x, y: Single;
       AItem: TksTableViewItem; AId: string; ARowObj: TksTableViewItemObject);
-    procedure Button1Click(Sender: TObject);
   private
     { Private declarations }
   public
@@ -36,11 +34,6 @@ implementation
 uses untOtherForm, ksChatView;
 
 {$R *.fmx}
-
-procedure TForm3.Button1Click(Sender: TObject);
-begin
-  //BlurForm(Self);
-end;
 
 procedure TForm3.FormCreate(Sender: TObject);
 var
