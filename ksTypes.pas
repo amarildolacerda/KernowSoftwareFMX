@@ -27,6 +27,7 @@ unit ksTypes;
 interface
 
 {$I ksComponents.inc}
+{$R glyphs.res}
 
 uses Classes, FMX.Controls, FMX.Objects, FMX.Types, FMX.StdCtrls, FMX.Graphics, System.UITypes, Types,
   System.UIConsts, System.Generics.Collections, FMX.InertialMovement;

@@ -28,6 +28,7 @@ interface
 
 {$I ksComponents.inc}
 
+
 uses Classes, FMX.StdCtrls, FMX.Graphics, ksControlBadge, ksTypes, FMX.Objects,
   System.UITypes, System.UIConsts;
 

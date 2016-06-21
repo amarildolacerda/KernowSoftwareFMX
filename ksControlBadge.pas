@@ -28,6 +28,7 @@ interface
 
 {$I ksComponents.inc}
 
+
 uses FMX.Controls, Classes, FMX.StdCtrls, FMX.Objects, FMX.Effects, ksTypes;
 
 type
