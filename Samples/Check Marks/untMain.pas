@@ -5,19 +5,21 @@ interface
 uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
   FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.StdCtrls,
-  FMX.Controls.Presentation, ksTableView, FMX.ListBox, ksTypes;
+  FMX.Controls.Presentation, FMX.ListBox, ksTypes,
+  ksVirtualListView;
 
 type
   TForm24 = class(TForm)
-    ksTableView1: TksTableView;
     ToolBar2: TToolBar;
     ToolBar1: TToolBar;
     Label1: TLabel;
     ComboBox1: TComboBox;
     CheckBox1: TCheckBox;
+    ksVirtualListView1: TksVirtualListView;
     procedure FormCreate(Sender: TObject);
     procedure ComboBox1Change(Sender: TObject);
     procedure CheckBox1Change(Sender: TObject);
+    procedure Label1Tap(Sender: TObject; const Point: TPointF);
   private
     { Private declarations }
   public
@@ -36,16 +38,16 @@ uses System.UIConsts;
 procedure TForm24.CheckBox1Change(Sender: TObject);
 begin
   if CheckBox1.IsChecked then
-    ksTableView1.CheckMarkOptions.CheckMarks := TksTableViewCheckMarks.cmMultiSelect
+    ksVirtualListView1.CheckBoxes.Mode := TksSelectionType.ksMultiSelect
   else
-    ksTableView1.CheckMarkOptions.CheckMarks := TksTableViewCheckMarks.cmSingleSelect;
+    ksVirtualListView1.CheckBoxes.Mode := TksSelectionType.ksSingleSelect;
 end;
 
 procedure TForm24.ComboBox1Change(Sender: TObject);
 begin
   case ComboBox1.ItemIndex of
-    0: ksTableView1.CheckMarkOptions.Position := cmpLeft;
-    1: ksTableView1.CheckMarkOptions.Position := cmpRight;
+    0: ksVirtualListView1.CheckBoxes.Alignment := TksVListCheckBoxAlign.ksCbLeftAlign;
+    1: ksVirtualListView1.CheckBoxes.Alignment := TksVListCheckBoxAlign.ksCbRightAlign;
   end;
 end;
 
@@ -53,14 +55,19 @@ procedure TForm24.FormCreate(Sender: TObject);
 var
   ICount: integer;
 begin
-  // add 20 items to the ksTableView...
-  ksTableView1.BeginUpdate;
+  // add 20 items to the ksVirtualListView1...
+  ksVirtualListView1.BeginUpdate;
   try
     for ICount := 1 to 20 do
-      ksTableView1.Items.AddItem('Item: '+IntToStr(ICount), atNone);
+      ksVirtualListView1.Items.Add('Item: '+IntToStr(ICount), '', '', atNone);
   finally
-    ksTableView1.EndUpdate;
+    ksVirtualListView1.EndUpdate;
   end;
+end;
+
+procedure TForm24.Label1Tap(Sender: TObject; const Point: TPointF);
+begin
+  beep;
 end;
 
 end.

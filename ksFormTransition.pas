@@ -34,6 +34,7 @@ uses System.UITypes, FMX.Controls, FMX.Layouts, FMX.Objects, System.Classes,
 
 const
   C_TRANSITION_DELAY = 0.3;
+  C_TRANSITION_FADE  = 0.5;
   C_TRANSITION_PART_SCROLL_FACTOR = 0.3;
   C_INTERPOLATION_TYPE = TInterpolationType.Quadratic;
   C_ANIMATION_TYPE  = TAnimationType.InOut;
@@ -108,6 +109,9 @@ type
   procedure PushForm(AFrom, ATo: TForm; ATransition: TksFormTransitionType; const ScrollBackgroundForm: Boolean = True);
   procedure PopForm;
   procedure PopAllForms;
+
+var
+  TransitionFading: Boolean;
 
 implementation
 
@@ -473,7 +477,8 @@ end;
 procedure TksFormImage.Fade;
 begin
   FRectangle.Opacity := 0;
-  TAnimator.AnimateFloat(Self, 'FadeValue', 0.7, C_TRANSITION_DELAY);
+  if TransitionFading then
+    TAnimator.AnimateFloat(Self, 'FadeValue', C_TRANSITION_FADE, C_TRANSITION_DELAY);
 end;
 
 function TksFormImage.GetFade: single;
@@ -488,13 +493,19 @@ end;
 
 procedure TksFormImage.UnFade;
 begin
-  FRectangle.Opacity := 0.7;
+  if TransitionFading = False then
+  begin
+    FRectangle.Opacity := 0;
+    Exit;
+  end;
+  FRectangle.Opacity := C_TRANSITION_FADE;
   TAnimator.AnimateFloat(Self, 'FadeValue', 0, C_TRANSITION_DELAY);
 end;
 
 initialization
 
   ATransitionList := TksFormTransitioIntoList.Create;
+  TransitionFading := True;
 
 finalization
 

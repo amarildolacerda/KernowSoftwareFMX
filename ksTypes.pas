@@ -33,7 +33,7 @@ uses Classes, FMX.Controls, FMX.Objects, FMX.Types, FMX.StdCtrls, FMX.Graphics, 
   System.UIConsts, System.Generics.Collections, FMX.InertialMovement;
 
 type
-  TksSound = (ksMailNew, ksMailSent, ksVoiceMail, ksBeep, ksMessageReceived, ksMessageSent);
+  TksSound = (ksMailNew, ksMailSent, ksVoiceMail, ksBeep, ksMessageReceived, ksMessageSent, ksCameraShutter);
 
 
   IksBaseComponent = interface
@@ -107,8 +107,6 @@ type
   public
     procedure UpdatePosImmediately;
   end;
-
-
 
 var
   AUnitTesting: Boolean;
@@ -441,5 +439,6 @@ initialization
   AUnitTesting := False;
 
 finalization
+
 
 end.

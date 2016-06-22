@@ -37,6 +37,7 @@ const
   C_VLIST_HEADER_DEFAULT_HEIGHT = 38;
 
   C_VLIST_CACHE_COUNT = 100;
+  C_LONG_TAP_DURATION = 400;
 
 {$IFDEF MSWINDOWS}
   C_VLIST_SCROLLBAR_WIDTH = 16;
@@ -88,8 +89,7 @@ type
     procedure DrawToCanvas(ACanvas: TCanvas; ARect: TRectF);
     property Accessory: TksAccessoryType read FAccessory write SetAccessory;
     property Text: string read FText write FText;
-    property TextColor: TAlphaColor read FTextColor write SetTextColor
-      default claWhite;
+    property TextColor: TAlphaColor read FTextColor write SetTextColor default claWhite;
     property Color: TAlphaColor read FColor write FColor;
     property Width: integer read FWidth write FWidth default 80;
     property IsDeleteButton: Boolean read FIsDeleteButton write FIsDeleteButton;
@@ -192,6 +192,7 @@ type
   TksVListItemTextObject = class(TksVListItemBaseObject)
   private
     FCached: TBitmap;
+    FCachedSize: TRectF;
     FTextSettings: TTextSettings;
     FText: string;
     procedure SetText(const Value: string);
@@ -225,8 +226,8 @@ type
     constructor Create(AItem: TksVListItem); override;
     destructor Destroy; override;
     procedure DrawToCanvas(ACanvas: TCanvas; AItemRect: TRectF); override;
+    procedure SetProperties(ABitmap: TBitmap; AOpaqueColor, ABackgroundColor: TAlphaColor);
     procedure SetOpaqueColor(AColor: TAlphaColor);
-    procedure Resize(AWidth, AHeight: single);
     property IsEmpty: Boolean read GetIsEmpty;
     property Bitmap: TBitmap read FBitmap write SetBitmap;
     property Background: TAlphaColor read FBackground write SetBackground;
@@ -247,15 +248,14 @@ type
 
   TksVListItem = class // (TFmxObject)
   private
-    [weak]
-    FOwner: TksVListItemList;
+    [weak]FOwner: TksVListItemList;
     // FCachedRow: TBitmap;
     FBackground: TAlphaColor;
     FCanSelect: Boolean;
     FChecked: Boolean;
-    FHeight: single;
+    FHeight: integer;
     FSelected: Boolean;
-    FItemRect: TRectF;
+    FItemRect: TRect;
     FImage: TksVListItemImageObject;
     FTitle: TksVListItemTextObject;
     FSubTitle: TksVListItemTextObject;
@@ -281,7 +281,7 @@ type
     procedure SetDetail(const Value: TksVListItemTextObject);
     procedure SetImage(const Value: TksVListItemImageObject);
     procedure SetTitle(const Value: TksVListItemTextObject);
-    procedure SetHeight(const Value: single);
+    procedure SetHeight(const Value: integer);
     procedure UpdateStandardObjectPositions;
     procedure SetSelected(const Value: Boolean);
     procedure SelectItem(ADeselectAfter: integer);
@@ -322,14 +322,14 @@ type
       default claNull;
     property CanSelect: Boolean read FCanSelect write SetCanSelect default True;
     property Checked: Boolean read FChecked write SetChecked default False;
-    property Height: single read FHeight write SetHeight;
+    property Height: integer read FHeight write SetHeight;
     property Image: TksVListItemImageObject read FImage write SetImage;
     property Title: TksVListItemTextObject read FTitle write SetTitle;
     property SubTitle: TksVListItemTextObject read FSubTitle write SetSubTitle;
     property Detail: TksVListItemTextObject read FDetail write SetDetail;
     property Accessory: TksVListItemAccessoryObject read FAccessory
       write SetAccessory;
-    property ItemRect: TRectF read FItemRect;
+    property ItemRect: TRect read FItemRect;
     property Selected: Boolean read FSelected write SetSelected;
     property Purpose: TksVListItemPurpose read FPurpose write SetPurpose
       default None;
@@ -394,12 +394,16 @@ type
     constructor Create; virtual;
   published
     property Color: TAlphaColor read FColor write FColor default claRed;
-    property TextColor: TAlphaColor read FTextColor write FTextColor
-      default claWhite;
+    property TextColor: TAlphaColor read FTextColor write FTextColor default claWhite;
     property Enabled: Boolean read FEnabled write FEnabled default False;
     property Text: string read FText write FText;
     property ShowImage: Boolean read FShowImage write FShowImage default True;
     property Width: integer read FWidth write FWidth default 60;
+  end;
+
+  TksScrollBar = class(TScrollBar)
+  public
+    constructor Create(AOwner: TComponent); override;
   end;
 
 
@@ -414,7 +418,7 @@ type
     FCheckBoxOptions: TksVListCheckBoxOptions;
     FItems: TksVListItemList;
     FScrollPos: integer;
-    FScrollBar: TScrollBar;
+    FScrollBar: TksScrollBar;
     FOnScroll: TNotifyEvent;
     FTotalItemHeight: single;
     FMouseDownPos: TPointF;
@@ -609,6 +613,8 @@ begin
     FHeight := FOwner.FOwner.FItemHeight;
 
     FImage := TksVListItemImageObject.Create(Self);
+    FImage.Width := 32;
+    FImage.Height := 32;
     FImage.VertAlign := TVerticalAlignment.taVerticalCenter;
 
     FTitle := TksVListItemTextObject.Create(Self);
@@ -682,13 +688,14 @@ begin
     Exit;
 
   Selected := True;
+  Application.ProcessMessages;
   if ADeselectAfter > 0 then
   begin
     AStart := Now;
     while MilliSecondsBetween(AStart, Now) < ADeselectAfter do
     begin
-      Sleep(0);
-      Application.ProcessMessages;
+      Sleep(10);
+      //Application.ProcessMessages;
 
     end;
     Selected := False;
@@ -734,7 +741,7 @@ begin
   Changed;
 end;
 
-procedure TksVListItem.SetHeight(const Value: single);
+procedure TksVListItem.SetHeight(const Value: integer);
 begin
   if FHeight <> Value then
   begin
@@ -905,8 +912,6 @@ procedure TksVListItem.UpdateStandardObjectPositions;
 begin
   Inc(FUpdateCount);
   try
-    FImage.Resize(FIconSize, FIconSize);
-
     FTitle.FLeft := 0;
     FTitle.FTop := 0;
     FTitle.FVertAlign := TVerticalAlignment.taVerticalCenter;
@@ -993,7 +998,6 @@ begin
   AState := ACanvas.SaveState;
   try
     ACanvas.IntersectClipRect(r);
-    // ACanvas.BeginScene(nil);
 
     if (not FSelected) then
     begin
@@ -1055,17 +1059,16 @@ begin
     SubTitle.DrawToCanvas(ACanvas, AInternalRect);
     FDetail.DrawToCanvas(ACanvas, AInternalRect);
 
-    ACanvas.StrokeThickness := 1;
-    ACanvas.Stroke.Color := $FFC8C7CC; // claGainsboro;
-    if (FIndex = 0) and (FPurpose = None) and (AScrollPos < 0) then
-      ACanvas.DrawLine(PointF(0, ARect.Top), PointF(ARect.Width, ARect.Top), 1);
-    ACanvas.DrawLine(PointF(0, ARect.Bottom),
-      PointF(ARect.Width, ARect.Bottom), 1);
   finally
-    // ACanvas.EndScene;
     ACanvas.RestoreState(AState);
   end;
+    ACanvas.StrokeThickness := 1 / GetScreenScale;//0.66;//5 * GetScreenScale;
+    ACanvas.Stroke.Color := claDarkgray; //$FFC8C7CC; // claGainsboro;
 
+    if (FIndex = 0) {and (FPurpose = None) and (AScrollPos < 0)} then
+      ACanvas.DrawLine(PointF(0, ARect.Top+(ACanvas.StrokeThickness/2)), PointF(ARect.Width, ARect.Top+(ACanvas.StrokeThickness/2)), 1);
+
+    ACanvas.DrawLine(PointF(0, ARect.Bottom-(ACanvas.StrokeThickness/2)), PointF(ARect.Width, ARect.Bottom-(ACanvas.StrokeThickness/2)), 1);
 end;
 
 procedure TksVListItem.EndUpdate;
@@ -1127,7 +1130,9 @@ begin
   FCheckBoxOptions := TksVListCheckBoxOptions.Create(Self);
   FSelectionOptions := TksVListSelectionOptions.Create(Self);
   FItems := TksVListItemList.Create(Self);
-  FScrollBar := TScrollBar.Create(Self);
+  FScrollBar := TksScrollBar.Create(Self);
+  FScrollBar.Stored := False;
+
   FPullToRefresh := TksVListPullToRefreshOptions.Create;
   FDeleteButton := TksVListDeleteButton.Create;
 
@@ -1196,25 +1201,20 @@ begin
   if AItem = nil then
     Exit;
 
-  // BeginUpdate;
-  try
-    if FCheckBoxOptions.Visible then
-    begin
-      if FCheckBoxOptions.FMode = ksSingleSelect then
-        UncheckAll;
-      AItem.Checked := not AItem.Checked;
-    end;
-
-    SelectItem(AItem);
-    Invalidate;
-    Application.ProcessMessages;
-    AItem.DoClicked;
-  finally
-    // EndUpdate
+  if FCheckBoxOptions.Visible then
+  begin
+    if FCheckBoxOptions.FMode = ksSingleSelect then
+      UncheckAll;
+    AItem.FChecked := not AItem.Checked;
   end;
+
+  SelectItem(AItem);
+  Invalidate;
+  Application.ProcessMessages;
+  AItem.DoClicked;
+
   if Assigned(FOnItemClick) then
     FOnItemClick(Self, AItem);
-
 end;
 
 procedure TksVirtualListView.DoItemDeleted;
@@ -1313,6 +1313,8 @@ procedure TksVirtualListView.LongTapTimerProc;
 var
   AItem: TksVListItem;
 begin
+  if FLongTapTimer = 0 then
+    Exit;
   KillTimer(FLongTapTimer);
 
   if (FAniCalc.Down) then
@@ -1322,6 +1324,7 @@ begin
     begin
       AItem := FItems.ItemAtPos(FMousePt.x, FMousePt.y);
       DoItemClicked(AItem, False);
+      //FAniCalc.MouseLeave;
     end;
   end;
 end;
@@ -1496,7 +1499,7 @@ begin
         True:
           AItem.SelectItem(0);
         False:
-          AItem.SelectItem(200);
+          AItem.SelectItem(100);
       end;
     end
   end
@@ -1536,7 +1539,6 @@ begin
     FScrollBar.Visible := True;
     FScrollBar.Opacity := 1;
     FScrollPos := Value;
-    // FOffset := Round(Value );
     InvalidateRect(ClipRect);
     if Assigned(FOnScroll) then
       FOnScroll(Self);
@@ -1558,7 +1560,7 @@ var
   ICount: integer;
 begin
   for ICount := 0 to Items.Count - 1 do
-    Items[ICount].Checked := False;
+    Items[ICount].FChecked := False;
 end;
 
 procedure TksVirtualListView.UpdateScrollLimmits;
@@ -1615,6 +1617,8 @@ var
   ACanDelete: Boolean;
 begin
   inherited;
+  KillTimer(FLongTapTimer);
+
   FMouseDownTime := Now;
   FMouseDownPos := PointF(x, y);
   FAniCalc.MouseDown(x, y);
@@ -1645,7 +1649,7 @@ begin
   ResetItemOffsets(nil);
 
   if FMouseDownItem <> nil then
-    FLongTapTimer := CreateTimer(300, LongTapTimerProc)
+    FLongTapTimer := CreateTimer(C_LONG_TAP_DURATION, LongTapTimerProc)
 end;
 
 procedure TksVirtualListView.MouseMove(Shift: TShiftState; x, y: single);
@@ -1707,7 +1711,7 @@ begin
     if PtInRect(ASwipeRect, PointF(x, y)) then
     begin
 
-      if ATapDuration <= 300 then
+      if ATapDuration <= C_LONG_TAP_DURATION then
       begin
         // swipe
         if (x < FMouseDownPos.x - 16) or (x > FMouseDownPos.x + 16) then
@@ -1716,7 +1720,7 @@ begin
             ASwipeDirection := ksSwipeFromRight
           else
             ASwipeDirection := ksSwipeFromLeft;
-          //ADidSwipe := True;
+
           DoItemSwiped(AItem, ASwipeDirection);
           FMouseDownItem := nil;
           Exit;
@@ -1727,7 +1731,7 @@ begin
     // tap and long tap
     if (PtInRect(ATapRect, PointF(x, y))) and (ADidSwipe = False) then
     begin
-      if ATapDuration <= 300 then
+      if ATapDuration <= C_LONG_TAP_DURATION then
       begin
         // tap
         DoItemClicked(AItem, True);
@@ -1759,8 +1763,6 @@ begin
 
   if FSelectionOptions.FKeepSelection = False then
     DeselectAll;
-
-  // FScrolling := False;
 end;
 
 procedure TksVirtualListView.MouseWheel(Shift: TShiftState; WheelDelta: integer;
@@ -1928,7 +1930,7 @@ procedure TksVListItemList.UpdateItemRects;
 var
   ICount: integer;
   ARect: TRectF;
-  AYPos: single;
+  AYPos: integer;
   AItem: TksVListItem;
 begin
   AYPos := 0;
@@ -1939,7 +1941,7 @@ begin
     AItem.FAbsoluteIndex := ICount;
     AItem.FIndex := ICount;
     ARect := RectF(0, AYPos, FOwner.Width, AYPos + AItem.Height);
-    AItem.FItemRect := ARect;
+    AItem.FItemRect := ARect.Round;
     AYPos := AYPos + AItem.Height;
     FOwner.FTotalItemHeight := FOwner.FTotalItemHeight + AItem.Height;
   end;
@@ -1950,8 +1952,11 @@ end;
 procedure TksVListItemTextObject.CacheTextToBmp;
 var
   ASize: TRectF;
+  AScale: single;
 begin
   inherited;
+  AScale := GetScreenScale;
+
   if FCached = nil then
     FCached := TBitmap.Create;
 
@@ -1964,9 +1969,9 @@ begin
     if FHeight = 0 then
       FHeight := ASize.Height;
 
-    FCached.SetSize(Round(ASize.Width * GetScreenScale) + 1,
-      Round(ASize.Height * GetScreenScale));
-    FCached.BitmapScale := GetScreenScale;
+    FCached.SetSize(Round(ASize.Width * AScale),
+      Round(ASize.Height * AScale));
+    FCached.BitmapScale := AScale;
     FCached.Clear(claNull);
     //
 
@@ -1975,8 +1980,8 @@ begin
     try
       FCached.Canvas.Fill.Color := FTextSettings.FontColor;
       FCached.Canvas.Font.Assign(FTextSettings.Font);
-      FCached.Canvas.FillText(RectF(0, 0, FCached.Width / GetScreenScale,
-        FCached.Height / GetScreenScale), FText, False, 1, [],
+      FCached.Canvas.FillText(RectF(0, 0, FCached.Width / AScale,
+        FCached.Height / AScale), FText, False, 1, [],
         FTextSettings.HorzAlign, TTextAlign.Center);
     finally
       FCached.Canvas.EndScene;
@@ -1985,18 +1990,34 @@ begin
 end;
 
 function TksVListItemTextObject.CalculateSize: TRectF;
+var
+  AMeasure: TBitmap;
 begin
-  Result := RectF(0, 0, FWidth, MaxSingle);
-  if Result.Width = 0 then
-    Result.Width := MaxSingle;
+  Result := FCachedSize;
 
-  TCanvasManager.MeasureCanvas.Font.Assign(FTextSettings.Font);
-  TCanvasManager.MeasureCanvas.MeasureText(Result, FText, False, [],
-    FTextSettings.HorzAlign, TTextAlign.Leading);
+  if Result.IsEmpty then
+  begin
+    AMeasure := TBitmap.Create(1, 1);
+    try
+      AMeasure.BitmapScale := GetScreenScale;
+
+      Result := RectF(0, 0, FWidth, MaxSingle);
+      if Result.Width = 0 then
+        Result.Width := MaxSingle;
+
+      AMeasure.Canvas.Font.Assign(FTextSettings.Font);
+      AMeasure.Canvas.MeasureText(Result, FText, False, [], FTextSettings.HorzAlign, TTextAlign.Leading);
+
+      FCachedSize := Result;
+    finally
+      FreeAndNil(AMeasure);
+    end;
+  end;
 end;
 
 procedure TksVListItemTextObject.Changed;
 begin
+  FCachedSize := FCachedSize.Empty;
   if FCached = nil then
     Exit;
   if FCached.IsEmpty = False then
@@ -2011,13 +2032,6 @@ end;
 procedure TksVListItemTextObject.ClearCache;
 begin
   FreeAndNil(FCached);
-
-  { if FCached.IsEmpty = False then
-    begin
-    FCached.Clear(claNull);
-    FCached.SetSize(0, 0);
-
-    end; }
 end;
 
 constructor TksVListItemTextObject.Create(AItem: TksVListItem);
@@ -2284,39 +2298,12 @@ begin
     Result := FBitmap.IsEmpty;
 end;
 
-procedure TksVListItemImageObject.Resize(AWidth, AHeight: single);
-var
-  ABmp: TBitmap;
-begin
-  if FBitmap = nil then
-    Exit;
-  if (FWidth <> AWidth) or (AHeight <> AHeight) then
-  begin
-    FWidth := AWidth;
-    FHeight := AHeight;
-    ABmp := TBitmap.Create(Round(FWidth * GetScreenScale),
-      Round(FHeight * GetScreenScale));
-    try
-      ABmp.Clear(claNull);
-      ABmp.Canvas.BeginScene(nil);
-      try
-        ABmp.Canvas.DrawBitmap(FBitmap, RectF(0, 0, FBitmap.Width,
-          FBitmap.Height), RectF(0, 0, ABmp.Width, ABmp.Height), 1, True);
-      finally
-        ABmp.Canvas.EndScene;
-      end;
-      FBitmap.Assign(ABmp);
-    finally
-      FreeAndNil(ABmp);
-    end;
-    Changed;
-  end;
-end;
-
 procedure TksVListItemImageObject.SetBackground(const Value: TAlphaColor);
 begin
   if FBackground <> Value then
   begin
+    if Value = claNull then
+      Exit;
     FBackground := Value;
     Changed;
   end;
@@ -2328,26 +2315,35 @@ begin
   begin
     if FBitmap = nil then
     begin
-      FBitmap := TBitmap.Create(Value.Width, Value.Height);
-      //FBitmap.Clear(claNull);
+      FBitmap := TBitmap.Create(Round(FWidth*GetScreenScale), Round(FHeight*GetScreenScale));
+      FBitmap.Clear(claNull);
     end;
     FBitmap.Canvas.BeginScene;
     try
       FBitmap.Canvas.DrawBitmap(Value, RectF(0, 0, Value.Width, Value.Height),
-        RectF(0, 0, FBitmap.Width, FBitmap.Height), 1, True);
+        RectF(0, 0, FBitmap.Width, FBitmap.Height), 1, False);
     finally
       FBitmap.Canvas.EndScene;
     end;
   end
   else
     FBitmap := Value;
-  FWidth := FBitmap.Width;
-  FHeight := FBitmap.Height;
 end;
 
 procedure TksVListItemImageObject.SetOpaqueColor(AColor: TAlphaColor);
 begin
+  if AColor = claNull then
+    Exit;
   ReplaceOpaqueColor(FBitmap, AColor);
+  Changed;
+end;
+
+procedure TksVListItemImageObject.SetProperties(ABitmap: TBitmap; AOpaqueColor,
+  ABackgroundColor: TAlphaColor);
+begin
+  Bitmap := ABitmap;
+  SetOpaqueColor(AOpaqueColor);
+  SetBackground(ABackgroundColor);
 end;
 
 { TksVListItemAccessoryObject }
@@ -2373,6 +2369,16 @@ begin
   begin
     FAccessoryType := Value;
     Bitmap := AAccessories.GetAccessoryImage(FAccessoryType);
+    if Bitmap.IsEmpty then
+    begin
+      FWidth := 0;
+      FHeight := 0;
+    end
+    else
+    begin
+      FWidth := Bitmap.Width / GetScreenScale;
+      FHeight := Bitmap.Height / GetScreenScale;
+    end;
   end;
 end;
 
@@ -2532,6 +2538,14 @@ begin
   FText := 'Delete';
   FShowImage := True;
   FWidth := 60;
+end;
+
+{ TksScrollBar }
+
+constructor TksScrollBar.Create(AOwner: TComponent);
+begin
+  inherited;
+  FDesignInteractive := False;
 end;
 
 initialization

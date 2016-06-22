@@ -44,6 +44,7 @@ begin
     ksMessageReceived: AId := 1003;
     ksMessageSent: AId := 1004;
     ksBeep: AId := 1052;
+    ksCameraShutter: AId := 1108;
   end;
 
   if AId = -1 then

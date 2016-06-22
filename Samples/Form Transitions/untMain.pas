@@ -10,7 +10,6 @@ uses
 
 type
   TForm3 = class(TForm)
-    ksFormTransition1: TksFormTransition;
     ToolBar1: TToolBar;
     ksTableView1: TksTableView;
     ToolBar2: TToolBar;
@@ -39,6 +38,7 @@ procedure TForm3.FormCreate(Sender: TObject);
 var
   AIcon: TBitmap;
 begin
+  TransitionFading := False;
   {$IFDEF MSWINDOWS}
   Width := FormFactor.Width;
   Height := FormFactor.Height;

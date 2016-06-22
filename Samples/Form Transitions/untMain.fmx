@@ -1723,10 +1723,6 @@ object Form3: TForm3
       Size.PlatformDefault = False
     end
   end
-  object ksFormTransition1: TksFormTransition
-    Left = 48
-    Top = 64
-  end
   object ToolBar1: TToolBar
     Size.Width = 250.000000000000000000
     Size.Height = 44.000000000000000000

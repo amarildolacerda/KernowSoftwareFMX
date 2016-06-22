@@ -12,7 +12,6 @@ type
     ToolBar1: TToolBar;
     Label1: TLabel;
     Button1: TButton;
-    ksFormTransition1: TksFormTransition;
     ksTableView1: TksTableView;
     procedure FormCreate(Sender: TObject);
     procedure Button1Click(Sender: TObject);

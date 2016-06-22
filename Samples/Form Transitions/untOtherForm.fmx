@@ -34,10 +34,6 @@ object Form5: TForm5
       OnClick = Button1Click
     end
   end
-  object ksFormTransition1: TksFormTransition
-    Left = 104
-    Top = 176
-  end
   object ksTableView1: TksTableView
     Align = Client
     BackgroundText.Font.Size = 18.000000000000000000

@@ -36,7 +36,7 @@ type
   {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
   {$ELSE} pidiOSDevice {$ENDIF} or pidiOSSimulator or pidAndroid)]
 
-  TksImageViewer = class(TksControl, IMultiTouch)
+  TksImageViewer = class(TksControl)
   private
     FAniCalc: TksAniCalc;
     FBitmap: TBitmap;
@@ -63,7 +63,7 @@ type
     procedure DoMouseLeave; override;
     procedure Paint; override;
     procedure Resize; override;
-    procedure CMGesture(var EventInfo: TGestureEventInfo); override;
+    //procedure CMGesture(var EventInfo: TGestureEventInfo); override;
   public
     procedure UpdateLabel(ADistance: integer);
     constructor Create(AOwner: TComponent); override;
@@ -105,7 +105,7 @@ begin
     Scene.ChangeScrollingState(nil, False);
 end;
 
-procedure TksImageViewer.CMGesture(var EventInfo: TGestureEventInfo);
+{procedure TksImageViewer.CMGesture(var EventInfo: TGestureEventInfo);
 var
   APercent: integer;
   ANewZoom: integer;
@@ -129,7 +129,7 @@ begin
   Zoom := ANewZoom;
   FStartZoom := Zoom;
   FStartDistance := EventInfo.Distance;
-end;
+end;  }
 
 constructor TksImageViewer.Create(AOwner: TComponent);
 begin
