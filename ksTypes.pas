@@ -112,7 +112,8 @@ var
   AUnitTesting: Boolean;
 
 
-  procedure PlaySystemSound(ASound: TksSound);
+  procedure PlaySystemSound(ASound: TksSound); overload;
+  procedure PlaySystemSound(ASoundID: integer); overload;
 
 implementation
 
@@ -126,6 +127,14 @@ var
 begin
   AObj := TksSystemSound.Create;
   AObj.Play(ASound);
+end;
+
+procedure PlaySystemSound(ASoundID: integer); overload;
+var
+  AObj: TksSystemSound;
+begin
+  AObj := TksSystemSound.Create;
+  AObj.Play(ASoundID);
 end;
 
 { TksTableViewAccessoryImageList }

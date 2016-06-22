@@ -14,13 +14,18 @@ type
 
   TksSystemSound = class(TInterfacedObject, IksSystemSound)
   public
-    procedure Play(ASound: TksSound);
+    procedure Play(ASound: TksSound); overload;
+    procedure Play(ASoundIndex: integer); overload;
   end;
 
 implementation
 
-uses Types;
-
+uses Types
+{$IFDEF ANDROID}
+    ,androidapi.jni.media, FMX.Helpers.Android, androidapi.jni.JavaTypes, Androidapi.JNI.GraphicsContentViewText,Androidapi.JNIBridge,
+    androidapi.helpers
+  {$ENDIF}
+;
   {$IFDEF IOS}
 
   procedure AudioServicesPlaySystemSound( inSystemSoundID: UInt32 ); cdecl; external libAudioToolbox name 'AudioServicesPlaySystemSound';
@@ -30,12 +35,10 @@ uses Types;
 
  
 procedure TksSystemSound.Play(ASound: TksSound);
-{$IFDEF IOS}
 var
   AId: integer;
-{$ENDIF}
 begin
-  //AId := -1;
+  AId := -1;
   {$IFDEF IOS}
   case ASound of
     ksMailNew: AId := 1000;
@@ -47,10 +50,35 @@ begin
     ksCameraShutter: AId := 1108;
   end;
 
+
+  {$ENDIF}
+
+  {$IFDEF ANDROID}
+  case ASound of
+    ksBeep: AId := 6;
+    ksCameraShutter: AId := 8;
+  end;
+  {$ENDIF}
+
   if AId = -1 then
     Exit;
-    
-  AudioServicesPlaySystemSound(AId);    
+  Play(AId);
+end;
+
+procedure TksSystemSound.Play(ASoundIndex: integer);
+{$IFDEF ANDROID}
+var
+  AAudioMgr : JAudioManager;
+
+{$ENDIF}
+begin
+  {$IFDEF IOS}
+  AudioServicesPlaySystemSound(ASoundIndex);
+  {$ENDIF}
+  {$IFDEF ANDROID}
+  AAudioMgr := TJAudioManager.Wrap((SharedActivity.getSystemService(TJContext.JavaClass.AUDIO_SERVICE) as ILocalObject).GetObjectID);
+  AAudioMgr.playSoundEffect(ASoundIndex);
+
   {$ENDIF}
 end;
 

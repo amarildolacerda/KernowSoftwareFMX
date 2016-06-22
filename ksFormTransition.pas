@@ -96,7 +96,7 @@ type
       ANewValue: single; AWait: Boolean);
     class function GenerateFormImage(AForm: TForm): TBitmap;
     procedure PushForm(AFrom, ATo: TForm; ATransition: TksFormTransitionType; const ScrollBackgroundForm: Boolean = True);
-    procedure PopForm;
+    procedure PopForm(const Animate: Boolean = True);
     procedure PopAllForms;
   public
     constructor Create(AOwner: TComponent); override;
@@ -109,6 +109,7 @@ type
   procedure PushForm(AFrom, ATo: TForm; ATransition: TksFormTransitionType; const ScrollBackgroundForm: Boolean = True);
   procedure PopForm;
   procedure PopAllForms;
+  procedure ClearTransitionTrail;
 
 var
   TransitionFading: Boolean;
@@ -149,6 +150,11 @@ begin
   finally
     ATran.DisposeOf;
   end;
+end;
+
+procedure ClearTransitionTrail;
+begin
+  ATransitionList.Clear;
 end;
 
 procedure PopAllForms;
@@ -235,7 +241,7 @@ begin
   Result.Canvas.EndScene;
 end;
 
-procedure TksFormTransition.PopForm;
+procedure TksFormTransition.PopForm(const Animate: Boolean = True);
 var
   AInfo: TksFormTransitionInfo;
 begin
@@ -244,6 +250,7 @@ begin
   AInfo := ATransitionList.Last;
 
   FPreventAdd := True;
+  //if Animate then
   PushForm(AInfo.FormTo, AInfo.FormFrom, AInfo.ReverseTransition, AInfo.BackgroundScroll);
   FPreventAdd := False;
   Application.ProcessMessages;
@@ -252,8 +259,12 @@ end;
 
 procedure TksFormTransition.PopAllForms;
 begin
-  while ATransitionList.Count > 0 do
-    PopForm;
+  PushForm(ATransitionList.Last.FFormTo,
+           ATransitionList.First.FFormFrom,
+           ATransitionList.First.FTransitionType);
+  ClearTransitionTrail;
+  //while ATransitionList.Count > 0 do
+  //  PopForm(ATransitionList.Count = 1);
 end;
 
 procedure TksFormTransition.PushForm(AFrom, ATo: TForm;
