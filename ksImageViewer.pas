@@ -63,7 +63,7 @@ type
     procedure DoMouseLeave; override;
     procedure Paint; override;
     procedure Resize; override;
-    //procedure CMGesture(var EventInfo: TGestureEventInfo); override;
+    procedure CMGesture(var EventInfo: TGestureEventInfo); override;
   public
     procedure UpdateLabel(ADistance: integer);
     constructor Create(AOwner: TComponent); override;
@@ -105,18 +105,19 @@ begin
     Scene.ChangeScrollingState(nil, False);
 end;
 
-{procedure TksImageViewer.CMGesture(var EventInfo: TGestureEventInfo);
+procedure TksImageViewer.CMGesture(var EventInfo: TGestureEventInfo);
+{$IFDEF IOS}
 var
   APercent: integer;
   ANewZoom: integer;
+{$ENDIF}
 begin
   inherited;
+  {$IFDEF IOS}
   if FStartDistance = 0 then
     APercent := 100
   else
     APercent := Round((EventInfo.Distance / FStartDistance) * 100);
-
-
 
   ANewZoom := Round(FStartZoom * (APercent / 100));
   if Max(FZoom, ANewZoom) - Min(FZoom, ANewZoom) > 10 then
@@ -125,11 +126,11 @@ begin
     FStartDistance := 0;
     Exit;
   end;
-  //updatelabel(ANewZoom);
   Zoom := ANewZoom;
   FStartZoom := Zoom;
   FStartDistance := EventInfo.Distance;
-end;  }
+  {$ENDIF}
+end;
 
 constructor TksImageViewer.Create(AOwner: TComponent);
 begin
@@ -214,15 +215,18 @@ begin
     DrawDesignBorder(claDimgray, claDimgray);
   ASaveState := Canvas.SaveState;
   try
-    //ASourceRect := RectF(0, 0, (FBitmap.Width/100)*FZoom, (FBitmap.Height/100)*FZoom);
     Canvas.IntersectClipRect(ClipRect);
     Canvas.Clear(claBlack);
     ASourceRect := RectF(0, 0, FBitmap.Width, FBitmap.Height);
 
     ADestRect := ASourceRect;
-    //InflateRect(ADestRect, 0-(FZoom/100), 0-(FZoom/100));
     ADestRect.Width := (FBitmap.Width/100)*FZoom;
     ADestRect.Height := (FBitmap.Height/100)*FZoom;
+
+    //{$IFDEF ANDROID}
+    ADestRect := ClipRect;
+    //{$ENDIF}
+
     OffsetRect(ADestRect, 0-FAniCalc.ViewportPosition.X, 0-FAniCalc.ViewportPosition.Y);
 
     if ADestRect.Width < Width then
@@ -303,13 +307,16 @@ var
   Targets: array of TAniCalculations.TTarget;
   w, h: single;
 begin
+
   if FAniCalc <> nil then
   begin
-    w := (FBitmap.Width / 100) * FZoom;
-    h := (FBitmap.Height / 100) * FZoom;
-    w := w - Width;
-    h := h - Height;
+    //w := (FBitmap.Width / 100) * FZoom;
+    //h := (FBitmap.Height / 100) * FZoom;
+    //w := w - Width;
+    //h := h - Height;
 
+    w := 0;
+    h := 0;
 
     SetLength(Targets, 2);
     Targets[0].TargetType := TAniCalculations.TTargetType.Min;

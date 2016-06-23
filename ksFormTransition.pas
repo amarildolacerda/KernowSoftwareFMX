@@ -258,13 +258,20 @@ begin
 end;
 
 procedure TksFormTransition.PopAllForms;
+var
+  AFirst: TksFormTransitionInfo;
+  ALast: TksFormTransitionInfo;
 begin
-  PushForm(ATransitionList.Last.FFormTo,
-           ATransitionList.First.FFormFrom,
-           ATransitionList.First.FTransitionType);
+  if ATransitionList.Count = 0 then
+    Exit;
+  ALast := ATransitionList.Last;
+  AFirst := ATransitionList.First;
+  FPreventAdd := True;
+  //if Animate then
+  PushForm(ALast.FormTo, AFirst.FormFrom, ALast.ReverseTransition, ALast.BackgroundScroll);
+  FPreventAdd := False;
   ClearTransitionTrail;
-  //while ATransitionList.Count > 0 do
-  //  PopForm(ATransitionList.Count = 1);
+  Application.ProcessMessages;
 end;
 
 procedure TksFormTransition.PushForm(AFrom, ATo: TForm;

@@ -76,7 +76,7 @@ begin
   AudioServicesPlaySystemSound(ASoundIndex);
   {$ENDIF}
   {$IFDEF ANDROID}
-  AAudioMgr := TJAudioManager.Wrap((SharedActivity.getSystemService(TJContext.JavaClass.AUDIO_SERVICE) as ILocalObject).GetObjectID);
+  AAudioMgr := TJAudioManager.Wrap((TAndroidHelper.Activity.getSystemService(TJContext.JavaClass.AUDIO_SERVICE) as ILocalObject).GetObjectID);
   AAudioMgr.playSoundEffect(ASoundIndex);
 
   {$ENDIF}
