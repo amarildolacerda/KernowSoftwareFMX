@@ -623,11 +623,13 @@ begin
     FSubTitle := TksVListItemTextObject.Create(Self);
     FSubTitle.VertAlign := TVerticalAlignment.taVerticalCenter;
     FSubTitle.TextSettings.FontColor := claDimgray;
+    FSubTitle.Font.Size := 14;
 
     FDetail := TksVListItemTextObject.Create(Self);
     FDetail.VertAlign := TVerticalAlignment.taVerticalCenter;
     FDetail.HorzAlign := TAlignment.taRightJustify;
     FDetail.TextSettings.FontColor := claGray;
+    FDetail.Font.Size := 14;
 
     FAccessory := TksVListItemAccessoryObject.Create(Self);
     FAccessory.VertAlign := TVerticalAlignment.taVerticalCenter;

@@ -47,6 +47,9 @@ uses FMX.Controls, FMX.Graphics, System.UITypes, FMX.Types, Types, System.UICons
 implementation
 
 uses FMX.Platform, FMX.Forms,  SysUtils, FMX.TextLayout, Math, FMX.Utils
+  {$IFDEF IOS}
+  , IOSApi.Foundation
+  {$ENDIF}
   {$IFDEF USE_TMS_HTML_ENGINE} , FMX.TMSHTMLEngine {$ENDIF}
   ;
 
