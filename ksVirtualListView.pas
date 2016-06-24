@@ -255,7 +255,7 @@ type
     FChecked: Boolean;
     FHeight: integer;
     FSelected: Boolean;
-    FItemRect: TRect;
+    FItemRect: TRectF;
     FImage: TksVListItemImageObject;
     FTitle: TksVListItemTextObject;
     FSubTitle: TksVListItemTextObject;
@@ -329,7 +329,7 @@ type
     property Detail: TksVListItemTextObject read FDetail write SetDetail;
     property Accessory: TksVListItemAccessoryObject read FAccessory
       write SetAccessory;
-    property ItemRect: TRect read FItemRect;
+    property ItemRect: TRectF read FItemRect;
     property Selected: Boolean read FSelected write SetSelected;
     property Purpose: TksVListItemPurpose read FPurpose write SetPurpose
       default None;
@@ -1941,7 +1941,7 @@ begin
     AItem.FAbsoluteIndex := ICount;
     AItem.FIndex := ICount;
     ARect := RectF(0, AYPos, FOwner.Width, AYPos + AItem.Height);
-    AItem.FItemRect := ARect.Round;
+    AItem.FItemRect := ARect;
     AYPos := AYPos + AItem.Height;
     FOwner.FTotalItemHeight := FOwner.FTotalItemHeight + AItem.Height;
   end;
