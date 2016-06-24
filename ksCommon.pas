@@ -78,6 +78,14 @@ end;
 
 
 procedure ProcessMessages;
+{$IFDEF IOS}
+var
+  TimeoutDate: NSDate;
+begin
+  TimeoutDate := TNSDate.Wrap(TNSDate.OCClass.dateWithTimeIntervalSinceNow(0.0));
+  TNSRunLoop.Wrap(TNSRunLoop.OCClass.currentRunLoop).runMode(NSDefaultRunLoopMode, TimeoutDate);
+end;
+{$ELSE}
 begin
   // FMX can occasionally raise an exception.
   try
@@ -86,6 +94,7 @@ begin
     //
   end;
 end;
+{$ENDIF}
 
 function GetColorOrDefault(AColor, ADefaultIfNull: TAlphaColor): TAlphaColor;
 begin
