@@ -55,6 +55,9 @@ type
     property Visible: Boolean read FVisible write SetVisible default True;
   end;
 
+  [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
+    {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
+    {$ELSE} pidiOSDevice {$ENDIF} or pidiOSSimulator or pidAndroid)]
   TksProgressIndicator = class(TksControl)
   private
     FSteps: TksProgressIndicatorSteps;

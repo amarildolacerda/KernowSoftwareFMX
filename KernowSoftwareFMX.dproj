@@ -479,7 +479,6 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
-        <DCCReference Include="glyphs.res"/>
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="fmx.dcp"/>
         <DCCReference Include="designide.dcp"/>
@@ -505,6 +504,7 @@
         <DCCReference Include="ksSystemSound.pas"/>
         <DCCReference Include="ksImageViewer.pas"/>
         <DCCReference Include="ksProgressIndicator.pas"/>
+        <DCCReference Include="ksCircleProgress.pas"/>
         <BuildConfiguration Include="Debug">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
