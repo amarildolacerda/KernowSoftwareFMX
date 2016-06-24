@@ -19,7 +19,6 @@ type
     procedure FormCreate(Sender: TObject);
     procedure ComboBox1Change(Sender: TObject);
     procedure CheckBox1Change(Sender: TObject);
-    procedure Label1Tap(Sender: TObject; const Point: TPointF);
   private
     { Private declarations }
   public
@@ -63,11 +62,6 @@ begin
   finally
     ksVirtualListView1.EndUpdate;
   end;
-end;
-
-procedure TForm24.Label1Tap(Sender: TObject; const Point: TPointF);
-begin
-  beep;
 end;
 
 end.

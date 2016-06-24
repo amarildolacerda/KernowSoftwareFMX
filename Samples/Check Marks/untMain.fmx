@@ -47,7 +47,6 @@ object Form24: TForm24
     Size.PlatformDefault = False
     TabOrder = 0
     object Label1: TLabel
-      OnTap = Label1Tap
       Align = Client
       StyledSettings = [Family, Style, FontColor]
       HitTest = True

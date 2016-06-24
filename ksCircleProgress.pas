@@ -64,7 +64,7 @@ type
 
 implementation
 
-uses Math, SysUtils, Types, FMX.Types, FMX.Ani;
+uses FMX.Controls, Math, SysUtils, Types, FMX.Types, FMX.Ani;
 
 const
   C_SCALE = 3;
