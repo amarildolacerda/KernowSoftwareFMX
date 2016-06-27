@@ -542,31 +542,7 @@ begin
 end;
 
 procedure TksTabControl.Paint;
-//var
-//  AState: TCanvasSaveState;
 begin
-{  with Canvas do
-  begin
-    AState := SaveState;
-    try
-      IntersectClipRect(RectF(0, 0, Size.Width, Size.Height));
-      Fill.Kind := TBrushKind.Solid;
-      Fill.Color := claWhitesmoke;
-      FillRect(RectF(0, 0, Size.Width, Size.Height), 0, 0, AllCorners,1);
-    finally
-      RestoreState(AState);
-    end;
-    AState := SaveState;
-    try
-      IntersectClipRect(RectF(0, 0, Size.Width, Size.Height));
-      Stroke.Kind := TBrushKind.Solid;
-      Stroke.Color := claSilver;
-      DrawRect(RectF(0, 0, Size.Width, Size.Height), 0, 0, AllCorners,1);
-    finally
-      RestoreState(AState);
-    end;
-  end;  }
-
   if (csDesigning in ComponentState) then
   begin
     DrawDesignBorder(claDimgray, claDimgray);
@@ -701,13 +677,17 @@ begin
   ATabControl := TksTabControl(FTabControl);
   with Canvas do
   begin
-
     AState := SaveState;
     try
       ARect := RectF(0, 0, Size.Width, Size.Height);
       if (csDesigning in ComponentState) then
         InflateRect(ARect, -1, -1);
       IntersectClipRect(ARect);
+
+      Clear(claNull);
+
+      if FTabControl.TabPosition = ksTbpNone then
+      Exit;
       Fill.Kind := TBrushKind.Solid;
 
       Canvas.Clear(ATabControl.Appearence.BackgroundColor);

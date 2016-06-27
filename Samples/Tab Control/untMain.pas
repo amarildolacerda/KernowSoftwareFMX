@@ -104,6 +104,7 @@ begin
   case AIndex of
     0: ksTabControl1.TabPosition := ksTbpBottom;
     1: ksTabControl1.TabPosition := ksTbpTop;
+    2: ksTabControl1.TabPosition := ksTbpNone;
   end;
 end;
 
