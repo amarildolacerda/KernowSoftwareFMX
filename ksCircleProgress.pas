@@ -49,7 +49,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    procedure AnimateToValue(AValue: single);
+    procedure AnimateToValue(AValue: single; const ADurationSecs: integer = 1);
   published
     property Height;
     property Width;
@@ -77,9 +77,9 @@ end;
 
 { TksCircleProgress }
 
-procedure TksCircleProgress.AnimateToValue(AValue: single);
+procedure TksCircleProgress.AnimateToValue(AValue: single; const ADurationSecs: integer = 1);
 begin
-  TAnimator.AnimateFloatWait(Self, 'Value', AValue, 1);
+  TAnimator.AnimateFloat(Self, 'Value', AValue, ADurationSecs);
 end;
 
 constructor TksCircleProgress.Create(AOwner: TComponent);
