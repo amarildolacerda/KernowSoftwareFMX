@@ -31,6 +31,8 @@ interface
 uses Classes, ksTypes, FMX.Graphics, System.UITypes, System.UIConsts;
 
 type
+  TksCircleProgressCaptionType = (ksCirclePercent, ksCircleNone, ksCircleCustom);
+
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
     {$IFDEF XE8_OR_NEWER} pidiOSDevice32 or pidiOSDevice64
     {$ELSE} pidiOSDevice {$ENDIF} or pidiOSSimulator or pidAndroid)]
@@ -40,10 +42,14 @@ type
     FValue: single;
     FBackgroundColor: TAlphaColor;
     FColor: TAlphaColor;
+    FCaptionType: TksCircleProgressCaptionType;
+    FText: string;
     procedure RecreateBitmap;
     procedure SetValue(const Value: single);
     procedure SetColor(const Value: TAlphaColor);
     procedure SetBackgroundColor(const Value: TAlphaColor);
+    procedure SetCaptionType(const Value: TksCircleProgressCaptionType);
+    procedure SetText(const Value: string);
   protected
     procedure Paint; override;
   public
@@ -51,6 +57,7 @@ type
     destructor Destroy; override;
     procedure AnimateToValue(AValue: single; const ADurationSecs: integer = 1);
   published
+    property CaptionType: TksCircleProgressCaptionType read FCaptionType write SetCaptionType default ksCirclePercent;
     property Height;
     property Width;
     property Size;
@@ -58,6 +65,7 @@ type
     property BackgroundColor: TAlphaColor read FBackgroundColor write SetBackgroundColor default claGainsboro;
     property Color: TAlphaColor read FColor write SetColor default claDodgerblue;
     property Value: single read FValue write SetValue;
+    property Text: string read FText write SetText;
   end;
 
   procedure Register;
@@ -86,8 +94,10 @@ constructor TksCircleProgress.Create(AOwner: TComponent);
 begin
   inherited;
   FBitmap := TBitmap.Create;
+  FCaptionType := TksCircleProgressCaptionType.ksCirclePercent;
   FColor := claDodgerblue;
   FBackgroundColor := claGainsboro;
+  FText := '';
   FValue := 0;
   Width := 150;
   Height := 150;
@@ -102,6 +112,7 @@ end;
 procedure TksCircleProgress.Paint;
 var
   r: TRectF;
+  ACaption: string;
 begin
   inherited;
   RecreateBitmap;
@@ -109,10 +120,14 @@ begin
   Canvas.DrawBitmap(FBitmap, RectF(0, 0, FBitmap.Width, FBitmap.Height), r, 1, True);
 
 
+  ACaption := '';
+  case FCaptionType of
+    ksCirclePercent: ACaption := ' '+InTToStr(Round(FValue))+'%';
+    ksCircleCustom: ACaption := Text;
+  end;
   Canvas.Fill.Color := FColor;
   Canvas.Font.Size := 24;
-  Canvas.FillText(ClipRect, ' '+InTToStr(Round(FValue))+'%', False, 1, [], TTextAlign.Center, TTextAlign.Center);
-
+  Canvas.FillText(ClipRect, ACaption, False, 1, [], TTextAlign.Center, TTextAlign.Center);
 end;
 
 procedure TksCircleProgress.RecreateBitmap;
@@ -180,11 +195,30 @@ begin
   end;
 end;
 
+procedure TksCircleProgress.SetCaptionType(
+  const Value: TksCircleProgressCaptionType);
+begin
+  if FCaptionType <> Value then
+  begin
+    FCaptionType := Value;
+    InvalidateRect(ClipRect);
+  end;
+end;
+
 procedure TksCircleProgress.SetColor(const Value: TAlphaColor);
 begin
   if FColor <> Value then
   begin
     FColor := Value;
+    InvalidateRect(ClipRect);
+  end;
+end;
+
+procedure TksCircleProgress.SetText(const Value: string);
+begin
+  if FText <> Value then
+  begin
+    FText := Value;
     InvalidateRect(ClipRect);
   end;
 end;
