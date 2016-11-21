@@ -45,6 +45,7 @@ type
     FOnScanBuffer: TScanBufferEvent;
     procedure DoScanBuffer(Sender: TObject; const ATime: TMediaTime);
     procedure SyncroniseBuffer;
+    procedure SetActive(const Value: Boolean);
   protected
     procedure Paint; override;
   public
@@ -53,7 +54,7 @@ type
     procedure StartCapture;
     procedure StopCapture;
   published
-
+    property Active: Boolean read FActive write SetActive;
     property Align;
     property Height;
     property Size;
@@ -99,6 +100,15 @@ begin
   inherited;
 end;
 
+
+procedure TksCameraViewer.SetActive(const Value: Boolean);
+begin
+  FActive := Value;
+  case FActive of
+    True: StartCapture;
+    False: StopCapture;
+  end;
+end;
 
 procedure TksCameraViewer.StartCapture;
 begin

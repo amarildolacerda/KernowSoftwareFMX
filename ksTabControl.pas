@@ -83,6 +83,7 @@ type
   private
     FIcon: TBitmap;
     FIconType: TksTabItemIcon;
+    FBackground: TAlphaColor;
     FTabIndex: integer;
     FText: string;
     FBadgeValue: integer;
@@ -94,6 +95,8 @@ type
     procedure SetIconType(const Value: TksTabItemIcon);
     procedure SetTabIndex(const Value: integer);
     procedure SetHighlightStyle(const Value: TksTabBarHighlightStyle);
+    procedure FadeOut(ADuration: single);
+    procedure FadeIn(ADuration: single);
   public
     constructor Create(AOwner: TComponent); override;
     procedure BeforeDestruction; override;
@@ -104,9 +107,9 @@ type
     property BadgeValue: integer read FBadgeValue write SetBadgeValue;
     property Icon: TBitmap read FIcon write SetIcon;
     property StandardIcon: TksTabItemIcon read FIconType write SetIconType;
-    property TabIndex: integer read FTabIndex write SetTabIndex stored False;
+    property TabIndex: integer read FTabIndex write SetTabIndex;// stored False;
     property HighlightStyle: TksTabBarHighlightStyle read FHighlightStyle write SetHighlightStyle default ksTbHighlightSingleColor;
-
+    property Background: TAlphaColor read FBackground write FBackground default claNull;
   end;
 
   TksTabItemList = class(TObjectList<TksTabItem>)
@@ -154,7 +157,7 @@ type
     function GetSelectedTab: TksTabItem;
     procedure SetTabBarPosition(const Value: TksTabBarPosition);
     procedure SetActiveTab(const Value: TksTabItem);
-    //function GetNextTabName: string;
+    function GetNextTabName: string;
   protected
     procedure DoRealign; override;
     procedure Resize; override;
@@ -176,6 +179,8 @@ type
     property ActiveTab: TksTabItem read GetActiveTab write SetActiveTab;
     property Tabs: TksTabItemList read FTabs;
     property SelectedTab: TksTabItem read GetSelectedTab;
+    procedure FadeToNextTab(const ADelaySeconds: single = 0.5);
+    procedure FadeToTab(ATab: TksTabItem; const ADelaySeconds: single = 0.5);
   published
     property Align;
     property Appearence: TksTabBarAppearence read FAppearence write FAppearence;
@@ -185,6 +190,7 @@ type
     property Width;
     property Size;
     property Height;
+    property Opacity;
     property TabPosition: TksTabBarPosition read FTabPosition write SetTabBarPosition default ksTbpBottom;
     property Visible;
     // events
@@ -227,6 +233,7 @@ begin
   HitTest := False;
   Text := Name;
   FHighlightStyle := ksTbHighlightSingleColor;
+  FBackground := claNull;
 end;
 
 destructor TksTabItem.Destroy;
@@ -246,6 +253,7 @@ begin
   AAppearence := TksTabControl(Parent).Appearence;
   InflateRect(ARect, 0, -3);
   ACanvas.Fill.Color := AAppearence.NormalColor;
+
   if AIndex = TksTabControl(Parent).TabIndex then
     ACanvas.Fill.Color := AAppearence.SelectedColor;
   ACanvas.Font.Size := 11;
@@ -268,8 +276,8 @@ begin
       if (AIndex <> TksTabControl(Parent).TabIndex) then
         ReplaceOpaqueColor(ABmp, AAppearence.NormalColor);
     end;
-    ADestRect := RectF(0, 0, 28, 28);
-    OffsetRect(ADestRect, ARect.Left + ((ARect.Width - 28) / 2), 4);
+    ADestRect := RectF(0, 0, 22, 22);
+    OffsetRect(ADestRect, ARect.Left + ((ARect.Width - ADestRect.Width) / 2), 4);
     ACanvas.DrawBitmap(ABmp, RectF(0, 0, ABmp.Width, ABmp.Height), ADestRect, 1, True);
 
     if FBadgeValue > 0 then
@@ -284,6 +292,16 @@ begin
   finally
     FreeAndNil(ABmp);
   end;
+end;
+
+procedure TksTabItem.FadeIn(ADuration: single);
+begin
+  TAnimator.AnimateFloatWait(Self, 'Opacity', 1, ADuration);
+end;
+
+procedure TksTabItem.FadeOut(ADuration: single);
+begin
+  TAnimator.AnimateFloatWait(Self, 'Opacity', 0, ADuration);
 end;
 
 procedure TksTabItem.SetIconType(const Value: TksTabItemIcon);
@@ -337,6 +355,7 @@ procedure TksTabItem.SetTabIndex(const Value: integer);
 var
   ATabs: TksTabItemList;
   ANewIndex: integer;
+  ICount: integer;
 begin
   if FTabIndex <> Value then
   begin
@@ -344,8 +363,10 @@ begin
     ANewIndex := Value;
     if ANewIndex < 0 then FTabIndex := 0;
     if ANewIndex > ATabs.Count-1 then ANewIndex := ATabs.Count-1;
-    ATabs.Move(FTabIndex, ANewIndex);
-    FTabIndex := ANewIndex;
+    //ATabs.Move(FTabIndex, ANewIndex);
+    ATabs.Exchange(FTabIndex, ANewIndex);
+    for ICount := 0 to ATabs.Count-1 do
+      ATabs[ICount].FTabIndex := ICount;
     UpdateTabs;
   end;
 end;
@@ -371,8 +392,7 @@ function TksTabControl.AddTab: TksTabItem;
 var
   ATab: TksTabItem;
 begin
-  ATab := TksTabItem.Create(Self);
-
+  ATab := TksTabItem.Create(Root.GetObject as TForm);
   AddObject(ATab);
   Result := ATab;
 end;
@@ -412,7 +432,7 @@ begin
     FTabs.Add(ATab);
     if not (csLoading in ComponentState) then
     begin
-      //ATab.Name := GetNextTabName;
+      ATab.Name := GetNextTabName;
       ATab.Text := ATab.Name;
     end;
     UpdateTabs;
@@ -456,19 +476,23 @@ function TksTabControl.GetItemsCount: Integer;
 begin
   Result := FTabs.Count;
 end;
-                             {
+
 function TksTabControl.GetNextTabName: string;
 var
   AIndex: integer;
-  AOwner: TForm;
+  AForm: TForm;
 begin
-  AOwner := (Root.GetObject as TForm);
-  AIndex := 1;
-  repeat
-    Result := 'ksTabItem'+IntToStr(AIndex);
+  AForm := (Root.GetObject as TForm);
+  AIndex := 0;
+  while AForm.FindComponent('ksTabItem'+IntToStr(AIndex)) <> nil do
     Inc(AIndex);
-  until AOwner.FindComponent(Result) = nil;
-end;                          }
+
+  Result := 'ksTabItem'+IntToStr(AIndex);
+  {repeat
+    Inc(AIndex);
+    Result := 'ksTabItem'+IntToStr(AIndex);
+  until AOwner.FindComponent(Result) = nil;   }
+end;
 
 function TksTabControl.GetObject: TFmxObject;
 begin
@@ -542,11 +566,29 @@ begin
 end;
 
 procedure TksTabControl.Paint;
+var
+  ARect: TRectF;
 begin
+  inherited;
+  Canvas.Fill.Color := FAppearence.BackgroundColor;
+  if (SelectedTab <> nil) then
+  begin
+    if SelectedTab.Background <> claNull then
+      Canvas.Fill.Color := SelectedTab.Background;
+  end;
+  Canvas.Fill.Kind := TBrushKind.Solid;
+  ARect := ClipRect;
+  if TabPosition <> TksTabBarPosition.ksTbpNone then
+    ARect.Bottom := ARect.Bottom - FTabBar.Height;
+
+  Canvas.FillRect(ARect, 0, 0, AllCorners, 1);
   if (csDesigning in ComponentState) then
   begin
     DrawDesignBorder(claDimgray, claDimgray);
     Canvas.Fill.Color := claDimgray;;
+
+
+
     {$IFDEF MSWINDOWS}
     if GetTabCount = 0 then
     begin
@@ -555,6 +597,7 @@ begin
     end;
   {$ENDIF}
   end;
+
 end;
 
 procedure TksTabControl.PrevTab;
@@ -575,6 +618,24 @@ begin
   begin
     TabIndex := Tabs.IndexOf(Value);
   end;
+end;
+
+procedure TksTabControl.FadeToNextTab(const ADelaySeconds: single = 0.5);
+begin
+  if TabIndex < FTabs.Count-1 then
+    FadeToTab(Tabs[TabIndex+1], ADelaySeconds);
+end;
+
+procedure TksTabControl.FadeToTab(ATab: TksTabItem; const ADelaySeconds: single = 0.5);
+var
+  APrevTab: TksTabItem;
+begin
+  APrevTab := ActiveTab;
+  ActiveTab.FadeOut(ADelaySeconds/2);
+  ATab.Opacity := 0;
+  ActiveTab := ATab;
+  ATab.FadeIn(ADelaySeconds/2);
+  APrevTab.Opacity := 1;
 end;
 
 procedure TksTabControl.SetTabBarPosition(const Value: TksTabBarPosition);
@@ -628,7 +689,7 @@ begin
     ATab.Visible := (ICount = FTabIndex);
     ATab.Realign;
   end;
-  Repaint;
+  InvalidateRect(ClipRect);
 end;
 
 { TksTabBar }
@@ -684,10 +745,11 @@ begin
         InflateRect(ARect, -1, -1);
       IntersectClipRect(ARect);
 
-      Clear(claNull);
-
       if FTabControl.TabPosition = ksTbpNone then
       Exit;
+
+      Clear(claNull);
+
       Fill.Kind := TBrushKind.Solid;
 
       Canvas.Clear(ATabControl.Appearence.BackgroundColor);

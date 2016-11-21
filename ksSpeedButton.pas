@@ -55,10 +55,12 @@ type
     FIcon: TksSpeedButtonIcon;
     FBitmap: TBitmap;
     FMouseDown: Boolean;
+    FIconColor: TAlphaColor;
     procedure SetBadge(Value: TksBadgeProperties);
     function GetBadge: TksBadgeProperties;
     procedure SetIcon(const Value: TksSpeedButtonIcon);
     procedure Invalidate;
+    procedure SetIconColor(const Value: TAlphaColor);
   protected
     procedure Resize; override;
     procedure Paint; override;
@@ -71,6 +73,7 @@ type
   published
     property Icon: TksSpeedButtonIcon read FIcon write SetIcon;
     property Badge: TksBadgeProperties read GetBadge write SetBadge;
+    property IconColor: TAlphaColor read FIconColor write SetIconColor default claNull;
   end;
 
 
@@ -94,7 +97,7 @@ begin
   FBadge := TksControlBadge.Create(Self);
   FIcon := Custom;
   FBitmap := TBitmap.Create;
-
+  FIconColor := claNull;
   ///FImage := TImage.Create(Self);
   //FImage.HitTest := False;
   //FImage.Locked := True;
@@ -150,40 +153,35 @@ begin
   ASaveState := Canvas.SaveState;
   try
     canvas.IntersectClipRect(ClipRect);
-    {$IFDEF MSWINDOWS}
-    //Canvas.Clear(claNull);
-    {$ENDIF}
     AImageRect := RectF(0, 0, 24, 24);;
     OffsetRect(AImageRect,
                (Width - AImageRect.Width) / 2,
                (Height - AImageRect.Height) / 2);
 
-    //InflateRect(AImageRect, -8, -8);
 
     ABmp := TBitmap.Create;
     try
       ABmp.Assign(FBitmap);
-      //{$IFDEF IOS}
-      //if IsPressed then
+
       if (FMouseDown) then
       begin
         {$IFDEF IOS}
-        ReplaceOpaqueColor(FBitmap, claLightskyblue);
-        {$ELSE}
-        ReplaceOpaqueColor(FBitmap, $FF333333);
+        ReplaceOpaqueColor(FBitmap, GetColorOrDefault(FIconColor, claLightskyblue));
+        {$ENDIF}
+        {$IFDEF ANDROID}
+        ReplaceOpaqueColor(FBitmap, GetColorOrDefault(FIconColor, claDimgray));
         {$ENDIF}
       end
       else
       begin
         {$IFDEF IOS}
-        ReplaceOpaqueColor(FBitmap, claDodgerblue);
-        {$ELSE}
-        ReplaceOpaqueColor(FBitmap, claBlack);
+        ReplaceOpaqueColor(FBitmap, GetColorOrDefault(FIconColor, claDodgerblue));
+        {$ENDIF}
+        {$IFDEF ANDROID}
+        ReplaceOpaqueColor(FBitmap, GetColorOrDefault(FIconColor, claDimgray));
         {$ENDIF}
       end;
 
-        //ReplaceOpaqueColor(ABmp, claRed);
-     // {$ENDIF}
       Canvas.DrawBitmap(ABmp,
                         RectF(0, 0, ABmp.Width, ABmp.Height),
                         AImageRect,
@@ -209,15 +207,27 @@ begin
     try
       FBitmap.Clear(claNull);
       FBitmap.LoadFromStream(AStream);
-      {$IFDEF IOS}
-      ReplaceOpaqueColor(FBitmap, claDodgerblue);
-      {$ENDIF}
+
+      if (FMouseDown) then
+      begin
+        ReplaceOpaqueColor(FBitmap, GetColorOrDefault(FIconColor, claLightskyblue));
+      end
+      else
+      begin
+        ReplaceOpaqueColor(FBitmap, GetColorOrDefault(FIconColor, claDodgerblue));
+      end;
     finally
       AStream.Free;
     end;
   end;
   FIcon := Value;
   Invalidate;
+end;
+
+procedure TksSpeedButton.SetIconColor(const Value: TAlphaColor);
+begin
+  FIconColor := Value;
+  Repaint;
 end;
 
 procedure TksSpeedButton.SetBadge(Value: TksBadgeProperties);
@@ -230,6 +240,40 @@ begin
   inherited;
   FMouseDown := True;
   Invalidate;
+  //
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   Application.ProcessMessages;
 end;
 

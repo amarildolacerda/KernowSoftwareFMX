@@ -34,7 +34,7 @@ uses System.UITypes, FMX.Controls, FMX.Layouts, FMX.Objects, System.Classes,
 
 const
   C_TRANSITION_DELAY = 0.3;
-  C_TRANSITION_FADE  = 0.5;
+  C_TRANSITION_FADE  = 0.3;
   C_TRANSITION_PART_SCROLL_FACTOR = 0.3;
   C_INTERPOLATION_TYPE = TInterpolationType.Quadratic;
   C_ANIMATION_TYPE  = TAnimationType.InOut;
@@ -132,7 +132,8 @@ procedure PushForm(AFrom, ATo: TForm; ATransition: TksFormTransitionType; const 
 var
   ATran: TksFormTransition;
 begin
-  ATran := TksFormTransition.Create(nil);
+  if AAnimating then
+    Exit;  ATran := TksFormTransition.Create(nil);
   try
     ATran.PushForm(AFrom, ATo, ATransition, ScrollBackgroundForm);
   finally
@@ -144,6 +145,8 @@ procedure PopForm;
 var
   ATran: TksFormTransition;
 begin
+  if AAnimating then
+    Exit;
   ATran := TksFormTransition.Create(nil);
   try
     ATran.PopForm;
@@ -314,6 +317,7 @@ begin
     AImageTo.Position.X := 0;
     AImageTo.Position.Y := 0;
     AFrom.AddObject(AImageTo);
+    Application.ProcessMessages;
     ABmp := TksFormTransition.GenerateFormImage(ATo);
     try
       AImageTo.Bitmap := ABmp;

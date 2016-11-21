@@ -1708,11 +1708,11 @@ object Form24: TForm24
   end
   object ksTabControl1: TksTabControl
     Align = Client
-    TabIndex = 1
+    TabIndex = 0
     Size.Width = 356.000000000000000000
     Size.Height = 400.000000000000000000
     Size.PlatformDefault = False
-    object TabItem1: TksTabItem
+    object ksTabItem0: TksTabItem
       Text = 'List of Items'
       BadgeValue = 0
       Icon.PNG = {
@@ -1725,36 +1725,17 @@ object Form24: TForm24
         4EB58AB03F879D865B6BD58D5BAB92699C71AA5584FD39EC3414A1A1080D4568
         BC45143A1D23CA180FED5625417D15B8380000000049454E44AE426082}
       StandardIcon = FileList
-      object ksTableView1: TksTableView
+      object ksVirtualListView1: TksVirtualListView
         Align = Client
-        BackgroundText.Font.Size = 18.000000000000000000
-        DeleteButton.Enabled = True
         DeleteButton.Text = 'Delete'
-        DeleteButton.ShowText = False
-        DragDropOptions.Opacity = 1.000000000000000000
-        HeaderOptions.Color = claNull
-        HeaderOptions.StickyHeaders.Button.JumpToHeaderOptions.HeaderHeight = 32.000000000000000000
-        HeaderOptions.StickyHeaders.Button.JumpToHeaderOptions.ItemHeight = 32.000000000000000000
-        ItemHeight = 80
-        PullToRefresh.Font.Size = 16.000000000000000000
-        PullToRefresh.PullText = 'pull to refresh'
-        PullToRefresh.ReleaseText = 'release to refresh'
-        SelectionOptions.SelectionOverlay.Size = 0
+        PullToRefresh.PullText = 'Pull to refresh...'
+        PullToRefresh.ReleaseText = 'Release to refresh'
         Size.Width = 356.000000000000000000
         Size.Height = 350.000000000000000000
         Size.PlatformDefault = False
-        TabOrder = 0
-        TextDefaults.Title.Font.Size = 13.000000000000000000
-        TextDefaults.Title.TextColor = claBlack
-        TextDefaults.SubTitle.Font.Size = 13.000000000000000000
-        TextDefaults.SubTitle.TextColor = claDimgray
-        TextDefaults.Detail.Font.Size = 13.000000000000000000
-        TextDefaults.Detail.TextColor = claDodgerblue
-        TextDefaults.Header.Font.Size = 13.000000000000000000
-        TextDefaults.Header.TextColor = claBlack
       end
     end
-    object TabItem2: TksTabItem
+    object ksTabItem1: TksTabItem
       Text = 'Settings'
       BadgeValue = 0
       Icon.PNG = {

@@ -4,18 +4,19 @@ interface
 
 uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
-  FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.StdCtrls, FMX.Controls.Presentation, ksTableView,
-  FMX.Objects, ksTypes, ksTabControl, ksSegmentButtons, FMX.Layouts;
+  FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.StdCtrls, FMX.Controls.Presentation,
+  FMX.Objects, ksTypes, ksTabControl, ksSegmentButtons, FMX.Layouts,
+  ksVirtualListView;
 
 type
   TForm24 = class(TForm)
     ToolBar1: TToolBar;
     Label1: TLabel;
-    ksTabControl1: TksTabControl;
-    TabItem1: TksTabItem;
-    TabItem2: TksTabItem;
-    ksTableView1: TksTableView;
     Image1: TImage;
+    ksTabControl1: TksTabControl;
+    ksTabItem0: TksTabItem;
+    ksVirtualListView1: TksVirtualListView;
+    ksTabItem1: TksTabItem;
     Layout1: TLayout;
     ksSegmentButtons1: TksSegmentButtons;
     ksSegmentButtons2: TksSegmentButtons;
@@ -60,20 +61,25 @@ end;
 procedure TForm24.FormCreate(Sender: TObject);
 var
   ICount: integer;
-  AItem: tkstableviewitem;
+  AItem: TksVListItem;
 begin
   Image1.Visible := False;
-  ksTableView1.BeginUpdate;
+  ksVirtualListView1.BeginUpdate;
   try
 
     for ICount := 1 to 50 do
     begin
-      AItem := ksTableView1.Items.AddItem('Item: '+IntToStr(ICount), 'some subtitle text', 'some detail', atMore );
+      AItem := ksVirtualListView1.Items.Add;
+      AItem.Title.Text := 'Item: '+IntToStr(ICount);
+      AItem.SubTitle.Text := 'some subtitle text';
+      AItem.Detail.Text := 'some detail';
+
+      //('Item: '+IntToStr(ICount), 'some subtitle text', 'some detail', atMore );
       AItem.Image.Bitmap := Image1.Bitmap;
-      AItem.Image.BadgeValue := ICount;
+      //AItem.Image.BadgeValue := ICount;
     end;
   finally
-    ksTableView1.EndUpdate;
+    ksVirtualListView1.EndUpdate;
   end;
 end;
 

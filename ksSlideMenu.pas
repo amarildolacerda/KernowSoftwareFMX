@@ -33,7 +33,7 @@ interface
 
 uses System.UITypes, FMX.Controls, FMX.Layouts, FMX.Objects, System.Classes,
   FMX.Types, Generics.Collections, FMX.Graphics, System.UIConsts, FMX.Effects,
-  FMX.StdCtrls, System.Types, FMX.Forms, ksTableView, ksTypes
+  FMX.StdCtrls, System.Types, FMX.Forms, {ksTableView,} ksVirtualListView, ksTypes
   {$IFDEF XE8_OR_NEWER}
   ,FMX.ImgList
   {$ENDIF}
@@ -51,7 +51,7 @@ const
   C_DEFAULT_MENU_ITEM_HEIGHT = 50;
   C_DEFAULT_MENU_FONT_SIZE = 14;
   C_DEFAULT_MENU_TOOLBAR_FONT_SIZE = 14;
-  C_DEFAULT_MENU_SLIDE_SPEED = 0.2;
+  C_DEFAULT_MENU_SLIDE_SPEED = 0.15;
 
   C_DEFAULT_MENU_SELECTED_COLOR = claWhite;
   C_DEFAULT_MENU_SELECTED_FONT_COLOR = claWhite;
@@ -98,6 +98,7 @@ type
   TksSlideMenuAppearence = class(TPersistent)
   private
     [weak]FSlideMenu: TksSlideMenu;
+    FBackgroundColor: TAlphaColor;
     FHeaderColor: TAlphaColor;
     FHeaderFontColor: TAlphaColor;
     FItemColor: TAlphaColor;
@@ -116,10 +117,12 @@ type
     procedure SetTheme(const Value: TKsMenuTheme);
     procedure SetToolBarColor(const Value: TAlphaColor);
     procedure SetAccessoryColor(const Value: TAlphaColor);
+    procedure SetBackgroundColor(const Value: TAlphaColor);
   public
     constructor Create(ASlideMenu: TksSlideMenu); virtual;
   published
     property AccessoryColor: TAlphaColor read FAccessoryColor write SetAccessoryColor default claWhite;
+    property BackgroundColor: TAlphaColor read FBackgroundColor write SetBackgroundColor default $FF222222;
     property HeaderColor: TAlphaColor read FHeaderColor write SetHeaderColor default C_DEFAULT_MENU_HEADER_COLOR;
     property HeaderFontColor: TAlphaColor read FHeaderFontColor write SetHeaderFontColor default C_DEFAULT_MENU_HEADER_TEXT_COLOR;
     property ItemColor: TAlphaColor read FItemColor write SetItemColor default $FF222222;
@@ -164,14 +167,14 @@ type
   private
     [weak]FSlideMenu: TksSlideMenu;
     FToolBar: TksSlideMenuToolbar;
-    FListView: TksTableView;
+    FListView: TksVirtualListView;
     procedure CreateListView;
-    function CalculateListViewHeight: single;
-    procedure ItemClick(Sender: TObject; x, y: single; AItem: TksTableViewItem; AId: string; ARowObj: TksTableViewItemObject);
+    //function CalculateListViewHeight: single;
+    procedure ItemClick(Sender: TObject; AItem: TksVListItem);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    property ListView: TksTableView read FListView;
+    property ListView: TksVirtualListView read FListView;
   end;
 
   [ComponentPlatformsAttribute(pidWin32 or pidWin64 or
@@ -212,6 +215,10 @@ type
     FItemTextAlign: TTextAlign;
     FSelectFirstItem: Boolean;
 
+    FBeforeShow: TNotifyEvent;
+    FAfterShow: TNotifyEvent;
+    FBeforeHide: TNotifyEvent;
+    FAfterHide: TNotifyEvent;
     procedure SetTopPadding(const Value: integer);
     procedure DoBackgroundClick(Sender: TObject);
     //procedure FadeBackground;
@@ -224,19 +231,21 @@ type
     procedure HidePickers;
     procedure SetToggleButton(const Value: TCustomButton);
     procedure DoToggleButtonClick(Sender: TObject);
-    
+
+
   private
     FMenuIndex: integer;
-    procedure MenuItemSelected(Sender: TObject; x, y: single; AItem: TksTableViewItem; AId: string; ARowObj: TksTableViewItemObject);
+    procedure MenuItemSelected(Sender: TObject; AItem: TksVListItem);
     //procedure SetItemIndex(const Value: integer);
     procedure SwitchMenuToImage;
     procedure SwitchImageToMenu;
     function GetToolbar: TksSlideMenuToolbar;
-    function GetToolbarHeight: integer;
+    //function GetToolbarHeight: integer;
     procedure SetToolbar(const Value: TksSlideMenuToolbar);
     procedure SetMenuIndex(const Value: integer);
     function GetMenuItemCount: integer;
     function GetColorOrDefault(AColor, ADefaultIfNull: TAlphaColor): TAlphaColor;
+    procedure UpdateSelectedItem;
   protected
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
   public
@@ -274,6 +283,12 @@ type
     property HeaderTextAlign: TTextAlign read FHeaderTextAlign write FHeaderTextAlign default TTextAlign.Leading;
     property ItemTextAlign: TTextAlign read FItemTextAlign write FItemTextAlign default TTextAlign.Leading;
     property SelectFirstItem: Boolean read FSelectFirstItem write FSelectFirstItem default True;
+
+    property BeforeShow: TNotifyEvent read FBeforeShow write FBeforeShow;
+    property AfterShow: TNotifyEvent read FAfterShow write FAfterShow;
+    property BeforeHide: TNotifyEvent read FBeforeHide write FBeforeHide;
+    property AfterHide: TNotifyEvent read FAfterHide write FAfterHide;
+
   end;
 
   {$R *.dcr}
@@ -565,12 +580,12 @@ end;
 {$IFNDEF ANDROID}
 
 procedure TksSlideMenu.GenerateShadows;
-var
+{var
   AScale: single;
   ABmp: TBitmap;
-  AHeight : Single;
+  AHeight : Single;}
 begin
-  if (Owner is TForm) then
+{  if (Owner is TForm) then
     AHeight := (Owner as TForm).Height
   else if (Owner is TFrame) then
     AHeight := (Owner as TFrame).Height
@@ -617,7 +632,7 @@ begin
     FShadowRight.Bitmap.Assign(ABmp);
   finally
     FreeAndNil(ABmp);
-  end;
+  end; }
 end;
 
 {$ENDIF}
@@ -625,13 +640,13 @@ end;
 function TksSlideMenu.GetMenuItemCount: integer;
 var
   ICount: integer;
-  lv: TksTableView;
+  lv: TksVirtualListView;
 begin
   Result := 0;
   lv := FMenu.FListView;
   for ICount := 0 to lv.Items.Count-1 do
   begin
-    if lv.Items[ICount].Purpose = TksTableViewItemPurpose.None then
+    if lv.Items[ICount].Purpose = TksVListItemPurpose.None then
       Result := Result + 1;
   end;
 end;
@@ -640,13 +655,13 @@ function TksSlideMenu.GetToolbar: TksSlideMenuToolbar;
 begin
   Result := FMenu.FToolBar;
 end;
-
+              {
 function TksSlideMenu.GetToolbarHeight: integer;
 begin
   Result := 0;
   if Toolbar.Visible then
     Result := C_DEFAULT_MENU_TOOLBAR_HEIGHT;
-end;
+end;     }
 
 procedure TksSlideMenu.HidePickers;
 var
@@ -656,14 +671,17 @@ begin
   if TPlatformServices.Current.SupportsPlatformService(IFMXPickerService, PickerService) then
     PickerService.CloseAllPickers;
 end;
-procedure TksSlideMenu.MenuItemSelected(Sender: TObject; x, y: single; AItem: TksTableViewItem; AId: string; ARowObj: TksTableViewItemObject);
+procedure TksSlideMenu.MenuItemSelected(Sender: TObject; AItem: TksVListItem);
 begin
   if Assigned(FOnSelectMenuItemEvent) then
-    FOnSelectMenuItemEvent(Self, AId);
+    FOnSelectMenuItemEvent(Self, AItem.TagStr);
+
+  UpdateSelectedItem;
+
   GenerateFormImage(FFormImage.Position.X);
   ToggleMenu;
   if Assigned(FAfterSelectMenuItemEvent) then
-    FAfterSelectMenuItemEvent(Self, AId);
+    FAfterSelectMenuItemEvent(Self, AItem.TagStr);
 end;
 
 
@@ -687,8 +705,8 @@ procedure TksSlideMenu.UpdateMenu;
 var
   ICount: integer;
   AItem: TksSlideMenuItem;
-  ARow: TksTableViewItem;
-  lv: TksTableView;
+  ARow: TksVListItem;
+  lv: TksVirtualListView;
   ASelectedColor: TAlphaColor;
   AFontColor, AHeaderFontColor: TAlphaColor;
 begin
@@ -710,15 +728,16 @@ begin
   AHeaderFontColor := GetColorOrDefault(FAppearence.HeaderFontColor, C_DEFAULT_MENU_HEADER_TEXT_COLOR);
   ASelectedColor := GetColorOrDefault(FAppearence.SelectedItemColor, C_DEFAULT_MENU_SELECTED_COLOR);
 
-  lv.Appearence.Background.Color := GetColorOrDefault(FAppearence.ItemColor, C_DEFAULT_MENU_BACKGROUND_COLOR);
-  lv.Appearence.ItemBackground.Color := GetColorOrDefault(FAppearence.ItemColor, C_DEFAULT_MENU_BACKGROUND_COLOR);
+  lv.Appearence.Background := GetColorOrDefault(FAppearence.BackgroundColor, C_DEFAULT_MENU_BACKGROUND_COLOR);
+  lv.Appearence.ItemBackground := GetColorOrDefault(FAppearence.ItemColor, C_DEFAULT_MENU_BACKGROUND_COLOR);
   lv.Appearence.HeaderColor := GetColorOrDefault(FAppearence.HeaderColor, C_DEFAULT_MENU_HEADER_COLOR);
   lv.Appearence.SeparatorColor := GetColorOrDefault(FAppearence.HeaderColor, C_DEFAULT_MENU_HEADER_COLOR);
   lv.Appearence.SelectedColor := ASelectedColor;
+  lv.Appearence.SelectedFontColor := FAppearence.SelectedFontColor;
+  ///lv.ItemImageSize := 24;
 
-  lv.HeaderOptions.Height := FHeaderHeight;
+  lv.HeaderHeight := FHeaderHeight;
   lv.ItemHeight := FItemHeight;
-  lv.ItemImageSize := 24;
   lv.BeginUpdate;
   try
     lv.Items.Clear;
@@ -750,19 +769,21 @@ begin
       begin
         ARow := lv.Items.AddHeader(AItem.Text);
         ARow.Title.Font.Assign(FHeaderFont);
-        ARow.Title.TextColor := AHeaderFontColor;
-        ARow.Title.TextAlignment:= FHeaderTextAlign;
+        ARow.Title.TextSettings.FontColor := AHeaderFontColor;
+        ARow.Title.TextSettings.HorzAlign := FHeaderTextAlign;
       end
       else
       begin
-        ARow := lv.Items.AddItem(AItem.Text, '', '', atMore);
-        ARow.Image.Bitmap := AItem.Image;
-        ARow.ID := AItem.ID;
-        ARow.Accessory.OwnsBitmap := True;
-        ARow.Accessory.Color := FAppearence.AccessoryColor;
+        ARow := lv.Items.Add(AItem.Text, '', '', atMore);
+
+        if AItem.Image.IsEmpty = False then
+          ARow.Image.Bitmap := AItem.Image;
+        ARow.TagStr := AItem.ID;
+        //ARow.Accessory.OwnsBitmap := True;
+        //ARow.Accessory.Color := FAppearence.AccessoryColor;
         ARow.Title.Font.Assign(FFont);
-        ARow.Title.TextColor := AFontColor;
-        ARow.Title.TextAlignment:= FItemTextAlign;
+        ARow.Title.TextSettings.FontColor := AFontColor;
+        ARow.Title.TextSettings.HorzAlign:= FItemTextAlign;
       end;
     end;
   finally
@@ -774,30 +795,65 @@ begin
 
   if (lv.ItemIndex = -1) and (FSelectFirstItem) then
   begin
-    for ICount := 0 to lv.Items.Count-1 do
+    lv.ItemIndex := 0;
+    {for ICount := 0 to lv.Items.Count-1 do
     begin
-      if lv.Items[ICount].Purpose = TksTableViewItemPurpose.None then
+      if lv.Items[ICount].Purpose = TksVListItemPurpose.None then
       begin
         lv.ItemIndex := ICount;
+        UpdateSelectedItem;
         Break;
       end;
-    end;
+    end; }
   end;
 end;
 
 
 
+procedure TksSlideMenu.UpdateSelectedItem;
+var
+  ICount: integer;
+  AItem: TksVListItem;
+begin
+  FMenu.ListView.BeginUpdate;
+  try
+    for ICount := 0 to FMenu.FListView.Items.Count-1 do
+    begin
+      AItem := FMenu.FListView.Items[ICount];
+      if AItem.Index = FMenu.ListView.ItemIndex then
+
+      //if i.ID = AId then
+      begin
+        //AItem.Title.TextSettings.FontColor := FAppearence.SelectedFontColor;
+        //AItem.Accessory.Color := claBlue;
+        //AItem.Background := FAppearence.SelectedItemColor;
+      end
+      else
+      begin
+        //AItem.Title.TextSettings.FontColor := FAppearence.FontColor;
+        //AItem.Accessory.Color := claRed;
+        //AItem.Background := FAppearence.ItemColor;
+      end;
+      AItem.ClearCache;
+      AItem.CacheItem;
+    end;
+  finally
+    FMenu.ListView.EndUpdate;
+  end;
+  Application.ProcessMessages;
+end;
+
 procedure TksSlideMenu.SetMenuIndex(const Value: integer);
 var
   ICount: integer;
   AIndex: integer;
-  lv: TksTableView;
+  lv: TksVirtualListView;
 begin
   AIndex := -1;
   lv := FMenu.FListView;
   for ICount := 0 to lv.Items.Count-1 do
   begin
-    if lv.Items[ICount].Purpose = TksTableViewItemPurpose.None then
+    if lv.Items[ICount].Purpose = TksVListItemPurpose.None then
     begin
       Inc(AIndex);
       if AIndex = Value then
@@ -862,7 +918,7 @@ begin
 
     ABmp.Canvas.BeginScene;
 
-    ABottom := (GetToolbarHeight + FMenu.CalculateListViewHeight)*GetScreenScale;
+    ABottom := ABmp.Height;// Height; //(GetToolbarHeight + FMenu.CalculateListViewHeight)*GetScreenScale;
 
     ABmp.Canvas.Fill.Color := FAppearence.ItemColor;
     ABmp.Canvas.FillRect(RectF(0, ABottom, C_DEFAULT_MENU_WIDTH*GetScreenScale, ABmp.Height), 0, 0, AllCorners, 1, ABmp.Canvas.Fill);
@@ -893,17 +949,29 @@ var
 begin
   if FAnimating then
     Exit;
+
+  UpdateSelectedItem;
+
   if FShowing = False then
   begin
+    if Assigned(FBeforeShow) then
+      FBeforeShow(Self);
+
     if Assigned(FOnBeforeSlideOut) then
       FOnBeforeSlideOut(Self);
+  end
+  else
+  begin
+    if Assigned(FBeforeHide) then
+      FBeforeHide(Self);
   end;
+
 
   FAnimating := True;
   try
     if (FShowing = False) then
     begin
-
+      //GenerateShadows;
       FMenu.FToolBar.UpdateToolbar;
      //FMenu.UpdateSelectedItem;
     end;
@@ -968,7 +1036,7 @@ begin
     //
     SlideMenuAnimating := True;
     TAnimator.AnimateFloatWait(FFormImage, 'Position.X', ANewXPos, FSlideSpeed);
-
+    Application.ProcessMessages;
     SlideMenuAnimating := False;
     FFormImage.HitTest := True;
 
@@ -993,6 +1061,14 @@ begin
   begin
     if Assigned(FOnAfterSlideOut) then
       FOnAfterSlideOut(Self);
+
+    if Assigned(FAfterHide) then
+      FAfterHide(Self);
+  end
+  else
+  begin
+    if Assigned(FAfterShow) then
+      FAfterShow(Self);
   end;
 end;
 
@@ -1057,6 +1133,7 @@ begin
   FSlideMenu := ASlideMenu;
   FHeaderColor := $FF323232;
   FItemColor := $FF222222;
+  FBackgroundColor := $FF222222;;
   FToolBarColor := $FF323232;
   FFontColor := claWhite;
   FSelectedFontColor := claWhite;
@@ -1068,6 +1145,11 @@ end;
 procedure TksSlideMenuAppearence.SetAccessoryColor(const Value: TAlphaColor);
 begin
   FAccessoryColor := Value;
+end;
+
+procedure TksSlideMenuAppearence.SetBackgroundColor(const Value: TAlphaColor);
+begin
+  FBackgroundColor := Value;
 end;
 
 procedure TksSlideMenuAppearence.SetFontColor(const Value: TAlphaColor);
@@ -1201,7 +1283,7 @@ begin
 end;
 
 { TksSlideMenuContainer }
-
+   {
 function TksSlideMenuContainer.CalculateListViewHeight: single;
 var
   ICount: integer;
@@ -1211,7 +1293,7 @@ begin
   begin
     Result := Result + FListView.Items[ICount].Height;
   end;
-end;
+end;  }
 
 constructor TksSlideMenuContainer.Create(AOwner: TComponent);
 begin
@@ -1227,14 +1309,17 @@ procedure TksSlideMenuContainer.CreateListView;
 begin
   if FListView <> nil then
     Exit;
-  FListView := TksTableView.Create(Self);
+  FListView := TksVirtualListView.Create(Self);
+
+
+  //FListView.Appearence.Background := claRed;
+
   FListView.SelectionOptions.KeepSelection := True;
   FListView.DeleteButton.Enabled := False;
   FListView.PullToRefresh.Enabled := False;
-  //FListView.ShowSelection := False;
   FListView.OnItemClick := ItemClick;
   FListView.Align := TAlignLayout.Client;
-  FListView.FullWidthSeparator := True;
+  //FListView.FullWidthSeparator := True;
   FListView.DeleteButton.Enabled := False;
   AddObject(FListView);
 end;
@@ -1251,15 +1336,15 @@ begin
   inherited;
 end;
 
-procedure TksSlideMenuContainer.ItemClick(Sender: TObject; x, y: single; AItem: TksTableViewItem; AId: string; ARowObj: TksTableViewItemObject);
+procedure TksSlideMenuContainer.ItemClick(Sender: TObject; AItem: TksVListItem);
 begin
   if HitTest = False then
     Exit;
   HitTest := False;
   //UpdateSelectedItem;
-  Sleep(200);
+  //Sleep(200);
 
-  FSlideMenu.MenuItemSelected(Self, x, y, AItem, AId, ARowObj);
+  FSlideMenu.MenuItemSelected(Self, AItem);
 end;
 
 { TksSlideMenuToolbar }
@@ -1324,6 +1409,8 @@ procedure TksSlideMenuToolbar.UpdateToolbar;
 var
   ABmp: TBitmap;
   AXPos: integer;
+  AImageRect: TRectF;
+  ARatio: single;
 begin
   if not Visible then
   begin
@@ -1339,12 +1426,21 @@ begin
 
     if FBitmap.IsEmpty = False then
     begin
-      ABmp.Canvas.DrawBitmap(FBitmap, RectF(0, 0, FBitmap.Width, FBitmap.Height), RectF(10, 10, 40, 40), 1);
+      AImageRect := RectF(0, 0, FBitmap.Width, FBitmap.Height);
+      ARatio := (C_DEFAULT_MENU_TOOLBAR_HEIGHT / AImageRect.Height);
+      AImageRect.Width := (AImageRect.Width * ARatio) * 0.5;
+      AImageRect.Height := (AImageRect.Height * ARatio) * 0.5;
+
+      OffsetRect(AImageRect,
+                 12,//(C_DEFAULT_MENU_WIDTH -  AImageRect.Width) / 2,
+                 (C_DEFAULT_MENU_TOOLBAR_HEIGHT -  AImageRect.Height) / 2);
+      ABmp.Canvas.DrawBitmap(FBitmap, RectF(0, 0, FBitmap.Width, FBitmap.Height), AImageRect, 1); //RectF(10, 10, 40, 40), 1);
       AXPos := 50;
     end;
     ABmp.Canvas.Fill.Color := FSlideMenu.Appearence.FFontColor;
 
     ABmp.Canvas.Font.Assign(FFont);
+    ABmp.Canvas.Fill.Color := FSlideMenu.Appearence.HeaderFontColor;
     ABmp.Canvas.FillText(RectF(AXPos, 0, C_DEFAULT_MENU_WIDTH, C_DEFAULT_MENU_TOOLBAR_HEIGHT), FText, False, 1, [], TTextAlign.Leading);
     ABmp.Canvas.EndScene;
 

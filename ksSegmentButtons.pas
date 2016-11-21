@@ -244,7 +244,10 @@ end;
 procedure TksSegmentButtons.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Single);
 begin
   inherited;
-  ItemIndex := Trunc(X / FBtnWidth);
+  ItemIndex := Min(Trunc(X / FBtnWidth), Segments.Count-1);
+  {$IFDEF MSWINDOWS}
+  Tap(PointF(x, y));
+  {$ENDIF}
 end;
 
 procedure TksSegmentButtons.Paint;
@@ -258,11 +261,11 @@ begin
   end;
   if FSegments.Count > 0 then
   begin
-    if Height <> (FSegments[0].FButton.Height + 16) then
+    {if Height <> (FSegments[0].FButton.Height + 16) then
     begin
       Height := FSegments[0].FButton.Height + 16;
       UpdateExplicitBounds;
-    end;
+    end;}
   end;
 end;
 
