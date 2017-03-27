@@ -1268,15 +1268,15 @@ begin
     ACanvas.RestoreState(AState);
   end;
 
-  ACanvas.StrokeThickness := 1 / GetScreenScale;
+  ACanvas.Stroke.Thickness := 1 / GetScreenScale;
   ACanvas.Stroke.Color := FOwner.FOwner.Appearence.SeparatorColor;
   if ACanvas.Stroke.Color = claNull then
     ACanvas.Stroke.Color := claDarkgray;
 
   if (FIndex = 0) {and (FPurpose = None) and (AScrollPos < 0)} then
-    ACanvas.DrawLine(PointF(0, ARect.Top+(ACanvas.StrokeThickness/2)), PointF(ARect.Width, ARect.Top+(ACanvas.StrokeThickness/2)), 1);
+    ACanvas.DrawLine(PointF(0, ARect.Top+(ACanvas.Stroke.Thickness/2)), PointF(ARect.Width, ARect.Top+(ACanvas.Stroke.Thickness/2)), 1);
 
-  ACanvas.DrawLine(PointF(0, ARect.Bottom-(ACanvas.StrokeThickness/2)), PointF(ARect.Width, ARect.Bottom-(ACanvas.StrokeThickness/2)), 1);
+  ACanvas.DrawLine(PointF(0, ARect.Bottom-(ACanvas.Stroke.Thickness/2)), PointF(ARect.Width, ARect.Bottom-(ACanvas.Stroke.Thickness/2)), 1);
 end;
 
 {

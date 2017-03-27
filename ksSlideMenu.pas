@@ -486,7 +486,7 @@ begin
     ABmp.Canvas.EndScene;
     ABmp.Canvas.BeginScene;
     ABmp.Canvas.Stroke.Color := claBlack;
-    ABmp.Canvas.StrokeThickness := 1;
+    ABmp.Canvas.Stroke.Thickness := 1;
     ABmp.Canvas.DrawLine(PointF(0, 0), PointF(0, ABmp.Height), 1);
     {ABmp.Canvas.Fill.Color := claFuchsia;
     ABmp.Canvas.FillEllipse(RectF(0, 0, 100, 100), 1);}

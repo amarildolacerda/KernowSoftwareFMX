@@ -943,7 +943,7 @@ type
   // TksTableViewItems
 
   TksTableViewItems = class(TObjectList<TksTableViewItem>)
-  private
+  protected
     FCachedCount: integer;
     {$IFNDEF VER310}
     [weak]FTableView: TksTableView;
@@ -3757,13 +3757,13 @@ begin
   begin
     // seperator...
     ACanvas.Stroke.Color := FTableView.Appearence.SeparatorColor;
-    ACanvas.StrokeThickness := 1;
+    ACanvas.Stroke.Thickness := 1;
     ACanvas.Stroke.Kind := TBrushKind.Solid;
     ACanvas.Stroke.Dash := TStrokeDash.Solid;
     if FPurpose = Header then
     begin
       ACanvas.Stroke.Color := $FFD2D2D2;
-      ACanvas.StrokeThickness := 0.5;
+      ACanvas.Stroke.Thickness := 0.5;
     end;
     ASeperatorMargin := 0;
     if (FTableView.FullWidthSeparator = False) and (FPurpose = TksTableViewItemPurpose.None) then
@@ -6415,7 +6415,7 @@ begin
       end;
       ABmp.Canvas.Fill.Assign(FFill);
       ABmp.Canvas.Stroke.Assign(FStroke);
-      ABmp.Canvas.StrokeThickness := 1;
+      ABmp.Canvas.Stroke.Thickness := 1;
       FFill.Color := FFill.Color;
       if FShape in [ksRectangle, ksRoundRect, ksSquare] then
       begin
@@ -7052,8 +7052,8 @@ begin
       ACanvas.FillRect(RectF(ARect.Left+AXShift, ARect.Top+AYShift, ARect.Right, ARect.Bottom), 0, 0, AllCorners, 1);
 
       ACanvas.Stroke.Color :=  GetColorOrDefault(FStroke.Color, claDimgray);
-      ACanvas.StrokeCap := TStrokeCap.Flat;
-      ACanvas.StrokeJoin := TStrokeJoin.Miter;
+      ACanvas.Stroke.Cap := TStrokeCap.Flat;
+      ACanvas.Stroke.Join := TStrokeJoin.Miter;
       DrawRect(RectF(ARect.Left+AXShift, ARect.Top+AYShift, ARect.Right, ARect.Bottom), 0, 0, AllCorners, 1);
 
       ACanvas.Stroke.Color := ACanvas.Fill.Color;
